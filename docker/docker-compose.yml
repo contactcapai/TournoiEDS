@@ -1,0 +1,94 @@
+# docker-compose.yml — Stack PROD complete (Tournoi TFT EDS)
+# Usage : depuis le dossier docker/, `docker compose up -d`
+# Les valeurs secretes sont lues depuis docker/.env (substitution ${VAR})
+# Le backend lit ses propres vars applicatives depuis backend/.env.prod (env_file)
+
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: tournoi-tft-traefik
+    restart: unless-stopped
+    command:
+      # Providers
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=tournoi-net
+      # Entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      # Redirection globale HTTP -> HTTPS
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Resolver Let's Encrypt (HTTP-01, CA server bascule staging<->prod via env)
+      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.caServer=${LETSENCRYPT_CA_SERVER}
+      # Logs / accesslog minimalistes (pas de dashboard, pas d'API exposee)
+      - --log.level=INFO
+      - --accesslog=false
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/acme
+    networks:
+      - tournoi-net
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: tournoi-tft-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - tournoi-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tournoi-net
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: tournoi-tft-backend
+    restart: unless-stopped
+    env_file:
+      - ../backend/.env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      - "traefik.http.routers.tournoi-tft-api.rule=Host(`api-tournoi.esportdessacres.fr`)"
+      - "traefik.http.routers.tournoi-tft-api.entrypoints=websecure"
+      - "traefik.http.routers.tournoi-tft-api.tls=true"
+      - "traefik.http.routers.tournoi-tft-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tournoi-tft-api.loadbalancer.server.port=3001"
+    networks:
+      - tournoi-net
+
+networks:
+  tournoi-net:
+    driver: bridge
+
+volumes:
+  tournoi-pg-data:
+  traefik-acme:

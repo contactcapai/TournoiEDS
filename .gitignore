@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.prod
+backend/.env
+backend/.env.prod
+docker/.env
+
+# Build outputs
+frontend/dist/
+backend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+backend/prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Outils dev (Claude Code, Antigravity, BMad skills) — inutile/sensible sur remote
+.claude/
+.agent/
+_bmad/

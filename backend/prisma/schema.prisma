@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 : l'URL de connexion est configuree dans prisma.config.ts
+  // via la variable d'environnement DATABASE_URL
+}
+
+model Player {
+  id            Int            @id @default(autoincrement())
+  discordPseudo String         @unique
+  riotPseudo    String
+  email         String
+  status        String         @default("inscrit")
+  createdAt     DateTime       @default(now())
+  lobbyPlayers  LobbyPlayer[]
+}
+
+model Day {
+  id        Int      @id @default(autoincrement())
+  number    Int
+  type      String   @default("qualification")
+  status    String   @default("in-progress")
+  createdAt DateTime @default(now())
+  rounds    Round[]
+
+  @@unique([number, type])
+}
+
+model Round {
+  id        Int      @id @default(autoincrement())
+  number    Int
+  dayId     Int
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  day       Day      @relation(fields: [dayId], references: [id])
+  lobbies   Lobby[]
+
+  @@unique([dayId, number])
+}
+
+model Lobby {
+  id      Int           @id @default(autoincrement())
+  number  Int
+  roundId Int
+  round   Round         @relation(fields: [roundId], references: [id])
+  players LobbyPlayer[]
+
+  @@unique([roundId, number])
+}
+
+model LobbyPlayer {
+  id        Int    @id @default(autoincrement())
+  lobbyId   Int
+  playerId  Int
+  placement Int?
+  points    Int?
+  lobby     Lobby  @relation(fields: [lobbyId], references: [id])
+  player    Player @relation(fields: [playerId], references: [id])
+
+  @@unique([lobbyId, playerId])
+}
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}

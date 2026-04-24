@@ -1,0 +1,10 @@
+# Forcer LF sur tous les scripts shell (critique pour Docker alpine).
+# Sans ca, un checkout Windows convertit #!/bin/sh en CRLF et le container
+# echoue au boot avec "exec format error".
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+backend/docker-entrypoint.sh text eol=lf
+docker/*.sh text eol=lf
+
+# Texte par defaut : auto (Git normalise)
+* text=auto
