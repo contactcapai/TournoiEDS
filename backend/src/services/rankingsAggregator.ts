@@ -1,4 +1,4 @@
-import type { Prisma } from '../generated/prisma/client';
+import type { Prisma } from '@prisma/client';
 import { calculatePlayerStats } from './pointsCalculator';
 
 // Accepte aussi bien un PrismaClient complet qu'un client de transaction (`tx` issu de `$transaction`).
