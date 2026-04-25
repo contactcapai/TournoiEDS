@@ -1,5 +1,7 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-24T00:00:00
+# last_updated: 2026-04-25T00:00:00
+# update: 2026-04-25 — dev-story 6-2-deploiement-frontend-hostinger (ready-for-dev -> in-progress) : implementation Dockerfile multi-stage + nginx SPA + service frontend compose + smoke-test enrichi + README maj
+# update: 2026-04-25 — create-story 6-2-deploiement-frontend-hostinger (backlog -> ready-for-dev) : story comprehensive 11 ACs / 12 tasks, container nginx derriere Traefik, reuse stack 6.1
 # update: 2026-04-24 — dev-story 6-1-deploiement-backend-docker-traefik (review -> done) : code-review APPROVED, 3 items review traites (item #1 defere a 6.3, items #2 et #3 closes)
 # project: Tournoi TFT EDS
 # project_key: NOKEY
@@ -36,7 +38,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-24T00:00:00
+last_updated: 2026-04-25T00:00:00
 project: Tournoi TFT EDS
 project_key: NOKEY
 tracking_system: file-system
@@ -84,6 +86,6 @@ development_status:
   # Epic 6 : Deploiement & Go-Live
   epic-6: in-progress
   6-1-deploiement-backend-docker-traefik: done
-  6-2-deploiement-frontend-hostinger: backlog
+  6-2-deploiement-frontend-hostinger: in-progress
   6-3-dry-run-validation-go-live: backlog
   epic-6-retrospective: optional

@@ -85,6 +85,33 @@ services:
     networks:
       - tournoi-net
 
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        # Vite injecte VITE_API_URL au build (pas au runtime). Cette valeur
+        # est figee dans le bundle JS produit par "npm run build".
+        VITE_API_URL: https://api-tournoi.esportdessacres.fr
+    container_name: tournoi-tft-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      - "traefik.http.routers.tournoi-tft-web.rule=Host(`tournoi.esportdessacres.fr`)"
+      - "traefik.http.routers.tournoi-tft-web.entrypoints=websecure"
+      - "traefik.http.routers.tournoi-tft-web.tls=true"
+      - "traefik.http.routers.tournoi-tft-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tournoi-tft-web.loadbalancer.server.port=80"
+    networks:
+      - tournoi-net
+
 networks:
   tournoi-net:
     name: tournoi-net

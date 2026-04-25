@@ -6,5 +6,11 @@ docker-entrypoint.sh text eol=lf
 backend/docker-entrypoint.sh text eol=lf
 docker/*.sh text eol=lf
 
+# nginx.conf doit etre en LF — sur Alpine, certaines directives nginx
+# levent des warnings cryptiques avec des line endings CRLF.
+frontend/nginx.conf text eol=lf
+frontend/Dockerfile text eol=lf
+frontend/.dockerignore text eol=lf
+
 # Texte par defaut : auto (Git normalise)
 * text=auto
