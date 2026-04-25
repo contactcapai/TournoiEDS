@@ -1,5 +1,12 @@
 # generated: 2026-04-15
-# last_updated: 2026-04-25T00:00:00
+# last_updated: 2026-04-26T00:10:00
+# update: 2026-04-26 — Task 10 / AC #10 VALIDE 6-3 v1.5 : 9 checks (a-i) OK pendant session test (mini-scenario complet qualif → finale → vainqueur → restart backend) ; deferred-work item OBS Epic 4 (silencieux 4 epics) techniquement clos ; reste captures + sign-off ecrit pour rapport dry-run final
+# update: 2026-04-25 — test session overlay SkyDow OK 6-3 v1.4 : Brice + SkyDow valident informellement les 2 overlays (/overlay qualif aligne /qualifications + /overlay/finale UX-DR7/8) ; checks complets (a-i) reserves au dry-run reel ; pre-validation technique acquise
+# update: 2026-04-25 — feature live alignment 6-3 v1.3 : /overlay qualif refondu pour utiliser RankingTable + QualificationsHero + AnimatedSideDecor (mirroir /qualifications) ; OverlayRankingTable.tsx supprime ; smoke test 8/8 OK ; bundle -0.22 kB (commit 0792bea)
+# update: 2026-04-25 — feature live add 6-3 v1.2 : nouvelle route /overlay/finale (frontend OverlayFinale.tsx) deployee VPS, mirroir Finale.tsx sans chrome, UX-DR7 progression + UX-DR8 vainqueur or, smoke test 8/8 OK post-deploy ; lacune Story 4.1 overlay qualif-only comblee (commit 21ea12b)
+# update: 2026-04-25 — dev-story 6-3-dry-run-validation-go-live (ready-for-dev -> in-progress) : prep agent (dummy-players.txt + runbook jour J + squelette rapport) ; actions BRICE/SKYDOW (smoke test, dry-run live, OBS, backup/restore, reset prod, sign-off) en attente
+# update: 2026-04-25 — create-story 6-3-dry-run-validation-go-live (backlog -> ready-for-dev) : story validation operationnelle 14 ACs / 14 tasks, dry-run + OBS SkyDow + backup restore E2E + reset prod, 3 deferred-work items adresses (OBS Epic 4, Lighthouse /finale Epic 5, backup restore review 6.1)
+# update: 2026-04-25 — code-review 6-2-deploiement-frontend-hostinger (review -> done) : APPROVED (Clean review — all layers passed)
 # update: 2026-04-25 — dev-story 6-2-deploiement-frontend-hostinger (ready-for-dev -> in-progress) : implementation Dockerfile multi-stage + nginx SPA + service frontend compose + smoke-test enrichi + README maj
 # update: 2026-04-25 — create-story 6-2-deploiement-frontend-hostinger (backlog -> ready-for-dev) : story comprehensive 11 ACs / 12 tasks, container nginx derriere Traefik, reuse stack 6.1
 # update: 2026-04-24 — dev-story 6-1-deploiement-backend-docker-traefik (review -> done) : code-review APPROVED, 3 items review traites (item #1 defere a 6.3, items #2 et #3 closes)
@@ -38,7 +45,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-15
-last_updated: 2026-04-25T00:00:00
+last_updated: 2026-04-26T00:10:00
 project: Tournoi TFT EDS
 project_key: NOKEY
 tracking_system: file-system
@@ -86,6 +93,6 @@ development_status:
   # Epic 6 : Deploiement & Go-Live
   epic-6: in-progress
   6-1-deploiement-backend-docker-traefik: done
-  6-2-deploiement-frontend-hostinger: in-progress
-  6-3-dry-run-validation-go-live: backlog
+  6-2-deploiement-frontend-hostinger: done
+  6-3-dry-run-validation-go-live: in-progress
   epic-6-retrospective: optional

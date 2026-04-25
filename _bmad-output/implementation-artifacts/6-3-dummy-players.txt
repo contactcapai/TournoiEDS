@@ -1,0 +1,38 @@
+# Dummy players pour dry-run Story 6.3 (16 entrees)
+# Format : pseudo Discord | pseudo Riot (NomEnJeu#TAG) | email | (commentaire optionnel)
+# Utilisation : Brice ouvre /admin → page Joueurs → "Ajouter un joueur" et copie/colle ligne par ligne.
+# Recommandation : modifier 1-2 pseudos si Brice a deja des amis/freres/sœurs reels qu'il prefere voir dans la liste.
+# Note : Brice + 1-2 amis reels peuvent s'inscrire via le formulaire public mobile (AC #5),
+#        les 14-15 dummies completent jusqu'a 16 total.
+
+# === Joueurs reels (a remplacer par les inscriptions publiques mobiles, AC #5) ===
+1.  BriceEDS              | Brice#EDS01      | bricecharley@gmail.com         (Brice — admin du tournoi)
+2.  AmiBriceA             | AmiA#0001        | ami.brice.a@example.org        (ami #1 reel facultatif)
+
+# === Dummies (creer via /admin "Ajouter un joueur", AC #5) ===
+3.  Pyralis               | Pyralis#FR01     | pyralis@dryrun.local
+4.  Voidweaver            | Voidweaver#FR02  | voidweaver@dryrun.local
+5.  ShimmerScale          | Shimmer#FR03     | shimmer@dryrun.local
+6.  Hexcraft              | Hexcraft#FR04    | hexcraft@dryrun.local
+7.  ReaperKing            | Reaper#FR05      | reaper@dryrun.local
+8.  CelestialFox          | CFox#FR06        | cfox@dryrun.local
+9.  StormBringer          | Storm#FR07       | storm@dryrun.local
+10. AzurDragon            | Azur#FR08        | azur@dryrun.local
+11. NebulaWhisper         | Nebula#FR09      | nebula@dryrun.local
+12. CrimsonBlade          | Crimson#FR10     | crimson@dryrun.local
+13. SilverHowl            | Silver#FR11      | silver@dryrun.local
+14. EmberSoul             | Ember#FR12       | ember@dryrun.local
+15. FrostBloom            | Frost#FR13       | frost@dryrun.local
+16. TwilightVeil          | Twilight#FR14    | twilight@dryrun.local
+
+# === Cibles drops dry-run (instructions Tasks 6 + 7) ===
+# Drop entre J1R2 et J1R3 (Task 6)        : ligne 12 — CrimsonBlade
+# Drop entre J2R1 et J2R2 (Task 7)        : ligne 14 — EmberSoul
+# Pourquoi : verifier que (a) drops disparaissent des lobbies suivants, (b) conservent leurs
+# points et apparaissent grises/barres dans /qualifications (UX-DR6), (c) cumul drops apres
+# 2 journees = 2 droppes (verif AC #9 check 6 : status='dropped' >= 2 dans le restore).
+
+# === Cibles vainqueur potentiel finale (Task 8) ===
+# Pas de cible figee : la victoire emerge des placements. Brice peut viser un scenario clair
+# en concentrant les top 1 sur 1 joueur (ex: ligne 3 Pyralis) sur 3-4 rounds finale pour
+# valider la regle preRoundTotal >= 20 + top 1 (retro Epic 5 v1.4).

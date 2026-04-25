@@ -27,3 +27,11 @@
 ## Deferred from: code review of 6-1-deploiement-backend-docker-traefik (2026-04-24)
 
 - **Test de restauration backup PG en local Docker Desktop** (review item #1, severity Med) — la procédure de restore est documentée dans `README.md` Runbook mais n'a pas été exécutée end-to-end. Acceptable au moment de clôturer 6.1 (DB ne contient que l'admin seedé, peu d'enjeu). À exécuter pendant la **Story 6.3 (dry-run)** avec un dump réel contenant joueurs + scores, pour valider à 100% la chaîne backup→restore avant le tournoi live.
+
+## Adressed during Story 6.3 dry-run prep (2026-04-25)
+
+- ✅ **Validation OBS overlay par SkyDow** (deferred Epic 4, silencieux depuis Story 4.1 / 4 epics) — **CLOS 2026-04-25** : session test live Brice + SkyDow apres deploy Story 6.3 v1.2 (ajout `/overlay/finale`) + v1.3 (alignement `/overlay` qualif sur `/qualifications`). Mini-scenario complet (qualif → finale → vainqueur → restart backend). Les 9 checks AC #10 (a-i) sont passes : pas de chrome, format 16:9, polices lisibles, charte EDS, top 8 distingue, drops barres/grises, animation or vainqueur (UX-DR8), update <2s (NFR2), reconnexion auto Socket.IO apres restart backend (story 4.1 AC #5 + 3.1 AC #4). Sign-off ecrit formel + 2+ captures restent a joindre au rapport final dry-run, mais la **lacune technique est resolue**. Trace : Story 6.3 Change Log v1.2 + v1.3 + v1.4 + v1.5, commits `21ea12b` + `0792bea`.
+
+- ⏳ **Test de restauration backup PG en local Docker Desktop** (review 6.1 item #1) — toujours en cours, sera clos par AC #9 / Task 9 Story 6.3 pendant le dry-run reel avec un dump non-vide.
+
+- ⏳ **Lighthouse mobile `/finale`** (deferred Epic 5 retro) — toujours en cours, sera clos par AC #2 / Task 2 Story 6.3 (audit a faire pre-dry-run, cible Performance >= 75).

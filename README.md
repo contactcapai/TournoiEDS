@@ -225,6 +225,22 @@ bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.f
 # 8 checks attendus OK (5 backend + 3 frontend)
 ```
 
+### Overlays OBS pour stream
+
+Deux URLs distinctes sont prevues pour la source navigateur OBS, a basculer manuellement par le caster (SkyDow) au moment du clic admin "Demarrer la finale" :
+
+| Phase tournoi | URL overlay | Rendu |
+|---|---|---|
+| Qualifications | `https://tournoi.esportdessacres.fr/overlay` | Mirroir `/qualifications` (RankingTable complet : Place/Pts par round, Moy, Top 1/4, Dern.) |
+| Finale | `https://tournoi.esportdessacres.fr/overlay/finale` | Mirroir `/finale` (preview top 8 → progression victoire UX-DR7 → animation or vainqueur UX-DR8) |
+
+- Format OBS recommande : source navigateur 1920x1080.
+- Support `?transparent=1` sur les 2 URLs si chroma key necessaire (fond transparent au lieu de `bg-eds-dark`).
+- Pas de chrome UI (header de nav, footer, scrollbar) : routes hors `<Layout>` (UX-DR14).
+- Reconnexion Socket.IO automatique en cas de `docker compose restart backend` (story 4.1 AC #5 + 3.1 AC #4).
+- Workflow detaille : [_bmad-output/implementation-artifacts/6-3-dry-run-runbook-jour-J.md](_bmad-output/implementation-artifacts/6-3-dry-run-runbook-jour-J.md) sections 2 + 3.7.
+
+
 ### Debug Let's Encrypt
 
 Si le cert prod ne s'émet pas après 2 min :
