@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import MentionsLegales from './pages/MentionsLegales';
 import Qualifications from './pages/Qualifications';
 import Overlay from './pages/Overlay';
+import OverlayFinale from './pages/OverlayFinale';
 import Finale from './pages/Finale';
 import AdminLogin from './pages/AdminLogin';
 import Admin from './pages/Admin';
@@ -50,8 +51,9 @@ function App() {
                 </Layout>
               }
             />
-            {/* Overlay OBS — hors Layout (pas de header/nav/footer) */}
+            {/* Overlays OBS — hors Layout (pas de header/nav/footer) */}
             <Route path="/overlay" element={<Overlay />} />
+            <Route path="/overlay/finale" element={<OverlayFinale />} />
 
             {/* Backoffice admin (sans layout public) */}
             <Route path="/admin/login" element={<AdminLogin />} />
