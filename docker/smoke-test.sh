@@ -63,12 +63,12 @@ else
   echo "  --  openssl absent, skip verification cert"
 fi
 
-# 5. Tournament state endpoint
-tstate_code="$(curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/api/tournament/current" 2>/dev/null || echo "000")"
-if [ "$tstate_code" = "200" ]; then
-  pass "GET $BASE_URL/api/tournament/current -> 200"
+# 5. Rankings endpoint (valide que la DB est joignable et que Prisma repond)
+rankings_code="$(curl -fsS -o /dev/null -w "%{http_code}" "$BASE_URL/api/rankings" 2>/dev/null || echo "000")"
+if [ "$rankings_code" = "200" ]; then
+  pass "GET $BASE_URL/api/rankings -> 200 (DB + Prisma OK)"
 else
-  fail "GET $BASE_URL/api/tournament/current -> attendu 200, recu $tstate_code"
+  fail "GET $BASE_URL/api/rankings -> attendu 200, recu $rankings_code"
 fi
 
 echo ""

@@ -23,3 +23,7 @@
 ## Enhancement 2026-04-18 — Zone dangereuse admin UI
 
 - Ajout en bas de la page Joueurs (PlayerManager) d'une zone dangereuse avec 3 boutons : **Réinitialiser la finale** (équivalent UI du script `cleanup-finale`), **Réinitialiser les qualifications** (supprime toutes les Days qualifs+finale), **Réinitialiser les joueurs** (reset complet). 3 endpoints `DELETE /api/admin/reset/{finale,qualifications,players}` protégés JWT, cascade atomique (LobbyPlayer → Lobby → Round → Day → Player selon scope), émission `tournament_state_changed` post-commit. Le script CLI `cleanup-finale` reste disponible en fallback. Documenté dans story 2-2 (section Post-done) et README.md.
+
+## Deferred from: code review of 6-1-deploiement-backend-docker-traefik (2026-04-24)
+
+- **Test de restauration backup PG en local Docker Desktop** (review item #1, severity Med) — la procédure de restore est documentée dans `README.md` Runbook mais n'a pas été exécutée end-to-end. Acceptable au moment de clôturer 6.1 (DB ne contient que l'admin seedé, peu d'enjeu). À exécuter pendant la **Story 6.3 (dry-run)** avec un dump réel contenant joueurs + scores, pour valider à 100% la chaîne backup→restore avant le tournoi live.

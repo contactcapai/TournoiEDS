@@ -1,6 +1,6 @@
 # generated: 2026-04-15
 # last_updated: 2026-04-24T00:00:00
-# update: 2026-04-24 — dev-story 6-1-deploiement-backend-docker-traefik (ready-for-dev -> in-progress)
+# update: 2026-04-24 — dev-story 6-1-deploiement-backend-docker-traefik (review -> done) : code-review APPROVED, 3 items review traites (item #1 defere a 6.3, items #2 et #3 closes)
 # project: Tournoi TFT EDS
 # project_key: NOKEY
 # tracking_system: file-system
@@ -83,7 +83,7 @@ development_status:
 
   # Epic 6 : Deploiement & Go-Live
   epic-6: in-progress
-  6-1-deploiement-backend-docker-traefik: in-progress
+  6-1-deploiement-backend-docker-traefik: done
   6-2-deploiement-frontend-hostinger: backlog
   6-3-dry-run-validation-go-live: backlog
   epic-6-retrospective: optional

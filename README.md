@@ -146,6 +146,16 @@ sudo /opt/tournoi-tft/docker/backup-pg.sh
 
 À exécuter **avant** tout déploiement risqué et **après** chaque journée de tournoi.
 
+### Cleanup dossier `/root/backups`
+
+Pas de rotation automatique configurée (KISS pour MVP). Pour purger les backups de plus de 14 jours :
+
+```bash
+sudo find /root/backups -name "tournoi-*.sql.gz" -mtime +14 -delete
+```
+
+À exécuter manuellement de temps en temps si l'accumulation devient un souci. Surveiller l'espace disque pendant un événement live (`df -h /root`).
+
 ### Restore DB
 
 ```bash
