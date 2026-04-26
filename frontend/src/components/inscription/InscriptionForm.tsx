@@ -8,9 +8,10 @@ interface FieldErrors {
   discordPseudo?: string;
   riotPseudo?: string;
   email?: string;
+  acceptReglement?: string;
 }
 
-function validate(data: RegisterPlayerInput): FieldErrors {
+function validate(data: RegisterPlayerInput, acceptReglement: boolean): FieldErrors {
   const errors: FieldErrors = {};
   if (!data.discordPseudo.trim()) {
     errors.discordPseudo = 'Le pseudo Discord est requis';
@@ -23,6 +24,10 @@ function validate(data: RegisterPlayerInput): FieldErrors {
   } else if (!EMAIL_REGEX.test(data.email)) {
     errors.email = "Le format de l'email est invalide";
   }
+  if (!acceptReglement) {
+    errors.acceptReglement =
+      "Vous devez accepter le règlement et certifier avoir 16 ans ou plus.";
+  }
   return errors;
 }
 
@@ -30,6 +35,7 @@ export default function InscriptionForm() {
   const [discordPseudo, setDiscordPseudo] = useState('');
   const [riotPseudo, setRiotPseudo] = useState('');
   const [email, setEmail] = useState('');
+  const [acceptReglement, setAcceptReglement] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [globalError, setGlobalError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +45,7 @@ export default function InscriptionForm() {
     e.preventDefault();
 
     const data: RegisterPlayerInput = { discordPseudo, riotPseudo, email };
-    const fieldErrors = validate(data);
+    const fieldErrors = validate(data, acceptReglement);
 
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors);
@@ -82,6 +88,20 @@ export default function InscriptionForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md space-y-5" noValidate>
+      {/* Conditions de participation — encart rappel */}
+      <div className="rounded border border-eds-gold/30 bg-eds-gold/5 p-4 font-body text-sm text-eds-light/90">
+        <p className="font-medium text-eds-gold">Conditions de participation</p>
+        <ul className="mt-2 space-y-1 list-disc pl-5 text-eds-light/80">
+          <li>Tournoi réservé aux joueurs de 16 ans et plus.</li>
+          <li>
+            Mineurs 16–17 ans : autorisation parentale obligatoire à transmettre
+            au staff EDS avant le début du Tournoi.
+          </li>
+          <li>Compte Riot actif sur le serveur EU West (EUW).</li>
+          <li>Aucun niveau ou rang requis.</li>
+        </ul>
+      </div>
+
       {/* Pseudo Discord */}
       <div>
         <label htmlFor="discordPseudo" className="mb-1 block font-body text-sm font-medium text-eds-white">
@@ -104,7 +124,7 @@ export default function InscriptionForm() {
       {/* Pseudo Riot */}
       <div>
         <label htmlFor="riotPseudo" className="mb-1 block font-body text-sm font-medium text-eds-white">
-          Pseudo Riot
+          Riot ID (Pseudo#TAG)
         </label>
         <input
           id="riotPseudo"
@@ -136,6 +156,35 @@ export default function InscriptionForm() {
         />
         {errors.email && (
           <p className="mt-1 font-body text-sm text-red-400">{errors.email}</p>
+        )}
+      </div>
+
+      {/* Acceptation règlement */}
+      <div>
+        <label className="flex items-start gap-3 font-body text-sm text-eds-light/90">
+          <input
+            type="checkbox"
+            checked={acceptReglement}
+            onChange={(e) => setAcceptReglement(e.target.checked)}
+            disabled={loading}
+            className="mt-1 h-4 w-4 cursor-pointer accent-eds-cyan"
+          />
+          <span>
+            Je certifie avoir 16 ans ou plus et j'accepte le{' '}
+            <a
+              href="/reglement.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-eds-cyan hover:underline"
+            >
+              règlement officiel du Tournoi
+            </a>
+            , y compris l'autorisation de diffusion en direct de mes parties par
+            EDS et son diffuseur Skydow.
+          </span>
+        </label>
+        {errors.acceptReglement && (
+          <p className="mt-1 font-body text-sm text-red-400">{errors.acceptReglement}</p>
         )}
       </div>
 

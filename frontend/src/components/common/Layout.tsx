@@ -44,12 +44,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <p className="font-body text-sm text-eds-gray">
             Tournoi TFT — Esport des Sacres &copy; 2026
           </p>
-          <Link
-            to="/mentions-legales"
-            className="mt-1 inline-block font-body text-xs text-eds-gray/60 hover:text-eds-cyan transition-colors"
-          >
-            Mentions légales
-          </Link>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 font-body text-xs text-eds-gray/60">
+            <Link
+              to="/mentions-legales"
+              className="hover:text-eds-cyan transition-colors"
+            >
+              Mentions légales
+            </Link>
+            <a
+              href="/reglement.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-eds-cyan transition-colors"
+            >
+              Règlement (PDF)
+            </a>
+          </div>
+          <p className="mx-auto mt-3 max-w-2xl font-body text-[11px] italic text-eds-gray/50 leading-relaxed">
+            Ce tournoi n'est ni organisé ni soutenu par Riot Games, Inc. Teamfight Tactics
+            est une marque déposée de Riot Games, Inc. Tous droits réservés.
+          </p>
         </div>
       </footer>
     </div>
