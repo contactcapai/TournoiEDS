@@ -1,0 +1,9 @@
+{
+  // Base bundler/strict + DOM/jsx mutualisee dans @repo/typescript-config (valide workspace:*).
+  // Specifique a cette app : emplacement du tsbuildinfo + perimetre include.
+  "extends": "@repo/typescript-config/react-app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
+  },
+  "include": ["src"]
+}
