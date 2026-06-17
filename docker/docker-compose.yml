@@ -1,7 +1,7 @@
 # docker-compose.yml — Stack PROD complete (Tournoi TFT EDS)
 # Usage : depuis le dossier docker/, `docker compose up -d`
 # Les valeurs secretes sont lues depuis docker/.env (substitution ${VAR})
-# Le backend lit ses propres vars applicatives depuis backend/.env.prod (env_file)
+# Le backend lit ses propres vars applicatives depuis apps/tournoi-api/.env.prod (env_file)
 
 services:
   traefik:
