@@ -1,0 +1,32 @@
+{
+  // Base bundler/strict mutualisee dans @repo/typescript-config (TS strict, verbatimModuleSyntax,
+  // noUnusedLocals/Parameters...). Specifique a cette app : options requises par Next.js (App Router).
+  // NB : react-app.json est ecarte (types vite/client). On etend base.json directement.
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
