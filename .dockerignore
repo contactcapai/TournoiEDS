@@ -1,0 +1,30 @@
+# Contexte de build = racine du monorepo. On exclut tout ce qui n'a rien a faire
+# dans une image (deps locales, builds, secrets, outillage, docs).
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+
+# Secrets / env (compose injecte les vars via env_file au runtime, pas dans l'image)
+**/.env
+**/.env.*
+
+# Git & VCS
+.git
+.gitignore
+.gitattributes
+
+# Outillage dev (Claude Code, Antigravity, BMad)
+.claude/
+.agent/
+_bmad/
+_bmad-output/
+
+# Docs & divers
+docs/
+**/README.md
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

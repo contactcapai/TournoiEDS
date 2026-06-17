@@ -59,12 +59,14 @@ services:
 
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      # Contexte racine du monorepo (le compose vit dans docker/, donc ".." = racine).
+      # Permet a pnpm de lire pnpm-lock.yaml + pnpm-workspace.yaml partages.
+      context: ..
+      dockerfile: apps/tournoi-api/Dockerfile
     container_name: tournoi-tft-backend
     restart: unless-stopped
     env_file:
-      - ../backend/.env.prod
+      - ../apps/tournoi-api/.env.prod
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,8 +89,9 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      # Contexte racine du monorepo (cf. service backend ci-dessus).
+      context: ..
+      dockerfile: apps/tournoi-web/Dockerfile
       args:
         # Vite injecte VITE_API_URL au build (pas au runtime). Cette valeur
         # est figee dans le bundle JS produit par "npm run build".

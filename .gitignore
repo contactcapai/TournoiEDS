@@ -1,17 +1,18 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment (les patterns sans slash matchent a tout niveau, ex. apps/*/.env)
 .env
 .env.local
 .env.prod
-backend/.env
-backend/.env.prod
 docker/.env
 
-# Build outputs
-frontend/dist/
-backend/dist/
+# Build outputs (generiques monorepo : dist/ et .next/ a tout niveau)
+dist/
+.next/
+
+# Turborepo
+.turbo/
 
 # IDE
 .vscode/
@@ -22,7 +23,7 @@ backend/dist/
 Thumbs.db
 
 # Prisma
-backend/prisma/*.db
+apps/tournoi-api/prisma/*.db
 
 # Logs
 *.log

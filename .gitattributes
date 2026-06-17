@@ -3,14 +3,15 @@
 # echoue au boot avec "exec format error".
 *.sh text eol=lf
 docker-entrypoint.sh text eol=lf
-backend/docker-entrypoint.sh text eol=lf
+apps/tournoi-api/docker-entrypoint.sh text eol=lf
 docker/*.sh text eol=lf
 
 # nginx.conf doit etre en LF — sur Alpine, certaines directives nginx
 # levent des warnings cryptiques avec des line endings CRLF.
-frontend/nginx.conf text eol=lf
-frontend/Dockerfile text eol=lf
-frontend/.dockerignore text eol=lf
+apps/tournoi-web/nginx.conf text eol=lf
+apps/tournoi-web/Dockerfile text eol=lf
+apps/tournoi-web/.dockerignore text eol=lf
+apps/tournoi-api/Dockerfile text eol=lf
 
 # Texte par defaut : auto (Git normalise)
 * text=auto

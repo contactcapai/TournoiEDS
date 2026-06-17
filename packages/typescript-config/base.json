@@ -1,26 +1,20 @@
 {
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Base (bundler, strict)",
+  "_comment": "Base extraite du tsconfig.app.json reel du front tournoi (TS strict, bundler mode). Les apps redefinissent lib/types/jsx/tsBuildInfoFile selon leur cible.",
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
-    "skipLibCheck": true,
-    "strict": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
-  },
-  "include": ["src"]
+  }
 }
