@@ -1,0 +1,23 @@
+/* Losanges — 3 carrés or pivotés 45°, opacités dégressives .9 / .55 / .3. */
+
+.losanges {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.losanges i {
+  width: 8px;
+  height: 8px;
+  background: var(--gold);
+  transform: rotate(45deg);
+  opacity: 0.9;
+}
+
+.losanges i:nth-child(2) {
+  opacity: 0.55;
+}
+
+.losanges i:nth-child(3) {
+  opacity: 0.3;
+}

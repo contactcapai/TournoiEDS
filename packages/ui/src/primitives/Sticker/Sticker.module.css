@@ -1,0 +1,25 @@
+/* Sticker — macaron rond or, texte ink Bebas, pivoté -12°. Texte ink sur or (~7:1, AA).
+   Positionné en absolu par le parent (ex. PhotoFrame). */
+
+.sticker {
+  position: absolute;
+  top: -22px;
+  left: -22px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  line-height: 0.9;
+  text-align: center;
+  padding: 12px 16px;
+  border-radius: var(--radius-sticker);
+  transform: rotate(-12deg);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
