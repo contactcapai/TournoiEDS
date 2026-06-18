@@ -1,0 +1,12 @@
+{
+  // Config TS propre à @repo/ui : étend la base stricte mutualisée et ajoute
+  // ce qu'il faut aux primitives React (lib DOM + jsx). Permet à `tsc --noEmit`
+  // de typechecker le package en autonome (et de résoudre src/css-modules.d.ts),
+  // prérequis pour brancher un task typecheck en CI (Story 1.9).
+  "extends": "@repo/typescript-config/base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}

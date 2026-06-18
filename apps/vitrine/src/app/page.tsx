@@ -62,6 +62,7 @@ export default function Home() {
       </div>
 
       <section className={styles.axes}>
+        <h2 className={styles.sectionTitle}>Trois axes</h2>
         <Axis number="01" title="Local & vivant">
           Tous les jeudis, en roulement sur quatre bars rémois.
         </Axis>

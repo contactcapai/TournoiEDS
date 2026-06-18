@@ -3,10 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Design system partage EDS. SQUELETTE VIDE — rempli en Stories 1.2 (tokens) et 1.3 (primitives). Ne pas remplir ici.",
+  "description": "Design system partage EDS : tokens de la charte (1.2) + primitives visuelles (1.3). Sources TS/CSS brutes transpilees par les apps consommatrices.",
   "exports": {
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts",
     "./styles/*": "./src/styles/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "^19.2.14",
+    "typescript": "~6.0.2"
   }
 }

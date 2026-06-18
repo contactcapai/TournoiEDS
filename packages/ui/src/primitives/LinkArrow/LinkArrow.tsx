@@ -1,4 +1,5 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { cn } from "../../lib/cn";
 import styles from "./LinkArrow.module.css";
 
 interface LinkArrowOwnProps {
@@ -24,11 +25,13 @@ export function LinkArrow({
     : {};
 
   return (
+    // `rest` est spreadé AVANT externalProps : pour un lien externe, target/rel
+    // (dont la protection noopener) ne peuvent pas être écrasés par le caller.
     <a
-      className={[styles.linkArrow, className].filter(Boolean).join(" ")}
+      className={cn(styles.linkArrow, className)}
       href={href}
-      {...externalProps}
       {...rest}
+      {...externalProps}
     >
       {children}
       {external && <span className={styles.srOnly}> (nouvel onglet)</span>}

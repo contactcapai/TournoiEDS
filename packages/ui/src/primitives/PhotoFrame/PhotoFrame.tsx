@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import styles from "./PhotoFrame.module.css";
 
-interface PhotoFrameProps {
+export interface PhotoFrameProps {
   /** Média fourni par l'app (<img> / next/image). Si absent → placeholder « tirage ». */
   children?: ReactNode;
   /** Légende manuscrite (Caveat, ink sur cream — lisible). */

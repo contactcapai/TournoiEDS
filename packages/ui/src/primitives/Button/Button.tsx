@@ -3,6 +3,7 @@ import type {
   ButtonHTMLAttributes,
   ReactNode,
 } from "react";
+import { cn } from "../../lib/cn";
 import styles from "./Button.module.css";
 
 type ButtonVariant = "gold" | "outline";
@@ -32,13 +33,11 @@ export type ButtonProps = ButtonAsButton | ButtonAsLink;
 export function Button(props: ButtonProps) {
   const { variant = "gold", icon, children, className, ...rest } = props;
 
-  const classes = [
+  const classes = cn(
     styles.btn,
     variant === "gold" ? styles.btnGold : styles.btnOut,
     className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  );
 
   if (props.href !== undefined) {
     // `rest` contient déjà `href` (link case) + les attributs natifs <a>.

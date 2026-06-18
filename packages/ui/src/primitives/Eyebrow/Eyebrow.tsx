@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Losanges } from "../Losanges/Losanges";
 import styles from "./Eyebrow.module.css";
 
-interface EyebrowProps {
+export interface EyebrowProps {
   /** Label de sur-titre (rendu en capitales via CSS). */
   children: ReactNode;
 }

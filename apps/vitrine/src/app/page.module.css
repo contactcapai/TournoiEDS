@@ -54,3 +54,11 @@
 .axes {
   margin-top: var(--section-gap);
 }
+
+.sectionTitle {
+  font-family: var(--font-display);
+  font-size: var(--fs-section-title);
+  line-height: var(--lh-display);
+  color: var(--cream);
+  margin-bottom: var(--block-gap);
+}

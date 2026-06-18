@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import styles from "./Brush.module.css";
 
-interface BrushProps {
+export interface BrushProps {
   /** Texte souligné par le trait « brush ». Le trait lui-même est décoratif. */
   children: ReactNode;
 }
