@@ -1,27 +1,11 @@
-import { createContext, useEffect, useState, type ReactNode } from 'react';
-import type { PlayerRanking } from '../types';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   createSocket,
   type TournamentStateEvent,
   type RankingUpdatedEvent,
   type TournamentStateChangedEvent,
 } from '../services/socket';
-
-export interface TournamentState {
-  phase: 'idle' | 'qualification' | 'finale';
-  currentDayId: number | null;
-  currentDayNumber: number | null;
-  currentDayType: 'qualification' | 'finale' | null;
-  rankings: PlayerRanking[];
-  winner: PlayerRanking | null;
-  isConnected: boolean;
-}
-
-interface TournamentContextValue {
-  state: TournamentState;
-}
-
-export const TournamentContext = createContext<TournamentContextValue | null>(null);
+import { TournamentContext, type TournamentState } from './tournament-context';
 
 const initialState: TournamentState = {
   phase: 'idle',

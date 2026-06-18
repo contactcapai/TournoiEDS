@@ -40,6 +40,9 @@ export default function PlayerManager() {
 
   useEffect(() => {
     loadPlayers();
+    // Chargement unique au montage. loadPlayers est defini dans le composant
+    // -> dependance volontairement omise (comportement: un seul fetch initial).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadPlayers() {

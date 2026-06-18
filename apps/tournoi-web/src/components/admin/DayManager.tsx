@@ -31,6 +31,9 @@ export default function DayManager() {
   useEffect(() => {
     if (!token) return;
     loadData();
+    // Chargement initial / au changement de token uniquement. loadData est defini
+    // dans le composant et stable pour cet usage -> dependance volontairement omise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Ecoute des changements de phase (via WebSocket) pour rafraichir sans reload manuel
