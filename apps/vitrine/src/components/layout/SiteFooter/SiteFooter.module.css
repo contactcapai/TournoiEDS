@@ -45,6 +45,13 @@
 }
 
 /* ── Colonnes de liens ─────────────────────────────────────────────────── */
+/* Colonne (Naviguer / Participer / Suivez-nous) : item flex se dimensionnant à
+   son contenu. `min-width: 0` évite qu'un libellé long ne force un débordement
+   horizontal du conteneur flex (garde-fou anti-scroll, review 1.5 #1). */
+.col {
+  min-width: 0;
+}
+
 .colTitle {
   font-family: var(--font-display); /* Bebas Neue */
   font-size: 22px; /* littéral maquette */

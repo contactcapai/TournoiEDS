@@ -174,6 +174,9 @@ export function SiteFooter() {
               alt="Esport des Sacres"
               width={339}
               height={393}
+              // Largeur d'affichage réelle ≈ 53px (height 62px × ratio 339/393) →
+              // évite que srcset serve un candidat pleine largeur (review 1.5 #3).
+              sizes="54px"
               className={styles.logo}
             />
             <p className={styles.baseline}>
@@ -234,12 +237,14 @@ export function SiteFooter() {
 
         {/* Bandeau bas : copyright + liens légaux (placeholders inertes). */}
         <div className={styles.copy}>
-          <span>© 2026 Esport des Sacres — association loi 1901, Reims</span>
-          <span className={styles.legal}>
+          {/* Année calculée au rendu (RSC) → pas de copyright périmé (review 1.5 #2). */}
+          <span>© {new Date().getFullYear()} Esport des Sacres — association loi 1901, Reims</span>
+          {/* Landmark dédié → navigation directe au lecteur d'écran (review 1.5 #5). */}
+          <nav aria-label="Liens légaux" className={styles.legal}>
             {LEGAL_LINKS.map((link) => (
               <FooterColumnLink key={link.label} link={link} />
             ))}
-          </span>
+          </nav>
         </div>
       </div>
     </footer>
