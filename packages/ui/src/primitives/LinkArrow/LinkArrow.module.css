@@ -1,0 +1,43 @@
+/* LinkArrow — lien or 700, flèche glissant translateX(4px) au hover.
+   Flèche décorative (aria-hidden) → le sens est dans le label. */
+
+.linkArrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.linkArrow svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+}
+
+.linkArrow:hover svg {
+  transform: translateX(4px);
+}
+
+/* Masque visuel mais lisible par les lecteurs d'écran (mention « nouvel onglet »). */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .linkArrow svg {
+    transition: none;
+  }
+
+  .linkArrow:hover svg {
+    transform: none;
+  }
+}

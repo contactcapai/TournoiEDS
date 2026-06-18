@@ -1,5 +1,5 @@
-/* Placeholder de transition (Story 1.2). Ne consomme QUE des tokens var(--…).
-   Remplacé par le vrai Hero en Epic 2. */
+/* Démo des primitives (Story 1.3). Ne consomme QUE des tokens var(--…).
+   Remplacé par le vrai Hero + sections en Epic 2. */
 
 .main {
   display: flex;
@@ -9,15 +9,6 @@
   min-height: 100vh;
   margin: 0 auto;
   padding: var(--section-y) var(--wrap-pad);
-  justify-content: center;
-}
-
-.eyebrow {
-  font-size: var(--fs-eyebrow);
-  font-weight: 700;
-  letter-spacing: var(--ls-eyebrow);
-  text-transform: uppercase;
-  color: var(--gold);
 }
 
 .title {
@@ -39,8 +30,27 @@
   color: var(--gold-soft);
 }
 
-.hand {
-  font-family: var(--font-hand);
-  font-size: var(--fs-block-heading);
-  color: var(--gold);
+/* Rangées de démonstration (boutons, tags, lien). */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--block-gap);
+}
+
+/* Cadres photo côte à côte. */
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--section-gap);
+  max-width: 720px;
+  margin-top: var(--block-gap);
+}
+
+.frames > * {
+  flex: 1 1 280px;
+}
+
+.axes {
+  margin-top: var(--section-gap);
 }

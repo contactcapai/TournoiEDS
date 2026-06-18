@@ -1,0 +1,17 @@
+/* Tag — pilule. Défaut : texte clair, bord discret. Highlight : bord + texte or. */
+
+.tag {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: var(--light);
+  border: 1px solid rgba(243, 239, 227, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-tag);
+}
+
+.highlight {
+  border-color: var(--gold);
+  color: var(--gold);
+}

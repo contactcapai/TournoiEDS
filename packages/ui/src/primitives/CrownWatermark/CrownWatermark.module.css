@@ -1,0 +1,11 @@
+/* CrownWatermark — traitement filigrane uniquement (opacity .05, rotate 8°).
+   Le positionnement précis (left/bottom dans un Hero) est fourni par l'app via
+   une classe additionnelle (Story 2.1). Décoratif : aria-hidden + alt="". */
+
+.crownWm {
+  position: absolute;
+  height: auto;
+  opacity: 0.05;
+  transform: rotate(8deg);
+  pointer-events: none;
+}

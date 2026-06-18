@@ -1,0 +1,49 @@
+/* Axis — axe numéroté : numéro fantôme or 28 % (décoratif) + h3 (sens) + texte.
+   Numéro = var(--fs-axis-number) (96px). Sous 880px (littéral, garde-fou n°6) :
+   passage en 1 colonne, numéro réduit à 64px. */
+
+.axe {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 34px;
+  align-items: start;
+  padding: 42px 0;
+  border-top: 1px solid rgba(243, 239, 227, 0.1);
+}
+
+.axe:last-child {
+  border-bottom: 1px solid rgba(243, 239, 227, 0.1);
+}
+
+/* Numéro fantôme : or à 28 % d'opacité (~1.8:1) → décoratif, aria-hidden côté JSX. */
+.n {
+  font-family: var(--font-display);
+  font-size: var(--fs-axis-number);
+  line-height: 0.8;
+  color: rgba(218, 178, 101, 0.28);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 14px;
+}
+
+.body {
+  max-width: 680px;
+  font-size: 16px;
+  color: var(--light);
+}
+
+@media (max-width: 880px) {
+  .axe {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .n {
+    font-size: 64px;
+  }
+}

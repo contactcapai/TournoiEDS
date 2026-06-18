@@ -1,0 +1,20 @@
+/* Brush — souligné main (trait or) via ::after, data-URI SVG.
+   ⚠️ EXCEPTION tokens-only documentée (garde-fou n°8) : le stroke du SVG encodé en
+   URL ne peut PAS lire une custom property CSS → le gold #DAB265 est codé en dur
+   ICI UNIQUEMENT, à l'intérieur de la data-URI (%23DAB265). Aucun autre hex en dur. */
+
+.brush {
+  position: relative;
+  display: inline-block;
+}
+
+.brush::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: -14px;
+  height: 18px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 24'%3E%3Cpath d='M6 14 C 60 6 120 20 180 10 C 220 4 260 17 294 9' stroke='%23DAB265' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}

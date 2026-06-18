@@ -1,0 +1,15 @@
+/* Eyebrow — sur-titre : losanges + label or, capitales, letter-spacing large. */
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gold);
+}
+
+.label {
+  font-size: var(--fs-eyebrow);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-eyebrow);
+}

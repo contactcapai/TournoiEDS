@@ -1,0 +1,57 @@
+/* PhotoFrame — cadre crème « tirage », média en slot + placeholder, légende Caveat ink.
+   Le gradient du placeholder est mappé sur les tokens (surface → navy-deep). */
+
+.photo {
+  position: relative;
+  background: var(--cream);
+  padding: 12px 12px 0;
+  border-radius: var(--radius-frame);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
+}
+
+.img {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-img-inner);
+  overflow: hidden;
+  background: linear-gradient(150deg, var(--surface), var(--navy-deep));
+}
+
+/* Le média fourni par l'app (<img>/next/image rend un <img>) remplit le cadre. */
+.img img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.phFill {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(243, 239, 227, 0.5);
+}
+
+.phFill svg {
+  width: 42px;
+  height: 42px;
+  opacity: 0.5;
+}
+
+.phFill span {
+  font-size: 12.5px;
+  letter-spacing: 0.5px;
+}
+
+/* Légende manuscrite : Caveat en ink sur cream (lisible). Jamais Caveat or sur cream. */
+.cap {
+  font-family: var(--font-hand);
+  color: var(--ink);
+  font-size: 22px;
+  padding: 9px 4px 12px;
+  text-align: center;
+}

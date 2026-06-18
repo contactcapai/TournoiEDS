@@ -1,0 +1,57 @@
+/* Button — transcription de la maquette (.btn / .btn-gold / .btn-out) en tokens.
+   Charte : or rempli (gold) ou outline crème. Texte en Bebas (--font-display).
+   Aucune valeur de charte en dur → uniquement var(--…). */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  padding: 13px 28px;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Variante or : fill or, texte ink (~7:1 sur or → AA). */
+.btnGold {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.btnGold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(218, 178, 101, 0.32);
+}
+
+/* Variante outline : transparent, bord crème → or au hover, texte crème → or. */
+.btnOut {
+  background: transparent;
+  border: 2px solid rgba(243, 239, 227, 0.35);
+  color: var(--cream);
+}
+
+.btnOut:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* AA — reduced-motion : on neutralise mouvement + glow, on garde l'état couleur. */
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+
+  .btnGold:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
