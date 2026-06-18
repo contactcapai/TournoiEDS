@@ -5,8 +5,9 @@
  * Ne référence QUE des tokens `var(--…)` issus de @repo/ui/styles/tokens.css
  * (importé avant ce fichier dans layout.tsx). Aucun hex de charte en dur.
  *
- * Périmètre limité aux tokens + base body. La structure sémantique (skip-link,
- * <main>, header/footer, audit SEO/a11y) est posée en Stories 1.4/1.5/1.6.
+ * Périmètre tokens + base body + socle SEO/a11y (skip-link, offset d'ancre sous
+ * header sticky, smooth-scroll conditionnel, sticky-footer) posé en Story 1.6.
+ * Le <main id="content"> et le skip-link sont montés dans (public)/layout.tsx.
  */
 
 * {
@@ -22,7 +23,31 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  /* Offset d'ancre sous le header sticky (--head-height: 78px) : au saut vers une
+     ancre interne (#content du skip-link, ancres one-page de l'Epic 2), la cible
+     n'est pas masquée par le header. scroll-padding lit bien les custom properties
+     (contrairement aux @media). Story 1.6, Garde-fous n°4. */
+  scroll-padding-top: var(--head-height);
+}
+
+/* Smooth-scroll pour la navigation one-page, MAIS neutralisé si l'utilisateur a
+   demandé moins d'animations (Garde-fou n°5, aligné transitions 1.3/1.5). */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
+  /* Sticky-footer : body en colonne flex pleine hauteur → le <main> (flex:1)
+     pousse le footer en bas même sur une coquille peu remplie (Story 1.6 :
+     responsabilité reprise de page.module.css .main{min-height:100vh}).
+     Le flex-column est global mais bénin hors (public)/ : seul ce groupe rend un
+     footer, donc aucune autre route n'a de « footer non collé ». Les routes à
+     layout dédié (admin Epic 6, not-found custom) gèrent leur propre hauteur. */
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: var(--navy-deep);
   color: var(--light);
@@ -30,6 +55,15 @@ body {
   line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Le landmark <main id="content"> (monté dans (public)/layout.tsx, ciblé aussi
+   par le skip-link href="#content") occupe l'espace restant → footer collé en
+   bas. Sélecteur volontairement restreint à `main#content` pour ne pas affecter
+   un éventuel élément tiers portant id="content". ⚠️ Couplage : l'id côté
+   layout, ce sélecteur et le href du skip-link doivent rester synchronisés. */
+main#content {
+  flex: 1 0 auto;
 }
 
 a {
@@ -60,4 +94,32 @@ a {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Skip-link « Aller au contenu » — premier focusable du document (UX-DR22).
+   État masqué : pas de bloc dédié, on COMPOSE la classe `.sr-only` côté markup
+   (<a class="sr-only skip-link">) → source unique du masquage, zéro duplication.
+   `.sr-only` garde le lien focusable au clavier (JAMAIS display:none). Au focus,
+   le bloc ci-dessous réinitialise le masquage et l'épingle visible en haut,
+   AU-DESSUS du header sticky (z-index:50 → ici 100). Tokens-only, cible tactile
+   ≥ 44×44 (padding). Story 1.6, Garde-fou n°3. */
+.skip-link:focus,
+.skip-link:focus-visible {
+  /* `:focus` conservé en plus de `:focus-visible` pour Safari ≤ 15.3 (qui ne
+     supporte pas :focus-visible) → ne pas le retirer « par cohérence ». */
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 14px 20px;
+  overflow: visible;
+  clip: auto;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 700;
+  border-radius: var(--radius-button);
 }
