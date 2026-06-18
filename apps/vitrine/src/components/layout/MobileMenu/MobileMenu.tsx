@@ -4,7 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@repo/ui";
-import { DISCORD_URL, REJOINDRE_URL } from "@/lib/links";
+import {
+  DISCORD_URL,
+  REJOINDRE_URL,
+  NEW_TAB_SR,
+  isExternalUrl,
+} from "@/lib/links";
 import styles from "./MobileMenu.module.css";
 
 // Lien de navigation sérialisable (données définies côté RSC dans SiteHeader).
@@ -42,16 +47,8 @@ function ExternalIcon() {
   );
 }
 
-// Aligné sur la primitive LinkArrow (@repo/ui) qui annonce « (nouvel onglet) »
-// → phrasé lecteur d'écran cohérent sur toute la vitrine.
-const NEW_TAB_SR = " (nouvel onglet)";
-
-// Un lien n'est « sortant » (nouvel onglet + annonce SR + icône) que si sa cible
-// est une vraie URL http(s). Les placeholders (« # », finalisés Story 5.5) restent
-// de simples ancres : pas d'onglet vide, pas d'annonce trompeuse (review 1.4 #1).
-function isExternalUrl(href: string) {
-  return /^https?:\/\//.test(href);
-}
+// `NEW_TAB_SR` et `isExternalUrl` sont désormais partagés depuis `@/lib/links`
+// (promus en Story 1.5 pour que header ET footer les consomment — Garde-fou n°3).
 
 export function MobileMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);

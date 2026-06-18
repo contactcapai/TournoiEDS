@@ -1,0 +1,188 @@
+/* SiteFooter — transcription du footer maquette (L182-192) en tokens
+   (Garde-fous n°5/7/8). Breakpoint unique 880px en LITTÉRAL (les @media ne lisent
+   pas les custom properties). Les rgba de filets/overlays n'ont pas de token dédié
+   → littéraux DOCUMENTÉS (même tolérance qu'en 1.3/1.4) ; tout le reste en var(--…).
+   Contraste : fond ink partout → var(--grey) sûr (~4.6:1) — Garde-fou n°8. */
+
+.footer {
+  background: var(--ink);
+  padding: 64px 0 30px; /* littéraux maquette — pas de token exact */
+  /* Filet or (#dab265) à 16 % — overlay documenté (pas de token). */
+  border-top: 1px solid rgba(218, 178, 101, 0.16);
+}
+
+/* Conteneur centré (équivalent .wrap de la maquette). */
+.wrap {
+  max-width: var(--wrap-max); /* 1160px */
+  margin: 0 auto;
+  padding: 0 var(--wrap-pad); /* 26px */
+}
+
+/* ── Grille des 4 colonnes ─────────────────────────────────────────────── */
+.columns {
+  display: flex;
+  justify-content: space-between;
+  gap: 44px; /* littéral maquette (.fg) */
+  flex-wrap: wrap;
+  margin-bottom: 42px; /* littéral maquette */
+}
+
+/* ── Colonne Marque ────────────────────────────────────────────────────── */
+.brand {
+  max-width: 300px; /* contient la baseline sur une largeur lisible */
+}
+
+.logo {
+  height: 62px; /* littéral maquette (footer .logo) */
+  width: auto; /* next/image préserve l'aspect-ratio (anti-CLS/warn) */
+  margin-bottom: 16px; /* littéral maquette */
+}
+
+.baseline {
+  color: var(--grey);
+  font-size: 14px; /* littéral maquette */
+  line-height: var(--lh-body);
+}
+
+/* ── Colonnes de liens ─────────────────────────────────────────────────── */
+/* Colonne (Naviguer / Participer / Suivez-nous) : item flex se dimensionnant à
+   son contenu. `min-width: 0` évite qu'un libellé long ne force un débordement
+   horizontal du conteneur flex (garde-fou anti-scroll, review 1.5 #1). */
+.col {
+  min-width: 0;
+}
+
+.colTitle {
+  font-family: var(--font-display); /* Bebas Neue */
+  font-size: 22px; /* littéral maquette */
+  color: var(--gold);
+  letter-spacing: 1px; /* littéral maquette */
+  margin-bottom: 14px; /* littéral maquette */
+}
+
+.colList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* espace label / icône externe */
+  padding: 4px 0; /* + line-height ⇒ cible tactile confortable */
+  color: var(--grey);
+  font-size: 14px; /* littéral maquette */
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: var(--light);
+}
+
+.extIcon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+/* ── Colonne Suivez-nous (tuiles sociales + email) ─────────────────────── */
+.socials {
+  display: flex;
+  gap: 11px; /* littéral maquette */
+  list-style: none;
+  margin-bottom: 16px;
+}
+
+.social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px; /* maquette 42px → ≥ 44×44 cible tactile (UX-DR25) */
+  min-height: 44px;
+  border-radius: var(--radius-tile); /* 10px (maquette 8px ; on retient le token) */
+  /* Bord or (#dab265) à 30 % — overlay documenté (pas de token). */
+  border: 1px solid rgba(218, 178, 101, 0.3);
+  color: var(--gold);
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.social:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.social svg {
+  width: 20px;
+  height: 20px;
+}
+
+.email {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible tactile confortable (UX-DR25) */
+  color: var(--grey);
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.email:hover {
+  color: var(--light);
+}
+
+/* ── Bandeau bas (copyright + liens légaux) ────────────────────────────── */
+.copy {
+  /* Séparateur cream (#f3efe3) à 8 % — overlay documenté (pas de token). */
+  border-top: 1px solid rgba(243, 239, 227, 0.08);
+  padding-top: 24px; /* littéral maquette */
+  color: var(--grey);
+  font-size: 13px; /* littéral maquette */
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Liens légaux : inline (≠ liens de colonne en bloc), séparés par un point médian. */
+.legal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.legal .link {
+  padding: 0;
+  font-size: 13px;
+}
+
+.legal .link + .link::before {
+  content: "·";
+  margin-right: 8px;
+  color: var(--grey);
+}
+
+/* ── Breakpoint 880px (LITTÉRAL — Garde-fou n°5) ───────────────────────── */
+@media (max-width: 880px) {
+  .columns {
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .copy {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ── reduced-motion (Garde-fou n°8) ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .link,
+  .social,
+  .email {
+    transition: none;
+  }
+}
