@@ -1,0 +1,165 @@
+/* MobileMenu — nav desktop + hamburger/panneau mobile (Garde-fous n°6/7/8).
+   Breakpoint unique 880px en LITTÉRAL (les @media ne lisent pas les custom
+   properties). Hit targets ≥ 44×44. Overlays rgba documentés. */
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--block-gap);
+}
+
+/* ── Nav desktop (≥ 880px) ─────────────────────────────────────────────── */
+.desktopMenu {
+  display: flex;
+  align-items: center;
+  gap: var(--block-gap); /* ≈ 30px (.menu gap) */
+  list-style: none;
+}
+
+.desktopActions {
+  display: flex;
+  align-items: center;
+  gap: 18px; /* littéral : écart icône Discord / CTA */
+}
+
+/* ── Lien de navigation ────────────────────────────────────────────────── */
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px; /* hit target AA */
+  font-family: var(--font-body);
+  font-size: var(--fs-nav); /* 14px */
+  letter-spacing: 0.5px; /* littéral maquette (.menu a) */
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--light);
+  transition: color 0.2s;
+}
+
+.navLink:hover {
+  color: var(--gold);
+}
+
+/* Lien actif : état discret (or, comme le hover) + porté par aria-current. */
+.navLinkActive {
+  color: var(--gold);
+}
+
+.extIcon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+/* ── Lien Discord (icône) ──────────────────────────────────────────────── */
+.discord {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--light);
+  transition: color 0.2s;
+}
+
+.discord:hover {
+  color: var(--gold);
+}
+
+.discord svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Hamburger (< 880px) ───────────────────────────────────────────────── */
+.hamburger {
+  display: none; /* affiché < 880px (voir @media) */
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  color: var(--light);
+  cursor: pointer;
+}
+
+.hamburger svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* (Texte lecteur d'écran : utilitaire global `.sr-only` dans globals.css — review 1.4 #4.) */
+
+/* ── Panneau mobile ────────────────────────────────────────────────────── */
+/* [hidden] doit l'emporter sur `display: flex` (la règle UA [hidden]{display:none}
+   a une spécificité trop faible) → on neutralise explicitement quand fermé. */
+.panel[hidden] {
+  display: none;
+}
+
+.panel {
+  position: absolute;
+  top: var(--head-height); /* sous le header */
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--block-gap);
+  padding: var(--block-gap) var(--wrap-pad) var(--section-gap);
+  /* ink ~98 % — overlay documenté (panneau plus opaque que le header). */
+  background: rgba(20, 18, 48, 0.98);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(218, 178, 101, 0.18); /* filet or .18 */
+  animation: panelIn 0.18s ease-out;
+}
+
+.panelMenu {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.panelActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Breakpoint 880px (LITTÉRAL — Garde-fou n°6) ───────────────────────── */
+@media (max-width: 880px) {
+  .desktopMenu,
+  .desktopActions {
+    display: none;
+  }
+
+  .hamburger {
+    display: inline-flex;
+  }
+}
+
+/* ── reduced-motion (Garde-fou n°8) ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+
+  .navLink,
+  .discord {
+    transition: none;
+  }
+}
