@@ -1,0 +1,38 @@
+/**
+ * globals.css — base de la vitrine EDS (Story 1.2).
+ *
+ * Le site est DARK navy par défaut (aucun light mode / prefers-color-scheme).
+ * Ne référence QUE des tokens `var(--…)` issus de @repo/ui/styles/tokens.css
+ * (importé avant ce fichier dans layout.tsx). Aucun hex de charte en dur.
+ *
+ * Périmètre limité aux tokens + base body. La structure sémantique (skip-link,
+ * <main>, header/footer, audit SEO/a11y) est posée en Stories 1.4/1.5/1.6.
+ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  /* Garde-fou anti-scroll horizontal. min-height: 100vh (viewport-relatif) évite
+     la chaîne fragile html{height:100%} → body{min-height:100%}. */
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

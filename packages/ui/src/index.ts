@@ -1,3 +1,4 @@
 // @repo/ui — point d'entree du design system partage EDS.
-// SQUELETTE VIDE : les primitives arrivent en Story 1.3, les tokens en Story 1.2.
-export {}
+// Tokens typés (Story 1.2). Les primitives visuelles arrivent en Story 1.3.
+// NB : la source de vérité runtime des tokens reste le CSS (./styles/tokens.css).
+export * from "./tokens/index";

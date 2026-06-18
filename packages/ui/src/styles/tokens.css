@@ -1,0 +1,72 @@
+/**
+ * @repo/ui — Tokens de la charte officielle EDS (Story 1.2).
+ *
+ * SOURCE UNIQUE de vérité runtime pour couleurs, familles de polices, échelle
+ * typographique, rayons et espacements. Consommé par la vitrine (Next) ET par
+ * le front tournoi (Tailwind v4) via ces variables `:root`.
+ *
+ * Règles :
+ *  - Valeurs distillées de DESIGN.md (la maquette fait foi). Jamais de cyan/néon.
+ *  - Les familles référencent les variables produites par next/font côté vitrine
+ *    (`--font-bebas/-roboto/-caveat`), avec un fallback de famille pour que le
+ *    tournoi (sans next/font) reste lisible. tokens.css reste agnostique du
+ *    chargeur de polices.
+ *  - `--bp-mobile` est DOCUMENTAIRE : les `@media` ne lisent pas les custom
+ *    properties → répéter `880px` en littéral dans les media queries (1.3+).
+ */
+:root {
+  /* ── Couleurs (noms maquette + --surface ajouté) ───────────────────────── */
+  --navy: #29265b;
+  --navy-deep: #1b1940;
+  --ink: #141230;
+  --surface: #322e6e;
+  --gold: #dab265;
+  --gold-soft: #e7c98a;
+  --grey: #9293ad;
+  --light: #edeffd;
+  --cream: #f3efe3;
+
+  /* ── Familles de polices ───────────────────────────────────────────────── */
+  /* Les --font-* sont fournies par next/font (vitrine). Fallback de famille. */
+  --font-display: var(--font-bebas, "Bebas Neue", sans-serif);
+  --font-body: var(--font-roboto, "Roboto", system-ui, sans-serif);
+  --font-hand: var(--font-caveat, "Caveat", cursive);
+
+  /* ── Échelle typographique ─────────────────────────────────────────────── */
+  --fs-h1-hero: clamp(58px, 7.6vw, 108px);
+  --fs-section-title: clamp(40px, 5.4vw, 66px);
+  --fs-quote: clamp(40px, 6vw, 76px);
+  --fs-axis-number: 96px;
+  --fs-agenda-date: 74px;
+  --fs-block-heading: 44px;
+  --fs-lead: 20px;
+  --fs-eyebrow: 13px;
+  --fs-nav: 14px;
+
+  /* Letter-spacing */
+  --ls-display: 0.5px;
+  --ls-eyebrow: 3px;
+
+  /* Line-height */
+  --lh-display: 0.98;
+  --lh-body: 1.65;
+
+  /* ── Rayons ────────────────────────────────────────────────────────────── */
+  --radius-button: 4px;
+  --radius-card: 8px;
+  --radius-card-lg: 14px;
+  --radius-tile: 10px;
+  --radius-img-inner: 2px;
+  --radius-frame: 3px;
+  --radius-sticker: 50%;
+  --radius-tag: 999px;
+
+  /* ── Espacements & layout ──────────────────────────────────────────────── */
+  --wrap-max: 1160px;
+  --wrap-pad: 26px;
+  --section-y: 90px;
+  --head-height: 78px;
+  --section-gap: 48px;
+  --block-gap: 30px;
+  --bp-mobile: 880px; /* documentaire : répéter 880px en littéral dans les @media */
+}
