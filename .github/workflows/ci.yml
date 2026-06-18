@@ -1,0 +1,44 @@
+name: CI
+
+# Valide le monorepo (lint + typecheck + build via Turborepo) sur chaque push
+# sur main et sur chaque pull request ciblant main. Aucun secret requis.
+# Le job de deploiement VPS (docker compose up) sera ajoute apres la Story 1.8.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Annule les runs obsoletes d'une meme ref (ex. nouveau push sur une PR).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint, typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Installe pnpm en lisant la version du champ "packageManager" du package.json racine.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Turborepo ordonne les taches via dependsOn: ["^build"]. Lance les 3 portes qualite ;
+      # echoue (rouge, PR bloquante) si l'une echoue.
+      - name: Lint, typecheck & build
+        run: pnpm turbo run lint typecheck build
