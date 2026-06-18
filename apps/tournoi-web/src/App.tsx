@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
 import Layout from './components/common/Layout';
-import { AuthProvider } from './contexts/AuthContext';
-import { TournamentProvider } from './contexts/TournamentContext';
+import { AuthProvider } from './contexts/AuthProvider';
+import { TournamentProvider } from './contexts/TournamentProvider';
 import Home from './pages/Home';
 import MentionsLegales from './pages/MentionsLegales';
 import Qualifications from './pages/Qualifications';

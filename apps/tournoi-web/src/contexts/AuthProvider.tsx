@@ -1,13 +1,5 @@
-import { createContext, useState, useEffect, type ReactNode } from 'react';
-
-interface AuthContextType {
-  token: string | null;
-  isAuthenticated: boolean;
-  login: (token: string) => void;
-  logout: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType | null>(null);
+import { useState, type ReactNode } from 'react';
+import { AuthContext } from './auth-context';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -32,14 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   });
 
-  useEffect(() => {
-    if (token && isTokenExpired(token)) {
-      setToken(null);
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  }, [token]);
-
   const login = (newToken: string) => {
+    // Garde anti-token-expire. Remplace l'ancien useEffect qui appelait setToken
+    // de maniere synchrone (react-hooks/set-state-in-effect). Comportement equivalent :
+    // l'initialiseur de useState filtre deja les tokens expires au montage, et `login`
+    // est le seul autre point qui pose un token -> valider ici couvre exactement les
+    // memes cas, sans cascade de rendus.
+    if (isTokenExpired(newToken)) {
+      localStorage.removeItem(TOKEN_KEY);
+      setToken(null);
+      return;
+    }
     localStorage.setItem(TOKEN_KEY, newToken);
     setToken(newToken);
   };
