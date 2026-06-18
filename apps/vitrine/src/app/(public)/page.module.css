@@ -1,12 +1,13 @@
-/* Démo des primitives (Story 1.3). Ne consomme QUE des tokens var(--…).
+/* Coquille d'accueil (Story 1.6). Ne consomme QUE des tokens var(--…).
+   Le sticky-footer (footer collé en bas) est désormais géré par le <main> du
+   layout (#content{flex:1} dans globals.css) → plus de min-height:100vh ici.
    Remplacé par le vrai Hero + sections en Epic 2. */
 
-.main {
+.hero {
   display: flex;
   flex-direction: column;
   gap: var(--block-gap);
   max-width: var(--wrap-max);
-  min-height: 100vh;
   margin: 0 auto;
   padding: var(--section-y) var(--wrap-pad);
 }
@@ -23,42 +24,4 @@
   max-width: 60ch;
   font-size: var(--fs-lead);
   color: var(--light);
-}
-
-.lead code {
-  font-family: var(--font-body);
-  color: var(--gold-soft);
-}
-
-/* Rangées de démonstration (boutons, tags, lien). */
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--block-gap);
-}
-
-/* Cadres photo côte à côte. */
-.frames {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--section-gap);
-  max-width: 720px;
-  margin-top: var(--block-gap);
-}
-
-.frames > * {
-  flex: 1 1 280px;
-}
-
-.axes {
-  margin-top: var(--section-gap);
-}
-
-.sectionTitle {
-  font-family: var(--font-display);
-  font-size: var(--fs-section-title);
-  line-height: var(--lh-display);
-  color: var(--cream);
-  margin-bottom: var(--block-gap);
 }
