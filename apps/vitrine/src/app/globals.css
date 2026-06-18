@@ -36,3 +36,28 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Anneau de focus visible GLOBAL (UX-DR23 / Garde-fou n°8) — couvre liens,
+   boutons et la primitive Button (rendue <a>/<button>) sans toucher @repo/ui.
+   `:where()` ⇒ spécificité nulle, surchargable par un composant si besoin.
+   Jamais `outline:none` sans remplacement. */
+:where(a, button):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+  /* Pas de border-radius : l'outline suit déjà le rayon de l'élément dans les
+     navigateurs modernes → anneau correct sur boutons ET liens inline (review 1.4 #5). */
+}
+
+/* Utilitaire « visually hidden » global (texte réservé aux lecteurs d'écran).
+   Source unique pour la vitrine (review 1.4 #4 : dé-duplique les modules). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
