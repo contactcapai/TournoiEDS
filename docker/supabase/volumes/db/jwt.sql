@@ -1,9 +1,10 @@
--- jwt.sql — Injection du JWT_SECRET dans la config Postgres (vendored depuis supabase/docker)
--- Permet a pgjwt de signer/verifier les tokens JWT cote SQL.
+-- jwt.sql — Extension pgjwt (vendored depuis supabase/docker)
+-- Installe pgjwt pour les fonctions JWT cote SQL.
+-- Note : app.settings.jwt_secret n'est PAS defini ici (le placeholder ne serait jamais
+-- remplace par l'init script). GoTrue lit GOTRUE_JWT_SECRET et PostgREST lit
+-- PGRST_APP_SETTINGS_JWT_SECRET depuis leurs propres variables d'environnement.
+-- Si des fonctions SQL ont besoin de jwt_secret, l'operateur peut l'injecter via
+-- une migration Drizzle (Story 3.1+) une fois la base initialisee.
 
 create schema if not exists extensions;
 create extension if not exists pgjwt with schema extensions;
-
--- Stocker le JWT_SECRET dans la configuration Postgres pour pgrst
-alter database postgres set "app.settings.jwt_secret" to 'JWT_PLACEHOLDER_REPLACE_AT_RUNTIME';
-alter database postgres set "app.settings.jwt_exp"    to '3600';

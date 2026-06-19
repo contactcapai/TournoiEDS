@@ -87,7 +87,9 @@ services:
       retries: 3
     labels:
       # Kong = API Supabase : expose via Traefik sur supabase.esportdessacres.fr
-      # Les SDK clients Supabase et Studio passent par cette route.
+      # Protection : ANON_KEY / SERVICE_ROLE_KEY cote Supabase (standard SDK).
+      # Pas de basicauth Traefik sur Kong : casserait les SDK clients (Epic 6).
+      # Studio non expose via Traefik (acces SSH tunnel — securite maximale).
       - "traefik.enable=true"
       - "traefik.docker.network=tournoi-net"
       - "traefik.http.routers.supabase-kong.rule=Host(`supabase.esportdessacres.fr`)"
@@ -95,11 +97,6 @@ services:
       - "traefik.http.routers.supabase-kong.tls=true"
       - "traefik.http.routers.supabase-kong.tls.certresolver=letsencrypt"
       - "traefik.http.services.supabase-kong.loadbalancer.server.port=8000"
-      # Middleware basic-auth Traefik : protege l'API Supabase derriere une premiere
-      # couche d'authentification (Studio est l'admin complet de la base).
-      # Les cles ANON/SERVICE_ROLE de Kong constituent une 2e couche cote Supabase.
-      - "traefik.http.routers.supabase-kong.middlewares=supabase-auth"
-      - "traefik.http.middlewares.supabase-auth.basicauth.users=${TRAEFIK_BASIC_AUTH_USERS}"
     networks:
       - supabase_network_default
       - tournoi-net
@@ -123,7 +120,7 @@ services:
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
       GOTRUE_SITE_URL: ${SITE_URL:-https://esportdessacres.fr}
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
-      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-true}
       GOTRUE_JWT_ADMIN_ROLES: service_role
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_ROLE: anon
@@ -190,11 +187,11 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       DB_NAME: postgres
       DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
-      DB_ENC_KEY: ${REALTIME_ENC_KEY:-supabaserealtime}
+      DB_ENC_KEY: ${REALTIME_ENC_KEY}
       API_JWT_SECRET: ${JWT_SECRET}
       FLY_ALLOC_ID: fly123
       FLY_APP_NAME: realtime
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3bhq7Rh5Bv}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
       ERL_AFLAGS: -proto_dist inet_tcp
       ENABLE_TAILSCALE: "false"
       DNS_NODES: "''"

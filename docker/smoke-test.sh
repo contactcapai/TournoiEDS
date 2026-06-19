@@ -106,9 +106,13 @@ echo ""
 echo "-- Vitrine EDS ($VITRINE_URL) --"
 
 # 9. Vitrine homepage : coquille Next.js servie (marqueur Story 1.6 : id="content")
-vitrine_body="$(curl -fsS "$VITRINE_URL/" 2>/dev/null || echo "")"
+# Note : -k (insecure) est voulu ici — le check de contenu fonctionne meme avec un cert
+# ACME staging. La validation du cert prod est faite SEPAREMENT au check #11 (openssl).
+vitrine_body="$(curl -fsSkL "$VITRINE_URL/" 2>/dev/null || echo "")"
 if echo "$vitrine_body" | grep -q 'id="content"'; then
   pass "GET $VITRINE_URL/ -> 200 + coquille Next (<main id=\"content\">)"
+elif [ -z "$vitrine_body" ]; then
+  fail "GET $VITRINE_URL/ -> corps vide (app HS ou cert invalide ? verifier check #11)"
 else
   fail "GET $VITRINE_URL/ -> attendu <main id=\"content\">, recu (extrait): $(echo "$vitrine_body" | head -c 200)"
 fi
