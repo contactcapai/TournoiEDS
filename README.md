@@ -1,12 +1,14 @@
-# Tournoi TFT — Esport des Sacres
+# TournoiEDS + Vitrine — Esport des Sacres (monorepo)
 
-Site web pour la gestion du tournoi TFT de l'association Esport des Sacres.
+Monorepo Turborepo/pnpm : tournoi TFT + site vitrine association EDS.
 
 ## Structure
 
-- `frontend/` — Application React (Vite + TypeScript + Tailwind CSS)
-- `backend/` — API Express (TypeScript + Prisma + Socket.IO)
-- `docker/` — Configuration Docker pour le deploiement
+- `apps/tournoi-web/` — Application React tournoi (Vite + TypeScript + Tailwind)
+- `apps/tournoi-api/` — API Express tournoi (TypeScript + Prisma + Socket.IO)
+- `apps/vitrine/` — Site vitrine Next.js (esportdessacres.fr)
+- `packages/` — Packages partagés (@repo/ui, @repo/eslint-config, @repo/typescript-config)
+- `docker/` — Infrastructure Docker prod (Traefik + tournoi + vitrine + Supabase)
 
 ## Demarrage rapide
 
@@ -221,8 +223,151 @@ docker compose ps                       # status (healthy/unhealthy)
 ### Smoke test post-deploy
 
 ```bash
-bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.fr https://tournoi.esportdessacres.fr
-# 8 checks attendus OK (5 backend + 3 frontend)
+bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.fr https://tournoi.esportdessacres.fr https://esportdessacres.fr
+# 11 checks attendus OK (5 backend + 3 tournoi-frontend + 3 vitrine)
+```
+
+---
+
+## Runbook — Mise en ligne de la Vitrine EDS (Story 1.8)
+
+> ⚠️ **Opérationnel — à exécuter sur le VPS Hostinger (pas automatisé, pas en CI).**
+> La configuration a été validée localement (Docker Desktop). Suivre ces étapes
+> pour mettre la vitrine et la stack Supabase en ligne sur `esportdessacres.fr`.
+
+### Prérequis
+
+- VPS provisionné, Docker Engine + Compose v2 installés, Traefik + tournoi déjà opérationnels.
+- Accès SSH : `ssh deploy@76.13.58.249`
+- Espace disque suffisant : Supabase ajoute ~1 Go d'images + données.
+
+### Étape 1 — Pull du code
+
+```bash
+cd /opt/tournoi-tft
+git pull origin main
+```
+
+### Étape 2 — Remplir les fichiers `.env` (JAMAIS commités)
+
+```bash
+# Secrets Supabase
+cp docker/supabase/.env.example docker/supabase/.env
+nano docker/supabase/.env
+# Remplir : POSTGRES_PASSWORD, JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY,
+#           DASHBOARD_USERNAME/PASSWORD, TRAEFIK_BASIC_AUTH_USERS
+# Generer JWT_SECRET : openssl rand -hex 32
+# Generer ANON_KEY/SERVICE_ROLE_KEY : https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
+# Generer TRAEFIK_BASIC_AUTH_USERS : htpasswd -nb admin <mot-de-passe>  (doubler les $)
+
+# Secrets vitrine
+cp apps/vitrine/.env.prod.example apps/vitrine/.env.prod
+nano apps/vitrine/.env.prod
+# Remplir : DATABASE_URL (postgresql://postgres:<POSTGRES_PASSWORD>@supabase-db:5432/postgres)
+# NEXT_PUBLIC_SITE_URL est une valeur de BUILD (build-arg dans docker-compose.yml),
+# pas besoin de la remettre ici (déjà figée à https://esportdessacres.fr au build).
+```
+
+### Étape 3 — DNS `esportdessacres.fr`
+
+Dans le panel Hostinger DNS, créer (ou vérifier) l'enregistrement :
+```
+A  esportdessacres.fr  →  76.13.58.249  (TTL 3600)
+```
+Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt rate limit) :
+```bash
+dig +short esportdessacres.fr
+# Attendu : 76.13.58.249
+```
+
+### Étape 4 — Premier démarrage en ACME staging (évite le rate limit prod)
+
+S'assurer que `docker/.env` a :
+```
+LETSENCRYPT_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+```
+
+Depuis `docker/` :
+```bash
+cd /opt/tournoi-tft/docker
+
+# Démarrer la stack COMPLÈTE (tournoi + vitrine + Supabase)
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+
+# Suivre le démarrage Supabase (les ~10 services prennent 1-2 min)
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-kong supabase-db supabase-auth
+
+# Vérifier que tous les services sont healthy
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml ps
+```
+
+### Étape 5 — Vérification locale staging
+
+```bash
+# La vitrine répond (cert STAGING = normal à cette étape)
+curl -k https://esportdessacres.fr/
+
+# Ou avec marqueur HTML
+curl -ks https://esportdessacres.fr/ | grep 'id="content"'
+# Attendu : <main id="content">
+```
+
+### Étape 6 — Bascule Let's Encrypt prod
+
+Une fois staging confirmé :
+```bash
+nano /opt/tournoi-tft/docker/.env
+# Modifier :
+# LETSENCRYPT_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
+
+# Supprimer le volume ACME staging (obligatoire pour réémettre un cert prod)
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml down traefik
+docker volume rm docker_traefik-acme
+# ou : docker volume ls | grep acme  →  trouver le nom exact
+
+# Redémarrer Traefik (les autres services restent up)
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d traefik
+```
+
+### Étape 7 — Smoke test complet
+
+```bash
+# Attendre ~2 min que le cert prod soit émis, puis :
+bash /opt/tournoi-tft/docker/smoke-test.sh \
+  https://api-tournoi.esportdessacres.fr \
+  https://tournoi.esportdessacres.fr \
+  https://esportdessacres.fr
+# 11 checks attendus SUCCES (dont cert vitrine "Let's Encrypt" sans STAGING)
+```
+
+### Accès Studio Supabase (admin base vitrine)
+
+Studio n'est **pas** exposé publiquement (sécurité). Accès par SSH tunnel :
+```bash
+# Depuis la machine locale (Brice)
+ssh -L 3001:supabase-studio:3000 deploy@76.13.58.249
+# Puis ouvrir http://localhost:3001 dans le navigateur
+```
+
+### Redéploiement vitrine après push code
+
+```bash
+cd /opt/tournoi-tft
+git pull
+cd docker
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml build vitrine
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d vitrine
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f eds-vitrine
+```
+
+### Logs Supabase
+
+```bash
+cd /opt/tournoi-tft/docker
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-kong
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-auth
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-db
+docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f eds-vitrine
 ```
 
 ### Overlays OBS pour stream

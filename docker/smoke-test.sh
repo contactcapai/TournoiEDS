@@ -1,13 +1,14 @@
 #!/bin/sh
-# docker/smoke-test.sh — Verification end-to-end post-deploy backend + frontend.
+# docker/smoke-test.sh — Verification end-to-end post-deploy : tournoi + vitrine EDS.
 #
-# Usage :  ./smoke-test.sh [base_url] [frontend_url]
+# Usage :  ./smoke-test.sh [base_url] [frontend_url] [vitrine_url]
 #   base_url       par defaut : https://api-tournoi.esportdessacres.fr
 #   frontend_url   par defaut : https://tournoi.esportdessacres.fr
+#   vitrine_url    par defaut : https://esportdessacres.fr
 #
 # Testable en local (Docker Desktop) avec :
-#   ./smoke-test.sh http://localhost http://localhost
-#   (apres avoir ajoute 127.0.0.1 api-tournoi... + tournoi... au hosts si test via nom DNS)
+#   VITRINE_URL=http://localhost:3000 ./smoke-test.sh http://localhost http://localhost http://localhost:3000
+#   (ajouter 127.0.0.1 esportdessacres.fr au /etc/hosts si test via nom DNS)
 #
 # Sortie : affiche chaque check ; exit 0 si tous passent, 1 sinon.
 
@@ -15,13 +16,14 @@ set -u
 
 BASE_URL="${1:-https://api-tournoi.esportdessacres.fr}"
 FRONTEND_URL="${2:-https://tournoi.esportdessacres.fr}"
+VITRINE_URL="${3:-${VITRINE_URL:-https://esportdessacres.fr}}"
 HOST="$(echo "$BASE_URL" | sed -E 's#^https?://##' | sed 's#/.*##')"
 FAIL=0
 
 pass() { printf "  \033[32mOK\033[0m  %s\n" "$1"; }
 fail() { printf "  \033[31mKO\033[0m  %s\n" "$1"; FAIL=$((FAIL + 1)); }
 
-echo "== Smoke test : backend=$BASE_URL  frontend=$FRONTEND_URL =="
+echo "== Smoke test : backend=$BASE_URL  frontend=$FRONTEND_URL  vitrine=$VITRINE_URL =="
 
 # 1. /api/health HTTPS
 body="$(curl -fsS "$BASE_URL/api/health" 2>/dev/null || echo "")"
@@ -97,6 +99,50 @@ if [ "$front_code" = "301" ] || [ "$front_code" = "308" ]; then
   pass "GET $front_http_url/ -> redirection $front_code (frontend HTTP->HTTPS OK)"
 else
   fail "GET $front_http_url/ -> attendu 301/308, recu $front_code"
+fi
+
+# ── Vitrine EDS (esportdessacres.fr) ────────────────────────────────────────
+echo ""
+echo "-- Vitrine EDS ($VITRINE_URL) --"
+
+# 9. Vitrine homepage : coquille Next.js servie (marqueur Story 1.6 : id="content")
+vitrine_body="$(curl -fsS "$VITRINE_URL/" 2>/dev/null || echo "")"
+if echo "$vitrine_body" | grep -q 'id="content"'; then
+  pass "GET $VITRINE_URL/ -> 200 + coquille Next (<main id=\"content\">)"
+else
+  fail "GET $VITRINE_URL/ -> attendu <main id=\"content\">, recu (extrait): $(echo "$vitrine_body" | head -c 200)"
+fi
+
+# 10. Redirection HTTP -> HTTPS (vitrine)
+vitrine_http_url="$(echo "$VITRINE_URL" | sed 's#^https://#http://#')"
+if echo "$VITRINE_URL" | grep -q '^https://'; then
+  vitrine_redir="$(curl -fsS -o /dev/null -w "%{http_code}" "$vitrine_http_url/" 2>/dev/null || echo "000")"
+  if [ "$vitrine_redir" = "301" ] || [ "$vitrine_redir" = "308" ]; then
+    pass "GET $vitrine_http_url/ -> redirection $vitrine_redir (vitrine HTTP->HTTPS OK)"
+  else
+    fail "GET $vitrine_http_url/ -> attendu 301/308, recu $vitrine_redir"
+  fi
+else
+  echo "  --  Test redirection HTTP->HTTPS skip (URL locale)"
+fi
+
+# 11. Certificat TLS vitrine (prod seulement)
+if command -v openssl >/dev/null 2>&1 && echo "$VITRINE_URL" | grep -q '^https://'; then
+  vitrine_host="$(echo "$VITRINE_URL" | sed -E 's#^https?://##' | sed 's#/.*##')"
+  vitrine_issuer="$(echo | openssl s_client -connect "$vitrine_host:443" -servername "$vitrine_host" 2>/dev/null | openssl x509 -noout -issuer 2>/dev/null || echo "")"
+  case "$vitrine_issuer" in
+    *"Let's Encrypt"*"STAGING"*|*"Fake"*)
+      fail "Cert vitrine issuer STAGING detecte (bascule prod non faite) : $vitrine_issuer"
+      ;;
+    *"Let's Encrypt"*)
+      pass "Cert vitrine issuer Let's Encrypt prod : $vitrine_issuer"
+      ;;
+    *)
+      fail "Cert vitrine issuer inattendu : $vitrine_issuer"
+      ;;
+  esac
+else
+  echo "  --  openssl absent ou URL locale, skip verification cert vitrine"
 fi
 
 echo ""

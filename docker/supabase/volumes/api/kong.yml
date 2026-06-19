@@ -1,0 +1,176 @@
+_format_version: "1.1"
+
+###############################################################################
+# Consumers & credentials Kong
+# Deux consumers : anon (cle publique) + service_role (cle admin).
+# Les cles sont INJECTEES par substitution de variables d'environnement
+# (entrypoint du conteneur kong execute eval + envsubst sur ce template).
+###############################################################################
+consumers:
+  - username: anon
+    keyauth_credentials:
+      - key: ${SUPABASE_ANON_KEY}
+  - username: service_role
+    keyauth_credentials:
+      - key: ${SUPABASE_SERVICE_KEY}
+
+###############################################################################
+# ACL Groups
+###############################################################################
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+###############################################################################
+# Services & routes
+###############################################################################
+services:
+  # ── Auth (GoTrue) ──────────────────────────────────────────────────────────
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+    plugins:
+      - name: cors
+
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths:
+          - /auth/v1/callback
+    plugins:
+      - name: cors
+
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths:
+          - /auth/v1/authorize
+    plugins:
+      - name: cors
+
+  - name: auth-v1
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  # ── REST (PostgREST) ───────────────────────────────────────────────────────
+  - name: rest-v1-anon
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-anon
+        strip_path: true
+        paths:
+          - /rest/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  # ── GraphQL (via REST) ─────────────────────────────────────────────────────
+  - name: graphql-v1-anon
+    url: http://rest:3000/rpc/graphql
+    routes:
+      - name: graphql-v1-anon
+        strip_path: true
+        paths:
+          - /graphql/v1
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  # ── Storage ────────────────────────────────────────────────────────────────
+  - name: storage-v1-anon
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-anon
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  # ── Realtime ───────────────────────────────────────────────────────────────
+  - name: realtime-v1-anon
+    url: http://realtime-dev.supabase-realtime:4000/socket/
+    routes:
+      - name: realtime-v1-anon
+        strip_path: true
+        paths:
+          - /realtime/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - anon
+            - admin
+
+  # ── Postgres Meta (introspection schema) ──────────────────────────────────
+  - name: meta
+    url: http://meta:8080/
+    routes:
+      - name: meta
+        strip_path: true
+        paths:
+          - /pg/
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin

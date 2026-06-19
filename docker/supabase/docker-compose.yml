@@ -1,0 +1,393 @@
+# docker/supabase/docker-compose.yml
+# Stack Supabase self-hosted (vendored depuis supabase/docker officiel).
+# Adapte pour s'integrer a la stack TournoiEDS :
+#   - Services Supabase communiquent sur supabase_network_default (interne)
+#   - kong + db rejoignent egalement tournoi-net (reseau externe partage avec Traefik)
+#     -> Traefik decouvre kong via les labels (providers.docker.network=tournoi-net)
+#     -> La vitrine atteint directement la base Supabase (DATABASE_URL)
+#   - Studio n'est PAS expose publiquement (acces via SSH tunnel sur le VPS)
+#
+# Usage (depuis docker/) :
+#   docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+#
+# Variables : lire depuis docker/supabase/.env (copier .env.example, remplir les secrets).
+# Ne JAMAIS commiter les valeurs reelles. Cf. .env.example pour la generation des cles.
+
+name: supabase
+
+services:
+
+  # ─────────────────────────────────────────────────
+  # PostgreSQL Supabase (base de la vitrine EDS)
+  # DISTINCT de tournoi-tft-postgres (base Prisma du tournoi).
+  # Sur supabase_network_default (interne) ET tournoi-net (pour que la vitrine y accede).
+  # ─────────────────────────────────────────────────
+  db:
+    image: supabase/postgres:15.8.1.020
+    container_name: supabase-db
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/migrations/99-webhooks.sql:Z
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/migrations/99-roles.sql:Z
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/migrations/99-jwt.sql:Z
+    healthcheck:
+      test: pg_isready -U postgres -h 127.0.0.1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+      - tournoi-net
+
+  # ─────────────────────────────────────────────────
+  # Kong — API Gateway Supabase
+  # Sur tournoi-net : Traefik lui assigne le domaine supabase.esportdessacres.fr (TLS).
+  # Ne pas publier les ports 8000/8443 directement (Traefik est le seul point entree TLS).
+  # ─────────────────────────────────────────────────
+  kong:
+    image: kong:2.8.1
+    container_name: supabase-kong
+    restart: unless-stopped
+    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+    volumes:
+      - ./volumes/api/kong.yml:/home/kong/temp.yml:ro,Z
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    labels:
+      # Kong = API Supabase : expose via Traefik sur supabase.esportdessacres.fr
+      # Les SDK clients Supabase et Studio passent par cette route.
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      - "traefik.http.routers.supabase-kong.rule=Host(`supabase.esportdessacres.fr`)"
+      - "traefik.http.routers.supabase-kong.entrypoints=websecure"
+      - "traefik.http.routers.supabase-kong.tls=true"
+      - "traefik.http.routers.supabase-kong.tls.certresolver=letsencrypt"
+      - "traefik.http.services.supabase-kong.loadbalancer.server.port=8000"
+      # Middleware basic-auth Traefik : protege l'API Supabase derriere une premiere
+      # couche d'authentification (Studio est l'admin complet de la base).
+      # Les cles ANON/SERVICE_ROLE de Kong constituent une 2e couche cote Supabase.
+      - "traefik.http.routers.supabase-kong.middlewares=supabase-auth"
+      - "traefik.http.middlewares.supabase-auth.basicauth.users=${TRAEFIK_BASIC_AUTH_USERS}"
+    networks:
+      - supabase_network_default
+      - tournoi-net
+
+  # ─────────────────────────────────────────────────
+  # Auth — GoTrue (authentification utilisateurs)
+  # Provisione ici ; branche cote app en Epic 6 (Discord SSO, Story 6.1).
+  # ─────────────────────────────────────────────────
+  auth:
+    image: supabase/gotrue:v2.165.0
+    container_name: supabase-auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-https://supabase.esportdessacres.fr}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL:-https://esportdessacres.fr}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_ROLE: anon
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: ${ENABLE_ANONYMOUS_USERS:-false}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-false}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # REST — PostgREST (API REST auto-generee depuis Postgres)
+  # ─────────────────────────────────────────────────
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: supabase-rest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    command: "postgrest"
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Realtime — Supabase Realtime (WebSocket, broadcast, presence)
+  # ─────────────────────────────────────────────────
+  realtime:
+    image: supabase/realtime:v2.33.72
+    container_name: supabase-realtime-dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: 'SET search_path TO _realtime'
+      DB_ENC_KEY: ${REALTIME_ENC_KEY:-supabaserealtime}
+      API_JWT_SECRET: ${JWT_SECRET}
+      FLY_ALLOC_ID: fly123
+      FLY_APP_NAME: realtime
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3bhq7Rh5Bv}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      ENABLE_TAILSCALE: "false"
+      DNS_NODES: "''"
+    command: >
+      sh -c "/app/bin/migrate && /app/bin/realtime eval 'Realtime.Release.seeds(Realtime.Repo)' && /app/bin/server"
+    healthcheck:
+      test: ["CMD", "curl", "-sSfL", "--head", "-o", "/dev/null", "-H", "Authorization: Bearer ${ANON_KEY}", "http://localhost:4000/api/tenants/realtime-dev/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Storage — Supabase Storage API (fichiers/medias)
+  # Provisione ici ; branche cote app en Story 4.4 (upload photos).
+  # ─────────────────────────────────────────────────
+  storage:
+    image: supabase/storage-api:v1.13.1
+    container_name: supabase-storage
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+      imgproxy:
+        condition: service_started
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+    volumes:
+      - supabase-storage-data:/var/lib/storage:z
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/status"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Imgproxy — Transformation d'images (resize, crop, webp)
+  # ─────────────────────────────────────────────────
+  imgproxy:
+    image: darthsim/imgproxy:v3.8.0
+    container_name: supabase-imgproxy
+    restart: unless-stopped
+    environment:
+      IMGPROXY_BIND: ":5001"
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
+    volumes:
+      - supabase-storage-data:/var/lib/storage:z
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Meta — Postgres Meta API (introspection schema pour Studio)
+  # ─────────────────────────────────────────────────
+  meta:
+    image: supabase/postgres-meta:v0.84.2
+    container_name: supabase-meta
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Studio — Interface d'administration Supabase
+  # NON expose publiquement via Traefik (securite : acces admin complet a la base).
+  # Acceder via SSH tunnel sur le VPS : ssh -L 3001:localhost:3000 user@vps
+  # puis ouvrir http://localhost:3001 dans le navigateur local.
+  # ─────────────────────────────────────────────────
+  studio:
+    image: supabase/studio:2025-04-30-f1a5c1b
+    container_name: supabase-studio
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      meta:
+        condition: service_started
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-EDS}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-vitrine}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: https://supabase.esportdessacres.fr
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      LOGFLARE_LOGGER_BACKEND_API_KEY: ${LOGFLARE_API_KEY:-your-logflare-api-key}
+      LOGFLARE_API_URL: http://analytics:4000
+      NEXT_PUBLIC_ENABLE_LOGS: "true"
+      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/profile', (r) => {process.exit(r.statusCode !== 200)})"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Analytics — Logflare (agregation des logs Supabase)
+  # ─────────────────────────────────────────────────
+  analytics:
+    image: supabase/logflare:1.4.0
+    container_name: supabase-analytics
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      LOGFLARE_NODE_HOST: 127.0.0.1
+      DB_USERNAME: supabase_admin
+      DB_DATABASE: _analytics
+      DB_HOSTNAME: db
+      DB_PORT: 5432
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SCHEMA: _analytics
+      LOGFLARE_API_KEY: ${LOGFLARE_API_KEY:-your-logflare-api-key}
+      LOGFLARE_SINGLE_TENANT: true
+      LOGFLARE_SUPABASE_MODE: true
+      LOGFLARE_MIN_CLUSTER_SIZE: 1
+      RELEASE_COOKIE: cookie
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:4000/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+  # ─────────────────────────────────────────────────
+  # Vector — Collecte & routage des logs vers Logflare
+  # ─────────────────────────────────────────────────
+  vector:
+    image: timberio/vector:0.28.1-alpine
+    container_name: supabase-vector
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,Z
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://vector:9001/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    networks:
+      - supabase_network_default
+
+networks:
+  supabase_network_default:
+    name: supabase_network_default
+    driver: bridge
+  # tournoi-net est declare comme RESEAU EXTERNE (cree par docker/docker-compose.yml).
+  # Kong et db le rejoignent pour que Traefik (providers.docker.network=tournoi-net)
+  # decouvre kong, et que la vitrine (DATABASE_URL) atteigne directement la base Supabase.
+  tournoi-net:
+    external: true
+    name: tournoi-net
+
+volumes:
+  supabase-db-data:
+    name: supabase-db-data
+  supabase-storage-data:
+    name: supabase-storage-data

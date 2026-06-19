@@ -32,8 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-# ...mais on versionne le modele sans secret (AR-SEC4).
+# ...mais on versionne les modeles sans secret (AR-SEC4).
 !.env.example
+!.env.prod.example
 
 # vercel
 .vercel
