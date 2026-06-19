@@ -1,7 +1,14 @@
-# docker-compose.yml — Stack PROD complete (Tournoi TFT EDS)
-# Usage : depuis le dossier docker/, `docker compose up -d`
-# Les valeurs secretes sont lues depuis docker/.env (substitution ${VAR})
-# Le backend lit ses propres vars applicatives depuis apps/tournoi-api/.env.prod (env_file)
+# docker-compose.yml — Stack PROD Tournoi TFT EDS + Vitrine EDS
+#
+# USAGE COMPLET (tournoi + vitrine + Supabase) — depuis le dossier docker/ :
+#   docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+#
+# USAGE TOURNOI SEUL (sans Supabase / vitrine) :
+#   docker compose up -d
+#
+# Secrets compose (Traefik, PG tournoi) : docker/.env (copier docker/.env.example)
+# Secrets vitrine : apps/vitrine/.env.prod (copier apps/vitrine/.env.prod.example)
+# Secrets Supabase : docker/supabase/.env (copier docker/supabase/.env.example)
 
 services:
   traefik:
@@ -112,6 +119,47 @@ services:
       - "traefik.http.routers.tournoi-tft-web.tls=true"
       - "traefik.http.routers.tournoi-tft-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.tournoi-tft-web.loadbalancer.server.port=80"
+    networks:
+      - tournoi-net
+
+  # ─────────────────────────────────────────────────
+  # Vitrine EDS — Site vitrine Next.js (esportdessacres.fr)
+  # NEXT_PUBLIC_SITE_URL fige au build (build-arg, inlineee dans le bundle).
+  # DATABASE_URL arrives au runtime via env_file (server-only, jamais dans l'image).
+  # La base Postgres est celle de Supabase (supabase-db sur tournoi-net).
+  # Demarrer avec la commande multi-fichiers pour inclure Supabase :
+  #   docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+  # ─────────────────────────────────────────────────
+  vitrine:
+    build:
+      context: ..
+      dockerfile: apps/vitrine/Dockerfile
+      args:
+        # NEXT_PUBLIC_SITE_URL est inlineee dans le bundle Next au build.
+        # Ne pas passer DATABASE_URL ici (server-only, contiendrait des identifiants).
+        NEXT_PUBLIC_SITE_URL: https://esportdessacres.fr
+    container_name: eds-vitrine
+    restart: unless-stopped
+    env_file:
+      # DATABASE_URL et vars runtime de la vitrine (jamais committees, cf. .gitignore).
+      - ../apps/vitrine/.env.prod
+    # Pas de depends_on sur supabase-db : la connexion Drizzle est paresseuse
+    # (premier appel a la DB, pas au demarrage du conteneur). La vitrine demarre
+    # meme si Supabase n'est pas encore healthy.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      - "traefik.http.routers.eds-vitrine.rule=Host(`esportdessacres.fr`)"
+      - "traefik.http.routers.eds-vitrine.entrypoints=websecure"
+      - "traefik.http.routers.eds-vitrine.tls=true"
+      - "traefik.http.routers.eds-vitrine.tls.certresolver=letsencrypt"
+      - "traefik.http.services.eds-vitrine.loadbalancer.server.port=3000"
     networks:
       - tournoi-net
 

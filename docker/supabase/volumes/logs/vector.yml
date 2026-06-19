@@ -1,0 +1,108 @@
+# docker/supabase/volumes/logs/vector.yml
+# Configuration Vector : collecte les logs des conteneurs Docker Supabase
+# et les route vers Logflare (analytics service).
+# Vendored depuis supabase/docker officiel.
+
+api:
+  enabled: true
+  address: 0.0.0.0:9001
+
+sources:
+  docker_host:
+    type: docker_logs
+    exclude_containers:
+      - supabase-vector
+
+transforms:
+  project_logs:
+    type: remap
+    inputs:
+      - docker_host
+    source: |-
+      .project = "default"
+      .event_message = del(.message)
+      .appname = del(.container_name)
+      del(.container_created_at)
+      del(.container_id)
+      del(.source_type)
+      del(.stream)
+      del(.label)
+
+  router:
+    type: route
+    inputs:
+      - project_logs
+    route:
+      kong: '.appname == "supabase-kong"'
+      auth: '.appname == "supabase-auth"'
+      rest: '.appname == "supabase-rest"'
+      realtime: 'starts_with(string!(.appname), "supabase-realtime")'
+      storage: '.appname == "supabase-storage"'
+      db: '.appname == "supabase-db"'
+
+sinks:
+  logflare_kong:
+    type: http
+    inputs:
+      - router.kong
+    uri: http://analytics:4000/api/logs?source_name=kong
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"
+
+  logflare_auth:
+    type: http
+    inputs:
+      - router.auth
+    uri: http://analytics:4000/api/logs?source_name=gotrue
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"
+
+  logflare_rest:
+    type: http
+    inputs:
+      - router.rest
+    uri: http://analytics:4000/api/logs?source_name=postgrest
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"
+
+  logflare_realtime:
+    type: http
+    inputs:
+      - router.realtime
+    uri: http://analytics:4000/api/logs?source_name=realtime
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"
+
+  logflare_storage:
+    type: http
+    inputs:
+      - router.storage
+    uri: http://analytics:4000/api/logs?source_name=storage
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"
+
+  logflare_db:
+    type: http
+    inputs:
+      - router.db
+    uri: http://analytics:4000/api/logs?source_name=postgres
+    encoding:
+      codec: json
+    request:
+      headers:
+        x-api-key: "{{ LOGFLARE_API_KEY }}"

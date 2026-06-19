@@ -6,6 +6,11 @@ node_modules/
 .env.local
 .env.prod
 docker/.env
+# Secrets Supabase self-hosted (Story 1.8)
+docker/supabase/.env
+# Gabarits (.env.*.example) conserves — ils ne contiennent pas de secrets reels
+# apps/vitrine/.env.prod.example est versionne (gabarit)
+# apps/vitrine/.env.prod est gitignore (secret VPS)
 
 # Build outputs (generiques monorepo : dist/ et .next/ a tout niveau)
 dist/
