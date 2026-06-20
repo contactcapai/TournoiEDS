@@ -10,6 +10,10 @@ Monorepo Turborepo/pnpm : tournoi TFT + site vitrine association EDS.
 - `packages/` — Packages partagés (@repo/ui, @repo/eslint-config, @repo/typescript-config)
 - `docker/` — Infrastructure Docker prod (Traefik + tournoi + vitrine + Supabase)
 
+> 📘 **Reprise d'exploitation par l'asso** : [`docs/PASSATION.md`](docs/PASSATION.md) —
+> démarrer/arrêter la stack, mises à jour, sauvegardes & restauration, tâches courantes
+> et rationale « boring tech » (aucune dépendance à un prestataire unique, NFR6).
+
 ## Demarrage rapide
 
 ### Frontend
@@ -62,7 +66,7 @@ Déploiement **manuel** sur le VPS Hostinger (pas de CI/CD). Le frontend est ser
 
 ### Pré-requis
 
-- VPS Ubuntu 24.04 LTS (ici `76.13.58.249`) fraîchement provisionné.
+- VPS Ubuntu 24.04 LTS (ici `<IP_VPS>`) fraîchement provisionné.
 - Accès DNS chez Hostinger pour `esportdessacres.fr`.
 - Clé SSH publique de la machine de dev (Brice) prête à être installée sur le VPS.
 - Email valide pour les notifications Let's Encrypt.
@@ -104,11 +108,11 @@ Pour pointer un autre environnement, modifier la valeur dans `docker-compose.yml
 
 ### Séquence de déploiement
 
-1. **Durcir le VPS** — créer user `deploy`, installer clé SSH, désactiver `PasswordAuthentication` et `PermitRootLogin password` dans `/etc/ssh/sshd_config.d/99-harden.conf`, `systemctl restart sshd`.
+1. **Durcir le VPS** — créer user `<USER_SSH>` (nom au choix), installer clé SSH, désactiver `PasswordAuthentication` et `PermitRootLogin password` dans `/etc/ssh/sshd_config.d/99-harden.conf`, `systemctl restart sshd`.
 2. **Firewall & fail2ban** — `ufw default deny incoming`, `ufw allow 22,80,443/tcp`, `ufw enable` ; `apt install fail2ban`, jail `sshd` enabled.
-3. **Docker Engine + Compose v2** — dépôt officiel Docker (`docs.docker.com/engine/install/ubuntu/`), `usermod -aG docker deploy`, tester `docker run --rm hello-world`.
-4. **DNS Hostinger** — créer deux enregistrements A `api-tournoi.esportdessacres.fr` et `tournoi.esportdessacres.fr` → `76.13.58.249` (TTL ≤ 3600s). Vérifier la propagation avec `dig +short api-tournoi.esportdessacres.fr` et `dig +short tournoi.esportdessacres.fr` **avant** la suite (sinon Let's Encrypt brûle une tentative sur le rate limit prod 5/7j).
-5. **Cloner le repo** — `git clone <repo-url> /opt/tournoi-tft` (utilisateur `deploy`).
+3. **Docker Engine + Compose v2** — dépôt officiel Docker (`docs.docker.com/engine/install/ubuntu/`), `usermod -aG docker <USER_SSH>`, tester `docker run --rm hello-world`.
+4. **DNS Hostinger** — créer deux enregistrements A `api-tournoi.esportdessacres.fr` et `tournoi.esportdessacres.fr` → `<IP_VPS>` (TTL ≤ 3600s). Vérifier la propagation avec `dig +short api-tournoi.esportdessacres.fr` et `dig +short tournoi.esportdessacres.fr` **avant** la suite (sinon Let's Encrypt brûle une tentative sur le rate limit prod 5/7j).
+5. **Cloner le repo** — `git clone <repo-url> /opt/tournoi-tft` (utilisateur `<USER_SSH>`).
 6. **Remplir les `.env`** — `cp docker/.env.example docker/.env` et `cp backend/.env.example backend/.env.prod`, éditer avec des secrets forts. Démarrer avec `LETSENCRYPT_CA_SERVER=staging`.
 7. **Premier démarrage (staging LE)** — `cd /opt/tournoi-tft/docker && docker compose up -d`. L'entrypoint du backend exécute `prisma migrate deploy` au boot (migrations appliquées automatiquement).
 8. **Vérifier staging** — `curl -I --insecure https://api-tournoi.esportdessacres.fr/api/health` → 200. Issuer cert contient "STAGING" (ou "Fake") via `openssl s_client`.
@@ -134,7 +138,11 @@ docker compose up -d
 
 ### Contacts & accès
 
-- **VPS Hostinger** — `76.13.58.249`, SSH `deploy@76.13.58.249` (clé).
+> 🔐 **Placeholders** : `<IP_VPS>` et `<USER_SSH>` ne sont **pas** committés en clair (le repo
+> ne doit pas exposer la cible exacte). Les vraies valeurs sont détenues par Brice / le bureau
+> de l'asso (gestionnaire de mots de passe). Remplacer mentalement dans les commandes ci-dessous.
+
+- **VPS Hostinger** — `<IP_VPS>`, SSH `<USER_SSH>@<IP_VPS>` (clé).
 - **DNS Hostinger** — panel `esportdessacres.fr`, user Brice.
 - **Dev machine (Brice)** — Windows + Docker Desktop pour tests locaux avant push VPS.
 
@@ -163,15 +171,21 @@ sudo /opt/tournoi-tft/docker/backup-pg.sh
 
 ### Cleanup dossier `/root/backups`
 
-Pas de rotation automatique configurée (KISS pour MVP). Pour purger les backups de plus de 14 jours :
+La rotation est **automatisée** par `backup-all.sh` (Story 1.10) : purge des 3 familles
+`tournoi-*` / `supabase-*` / `storage-*` au-delà de **14 jours** en local (et 30 j sur le
+remote off-site, si configuré). Voir §Sauvegardes automatiques.
+
+Purge manuelle ponctuelle (équivalent, si besoin hors cron) :
 
 ```bash
-sudo find /root/backups -name "tournoi-*.sql.gz" -mtime +14 -delete
+sudo find /root/backups -name "tournoi-*.sql.gz"  -mtime +14 -delete
+sudo find /root/backups -name "supabase-*.sql.gz" -mtime +14 -delete
+sudo find /root/backups -name "storage-*.tar.gz"  -mtime +14 -delete
 ```
 
-À exécuter manuellement de temps en temps si l'accumulation devient un souci. Surveiller l'espace disque pendant un événement live (`df -h /root`).
+Surveiller l'espace disque pendant un événement live (`df -h /root`).
 
-### Restore DB
+### Restore DB tournoi
 
 ```bash
 cd /opt/tournoi-tft/docker
@@ -182,6 +196,94 @@ gunzip -c /root/backups/tournoi-YYYYMMDD-HHMMSS.sql.gz \
 ```
 
 **Tester la restoration en local Docker Desktop** avant de dépendre d'elle en prod.
+
+### Restore DB Supabase (base de la vitrine)
+
+> ⚠️ **Distinct du tournoi.** Cible le conteneur `supabase-db` (base `postgres`), superuser
+> **`supabase_admin`** (le rôle `postgres` n'est PAS superuser dans l'image `supabase/postgres`).
+
+**Stratégie A — restore sur une instance Supabase initialisée (recommandée).** Le dump est
+produit avec `--no-owner --no-privileges` (cf. `backup-supabase.sh`). On restaure dans une
+instance dont les init SQL (`volumes/db/roles.sql`, `jwt.sql`…) ont **déjà recréé** les rôles
+et extensions `supabase_*` :
+
+```bash
+cd /opt/tournoi-tft/docker
+# La stack Supabase doit tourner (db healthy). PGPASSWORD est déjà dans l'env du conteneur.
+gunzip -c /root/backups/supabase-YYYYMMDD-HHMMSS.sql.gz \
+  | docker exec -i supabase-db psql -U supabase_admin -d postgres
+```
+
+**Nuances Supabase (important) :**
+- Sur une instance **déjà initialisée**, psql affiche des erreurs **bénignes** « already
+  exists » / « duplicate key » (`schema_migrations`, extensions, schémas internes Supabase
+  déjà créés par les init SQL). C'est **normal** : ce qui compte est que les **données
+  applicatives** (schéma `public` de la vitrine + schéma `storage` = métadonnées du bucket)
+  soient restaurées. Ne **pas** mettre `ON_ERROR_STOP=on` (psql doit passer outre les
+  conflits bénins). Pour une restauration **propre**, repartir d'un volume `supabase-db-data`
+  **vierge** (`docker compose down` + `docker volume rm supabase-db-data`) puis laisser les
+  init SQL recréer les rôles avant ce restore.
+- La base `_analytics` (logs Logflare) n'est **pas** sauvegardée (jetable, régénérée au boot).
+- **Ordre obligatoire : DB Supabase AVANT Storage** (les métadonnées du bucket sont en DB).
+
+### Restore bucket Storage
+
+Le bucket (fichiers) est une archive du volume `supabase-storage-data`. Restaurer **après**
+la DB Supabase, **services `storage` + `imgproxy` arrêtés** (évite les écritures concurrentes) :
+
+```bash
+cd /opt/tournoi-tft/docker
+COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
+$COMPOSE stop storage imgproxy
+
+# Restaurer dans le volume existant (écrase le contenu courant) :
+docker run --rm -i -v supabase-storage-data:/data alpine tar xzf - -C /data \
+  < /root/backups/storage-YYYYMMDD-HHMMSS.tar.gz
+
+$COMPOSE start storage imgproxy
+```
+
+> Pour restaurer dans un volume **neuf** : `docker volume rm supabase-storage-data` puis
+> `docker volume create supabase-storage-data` avant le `tar xzf`.
+
+**Restauration vérifiée localement** (Docker Desktop, cibles jetables — cf. Dev Agent Record)
+pour la **DB Supabase** (donnée connue relue) et le **Storage** (fichier connu relu). La
+**restauration de production (DR)** sur le VPS reste une **étape opérationnelle** à planifier
+périodiquement (cf. `docs/PASSATION.md`).
+
+### Sauvegardes automatiques (tournoi + Supabase + Storage, off-site)
+
+L'orchestrateur `backup-all.sh` (Story 1.10) enchaîne les **3 sauvegardes**, copie **hors-VPS**
+(optionnel) et applique la **rotation** :
+
+```bash
+sudo /opt/tournoi-tft/docker/backup-all.sh
+# -> /root/backups/{tournoi,supabase,storage}-YYYYMMDD-HHMMSS.{sql.gz,tar.gz}
+```
+
+**Copie hors-VPS (boring & multi-fournisseur, anti-lock-in — NFR6) :**
+1. Installer rclone : `curl https://rclone.org/install.sh | sudo bash`.
+2. `cp docker/offsite.env.example docker/offsite.env` et `cp docker/rclone.conf.example
+   docker/rclone.conf` (les deux sont **gitignored** — n'y mettre que des secrets locaux).
+3. Renseigner les vraies clés (Backblaze B2 / S3 / SFTP…) dans `docker/rclone.conf`, puis
+   `OFFSITE_ENABLED=true` + `RCLONE_REMOTE` dans `docker/offsite.env`.
+4. **Premier upload réel** (à lancer une fois manuellement, puis vérifier l'arrivée côté
+   remote) : `sudo /opt/tournoi-tft/docker/backup-all.sh`.
+
+> Alternative tout aussi boring : `rsync`/`scp` vers un 2ᵉ hôte SSH (adapter le bloc off-site
+> de `backup-all.sh`). Option avancée (chiffrement client) : `rclone crypt` (cf. `offsite.env.example`).
+
+**Planification (cron quotidien) — étape opérationnelle VPS** (cf. `docker/backups.cron`) :
+
+```bash
+# /etc/cron.d (versionnable) :
+sudo cp /opt/tournoi-tft/docker/backups.cron /etc/cron.d/eds-backups
+sudo chmod 644 /etc/cron.d/eds-backups
+# Vérifier ensuite : tail -f /var/log/eds-backup.log
+```
+
+`backup.cron` documente aussi la variante **systemd timer**. Rétention : **14 j local / 30 j
+remote** (surchargeable via `RETENTION_LOCAL_DAYS` / `RETENTION_REMOTE_DAYS`).
 
 ### Redéploiement backend après push code
 
@@ -238,7 +340,7 @@ bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.f
 ### Prérequis
 
 - VPS provisionné, Docker Engine + Compose v2 installés, Traefik + tournoi déjà opérationnels.
-- Accès SSH : `ssh deploy@76.13.58.249`
+- Accès SSH : `ssh <USER_SSH>@<IP_VPS>`
 - Espace disque suffisant : Supabase ajoute ~1 Go d'images + données.
 
 ### Étape 1 — Pull du code
@@ -272,12 +374,12 @@ nano apps/vitrine/.env.prod
 
 Dans le panel Hostinger DNS, créer (ou vérifier) l'enregistrement :
 ```
-A  esportdessacres.fr  →  76.13.58.249  (TTL 3600)
+A  esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
 ```
 Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt rate limit) :
 ```bash
 dig +short esportdessacres.fr
-# Attendu : 76.13.58.249
+# Attendu : <IP_VPS>
 ```
 
 ### Étape 4 — Premier démarrage en ACME staging (évite le rate limit prod)
@@ -345,7 +447,7 @@ bash /opt/tournoi-tft/docker/smoke-test.sh \
 Studio n'est **pas** exposé publiquement (sécurité). Accès par SSH tunnel :
 ```bash
 # Depuis la machine locale (Brice)
-ssh -L 3001:supabase-studio:3000 deploy@76.13.58.249
+ssh -L 3001:supabase-studio:3000 <USER_SSH>@<IP_VPS>
 # Puis ouvrir http://localhost:3001 dans le navigateur
 ```
 

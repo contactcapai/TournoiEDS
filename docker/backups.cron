@@ -1,0 +1,52 @@
+# docker/backups.cron — Modele de planification des sauvegardes EDS (Story 1.10).
+#
+# ⚠️ FICHIER MODELE VERSIONNE — il N'est PAS actif tel quel. Installation = etape
+#    OPERATIONNELLE sur le VPS (l'agent dev ne peut pas activer un crontab de prod).
+#
+# ─────────────────────────────────────────────────
+# Installation sur le VPS (au choix) :
+#
+#   A) crontab root (le plus simple) :
+#        sudo crontab -e
+#      puis coller la ligne active ci-dessous (sans le '#').
+#      Verifier : sudo crontab -l   /   tail -f /var/log/eds-backup.log
+#
+#   B) drop-in /etc/cron.d (versionnable) :
+#        sudo cp /opt/tournoi-tft/docker/backups.cron /etc/cron.d/eds-backups
+#        sudo chmod 644 /etc/cron.d/eds-backups
+#      (le format /etc/cron.d EXIGE un champ utilisateur — present ci-dessous.)
+#
+# Sauvegardes = root (acces socket Docker + /root/backups). PATH explicite : cron a un
+# environnement minimal (docker/rclone peuvent ne pas etre trouves sinon).
+# ─────────────────────────────────────────────────
+
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Quotidien a 03:30 (heure VPS) — fenetre calme, hors creneau tournoi (jeudis soir).
+# Format /etc/cron.d (avec champ user 'root'). Pour 'crontab -e' (crontab utilisateur),
+# RETIRER le champ 'root'.
+30 3 * * * root /opt/tournoi-tft/docker/backup-all.sh >> /var/log/eds-backup.log 2>&1
+
+# ─────────────────────────────────────────────────
+# Alternative systemd timer (si pas de cron) — creer 2 fichiers /etc/systemd/system/ :
+#
+#   eds-backup.service :
+#     [Unit]
+#     Description=Sauvegarde complete EDS (tournoi + Supabase + Storage)
+#     [Service]
+#     Type=oneshot
+#     ExecStart=/opt/tournoi-tft/docker/backup-all.sh
+#
+#   eds-backup.timer :
+#     [Unit]
+#     Description=Planifie la sauvegarde EDS quotidienne
+#     [Timer]
+#     OnCalendar=*-*-* 03:30:00
+#     Persistent=true
+#     [Install]
+#     WantedBy=timers.target
+#
+#   Activation : sudo systemctl daemon-reload && sudo systemctl enable --now eds-backup.timer
+#   Verifier   : systemctl list-timers eds-backup.timer  /  journalctl -u eds-backup.service
+# ─────────────────────────────────────────────────

@@ -1,0 +1,39 @@
+# docker/rclone.conf.example — Gabarit de config rclone pour la copie hors-VPS (Story 1.10).
+#
+# Copier en docker/rclone.conf sur le VPS et remplir les VRAIES cles.
+# docker/rclone.conf est GITIGNORE (secrets) — ne JAMAIS commiter de valeur reelle (AR-SEC4).
+#
+# Le plus simple : generer la config interactivement avec `rclone config`, puis copier le
+# bloc [<remote>] genere ici. Le nom de section (ex. [eds-offsite]) doit correspondre au
+# prefixe de RCLONE_REMOTE dans docker/offsite.env (ex. RCLONE_REMOTE=eds-offsite:eds-backups).
+#
+# ─────────────────────────────────────────────────
+# Exemple 1 — Backblaze B2 (S3-compatible, recommande pour le cout)
+# ─────────────────────────────────────────────────
+# [eds-offsite]
+# type = s3
+# provider = Other
+# access_key_id = <VOTRE_B2_KEY_ID>
+# secret_access_key = <VOTRE_B2_APPLICATION_KEY>
+# endpoint = s3.eu-central-003.backblazeb2.com
+# acl = private
+
+# ─────────────────────────────────────────────────
+# Exemple 2 — AWS S3 / MinIO / Wasabi (tout S3)
+# ─────────────────────────────────────────────────
+# [eds-offsite]
+# type = s3
+# provider = AWS            # ou Minio / Wasabi / Other
+# access_key_id = <KEY>
+# secret_access_key = <SECRET>
+# region = eu-west-3
+# acl = private
+
+# ─────────────────────────────────────────────────
+# Exemple 3 — 2e hote SSH (alternative sans S3 : sftp)
+# ─────────────────────────────────────────────────
+# [eds-offsite]
+# type = sftp
+# host = backup.exemple.fr
+# user = eds-backup
+# key_file = /root/.ssh/id_ed25519_backup
