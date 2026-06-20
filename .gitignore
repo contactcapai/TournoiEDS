@@ -8,7 +8,11 @@ node_modules/
 docker/.env
 # Secrets Supabase self-hosted (Story 1.8)
 docker/supabase/.env
-# Gabarits (.env.*.example) conserves — ils ne contiennent pas de secrets reels
+# Config copie hors-VPS des sauvegardes (Story 1.10) — secrets reels, JAMAIS commites.
+# Les patterns .env ci-dessus ne matchent PAS ces noms : les lister explicitement.
+docker/offsite.env
+docker/rclone.conf
+# Gabarits (.env.*.example, *.conf.example) conserves — ils ne contiennent pas de secrets reels
 # apps/vitrine/.env.prod.example est versionne (gabarit)
 # apps/vitrine/.env.prod est gitignore (secret VPS)
 
