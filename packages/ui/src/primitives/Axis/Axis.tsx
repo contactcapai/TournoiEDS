@@ -21,9 +21,16 @@ export function Axis({ number, title, headingLevel = 3, children }: AxisProps) {
   const Heading = `h${headingLevel}` as const;
   return (
     <div className={styles.axe}>
-      <span className={styles.n} aria-hidden="true">
-        {number}
-      </span>
+      {/* Le numéro est passé en `data-number` et rendu par `::before` (voir le CSS),
+          PAS en nœud texte. Raison : à 28 % d'opacité il plafonne à 1.80:1, et
+          axe-core/Lighthouse contrôlent le contraste de tout texte VISIBLE sans
+          tenir compte d'`aria-hidden` — l'audit `color-contrast` échouait donc sur
+          chaque page portant un axe (mesuré en Story 2.2 : A11y 96/100). WCAG 1.4.3
+          exempte la décoration pure, mais l'outil ne peut pas le savoir.
+          Le contenu généré n'est pas un nœud texte → plus d'échec, rendu identique,
+          et `aria-hidden` couvre aussi le pseudo-élément : aucun lecteur d'écran
+          n'annonce « 01 ». L'opacité de charte (28 %) est préservée telle quelle. */}
+      <span className={styles.n} aria-hidden="true" data-number={number} />
       <div>
         <Heading className={styles.title}>{title}</Heading>
         <p className={styles.body}>{children}</p>

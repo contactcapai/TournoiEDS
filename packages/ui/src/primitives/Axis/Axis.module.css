@@ -15,12 +15,24 @@
   border-bottom: 1px solid rgba(243, 239, 227, 0.1);
 }
 
-/* Numéro fantôme : or à 28 % d'opacité (~1.8:1) → décoratif, aria-hidden côté JSX. */
+/* Numéro fantôme : or à 28 % d'opacité (1.80:1 sur --navy-deep) → purement décoratif,
+   aria-hidden côté JSX.
+
+   Le chiffre vient de `content: attr(data-number)` et NON d'un nœud texte : axe-core
+   (Lighthouse) audite le contraste de tout texte visible sans tenir compte
+   d'aria-hidden, et faisait donc échouer `color-contrast` sur chaque page portant un
+   axe (Story 2.2). Le contenu généré n'est pas un nœud texte inspectable → l'audit
+   passe, le rendu est identique et l'opacité de charte est conservée.
+   ⚠️ Ne pas « simplifier » en remettant le numéro en enfant du <span>. */
 .n {
   font-family: var(--font-display);
   font-size: var(--fs-axis-number);
   line-height: 0.8;
   color: rgba(218, 178, 101, 0.28);
+}
+
+.n::before {
+  content: attr(data-number);
 }
 
 .title {

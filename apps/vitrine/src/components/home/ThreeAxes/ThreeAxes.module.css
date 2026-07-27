@@ -1,0 +1,37 @@
+/* Bloc « Trois axes » (Story 2.2) — transcription de docs/refonte-2026/maquette/
+   index.html (section #asso, l.283-312 ; CSS `section` l.89, `.wrap` l.26).
+
+   Tokens-only, aucune exception ici : tout ce qui est spécifique aux axes
+   (grille 120px/1fr, filets, numéro fantôme, responsive 880px) vit dans la
+   primitive Axis et n'est PAS redéclaré. */
+
+.section {
+  padding: var(--section-y) 0;
+  /* Pas de `background` : dans la maquette, #asso hérite du fond de page (ici
+     --navy-deep, posé sur body dans globals.css). La transition franche avec la
+     fin du dégradé du hero (--ink) est ATTENDUE : c'est le hub événementiel
+     (.agenda, background --navy), livré en Epic 3, qui viendra s'intercaler. */
+}
+
+/* Conteneur central. Répétition assumée du `.grid` du Hero : avec seulement deux
+   occurrences, extraire un composant conteneur serait prématuré. Si une 3ᵉ section
+   le réécrit, elle l'extrait (règle « payé deux fois », METHODE.md §5). */
+.wrap {
+  max-width: var(--wrap-max);
+  margin: 0 auto;
+  padding: 0 var(--wrap-pad);
+}
+
+/* Le lien vit HORS du conteneur des axes (sinon le filet bas du 3ᵉ axe saute) :
+   sa marge haute remplace donc l'espacement qu'aurait donné un frère interne. */
+.more {
+  margin-top: var(--block-gap);
+}
+
+/* Aucune @media ici : le passage en 1 colonne et la réduction du numéro fantôme
+   (96px → 64px) sous 880px sont portés par Axis.module.css. */
+
+/* Aucune animation d'apparition : une animation CSS se déclenche au rendu, pas au
+   scroll. Sur un bloc situé sous la ligne de flottaison elle se jouerait hors du
+   champ de vision. Une vraie apparition au scroll demanderait du JS client
+   (interdit : RSC pur) ou `animation-timeline: view()` — story de polish dédiée. */

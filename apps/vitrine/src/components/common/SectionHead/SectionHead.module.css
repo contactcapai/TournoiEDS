@@ -1,0 +1,28 @@
+/* SectionHead (Story 2.2) — transcription de `.s-head` / `.s-title` de
+   docs/refonte-2026/maquette/index.html (l.88-92).
+
+   Tokens-only. EXCEPTIONS documentées (garde-fou n°4 de la story) : deux px
+   structurels fidèles à la maquette qu'aucun token ne décrit (voir sur place). */
+
+.head {
+  /* 660px : largeur de mesure de la maquette (.s-head). Pas de token pour ça. */
+  max-width: 660px;
+  margin-bottom: var(--section-gap);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-section-title);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  /* 18px : report du `margin-bottom: 18px` que la maquette pose sur `.eyebrow`.
+     La primitive Eyebrow ne porte AUCUNE marge (vérifié dans Eyebrow.module.css) :
+     l'espacement est la responsabilité de la composition. Même solution qu'en 2.1. */
+  margin-top: 18px;
+}
+
+/* Pas de `overflow: hidden` ici, ni sur .title : le souligné de la primitive Brush
+   déborde de 14px sous le texte (::after à bottom:-14px) et serait rogné net.
+   Le débordement est absorbé par la marge basse (--section-gap = 48px). */
