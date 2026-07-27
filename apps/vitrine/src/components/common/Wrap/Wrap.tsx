@@ -4,10 +4,22 @@ import styles from "./Wrap.module.css";
 export interface WrapProps {
   children: ReactNode;
   /**
-   * Classes de l'appelant, FUSIONNÉES avec celles du conteneur (jamais remplacées).
+   * Classes de l'appelant, ajoutées à celle du conteneur (jamais substituées).
    * Indispensable aux appelants dont le conteneur central porte AUSSI une mise en
    * page — le `.grid` du Hero, la barre flex du SiteHeader : sans ça, ils devraient
    * ajouter un nœud DOM pour adopter ce composant.
+   *
+   * ⚠️ CE QUE CETTE FUSION NE FAIT PAS : elle concatène l'attribut `class`, elle ne
+   * décide PAS de la cascade. À spécificité égale, c'est l'ordre des règles dans le
+   * CSS *compilé* qui tranche — or cet ordre est un détail d'implémentation du
+   * bundler (mesuré sur le bundle Turbopack : il ne suit ni l'ordre du DOM, ni celui
+   * des imports, ni l'alphabet) et il peut changer d'un build à l'autre.
+   *
+   * RÈGLE : une classe passée ici ne doit JAMAIS redéclarer `max-width`, `margin`
+   * ni `padding` — les 3 propriétés réservées de `.wrap`. Elle complète, elle ne
+   * surcharge pas. Ce commentaire documente ; la GARDE est l'AC dédiée de la
+   * Story 2.10 (« un avertissement en commentaire n'est pas une garde »,
+   * 00 référence/pieges/avertissement-commentaire.md).
    */
   className?: string;
 }
