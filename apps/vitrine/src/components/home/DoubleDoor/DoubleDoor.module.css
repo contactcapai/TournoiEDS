@@ -1,0 +1,116 @@
+/* Double porte joueurs / partenaires (Story 2.5) — transcription de
+   docs/refonte-2026/maquette/index.html (section DOORS, l.425-441 ; CSS `.doors`
+   et `.door*` l.175-180, `section` l.89, `.eyebrow` l.50, `@media` l.195-201).
+
+   Tokens-only. EXCEPTIONS documentées sur place :
+     - les 4 arrêts de linear-gradient et le rgba() du filet (aucun token ne décrit
+       un dégradé ni un overlay — tolérance posée en 1.4/1.5, puis 2.1 et 2.4) ;
+     - les px structurels fidèles à la maquette (46, 26, 38, 18, 15.5, 12). */
+
+.section {
+  /* padding-top VOLONTAIREMENT NUL : la maquette écrit `style="padding-top:0"` sur
+     cette section — la SEULE du document. La double porte CLÔT la page et se
+     rapproche du bloc précédent au lieu de laisser les 180px habituels (90 bas +
+     90 haut). L'écart réel vaut donc 90px, porté par le padding-bas du bloc qui
+     précède. La règle reste juste quand les blocs des Epics 3/4/5 s'insèreront
+     avant. Ne PAS « harmoniser » en `var(--section-y) 0` par symétrie. */
+  padding: 0 0 var(--section-y);
+}
+
+/* Grille des deux portes. Elle est FUSIONNÉE sur le composant partagé <Wrap> via sa
+   prop `className` — la maquette pose bien `class="wrap doors"` sur un seul élément.
+
+   ⚠️ Cette classe est la 1ʳᵉ à emprunter cette voie. La fusion concatène l'attribut
+   `class` mais NE DÉCIDE PAS de la cascade (revue Story 2.4, finding EC1) : à
+   spécificité égale, c'est l'ordre du CSS *compilé* qui tranche, et cet ordre
+   Turbopack est instable. La règle du contrat de Wrap est donc respectée ici à la
+   lettre : `.doors` ne redéclare AUCUNE des 3 propriétés réservées de `.wrap`
+   (`max-width`, `margin`, `padding`) — intersection vide ⇒ l'ordre d'émission est
+   indifférent. Ne rien ajouter ici qui toucherait à ces 3 propriétés. */
+.doors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* 26px : gouttière entre les deux portes (maquette). Aucun token ne la décrit —
+     ne PAS détourner --wrap-pad (26px lui aussi, mais c'est la gouttière du
+     conteneur central : deux rôles distincts qui divergeraient au 1er changement). */
+  gap: 26px;
+}
+
+/* Habillage commun aux deux portes. Ne déclare PAS `background` : c'est la seule
+   propriété qui les distingue, et elle vit dans les deux classes modificatrices
+   ci-dessous. Aucun recouvrement entre `.door` et `.doorPlayers`/`.doorPartners`
+   ⇒ leur ordre d'émission est lui aussi indifférent (même raisonnement que .doors). */
+.door {
+  /* 46px : respiration interne de la porte (maquette). */
+  padding: 46px;
+  border-radius: var(--radius-card-lg); /* 14px */
+  /* Filet crème (#f3efe3) à 10 % — overlay documenté (pas de token). */
+  border: 1px solid rgba(243, 239, 227, 0.1);
+}
+
+/* Les 4 hex ci-dessous NE SONT PAS des couleurs de charte : ce sont les arrêts de
+   dégradé propres à la maquette (voisins de --navy/--surface/--navy-deep sans les
+   égaler). Ne pas les recopier ailleurs, ne pas les prendre pour des tokens — même
+   traitement que le `#211d4c` de la bande Animations (Story 2.4).
+   Les deux dégradés sont PROCHES mais DISTINCTS : c'est toute la segmentation
+   visuelle des deux publics. Ne pas les rapprocher davantage. */
+.doorPlayers {
+  background: linear-gradient(150deg, #2d2a63, #1d1a44);
+}
+
+.doorPartners {
+  background: linear-gradient(150deg, #3a3360, #241f48);
+}
+
+.title {
+  font-family: var(--font-display);
+  /* 38px EN LITTÉRAL, et NON var(--fs-block-heading) (44px). Arbitrage INVERSE de
+     celui de la Story 2.4 (qui a porté les 42px de sa bande au token), et c'est le
+     même critère appliqué à un écart différent : 6px ici (+15,8 %, parfaitement
+     visible) contre 2px là-bas (sub-perceptible). DESIGN.md documente lui-même la
+     variation — `blockHeading: 44px`, note « titres de bloc (band, door, tournoi,
+     axe) — VARIENT 34-44px » : le token est la borne haute d'une famille, pas la
+     valeur de chacun de ses membres. Précédent dans le code réel : Axis.module.css
+     écrit `font-size: 40px` en littéral pour un titre de la même famille.
+     Ne pas « corriger » en token : décision tracée, pas dérive. */
+  font-size: 38px;
+  /* font-weight: 400 = valeur de la maquette (`h1,h2,h3,h4{font-weight:400}`, l.24).
+     ⚠️ Sans cette déclaration, la valeur UA d'un <hN> est `bold` — or Bebas Neue est
+     chargée en graisse 400 SEULE (layout.tsx) : le navigateur SYNTHÉTISE alors un
+     faux-gras. C'est le cas des 4 autres titres Bebas du site, qui ne déclarent pas
+     leur font-weight (dette R11 → Story 2.10, qui les alignera avec son gate
+     visuel). Cette story ne corrige que le titre qu'elle introduit. */
+  font-weight: 400;
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  /* 18px : report du `margin-bottom: 18px` que la maquette pose sur `.eyebrow`. La
+     primitive Eyebrow ne porte AUCUNE marge (vérifié) : l'espacement eyebrow → titre
+     est la responsabilité de la composition. Même solution qu'en 2.1, 2.2 et 2.4. */
+  margin-top: 18px;
+  margin-bottom: 12px;
+}
+
+.lead {
+  color: var(--light);
+  font-size: 15.5px;
+  /* 26px : espacement paragraphe → CTA (maquette). Le CTA est un frère direct, pas
+     un enfant d'un conteneur dédié — comme dans la maquette. */
+  margin-bottom: 26px;
+}
+
+/* Passage en 1 colonne — c'est la @media de la maquette (`.doors`), ATTENDUE ici,
+   contrairement à la Story 2.4 dont le responsive était porté par `flex-wrap`.
+   880px EN LITTÉRAL : une custom property n'est pas lisible dans une @media
+   (--bp-mobile est purement documentaire). */
+@media (max-width: 880px) {
+  .doors {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Aucune animation : ni transition de survol (Button porte déjà les siennes pour ses
+   DEUX variantes, AVEC leur neutralisation sous prefers-reduced-motion — vérifié
+   dans Button.module.css), ni apparition au scroll (dette R7 → Story 2.8, qui posera
+   un motif partagé en amélioration progressive). */

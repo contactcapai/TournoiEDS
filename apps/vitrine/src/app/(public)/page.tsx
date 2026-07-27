@@ -1,4 +1,5 @@
 import { AnimationsTeaser } from "@/components/home/AnimationsTeaser/AnimationsTeaser";
+import { DoubleDoor } from "@/components/home/DoubleDoor/DoubleDoor";
 import { Hero } from "@/components/home/Hero/Hero";
 import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
@@ -13,6 +14,10 @@ import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 // s'ajoute pas à la suite. La citation puis le teaser Animations, eux, sont à
 // leur rang définitif.
 //
+// La double porte est le 10ᵉ et DERNIER bloc, juste avant le footer : elle est
+// donc déjà à sa place définitive. Les blocs des Epics 3/4/5 s'inséreront TOUS
+// avant elle — aucun ne s'ajoutera après.
+//
 // Server Component : la page reste prérendue Static (acquis Story 1.6). Le
 // <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici,
 // et le <h1> unique du document est celui porté par le Hero.
@@ -23,6 +28,7 @@ export default function Home() {
       <ThreeAxes />
       <QuoteBand />
       <AnimationsTeaser />
+      <DoubleDoor />
     </>
   );
 }
