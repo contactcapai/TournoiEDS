@@ -23,6 +23,11 @@
    d'aria-hidden, et faisait donc échouer `color-contrast` sur chaque page portant un
    axe (Story 2.2). Le contenu généré n'est pas un nœud texte inspectable → l'audit
    passe, le rendu est identique et l'opacité de charte est conservée.
+
+   Effet de bord assumé, et cohérent : sans CSS, le numéro disparaît complètement
+   (avant, le nœud texte restait affiché non stylé). C'est le comportement attendu
+   d'une décoration — ce qui est décoratif vit dans la feuille de style, ce qui porte
+   du sens vit dans le HTML. Ici le sens est dans le <hN> et le texte de l'axe.
    ⚠️ Ne pas « simplifier » en remettant le numéro en enfant du <span>. */
 .n {
   font-family: var(--font-display);
