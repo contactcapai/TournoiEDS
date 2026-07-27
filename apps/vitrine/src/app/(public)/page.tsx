@@ -1,4 +1,5 @@
 import { Hero } from "@/components/home/Hero/Hero";
+import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
@@ -8,7 +9,8 @@ import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 //
 // ⚠️ Le hub événementiel n'est pas encore livré : les trois axes suivent donc
 // directement le hero pour l'instant. L'Epic 3 s'INSÈRE ENTRE les deux, il ne
-// s'ajoute pas à la suite.
+// s'ajoute pas à la suite. La citation, elle, suit bien les trois axes : c'est
+// son rang définitif.
 //
 // Server Component : la page reste prérendue Static (acquis Story 1.6). Le
 // <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici,
@@ -18,6 +20,7 @@ export default function Home() {
     <>
       <Hero />
       <ThreeAxes />
+      <QuoteBand />
     </>
   );
 }
