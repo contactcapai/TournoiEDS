@@ -184,9 +184,14 @@ export function SiteFooter() {
             </p>
           </div>
 
-          {/* Colonne Naviguer */}
+          {/* Colonne Naviguer.
+              Titres de colonnes en <h2> (et non <h4>) : le footer est rendu sur
+              toutes les pages publiques, dont le seul autre titre est le <h1> de
+              la page → un <h4> créait un saut h1→h4 (audit Lighthouse
+              `heading-order`, détecté en Story 1.6). Le niveau ne porte aucun
+              style : la taille vient de `.colTitle`. */}
           <div className={styles.col}>
-            <h4 className={styles.colTitle}>Naviguer</h4>
+            <h2 className={styles.colTitle}>Naviguer</h2>
             <ul className={styles.colList}>
               {NAV_LINKS.map((link) => (
                 <li key={link.label}>
@@ -198,7 +203,7 @@ export function SiteFooter() {
 
           {/* Colonne Participer */}
           <div className={styles.col}>
-            <h4 className={styles.colTitle}>Participer</h4>
+            <h2 className={styles.colTitle}>Participer</h2>
             <ul className={styles.colList}>
               {PARTICIPER_LINKS.map((link) => (
                 <li key={link.label}>
@@ -210,7 +215,7 @@ export function SiteFooter() {
 
           {/* Colonne Suivez-nous (sociaux + email) */}
           <div className={styles.col}>
-            <h4 className={styles.colTitle}>Suivez-nous</h4>
+            <h2 className={styles.colTitle}>Suivez-nous</h2>
             <ul className={styles.socials}>
               {SOCIALS.map((social) => {
                 const external = isExternalUrl(social.href);

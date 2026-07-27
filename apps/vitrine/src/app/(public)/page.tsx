@@ -1,23 +1,13 @@
-import { Eyebrow } from "@repo/ui";
-import styles from "./page.module.css";
+import { Hero } from "@/components/home/Hero/Hero";
 
-// Coquille d'accueil (Story 1.6) : page publique minimale, sémantique et à la
-// charte, servie en RSC/SSG (aucun 'use client'). Le <main id="content"> est
-// fourni par (public)/layout.tsx → cette page ne déclare PAS son propre <main>
-// (un seul <main>/<h1> dans le DOM). Le vrai Hero + sections arrivent en Epic 2
-// (Story 2.1+) ; ici le contenu reste un placeholder propre assumé.
+// Accueil (long-scroll). Le Hero est livré en Story 2.1 ; les blocs suivants
+// s'empileront ici dans l'ordre figé par UX-DR19 : hub événementiel (Epic 3),
+// trois axes (2.2), citation (2.3), teaser Animations (2.4), tournoi (5.4),
+// preuve & réseau (Epic 4), galerie (4.5), double porte (2.5).
+//
+// Server Component : la page reste prérendue Static (acquis Story 1.6). Le
+// <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici,
+// et le <h1> unique du document est celui porté par le Hero.
 export default function Home() {
-  return (
-    <section className={styles.hero} aria-labelledby="home-title">
-      <Eyebrow>Reims · esport associatif</Eyebrow>
-      <h1 id="home-title" className={styles.title}>
-        Esport des Sacres
-      </h1>
-      <p className={styles.lead}>
-        La communauté esport rémoise se retrouve chaque jeudi, en roulement sur
-        quatre bars de la ville. Agenda, animations et tournois arrivent ici très
-        bientôt.
-      </p>
-    </section>
-  );
+  return <Hero />;
 }
