@@ -1,0 +1,12 @@
+/* Wrap (Story 2.4) — conteneur central, transcription de `.wrap` de
+   docs/refonte-2026/maquette/index.html (l.26).
+
+   Tokens-only, aucune exception : les trois valeurs ont leur token.
+   Ne RIEN ajouter ici — ce composant ne fait qu'une chose. Tout ce qui relève de
+   la mise en page d'un appelant passe par sa prop `className` (fusionnée). */
+
+.wrap {
+  max-width: var(--wrap-max); /* 1160px */
+  margin: 0 auto;
+  padding: 0 var(--wrap-pad); /* 26px */
+}

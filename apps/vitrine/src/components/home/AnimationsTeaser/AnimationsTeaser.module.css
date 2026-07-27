@@ -1,0 +1,85 @@
+/* Teaser « Animations & interventions » (Story 2.4) — transcription de
+   docs/refonte-2026/maquette/index.html (section #animations, l.325-337 ;
+   CSS `.band*` l.137-140, `section` l.89).
+
+   Tokens-only. EXCEPTIONS documentées sur place :
+     - le linear-gradient et le rgba() du filet (aucun token ne décrit un dégradé
+       ni un overlay — tolérance posée en 1.4/1.5 puis 2.1) ;
+     - les px structurels fidèles à la maquette (50, 40, 560, 580, 15.5, 12, 18). */
+
+.section {
+  padding: var(--section-y) 0;
+  /* Pas de `background` : dans la maquette, #animations hérite du fond de page
+     (ici --navy-deep, posé sur body dans globals.css). */
+}
+
+/* Le conteneur central (--wrap-max + gouttière) n'est PAS écrit ici : il est rendu
+   par le composant partagé <Wrap>, extrait par cette story. Il était déjà dupliqué
+   quatre fois dans l'app — ne pas en recopier une cinquième. */
+
+.band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* flex-wrap EST le responsive de ce bloc : sous 880px le CTA passe simplement
+     sous la colonne de texte. La @media de la maquette ne touche pas .band — ne
+     pas en ajouter une, elle ferait doublon et divergerait au 1er changement. */
+  flex-wrap: wrap;
+  gap: 40px;
+  padding: 50px;
+  border-radius: var(--radius-card-lg); /* 14px */
+  /* #211d4c n'est PAS une couleur de charte : c'est la fin du dégradé propre à la
+     maquette (entre --surface et --navy-deep). Ne pas la recopier ailleurs, ne pas
+     la prendre pour un token. */
+  background: linear-gradient(135deg, var(--surface), #211d4c);
+  /* Filet or (#dab265) à 22 % — overlay documenté (pas de token). */
+  border: 1px solid rgba(218, 178, 101, 0.22);
+}
+
+.text {
+  /* Aucune largeur ici : les mesures de la maquette sont posées sur le titre et le
+     paragraphe eux-mêmes (560 / 580px), pas sur la colonne. */
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  max-width: 560px;
+  /* 18px : report du `margin-bottom: 18px` que la maquette pose sur `.eyebrow`.
+     La primitive Eyebrow ne porte AUCUNE marge (vérifié dans Eyebrow.module.css) :
+     l'espacement est la responsabilité de la composition. Même solution qu'en
+     2.1 et 2.2. */
+  margin-top: 18px;
+}
+
+/* ⚠️ La maquette écrit `.band h3 { font-size: 42px }` ; nous posons
+   `var(--fs-block-heading)` = 44px. Écart ASSUMÉ et tracé (Story 2.4, garde-fou
+   n°4) : DESIGN.md ne fige qu'une fourchette (« titres de bloc 34-44px »), le
+   token existe pour ce rôle et sera partagé avec le bloc Tournoi (5.4, que la
+   maquette écrit à 44px). 2px sont sub-perceptibles ; un px de charte en dur, non.
+   Ne pas « corriger » en 42px. */
+
+.lead {
+  color: var(--light);
+  font-size: 15.5px;
+  max-width: 580px;
+  margin-top: 12px;
+}
+
+/* Marge haute du lien : la maquette n'expose pas ce lien (ajout délibéré, UX-DR19),
+   il n'y a donc aucune valeur canonique à transcrire → token. */
+.more {
+  margin-top: var(--block-gap);
+}
+
+/* Aucune @media (cf. .band ci-dessus).
+
+   Aucune animation : ni transition de survol (Button et LinkArrow portent déjà les
+   leurs, AVEC leur neutralisation sous prefers-reduced-motion — vérifié dans
+   Button.module.css), ni apparition au scroll (dette R7 → Story 2.8, qui posera un
+   motif partagé en amélioration progressive). */
