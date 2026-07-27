@@ -1,0 +1,111 @@
+/* Bande citation pleine largeur (Story 2.3) — transcription de
+   docs/refonte-2026/maquette/index.html (section .quote-band, l.314-323 ;
+   CSS .quote-band/.quote-inner/.ph-bg/.q, l.125-134).
+
+   Tokens-only. EXCEPTIONS documentées sur place :
+     - les linear-gradient (aucun token ne décrit un dégradé — précédent Hero 2.1) ;
+     - les px structurels fidèles à la maquette (820, 420, 60, 14, 30), qui ne
+       correspondent à aucun token de l'échelle. */
+
+/* `.quote-band` + `.quote-inner` de la maquette sont FUSIONNÉES ici : la
+   première ne portait qu'un `padding: 0` destiné à neutraliser sa règle globale
+   `section { padding: 90px 0 }` — règle que nous n'avons pas (CSS Modules). Une
+   classe dédiée à ce padding nul aurait été une règle VIDE, donc supprimée à la
+   compilation, donc `undefined` en silence (piège review 1.5 #1).
+
+   PLEINE LARGEUR, et c'est tout le propos du bloc : aucun conteneur
+   `--wrap-max` ici. Le déclencheur « 3ᵉ occurrence → extraire un conteneur
+   partagé » posé par la Story 2.2 ne s'arme donc pas. Aucune astuce nécessaire
+   (pas de `margin-left: calc(50% - 50vw)`) : `main#content` ne porte aucun
+   max-width, et `html, body { overflow-x: hidden }` couvre déjà le débordement.
+
+   Pas d'`overflow: hidden` (que la maquette pose sur `.quote-inner` pour clipper
+   sa couche photo en position:absolute) : les deux couches de fond sont repliées
+   dans le `background` ci-dessous, donc plus aucun enfant ne déborde. Le poser
+   quand même serait un no-op « par prudence » — le réflexe exact qui a rogné
+   l'ombre du cadre photo en Story 2.1 (revue 2.1 / EC3).
+
+   Fond en 2 couches :
+     1. VOILE ASSOMBRISSANT — c'est lui qui garantit le contraste AA du texte
+        (cream 12,9:1 · or 7,4:1, calculés au point le plus clair du composite).
+        `rgba(20,18,48,…)` est `--ink` en décimal ; tolérance déjà posée en 2.1
+        pour les rgba() d'overlay.
+        ⚠️ Quand la vraie photo arrivera (dette R4 → Story 4.7), elle se glisse
+        SOUS ce voile, qui doit RESTER : une photo claire sans voile ferait
+        tomber le contraste sous AA. Elle passera par next/image
+        (architecture.md l.262), donc en couche <Image fill> avec le voile
+        repassé au-dessus d'elle et sous le texte.
+     2. PLACEHOLDER PHOTO — ⚠️ `#3a3672` / `#221f4d` ne sont PAS des couleurs de
+        charte : ce sont les valeurs de la maquette qui SIMULENT la photo. Ne pas
+        les recopier ailleurs, ne pas les prendre pour des tokens. Le fond de
+        base `linear-gradient(160deg,#322e6e,#1b1940)` de `.quote-inner` n'est
+        pas repris : il était intégralement masqué par `.ph-bg` (inset: 0).
+        Aucun texte de remplissage n'est rendu (le « [ Photo pleine largeur … ] »
+        de la maquette tomberait au centre exact, derrière la citation). */
+.band {
+  display: flex;
+  align-items: center;
+  min-height: 420px;
+  background:
+    linear-gradient(120deg, rgba(20, 18, 48, 0.55), rgba(20, 18, 48, 0.85)),
+    linear-gradient(150deg, #3a3672, #221f4d);
+}
+
+/* Bloc de texte centré. 820px : ni `--wrap-max` (1160px) ni multiple d'un token.
+   60px : air vertical propre à la bande (≠ `--section-y`, qui vaut 90px et ne
+   s'applique pas — cette bande n'est pas une section standard). Les 26px de
+   gouttière horizontale de la maquette sont exactement `--wrap-pad`. */
+.content {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 60px var(--wrap-pad);
+  text-align: center;
+}
+
+/* Accroche manuscrite. Caveat or UNIQUEMENT sur fond sombre (UX-DR28) : ici le
+   fond est voilé à `--ink`, donc conforme. 30px : la maquette agrandit `.hand`
+   dans ce contexte (26px partout ailleurs). */
+.hand {
+  font-family: var(--font-hand);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--gold);
+}
+
+/* AUCUN `letter-spacing` : la règle `h1,h2,h3,h4,.bebas { letter-spacing: .5px }`
+   de la maquette ne couvre pas `<blockquote>`, qui hérite donc du `normal` du
+   body. Ne pas « harmoniser » avec `var(--ls-display)`.
+   Les capitales viennent du `text-transform` : le texte du DOM reste en casse
+   normale (un lecteur d'écran lit la source, pas le rendu). */
+.quote {
+  margin: 14px 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-quote);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* `font-style: normal` OBLIGATOIRE, pas cosmétique : Bebas Neue est chargée en
+   statique poids 400 SANS italique (app/layout.tsx). Sans ce reset, le
+   navigateur en synthétise une et « EN VRAI. » sort penché au milieu d'une
+   citation droite. */
+.quote em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+/* Les deux lignes de la citation (remplacent le <br> de la maquette). */
+.line {
+  display: block;
+}
+
+/* Aucune @media : `var(--fs-quote)` = clamp(40px, 6vw, 76px) et le `max-width`
+   de `.content` suffisent — la @media 880px de la maquette ne touche pas ce bloc.
+
+   Aucune animation : la parallaxe demandée par EXPERIENCE.md §Motion exigerait
+   du JS client (interdit, RSC pur) ou `background-attachment: fixed`, ignoré par
+   iOS Safari (effet desktop-only, donc incohérent). Reportée en dette R7 →
+   Story 2.8, qui posera un motif partagé en amélioration progressive. Rien à
+   neutraliser sous `prefers-reduced-motion` : il n'y a aucune animation à couper
+   (UX-DR29 satisfait par construction, pas par une @media vide). */
