@@ -21,13 +21,33 @@
    Même trajectoire que `Wrap` : créé en 2.4, consommé par le nouveau code, retrofit
    des 4 consommateurs existants routé vers la 2.10.
 
-   Tokens-only. EXCEPTIONS documentées : deux px structurels sans token (24px du
-   sous-titre, 20px de retrait de liste), commentés sur place. Aucun rgba() ici. */
+   Tokens-only, à SEPT exceptions près — toutes des px structurels qu'aucun token ne
+   décrit, et toutes justifiées à leur ligne : `.subtitle` (font-size 24, margin-top
+   34, margin-bottom 10), `.prose` (max-width 680), `.prose p + p` (margin-top 18),
+   `.publics` (padding-left 20), `.publics li + li` (margin-top 12). Aucun rgba(),
+   aucun hex de charte. */
 
 /* ───────── Rythme vertical ─────────
    Reconduction du choix de la Story 2.6 : la maquette ne connaît que le rythme de
    la home (`section { padding: 90px 0 }`, soit 180px entre deux sections), trop
-   large pour une page de texte. Un seul --section-y (90px) entre les sections. */
+   large pour une page de texte. On ne pose donc de padding QUE en bas des sections.
+
+   ⚠️ Écarts RÉELS mesurés au navigateur, parce que la règle n'est pas uniforme et
+   qu'un commentaire qui l'affirmerait serait faux :
+
+     head -> 1re section ............  48px  (margin-bottom de SectionHead ; VOULU
+                                              plus serré, le chapô introduit)
+     section -> BANDE .............. 180px  (90 sur --navy-deep + 90 À L'INTÉRIEUR
+                                              de la bande)
+     bande -> section ...............  90px
+     section -> section .............  90px
+
+   Les 180px de l'entrée dans la bande ne sont PAS le rythme de la home qu'on vient
+   d'écarter : la bascule de fond tombe pile au milieu, si bien qu'on ne voit jamais
+   180px de vide uniforme. Une bande qui porte son propre fond a besoin de sa propre
+   respiration intérieure — c'est le procédé de la maquette pour `.agenda`/`.proof`,
+   et le rendu est identique sur /l-asso (mesuré). Ne pas « harmoniser » à 90px : ça
+   collerait le titre au bord coloré. */
 
 .head {
   padding-top: var(--section-y);
@@ -105,6 +125,11 @@
 /* ───────── Bande « Ce qu'on propose » ─────────
    SEULE section à fond distinct : procédé de la maquette pour ses sections relevées
    (.agenda et .proof, toutes deux en `background: var(--navy)`).
+
+   Le `padding-top` est la SEULE dérogation au « padding en bas seulement » posé plus
+   haut : c'est la respiration intérieure de la bande, celle qui empêche le <h2> de
+   toucher le bord coloré. Il s'ajoute au padding-bas de la section précédente, d'où
+   les 180px mesurés à cette frontière — et eux seuls (cf. le tableau en tête).
 
    Pas de `position: relative` ici, contrairement à /l-asso : cette bande ne porte
    AUCUN filigrane couronne (décision de la story — le filigrane est une marque
