@@ -1,7 +1,7 @@
-/* SectionHead (Story 2.2) — transcription de `.s-head` / `.s-title` de
-   docs/refonte-2026/maquette/index.html (l.88-92).
+/* SectionHead (Story 2.2, étendu en 2.6) — transcription de `.s-head` / `.s-title`
+   / `.s-intro` de docs/refonte-2026/maquette/index.html (l.88-92).
 
-   Tokens-only. EXCEPTIONS documentées (garde-fou n°4 de la story) : deux px
+   Tokens-only. EXCEPTIONS documentées (garde-fou n°4 de la Story 2.2) : des px
    structurels fidèles à la maquette qu'aucun token ne décrit (voir sur place). */
 
 .head {
@@ -23,6 +23,25 @@
   margin-top: 18px;
 }
 
+/* Chapô (`.s-intro` de la maquette, l.92). Ajouté en Story 2.6 pour la tête de page.
+   Les trois valeurs sont celles de la maquette ; 16.5px n'a pas de token (l'échelle
+   typographique s'arrête au lead à 20px).
+
+   ⚠️ `--grey` n'est AA que sur les fonds les plus sombres (navy-deep / ink) et
+   ÉCHOUE sur `--surface` (DESIGN.md §Contraste & AA) : ne pas poser ce chapô sur une
+   carte ou une bande relevée.
+
+   ⚠️ Le 22px n'est pas qu'un rythme : quand le titre porte un <Brush>, le trait de
+   la primitive descend 14px SOUS la boîte du titre (`::after { bottom: -14px }`).
+   22px laisse ~8px de dégagement — mesuré en Story 2.6. Ne pas descendre sous 18px
+   sans re-vérifier le rendu du souligné. */
+.intro {
+  margin-top: 22px;
+  font-size: 16.5px;
+  color: var(--grey);
+}
+
 /* Pas de `overflow: hidden` ici, ni sur .title : le souligné de la primitive Brush
    déborde de 14px sous le texte (::after à bottom:-14px) et serait rogné net.
-   Le débordement est absorbé par la marge basse (--section-gap = 48px). */
+   Le débordement est absorbé par la marge basse (--section-gap = 48px), ou par le
+   `margin-top` du chapô ci-dessus quand il y en a un. */

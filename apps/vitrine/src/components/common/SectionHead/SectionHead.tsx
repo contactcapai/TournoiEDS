@@ -7,30 +7,50 @@ export interface SectionHeadProps {
   eyebrow: ReactNode;
   /** Titre de section. ReactNode : l'appelant compose lui-même son <Brush>. */
   title: ReactNode;
-  /** Id posé sur le <h2>, pour un `aria-labelledby` porté par la <section> appelante. */
+  /** Id posé sur le titre, pour un `aria-labelledby` porté par la <section> appelante. */
   titleId?: string;
+  /** Niveau du titre (1–6) pour respecter la hiérarchie du document du contexte.
+   *  Défaut 2 : sur la home, le <h1> est celui du Hero. Les PAGES dédiées passent 1
+   *  (leur <h1> est la tête de page). Même API que la primitive Axis — un seul
+   *  patron de niveau de titre dans le dépôt. */
+  headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  /** Chapô optionnel, rendu sous le titre (`.s-intro` de la maquette).
+   *  ⚠️ Il rend du `var(--grey)`, qui n'est AA que sur les fonds les plus sombres
+   *  (navy-deep / ink) et échoue sur `--surface` : ne pas l'utiliser sur une carte
+   *  ou une bande relevée (DESIGN.md §Contraste & AA, UX-DR28). */
+  intro?: ReactNode;
 }
 
 // SectionHead — tête de section éditoriale (`.s-head` de la maquette) : sur-titre +
-// titre. Server Component, comme tout ce qui n'a pas d'interactivité.
+// titre (+ chapô optionnel). Server Component, comme tout ce qui n'a pas d'interactivité.
 //
-// Vit dans `components/common/` et non `components/home/` : les pages « L'asso »
-// (2.6) et « Animations » (2.7) l'utiliseront aussi.
+// Vit dans `components/common/` et non `components/home/` : la page « L'asso » (2.6)
+// l'utilise, la page « Animations » (2.7) l'utilisera aussi.
 //
-// API volontairement MINIMALE (garde-fou n°7 de la Story 2.2) :
-//  - le niveau de titre est <h2> en dur — sur la home comme sur les pages, le <h1>
-//    est ailleurs. Le jour où un appelant a besoin d'un autre niveau, on ajoute une
-//    prop `headingLevel` comme l'a fait la primitive Axis, pas avant ;
-//  - pas de prop `intro` tant qu'aucune section n'en a besoin. La première story qui
-//    en aura besoin l'ajoutera avec le `.s-intro` de la maquette
-//    (color: var(--grey); font-size: 16.5px; margin-top: 22px).
-export function SectionHead({ eyebrow, title, titleId }: SectionHeadProps) {
+// API MINIMALE, et elle le reste (garde-fou n°7 de la Story 2.2) : `headingLevel` et
+// `intro` ont été ajoutées par la Story 2.6 parce qu'elle en avait besoin — une tête
+// de PAGE porte un <h1> et un chapô. Ne pas ajouter de 3ᵉ prop « au cas où »
+// (`as`, `align`, `width`…) : la prochaine story qui en aura besoin l'ajoutera.
+export function SectionHead({
+  eyebrow,
+  title,
+  titleId,
+  headingLevel = 2,
+  intro,
+}: SectionHeadProps) {
+  const Heading = `h${headingLevel}` as const;
+
   return (
     <div className={styles.head}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={titleId} className={styles.title}>
+      <Heading id={titleId} className={styles.title}>
         {title}
-      </h2>
+      </Heading>
+      {/* Ternaire et non `intro && …` : `intro` est un ReactNode, et `{0 && <p/>}`
+          rendrait le texte « 0 » NU, hors du <p>. Le ternaire renvoie null pour
+          toute valeur falsy — le composant est partagé, il ne doit pas dépendre de
+          la vigilance de ses appelants. */}
+      {intro ? <p className={styles.intro}>{intro}</p> : null}
     </div>
   );
 }
