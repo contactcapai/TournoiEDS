@@ -198,6 +198,11 @@
    (voir Debug Log). Les grilles responsive vivent dans les composants qui en ont
    (Axis, Hero, DoubleDoor).
 
-   Aucune animation d'apparition : elle appartient à la Story 2.8. Aucune transition
-   propre non plus — Button et LinkArrow portent déjà les leurs, avec leur
-   neutralisation sous prefers-reduced-motion. */
+   Aucune animation DANS CE FICHIER : l'apparition au scroll est LIVRÉE (Story 2.8)
+   mais passe par la classe partagée `motion.reveal` (src/styles/motion.module.css),
+   composée en markup dans page.tsx sur toutes les sections SAUF `.head` (au-dessus de
+   la ligne de flottaison). Aucune transition propre non plus — Button et LinkArrow
+   portent déjà les leurs, avec leur neutralisation sous prefers-reduced-motion.
+   ⚠️ Ne déclarer ici AUCUNE propriété `animation-*` : c'est ce qui garantit qu'aucun
+   conflit de cascade avec le motif ne peut exister (l'ordre du CSS compilé par
+   Turbopack est instable — précédent Wrap, dette R9). */

@@ -1,8 +1,15 @@
 import styles from "./QuoteBand.module.css";
 
 // Bande citation pleine largeur (Story 2.3) — Server Component pur : aucune
-// interactivité, aucune animation, donc aucun 'use client'. La home reste
-// prérendue Static (acquis Story 1.6).
+// interactivité, donc aucun 'use client'. La home reste prérendue Static (acquis
+// Story 1.6).
+//
+// Story 2.8 : la bande porte désormais une PARALLAXE, entièrement en CSS (couches
+// en pseudo-éléments + animation pilotée par le scroll). Aucun nœud DOM ajouté,
+// aucun JS, aucun 'use client' — c'est précisément le point de l'exercice. Voir
+// QuoteBand.module.css pour la structure en 3 couches et ses gardes.
+// ⚠️ Cette bande N'A PAS le fondu `motion.reveal` des autres sections : le
+// mouvement du fond est son entrée (décision Story 2.8).
 //
 // SEULE section de la vitrine composée uniquement de balises natives : la
 // maquette n'utilise ici ni bouton, ni cadre, ni losanges. Ne pas détourner

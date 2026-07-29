@@ -1,5 +1,6 @@
 import { Button, Eyebrow, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import motion from "@/styles/motion.module.css";
 import styles from "./AnimationsTeaser.module.css";
 
 // Teaser « Animations & interventions » (Story 2.4) — Server Component pur :
@@ -19,7 +20,11 @@ export function AnimationsTeaser() {
     // Contrairement à la bande citation (2.3), cette section A un titre, donc elle
     // se nomme. L'id `animations` de la maquette (nav one-page) n'est PAS reporté :
     // nous avons de vraies routes (le SiteHeader pointe sur /animations).
-    <section className={styles.section} aria-labelledby="animations-title">
+    // `motion.reveal` (Story 2.8) : apparition au scroll, classe composée en markup.
+    <section
+      className={`${styles.section} ${motion.reveal}`}
+      aria-labelledby="animations-title"
+    >
       <Wrap>
         {/* Exactement 2 enfants : la colonne de texte et le CTA. C'est ce qui fait
             fonctionner le `justify-content: space-between`, et le `flex-wrap: wrap`

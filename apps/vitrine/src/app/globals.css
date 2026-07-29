@@ -18,9 +18,27 @@
 
 html,
 body {
-  /* Garde-fou anti-scroll horizontal. min-height: 100vh (viewport-relatif) évite
-     la chaîne fragile html{height:100%} → body{min-height:100%}. */
-  overflow-x: hidden;
+  /* Garde-fou anti-scroll horizontal (Story 1.6). `clip` et NON `hidden` — Story 2.8.
+     Ce n'est PAS une préférence de style, c'est un correctif mesuré.
+
+     `overflow-x: hidden` fait CALCULER `overflow-y: auto` (règle CSS : si un axe vaut
+     `visible` et l'autre non, `visible` devient `auto`). `body` devenait donc un
+     CONTENEUR DE DÉFILEMENT — mesuré avant correction : `getComputedStyle(body)`
+     renvoyait `overflowY: "auto"` avec `scrollHeight - clientHeight === 0`, soit un
+     conteneur de défilement qui ne défile jamais. Deux conséquences, toutes deux
+     observées sur ce site :
+       1. le `position: sticky` de SiteHeader NE COLLAIT PAS (défaut latent depuis la
+          Story 1.6, invisible pour toutes les portes automatiques) ;
+       2. `animation-timeline: view()` (Story 2.8) résolvait son scroller sur `body` →
+          progression FIGÉE (`timeline.currentTime` identique avant et après scroll).
+
+     `clip` produit le même effet visuel que `hidden` mais interdit tout défilement, y
+     compris programmatique : la boîte n'est donc PAS un conteneur de défilement, et la
+     recherche du scroller remonte jusqu'au viewport. La garde anti-scroll horizontal
+     est CONSERVÉE — et même renforcée (dette R14 : « ne pas retirer », pas « ne pas
+     renforcer »). Ne jamais revenir à `hidden` : les deux défauts reviendraient
+     ensemble et en silence. */
+  overflow-x: clip;
 }
 
 html {

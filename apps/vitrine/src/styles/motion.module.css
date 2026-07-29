@@ -1,0 +1,168 @@
+/* motion.module.css — motif de MOUVEMENT partagé de la vitrine (Story 2.8).
+   Solde la dette R7 : apparition au scroll écartée en Story 2.2 (garde-fou n°5) et
+   parallaxe écartée en Story 2.3 (garde-fou n°5). Deux écarts, une seule cause —
+   l'effet devait être une amélioration progressive, pas un bricolage par section.
+
+   ─────────────────────────────────────────────────────────────────────────────
+   CE FICHIER N'EST PAS JUMELÉ À UN COMPOSANT, ET C'EST VOULU.
+   La convention `<Nom>/<Nom>.module.css` (project-context.md §5) vise les
+   COMPOSANTS. Ceci n'en est pas un : c'est un VOCABULAIRE partagé, du même ordre
+   que tokens.css. Il n'expose qu'UNE classe, et il ne doit pas en exposer une
+   deuxième « au cas où » (API minimale, patron de Wrap et SectionHead : le jour
+   où un appelant a un besoin réel, on l'ajoute).
+
+   ❌ PAS de composant `Reveal` : il ajouterait un nœud DOM par section, et
+      ThreeAxes DÉPEND d'un `:last-child` (le filet bas du 3ᵉ axe vient de
+      `.axe:last-child` dans Axis.module.css) qu'un wrapper casserait.
+   ❌ PAS de `composes:` : il rendrait la consommation invisible dans le TSX, donc
+      non greppable — or ce projet s'audite par grep (`grep -rn "motion.reveal"`).
+   ❌ RIEN dans packages/ui (ni classe, ni token de durée) : la variance
+      `packages/**` appartient à la Story 2.10.
+   ─────────────────────────────────────────────────────────────────────────────
+
+   ⚠️ PRÉREQUIS NON ÉVIDENT, mesuré en Story 2.8 : ce motif ne fonctionne QUE parce
+   que globals.css pose `overflow-x: clip` (et non `hidden`) sur html/body.
+   `overflow-x: hidden` fait calculer `overflow-y: auto`, ce qui transforme `body`
+   en conteneur de défilement ; `view()` y résout alors son scroller et la
+   progression reste FIGÉE (mesuré : currentTime identique avant et après scroll).
+   Repasser globals.css à `hidden` casserait TOUT ce fichier en silence. */
+
+/* Double emboîtement, et l'ordre des deux conditions n'a pas d'importance ; leur
+   PRÉSENCE, si :
+
+   1. @media (prefers-reduced-motion: no-preference)
+      Sous `reduce`, RIEN n'est déclaré : l'état final EST le rendu par défaut.
+      C'est le patron du Hero (2.1) et il est plus sûr qu'une neutralisation a
+      posteriori — rien ne peut rester transparent ou hors écran (UX-DR29).
+
+   2. @supports (animation-timeline: view())
+      Support au 2026-07 : Chrome/Edge 115+, Safari 26+, mais Firefox stable NON
+      (drapeau layout.css.scroll-driven-animations.enabled) ≈ 83 % global.
+      Un navigateur sans support ne voit aucune de ces déclarations et affiche
+      l'état final d'emblée. Sans ce @supports, ~17 % des visiteurs verraient des
+      BLOCS VIDES : ce n'est pas une précaution de style, c'est la condition de
+      correction du livrable. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      /* 🔴 LE RACCOURCI D'ABORD, LA PROPRIÉTÉ LONGUE ENSUITE.
+         `animation` réinitialise `animation-timeline` à sa valeur initiale
+         (`auto`). Écrire `animation-timeline` AVANT le raccourci le fait écraser,
+         et l'animation se joue alors AU CHARGEMENT — donc hors du champ de vision
+         pour un bloc sous la ligne de flottaison, c'est-à-dire exactement le
+         défaut que la Story 2.2 a refusé de livrer.
+         `0.6s` et `ease-out` : valeurs alignées sur `hero-rise` (Hero, Story 2.1).
+         Aucun token `--dur-*`/`--ease-*` n'existe et cette story n'en crée pas
+         (variance packages/** = Story 2.10) — littéraux commentés, comme le Hero.
+         La durée est IGNORÉE par un timeline de scroll (la progression vient du
+         scroll) mais reste exigée par la syntaxe du raccourci : ne pas la retirer.
+         `both` est OBLIGATOIRE : il maintient l'état `from` avant la plage et
+         l'état `to` après. Sans lui, le bloc repasse à son style naturel hors
+         plage et CLIGNOTE. */
+      animation: eds-reveal 0.6s ease-out both;
+      animation-timeline: view();
+      /* Plage volontairement COURTE, et c'est une garde, pas un réglage :
+         `both` fige le bloc en état `from` TANT QUE la plage n'a pas commencé —
+         donc un bloc qui n'atteint jamais la FIN de sa plage reste décalé de
+         18px POUR TOUJOURS. Le cas réel est le DERNIER bloc avant le footer
+         (DoubleDoor sur /, « Venir nous voir » sur /l-asso, « Nous solliciter »
+         sur /animations) : la page ne défile plus assez. Aucune porte automatique
+         ne le verrait (CI verte, Lighthouse 100/100, texte présent dans le DOM).
+         ⚠️ Tant que ce motif animait aussi l'`opacity`, le même défaut valait
+         « bloc INVISIBLE pour toujours ». Si une évolution future réintroduit une
+         opacité animée ici, la sévérité de cette garde remonte d'un cran.
+
+         🔬 30 % EST UNE VALEUR MESURÉE, PAS CHOISIE. Une première version à 45 %
+         a ÉCHOUÉ à 320px : la dernière section de `/` finissait à 99,03 % de sa
+         plage et celle de `/l-asso` à 99,99 % — le dernier bloc ne peut pas
+         terminer sa course, il plafonne à ~44,6 % de progression `entry` (le cas
+         le plus tendu du site). 30 % laisse donc ~49 % de marge, et toutes les
+         sections des 3 pages finissent à `transform: none` aux 7 largeurs.
+         ⚠️ La contrainte vient de la géométrie DERNIER BLOC + FOOTER, pas de la
+         longueur de la page : insérer des blocs plus haut (Epics 3/4/5) ne la
+         change pas, mais RACCOURCIR LE FOOTER ou ALLONGER le dernier bloc la
+         resserre. Toute augmentation de cette valeur DOIT être re-mesurée
+         (protocole en Tâche 5 de la Story 2.8).
+         ⚠️ `entry 100%` ne veut pas dire la même chose selon la hauteur du bloc :
+         pour un bloc plus HAUT que le viewport (ThreeAxes en desktop, DoubleDoor
+         empilé en mobile), c'est « le bloc remplit le viewport » ; pour un bloc
+         plus court, « son bord bas a franchi le bas du viewport ». */
+      animation-range: entry 0% entry 30%;
+    }
+  }
+}
+
+/* 🔴 LE FONDU NE PART PAS DE ZÉRO — `opacity: 0.75`, ET C'EST UNE VALEUR MESURÉE.
+
+   Une 1ʳᵉ version faisait un fondu `0 → 1`. Lighthouse l'a attrapée :
+   `/animations` à 320px est tombée à **A11y 96/100**, audit `color-contrast` en
+   échec sur le `LinkArrow` de la section « mission » — axe a évalué la page
+   pendant l'apparition et mesuré l'or à `#7e6953` (soit `--gold` fondu à ~52 %
+   d'opacité sur le fond), donnant **3,2:1** pour un seuil de 4,5:1.
+
+   Ce n'est PAS un artefact de mesure : une `opacity` sur un conteneur mélange
+   réellement le texte au fond, et le contraste chute pendant tout le fondu.
+
+   Le plancher a donc été calculé sur les **94 éléments textuels qui vivent
+   réellement dans une section animée** (couleur calculée + fond effectif du
+   premier ancêtre opaque, seuil WCAG choisi selon taille/graisse) :
+   **0,68**, imposé par l'or `--gold` sur `--navy-deep` (8,36:1 au plein).
+   `0.75` laisse une marge confortable.
+
+   ⚠️ NE PAS calculer ce plancher sur TOUTE la palette : un premier calcul l'avait
+   fait et sortait **0,985** — imposé par `--grey` sur `--navy` (4,60:1 au plein),
+   combinaison qui **n'existe dans aucune section animée** (DESIGN.md réserve
+   `--grey` aux fonds les plus sombres, et le chapô en `--grey` reste sur
+   `--navy-deep`). Conclusion fausse tirée d'un périmètre trop large : elle avait
+   fait supprimer le fondu pour rien.
+
+   ⇒ Règle pour les Epics 3/4/5 : avant d'animer l'opacité d'un bloc, vérifier le
+   plancher sur les combinaisons **présentes dans ce bloc**. Si une section
+   devait un jour porter du `--grey` sur `--navy`, ce motif redeviendrait non
+   conforme sur elle.
+
+   Amplitude : **40px** de translation + **25 %** de fondu. Une 1ʳᵉ version à 18px
+   sans fondu s'est révélée **imperceptible au gate visuel** (retour de Brice) :
+   un bloc de 800px qui glisse de 18px, c'est 2 % de sa hauteur, et tout son
+   contenu bouge ensemble — l'œil n'a aucun point de référence fixe. Rester
+   « discret » (DESIGN.md l.165) ne veut pas dire « invisible » : un effet qu'on
+   ne voit pas n'est pas un effet discret, c'est un effet absent.
+
+   ⚠️ Ne JAMAIS « cacher » un bloc avec `visibility: hidden` ou `display: none` :
+   les deux retirent le contenu du fil d'accessibilité. Le texte doit rester
+   lisible par un lecteur d'écran à tout moment, y compris avant son apparition —
+   c'est aussi pourquoi le fondu part de 0,75 et non de 0. */
+@keyframes eds-reveal {
+  from {
+    opacity: 0.75;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Garde d'impression. `@media (prefers-reduced-motion: no-preference)` s'applique
+   AUSSI en média `print`, et il n'y a pas de scroll à l'impression : la plage ne
+   démarre donc jamais et les blocs restent figés en état `from`.
+
+   MESURÉ (média `print` émulé, garde neutralisée par interception de la feuille) :
+   **12 sections sur 18** sortent décalées de `translateY(18px)` — sur `/l-asso`,
+   5 sections sur 7. Avec la garde : `transform: none` partout, sur les 3 pages.
+
+   ⚠️ Le décalage est le SEUL symptôme, et c'est une conséquence directe du choix
+   « translation seule » ci-dessus. Une version antérieure animait aussi
+   l'`opacity` : sans garde, la même mesure sortait alors **5 sections sur 7 à
+   `opacity: 0`** sur `/l-asso` — donc des pages quasi BLANCHES. Ce n'est plus le
+   cas, mais l'artefact restant (18px de décalage sur les 2/3 des blocs) justifie
+   toujours ces quatre lignes.
+
+   R8 (aucun style d'impression sur le site, texte peu contrasté au papier) reste
+   ACCEPTÉE par ailleurs : cette story n'ouvre PAS le sujet des styles
+   d'impression, elle se contente de ne pas l'aggraver. */
+@media print {
+  .reveal {
+    animation: none;
+  }
+}

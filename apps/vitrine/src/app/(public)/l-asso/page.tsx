@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Brush, Button, CrownWatermark, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
 
 // Page « L'asso » (Story 2.6) — PREMIÈRE page dédiée du site, et premier <h1> hors
@@ -73,7 +74,13 @@ export default function LAsso() {
       </section>
 
       {/* ② Notre histoire */}
-      <section className={styles.section} aria-labelledby="histoire-title">
+      {/* `motion.reveal` (Story 2.8) sur toutes les sections SAUF la tête de page :
+          celle-ci est au-dessus de la ligne de flottaison, l'animer n'aurait pas de
+          sens (règle uniforme du site : la 1ʳᵉ section d'une page ne s'anime pas). */}
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="histoire-title"
+      >
         <Wrap>
           <h2 id="histoire-title" className={styles.title}>
             Comment ça a <Brush>commencé</Brush>
@@ -104,7 +111,7 @@ export default function LAsso() {
           pour ses sections relevées (.agenda, .proof). Elle porte le filigrane
           couronne : Reims cité des sacres, c'est le cœur identitaire de la page. */}
       <section
-        className={`${styles.section} ${styles.band}`}
+        className={`${styles.section} ${styles.band} ${motion.reveal}`}
         aria-labelledby="nom-title"
       >
         {/* Décoratif : aria-hidden + alt="" sont portés par la primitive, ne rien
@@ -143,7 +150,10 @@ export default function LAsso() {
           la signature visuelle du bloc « Trois axes » de la home. Le rejouer ici
           donnerait l'impression d'un copier-coller et brouillerait le rapport
           teaser → page. Des <h3> + <p> simples, sans numéro et sans les filets. */}
-      <section className={styles.section} aria-labelledby="partis-pris-title">
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="partis-pris-title"
+      >
         <Wrap>
           <h2 id="partis-pris-title" className={styles.title}>
             Nos <Brush>partis pris</Brush>
@@ -182,7 +192,10 @@ export default function LAsso() {
           aucune procédure de consentement au droit à l'image n'existe côté asso.
           Arbitrage de Brice (2026-07-29) : collectif maintenant, nominatif plus
           tard → dette R16, absorbée par la Story 4.8. Ne PAS inventer de prénoms. */}
-      <section className={styles.section} aria-labelledby="equipe-title">
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="equipe-title"
+      >
         <Wrap>
           <h2 id="equipe-title" className={styles.title}>
             Une équipe de <Brush>bénévoles</Brush>
@@ -208,7 +221,10 @@ export default function LAsso() {
           rejouer, et ne pas nommer les sponsors un par un (ce sont les données de
           l'Epic 4 — deux sources à maintenir sinon). Le LinkArrow route vers la
           preuve visuelle. */}
-      <section className={styles.section} aria-labelledby="faits-title">
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="faits-title"
+      >
         <Wrap>
           <h2 id="faits-title" className={styles.title}>
             On préfère les <Brush>faits</Brush>
@@ -269,7 +285,13 @@ export default function LAsso() {
           /partenaires, la section ⑥ le porte déjà — deux liens voisins vers la même
           cible avec des libellés différents sont la redondance relevée en revue 2.5.
           /agenda est livrée par l'Epic 3 : 404 attendu, comme le CTA du hero. */}
-      <section className={styles.section} aria-labelledby="venir-title">
+      {/* ⚠️ DERNIÈRE section avant le footer : cas critique de la plage d'animation
+          (un bloc qui n'atteint jamais la fin de sa plage resterait invisible pour
+          toujours). Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5). */}
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="venir-title"
+      >
         <Wrap>
           <h2 id="venir-title" className={styles.title}>
             Envie de passer un <Brush>jeudi</Brush> ?

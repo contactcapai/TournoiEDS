@@ -79,7 +79,9 @@
 
 /* Aucune @media (cf. .band ci-dessus).
 
-   Aucune animation : ni transition de survol (Button et LinkArrow portent déjà les
-   leurs, AVEC leur neutralisation sous prefers-reduced-motion — vérifié dans
-   Button.module.css), ni apparition au scroll (dette R7 → Story 2.8, qui posera un
-   motif partagé en amélioration progressive). */
+   Aucune animation DANS CE FICHIER : les transitions de survol appartiennent à Button
+   et LinkArrow (AVEC leur neutralisation sous prefers-reduced-motion — vérifié dans
+   Button.module.css), et l'apparition au scroll passe par la classe partagée
+   `motion.reveal` (Story 2.8, src/styles/motion.module.css) composée en markup dans
+   AnimationsTeaser.tsx. Aucune propriété `animation-*` ici ⇒ aucun conflit de cascade
+   possible avec le motif (l'ordre du CSS compilé par Turbopack est instable, dette R9). */

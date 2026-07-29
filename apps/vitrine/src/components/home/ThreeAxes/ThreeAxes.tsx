@@ -1,5 +1,6 @@
 import { Axis, Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
+import motion from "@/styles/motion.module.css";
 import styles from "./ThreeAxes.module.css";
 
 // Bloc « Trois axes » de l'accueil (Story 2.2) — Server Component pur : aucune
@@ -13,7 +14,13 @@ import styles from "./ThreeAxes.module.css";
 export function ThreeAxes() {
   return (
     // aria-labelledby ↔ id du <h2> de la tête de section (pattern acquis review 1.6 F6).
-    <section className={styles.section} aria-labelledby="axes-title">
+    // `motion.reveal` (Story 2.8) : apparition au scroll. Classe COMPOSÉE en markup,
+    // pas de composant enveloppe — un nœud de plus casserait le `:last-child` dont
+    // dépend le filet bas du 3ᵉ axe (voir le commentaire du <div> ci-dessous).
+    <section
+      className={`${styles.section} ${motion.reveal}`}
+      aria-labelledby="axes-title"
+    >
       <div className={styles.wrap}>
         <SectionHead
           eyebrow="Qui on est"
