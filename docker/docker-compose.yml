@@ -1,14 +1,15 @@
 # docker-compose.yml — Stack PROD Tournoi TFT EDS + Vitrine EDS
 #
-# USAGE COMPLET (tournoi + vitrine + Supabase) — depuis le dossier docker/ :
-#   docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
-#
-# USAGE TOURNOI SEUL (sans Supabase / vitrine) :
+# USAGE — depuis le dossier docker/ :
 #   docker compose up -d
+#
+# UN SEUL fichier, UN SEUL Postgres. La stack Supabase self-hosted a ete RETIREE le
+# 2026-07-29 (revision d'architecture) : la vitrine n'en consommait aucun service, elle
+# parle a Postgres nu via Drizzle. Voir docs/PASSATION.md et, cote planification,
+# docs/planning-artifacts/sprint-change-proposal-2026-07-29-simplification-supabase.md
 #
 # Secrets compose (Traefik, PG tournoi) : docker/.env (copier docker/.env.example)
 # Secrets vitrine : apps/vitrine/.env.prod (copier apps/vitrine/.env.prod.example)
-# Secrets Supabase : docker/supabase/.env (copier docker/supabase/.env.example)
 
 services:
   traefik:
@@ -53,8 +54,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Mot de passe du role applicatif de la VITRINE, consomme par initdb/01-vitrine.sh
+      # au PREMIER demarrage seulement (volume vide).
+      VITRINE_DB_PASSWORD: ${VITRINE_DB_PASSWORD}
     volumes:
       - tournoi-pg-data:/var/lib/postgresql/data
+      # Cree la base et le role `vitrine`, cloisonnes de la base du tournoi.
+      # ⚠️ IGNORE si le volume est deja initialise (cas du VPS) : jouer les ordres
+      # a la main, procedure dans docs/PASSATION.md.
+      - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -126,9 +134,8 @@ services:
   # Vitrine EDS — Site vitrine Next.js (esportdessacres.fr)
   # NEXT_PUBLIC_SITE_URL fige au build (build-arg, inlineee dans le bundle).
   # DATABASE_URL arrives au runtime via env_file (server-only, jamais dans l'image).
-  # La base Postgres est celle de Supabase (supabase-db sur tournoi-net).
-  # Demarrer avec la commande multi-fichiers pour inclure Supabase :
-  #   docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+  # La base Postgres est la base `vitrine` du conteneur tournoi-tft-postgres,
+  # mutualise depuis la revision d'architecture du 2026-07-29.
   # ─────────────────────────────────────────────────
   vitrine:
     build:
@@ -143,9 +150,14 @@ services:
     env_file:
       # DATABASE_URL et vars runtime de la vitrine (jamais committees, cf. .gitignore).
       - ../apps/vitrine/.env.prod
-    # Pas de depends_on sur supabase-db : la connexion Drizzle est paresseuse
-    # (premier appel a la DB, pas au demarrage du conteneur). La vitrine demarre
-    # meme si Supabase n'est pas encore healthy.
+    # Pas de depends_on sur postgres : la connexion Drizzle est PARESSEUSE (premier
+    # appel a la DB, pas au demarrage du conteneur), donc la vitrine sert ses pages
+    # statiques meme si la base n'est pas encore healthy. Acquis de la Story 1.7,
+    # conserve tel quel par la sortie de Supabase.
+    volumes:
+      # Medias televerses par le back-office (Epic 6). Remplace Supabase Storage.
+      # Sauvegarde par docker/backup-medias.sh.
+      - eds-medias:/app/apps/vitrine/medias
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
@@ -171,3 +183,5 @@ networks:
 volumes:
   tournoi-pg-data:
   traefik-acme:
+  # Medias de la vitrine (photos de la galerie, Epic 4/6) — ex-Supabase Storage.
+  eds-medias:

@@ -18,10 +18,10 @@
 - **Trois applications** + une stack de base de données :
   - `tournoi.esportdessacres.fr` + `api-tournoi.esportdessacres.fr` — la plateforme de tournoi.
   - `esportdessacres.fr` — le site vitrine (Next.js).
-  - `supabase.esportdessacres.fr` — l'API Supabase (base de données + auth + stockage fichiers de la vitrine).
 - **Deux bases PostgreSQL distinctes** (c'est voulu) :
   - `tournoi-tft-postgres` — la base du tournoi (Prisma).
-  - `supabase-db` — la base de la vitrine (+ auth + métadonnées des fichiers).
+  - `postgres` (`tournoi-tft-postgres`) — **le seul moteur de base**, avec DEUX bases cloisonnées :
+    celle du tournoi et `vitrine` (celle du site).
 - **Le code source EST la documentation d'infra** : tout est dans `/opt/tournoi-tft`
   (cloné depuis le dépôt git). Pour reconstruire le serveur de zéro : un VPS neuf + ce dépôt
   + les fichiers `.env` de secrets (non versionnés). Cf. README §Deploy et §Runbook.
@@ -38,14 +38,14 @@
 ## 1. Démarrer / arrêter la stack complète
 
 Toutes les commandes se lancent depuis `/opt/tournoi-tft/docker`. La stack tourne en
-**multi-fichiers compose** (tournoi + vitrine dans un fichier, Supabase dans l'autre) — il faut
+**un seul fichier compose** (tournoi + vitrine + base + Traefik) — il faut
 **toujours** passer les deux `-f` :
 
 ```bash
 cd /opt/tournoi-tft/docker
-COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
+COMPOSE="docker compose"
 
-# Démarrer TOUT (tournoi + vitrine + Supabase + Traefik)
+# Démarrer TOUT (tournoi + vitrine + base + Traefik)
 $COMPOSE up -d
 
 # État des services (chercher "healthy")
@@ -56,11 +56,11 @@ $COMPOSE down
 ```
 
 > ⚠️ Ne **jamais** ajouter `-v` à `docker compose down` : cela **supprimerait les volumes**
-> (donc les bases de données et les fichiers). Les volumes nommés (`supabase-db-data`,
-> `supabase-storage-data`, le volume Postgres tournoi, `traefik-acme`) contiennent les données
+> (donc les bases de données et les fichiers). Les volumes nommés (`tournoi-pg-data`,
+> `docker_eds-medias`, `traefik-acme`) contiennent les données
 > de production.
 
-Pour (re)démarrer un seul service : `$COMPOSE up -d <service>` (ex. `vitrine`, `supabase-db`).
+Pour (re)démarrer un seul service : `$COMPOSE up -d <service>` (ex. `vitrine`, `postgres`).
 
 ---
 
@@ -73,7 +73,7 @@ concernée, on relance le service :
 cd /opt/tournoi-tft
 git pull origin main
 cd docker
-COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
+COMPOSE="docker compose"
 ```
 
 | Quoi a changé | Commande |
@@ -81,7 +81,7 @@ COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
 | Vitrine (`apps/vitrine`) | `$COMPOSE build vitrine && $COMPOSE up -d vitrine` |
 | Backend tournoi (`apps/tournoi-api`) | `$COMPOSE build backend && $COMPOSE up -d backend` |
 | Frontend tournoi (`apps/tournoi-web`) | `$COMPOSE build frontend && $COMPOSE up -d frontend` |
-| Config Supabase (`docker/supabase/`) | `$COMPOSE up -d` (recrée les services modifiés) |
+| Config de la base (`docker/initdb/`) | ⚠️ **relue seulement sur un volume VIDE** — sinon jouer le SQL à la main (README) |
 
 - Le **backend** applique ses migrations Prisma automatiquement au démarrage.
 - La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`), il faut
@@ -101,7 +101,7 @@ COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
 sudo /opt/tournoi-tft/docker/backup-all.sh
 # Produit dans /root/backups :
 #   tournoi-*.sql.gz   (base tournoi)
-#   supabase-*.sql.gz  (base vitrine + auth + métadonnées fichiers)
+#   vitrine-*.sql.gz   (base de la vitrine)
 #   storage-*.tar.gz   (fichiers du bucket Storage)
 ```
 
@@ -115,12 +115,14 @@ sudo /opt/tournoi-tft/docker/backup-all.sh
 
 ### Restaurer
 
-Procédures détaillées (3 cas : DB tournoi, DB Supabase, bucket Storage) dans
+Procédures détaillées (3 cas : base tournoi, base vitrine, médias) dans
 [`README.md`](../README.md) §Restore. Points clés :
 
-- **Base tournoi** et **base Supabase** se restaurent **séparément** (2 conteneurs distincts).
-- Restaurer la **DB Supabase AVANT le Storage** (les métadonnées des fichiers sont en base).
-- La base Supabase utilise le superuser **`supabase_admin`** (pas `postgres`).
+- **Base tournoi** et **base vitrine** se restaurent **séparément** — même moteur depuis la
+  révision du 2026-07-29, mais **deux bases distinctes** : ne pas confondre les deux dumps.
+- Restaurer la **base vitrine AVANT les médias** (la table des photos référence les fichiers).
+- ⚠️ **Ne jamais supprimer le volume `tournoi-pg-data`** pour « repartir propre » côté vitrine :
+  il porte **aussi** la base du tournoi. C'est le prix du moteur mutualisé.
 
 > ✅ La restauration a été **vérifiée en local** (Docker Desktop). Il est **fortement
 > recommandé** de planifier une **restauration de test périodique** sur une cible jetable
@@ -134,11 +136,11 @@ Procédures détaillées (3 cas : DB tournoi, DB Supabase, bucket Storage) dans
 
 ```bash
 cd /opt/tournoi-tft/docker
-COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
+COMPOSE="docker compose"
 $COMPOSE logs -f vitrine          # site vitrine
 $COMPOSE logs -f backend          # API tournoi
 $COMPOSE logs -f traefik          # routage + certificats HTTPS
-$COMPOSE logs -f supabase-db      # base vitrine
+$COMPOSE logs -f postgres         # base (tournoi ET vitrine)
 $COMPOSE ps                       # statut (healthy / unhealthy)
 ```
 
@@ -163,18 +165,19 @@ du -sh /root/backups   # taille des sauvegardes
 
 ```bash
 sudo find /root/backups -name "tournoi-*.sql.gz"  -mtime +14 -delete
-sudo find /root/backups -name "supabase-*.sql.gz" -mtime +14 -delete
+sudo find /root/backups -name "vitrine-*.sql.gz" -mtime +14 -delete
 sudo find /root/backups -name "storage-*.tar.gz"  -mtime +14 -delete
 ```
 
-### Accéder à l'admin de la base (Supabase Studio)
+### Accéder à la base
 
 Studio n'est **pas** exposé sur internet (sécurité : accès admin complet à la base). On y
 accède par un **tunnel SSH** depuis sa machine :
 
 ```bash
 # Depuis la machine locale
-ssh -L 3001:supabase-studio:3000 <USER_SSH>@<IP_VPS>
+ssh -L 5433:tournoi-tft-postgres:5432 <USER_SSH>@<IP_VPS>
+# Puis se connecter avec DBeaver/pgAdmin sur localhost:5433, base 'vitrine'.
 # Puis ouvrir http://localhost:3001 dans le navigateur
 ```
 
@@ -187,7 +190,7 @@ durée**, sans expertise pointue ni dépendance à une personne ou un fournisseu
 
 - **Docker Compose + scripts shell** plutôt qu'un orchestrateur complexe (Kubernetes…) :
   lisible, reproductible, peu de pièces mobiles, diagnosticable avec `docker compose logs`.
-- **PostgreSQL + Supabase self-hosted** plutôt qu'un SaaS propriétaire : les données restent
+- **PostgreSQL auto-hébergé** plutôt qu'un SaaS propriétaire : les données restent
   **chez nous**, exportables par un simple `pg_dump`. Aucun risque de hausse de prix ou de
   fermeture de service tiers.
 - **Traefik + Let's Encrypt** : HTTPS automatique et gratuit, configuration versionnée.
@@ -204,7 +207,7 @@ durée**, sans expertise pointue ni dépendance à une personne ou un fournisseu
 | VPS | Hostinger | n'importe quel VPS Linux (le dépôt redéploie ailleurs) |
 | DNS | Hostinger | n'importe quel registrar / DNS |
 | Sauvegarde off-site | (au choix : Backblaze B2…) | tout backend rclone (S3, SFTP, autre) |
-| Base de données | Supabase **self-hosted** (chez nous) | Postgres standard (dumps `pg_dump` portables) |
+| Base de données | **PostgreSQL** auto-hébergé (chez nous) | Postgres standard (dumps `pg_dump` portables) |
 | Certificats TLS | Let's Encrypt | tout fournisseur ACME |
 
 Aucune de ces briques n'est verrouillante : chacune est remplaçable sans réécrire l'application.

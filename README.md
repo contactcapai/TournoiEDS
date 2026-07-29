@@ -8,7 +8,7 @@ Monorepo Turborepo/pnpm : tournoi TFT + site vitrine association EDS.
 - `apps/tournoi-api/` — API Express tournoi (TypeScript + Prisma + Socket.IO)
 - `apps/vitrine/` — Site vitrine Next.js (esportdessacres.fr)
 - `packages/` — Packages partagés (@repo/ui, @repo/eslint-config, @repo/typescript-config)
-- `docker/` — Infrastructure Docker prod (Traefik + tournoi + vitrine + Supabase)
+- `docker/` — Infrastructure Docker prod (Traefik + Postgres + tournoi + vitrine)
 
 > 📘 **Reprise d'exploitation par l'asso** : [`docs/PASSATION.md`](docs/PASSATION.md) —
 > démarrer/arrêter la stack, mises à jour, sauvegardes & restauration, tâches courantes
@@ -172,14 +172,14 @@ sudo /opt/tournoi-tft/docker/backup-pg.sh
 ### Cleanup dossier `/root/backups`
 
 La rotation est **automatisée** par `backup-all.sh` (Story 1.10) : purge des 3 familles
-`tournoi-*` / `supabase-*` / `storage-*` au-delà de **14 jours** en local (et 30 j sur le
+`tournoi-*` / `vitrine-*` / `medias-*` au-delà de **14 jours** en local (et 30 j sur le
 remote off-site, si configuré). Voir §Sauvegardes automatiques.
 
 Purge manuelle ponctuelle (équivalent, si besoin hors cron) :
 
 ```bash
 sudo find /root/backups -name "tournoi-*.sql.gz"  -mtime +14 -delete
-sudo find /root/backups -name "supabase-*.sql.gz" -mtime +14 -delete
+sudo find /root/backups -name "vitrine-*.sql.gz" -mtime +14 -delete
 sudo find /root/backups -name "storage-*.tar.gz"  -mtime +14 -delete
 ```
 
@@ -197,68 +197,91 @@ gunzip -c /root/backups/tournoi-YYYYMMDD-HHMMSS.sql.gz \
 
 **Tester la restoration en local Docker Desktop** avant de dépendre d'elle en prod.
 
-### Restore DB Supabase (base de la vitrine)
+### Restore DB vitrine (base `vitrine`)
 
-> ⚠️ **Distinct du tournoi.** Cible le conteneur `supabase-db` (base `postgres`), superuser
-> **`supabase_admin`** (le rôle `postgres` n'est PAS superuser dans l'image `supabase/postgres`).
+> ⚠️ **Distinct du tournoi, mais MÊME MOTEUR** depuis la révision d'architecture du
+> 2026-07-29 : un seul conteneur `tournoi-tft-postgres`, **deux bases cloisonnées**
+> (`$POSTGRES_DB` pour le tournoi, `vitrine` pour le site) et **deux rôles**.
+> Ne pas confondre les deux dumps : `tournoi-*.sql.gz` et `vitrine-*.sql.gz`.
 
-**Stratégie A — restore sur une instance Supabase initialisée (recommandée).** Le dump est
-produit avec `--no-owner --no-privileges` (cf. `backup-supabase.sh`). On restaure dans une
-instance dont les init SQL (`volumes/db/roles.sql`, `jwt.sql`…) ont **déjà recréé** les rôles
-et extensions `supabase_*` :
+Le dump est produit avec `--no-owner --no-privileges` (cf. `backup-vitrine.sh`) : la
+restauration recrée les objets au nom du rôle qui restaure, sans exiger que le rôle
+`vitrine` préexiste.
 
 ```bash
 cd /opt/tournoi-tft/docker
-# La stack Supabase doit tourner (db healthy). PGPASSWORD est déjà dans l'env du conteneur.
-gunzip -c /root/backups/supabase-YYYYMMDD-HHMMSS.sql.gz \
-  | docker exec -i supabase-db psql -U supabase_admin -d postgres
+# La base 'vitrine' doit exister (créée par initdb/01-vitrine.sh, ou à la main — voir
+# « Créer la base vitrine sur un volume existant » ci-dessous).
+gunzip -c /root/backups/vitrine-YYYYMMDD-HHMMSS.sql.gz   | docker exec -i tournoi-tft-postgres psql -U "$POSTGRES_USER" -d vitrine
 ```
 
-**Nuances Supabase (important) :**
-- Sur une instance **déjà initialisée**, psql affiche des erreurs **bénignes** « already
-  exists » / « duplicate key » (`schema_migrations`, extensions, schémas internes Supabase
-  déjà créés par les init SQL). C'est **normal** : ce qui compte est que les **données
-  applicatives** (schéma `public` de la vitrine + schéma `storage` = métadonnées du bucket)
-  soient restaurées. Ne **pas** mettre `ON_ERROR_STOP=on` (psql doit passer outre les
-  conflits bénins). Pour une restauration **propre**, repartir d'un volume `supabase-db-data`
-  **vierge** (`docker compose down` + `docker volume rm supabase-db-data`) puis laisser les
-  init SQL recréer les rôles avant ce restore.
-- La base `_analytics` (logs Logflare) n'est **pas** sauvegardée (jetable, régénérée au boot).
-- **Ordre obligatoire : DB Supabase AVANT Storage** (les métadonnées du bucket sont en DB).
+> Pour une restauration **propre** : `DROP DATABASE vitrine;` puis `CREATE DATABASE
+> vitrine OWNER vitrine;` avant le restore. ⚠️ **Ne jamais supprimer le volume
+> `tournoi-pg-data`** pour repartir « propre » côté vitrine — il porte **aussi** la base
+> du tournoi. C'est le prix du moteur mutualisé, et c'est le piège à connaître.
 
-### Restore bucket Storage
+**Ordre obligatoire : base `vitrine` AVANT les médias** (la table `photo` référence les
+fichiers).
 
-Le bucket (fichiers) est une archive du volume `supabase-storage-data`. Restaurer **après**
-la DB Supabase, **services `storage` + `imgproxy` arrêtés** (évite les écritures concurrentes) :
+### Créer la base `vitrine` sur un volume DÉJÀ initialisé (cas du VPS)
+
+`docker/initdb/01-vitrine.sh` ne s'exécute qu'au **premier** démarrage d'un volume vide.
+Sur le VPS, où le tournoi tourne déjà, jouer les ordres à la main **une fois** :
 
 ```bash
 cd /opt/tournoi-tft/docker
-COMPOSE="docker compose -f docker-compose.yml -f supabase/docker-compose.yml"
-$COMPOSE stop storage imgproxy
+# Le mot de passe doit être IDENTIQUE a VITRINE_DB_PASSWORD de docker/.env
+# et a celui de DATABASE_URL dans apps/vitrine/.env.prod.
+docker exec -i tournoi-tft-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
+CREATE ROLE vitrine WITH LOGIN PASSWORD 'le-mot-de-passe-de-VITRINE_DB_PASSWORD';
+CREATE DATABASE vitrine OWNER vitrine;
+REVOKE CONNECT ON DATABASE vitrine FROM PUBLIC;
+GRANT  CONNECT ON DATABASE vitrine TO vitrine;
+SQL
+# Cloisonnement dans l'autre sens (le role vitrine ne doit pas voir la base tournoi) :
+docker exec -i tournoi-tft-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"   -c "REVOKE CONNECT ON DATABASE \"$POSTGRES_DB\" FROM PUBLIC;"   -c "GRANT CONNECT ON DATABASE \"$POSTGRES_DB\" TO \"$POSTGRES_USER\";"
+```
+
+Vérifier ensuite que le cloisonnement tient :
+
+```bash
+# Doit ECHOUER (permission denied) :
+docker exec -i tournoi-tft-postgres psql "postgresql://vitrine:MDP@localhost:5432/$POSTGRES_DB" -c '\conninfo'
+# Doit REUSSIR :
+docker exec -i tournoi-tft-postgres psql "postgresql://vitrine:MDP@localhost:5432/vitrine" -c '\conninfo'
+```
+
+### Restore médias de la vitrine
+
+Les fichiers téléversés vivent dans le volume `docker_eds-medias`. Restaurer **après** la
+base, **conteneur `vitrine` arrêté** (évite les écritures concurrentes) :
+
+```bash
+cd /opt/tournoi-tft/docker
+docker compose stop vitrine
 
 # Restaurer dans le volume existant (écrase le contenu courant) :
-docker run --rm -i -v supabase-storage-data:/data alpine tar xzf - -C /data \
-  < /root/backups/storage-YYYYMMDD-HHMMSS.tar.gz
+docker run --rm -i -v docker_eds-medias:/data alpine tar xzf - -C /data   < /root/backups/medias-YYYYMMDD-HHMMSS.tar.gz
 
-$COMPOSE start storage imgproxy
+docker compose start vitrine
 ```
 
-> Pour restaurer dans un volume **neuf** : `docker volume rm supabase-storage-data` puis
-> `docker volume create supabase-storage-data` avant le `tar xzf`.
+> Pour restaurer dans un volume **neuf** : `docker volume rm docker_eds-medias` puis
+> `docker volume create docker_eds-medias` avant le `tar xzf`.
 
-**Restauration vérifiée localement** (Docker Desktop, cibles jetables — cf. Dev Agent Record)
-pour la **DB Supabase** (donnée connue relue) et le **Storage** (fichier connu relu). La
-**restauration de production (DR)** sur le VPS reste une **étape opérationnelle** à planifier
-périodiquement (cf. `docs/PASSATION.md`).
+**Restauration vérifiée localement** (Docker Desktop, cibles jetables — cf. Dev Agent Record
+de la Story 1.10). ⚠️ Cette vérification datait de la stack Supabase : **elle est à rejouer**
+sur la cible actuelle. La **restauration de production (DR)** sur le VPS reste une **étape
+opérationnelle** à planifier périodiquement (cf. `docs/PASSATION.md`).
 
-### Sauvegardes automatiques (tournoi + Supabase + Storage, off-site)
+### Sauvegardes automatiques (base tournoi + base vitrine + médias, off-site)
 
 L'orchestrateur `backup-all.sh` (Story 1.10) enchaîne les **3 sauvegardes**, copie **hors-VPS**
 (optionnel) et applique la **rotation** :
 
 ```bash
 sudo /opt/tournoi-tft/docker/backup-all.sh
-# -> /root/backups/{tournoi,supabase,storage}-YYYYMMDD-HHMMSS.{sql.gz,tar.gz}
+# -> /root/backups/{tournoi,vitrine,medias}-YYYYMMDD-HHMMSS.{sql.gz,tar.gz}
 ```
 
 **Copie hors-VPS (boring & multi-fournisseur, anti-lock-in — NFR6) :**
@@ -335,13 +358,13 @@ bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.f
 
 > ⚠️ **Opérationnel — à exécuter sur le VPS Hostinger (pas automatisé, pas en CI).**
 > La configuration a été validée localement (Docker Desktop). Suivre ces étapes
-> pour mettre la vitrine et la stack Supabase en ligne sur `esportdessacres.fr`.
+> pour mettre la vitrine en ligne sur `esportdessacres.fr`.
 
 ### Prérequis
 
 - VPS provisionné, Docker Engine + Compose v2 installés, Traefik + tournoi déjà opérationnels.
 - Accès SSH : `ssh <USER_SSH>@<IP_VPS>`
-- Espace disque suffisant : Supabase ajoute ~1 Go d'images + données.
+- Espace disque suffisant : la vitrine ajoute son image Next standalone (~200 Mo).
 
 ### Étape 1 — Pull du code
 
@@ -353,22 +376,29 @@ git pull origin main
 ### Étape 2 — Remplir les fichiers `.env` (JAMAIS commités)
 
 ```bash
-# Secrets Supabase
-cp docker/supabase/.env.example docker/supabase/.env
-nano docker/supabase/.env
-# Remplir : POSTGRES_PASSWORD, JWT_SECRET, ANON_KEY, SERVICE_ROLE_KEY,
-#           DASHBOARD_USERNAME/PASSWORD, TRAEFIK_BASIC_AUTH_USERS
-# Generer JWT_SECRET : openssl rand -hex 32
-# Generer ANON_KEY/SERVICE_ROLE_KEY : https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys
-# Generer TRAEFIK_BASIC_AUTH_USERS : htpasswd -nb admin <mot-de-passe>  (doubler les $)
+nano docker/.env
+# Ajouter VITRINE_DB_PASSWORD (mot de passe du role applicatif de la vitrine).
+# Generer : openssl rand -base64 32
 
 # Secrets vitrine
 cp apps/vitrine/.env.prod.example apps/vitrine/.env.prod
 nano apps/vitrine/.env.prod
-# Remplir : DATABASE_URL (postgresql://postgres:<POSTGRES_PASSWORD>@supabase-db:5432/postgres)
+# Remplir : DATABASE_URL
+#   postgresql://vitrine:<VITRINE_DB_PASSWORD>@tournoi-tft-postgres:5432/vitrine
+# ⚠️ Le mot de passe doit etre IDENTIQUE a VITRINE_DB_PASSWORD de docker/.env.
 # NEXT_PUBLIC_SITE_URL est une valeur de BUILD (build-arg dans docker-compose.yml),
 # pas besoin de la remettre ici (déjà figée à https://esportdessacres.fr au build).
 ```
+
+### Étape 2 bis — 🔴 Créer la base `vitrine` (volume Postgres DÉJÀ initialisé)
+
+`docker/initdb/01-vitrine.sh` ne tourne qu'au **premier** démarrage d'un volume vide. Sur
+le VPS, le tournoi tourne déjà : **le script sera ignoré**. Créer la base à la main —
+procédure complète au §« Créer la base `vitrine` sur un volume DÉJÀ initialisé ».
+
+⚠️ **Ne pas sauter cette étape** : sans elle, la vitrine démarre (ses pages sont statiques)
+mais toute requête base échouera — et la connexion Drizzle étant **paresseuse**, l'erreur
+n'apparaîtra qu'au premier appel réel, pas au démarrage du conteneur.
 
 ### Étape 3 — DNS `esportdessacres.fr`
 
@@ -393,14 +423,11 @@ Depuis `docker/` :
 ```bash
 cd /opt/tournoi-tft/docker
 
-# Démarrer la stack COMPLÈTE (tournoi + vitrine + Supabase)
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d
+# Démarrer la stack (tournoi + vitrine) — UN SEUL fichier compose
+docker compose up -d
 
-# Suivre le démarrage Supabase (les ~10 services prennent 1-2 min)
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-kong supabase-db supabase-auth
-
-# Vérifier que tous les services sont healthy
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml ps
+# Vérifier que tous les services sont healthy (5 services attendus)
+docker compose ps
 ```
 
 ### Étape 5 — Vérification locale staging
@@ -423,12 +450,12 @@ nano /opt/tournoi-tft/docker/.env
 # LETSENCRYPT_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
 
 # Supprimer le volume ACME staging (obligatoire pour réémettre un cert prod)
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml down traefik
+docker compose down traefik
 docker volume rm docker_traefik-acme
 # ou : docker volume ls | grep acme  →  trouver le nom exact
 
 # Redémarrer Traefik (les autres services restent up)
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d traefik
+docker compose up -d traefik
 ```
 
 ### Étape 7 — Smoke test complet
@@ -442,13 +469,19 @@ bash /opt/tournoi-tft/docker/smoke-test.sh \
 # 11 checks attendus SUCCES (dont cert vitrine "Let's Encrypt" sans STAGING)
 ```
 
-### Accès Studio Supabase (admin base vitrine)
+### Inspecter la base `vitrine`
 
-Studio n'est **pas** exposé publiquement (sécurité). Accès par SSH tunnel :
+Il n'y a **plus de console web** depuis la sortie de Supabase (Studio était la seule perte
+réelle de la révision du 2026-07-29, et elle était assumée). Deux accès :
+
 ```bash
-# Depuis la machine locale (Brice)
-ssh -L 3001:supabase-studio:3000 <USER_SSH>@<IP_VPS>
-# Puis ouvrir http://localhost:3001 dans le navigateur
+# 1. psql directement dans le conteneur (le plus simple sur le VPS)
+docker exec -it tournoi-tft-postgres psql -U "$POSTGRES_USER" -d vitrine
+
+# 2. Client graphique (DBeaver, pgAdmin, TablePlus) via tunnel SSH.
+#    Postgres n'est PAS exposé publiquement — c'est voulu.
+ssh -L 5433:tournoi-tft-postgres:5432 <USER_SSH>@<IP_VPS>
+#    Puis se connecter sur localhost:5433, base 'vitrine', role 'vitrine'.
 ```
 
 ### Redéploiement vitrine après push code
@@ -457,19 +490,17 @@ ssh -L 3001:supabase-studio:3000 <USER_SSH>@<IP_VPS>
 cd /opt/tournoi-tft
 git pull
 cd docker
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml build vitrine
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml up -d vitrine
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f eds-vitrine
+docker compose build vitrine
+docker compose up -d vitrine
+docker compose logs -f eds-vitrine
 ```
 
-### Logs Supabase
+### Logs vitrine
 
 ```bash
 cd /opt/tournoi-tft/docker
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-kong
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-auth
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f supabase-db
-docker compose -f docker-compose.yml -f supabase/docker-compose.yml logs -f eds-vitrine
+docker compose logs -f eds-vitrine      # app Next
+docker compose logs -f postgres         # base (tournoi ET vitrine — moteur mutualise)
 ```
 
 ### Overlays OBS pour stream
