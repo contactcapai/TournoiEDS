@@ -3,7 +3,38 @@
 
    Tokens-only, aucune exception : les trois valeurs ont leur token.
    Ne RIEN ajouter ici — ce composant ne fait qu'une chose. Tout ce qui relève de
-   la mise en page d'un appelant passe par sa prop `className` (fusionnée). */
+   la mise en page d'un appelant passe par sa prop `className` (fusionnée).
+
+   ─────────────────────────────────────────────────────────────────────────────
+   🔴 POURQUOI IL N'Y A PAS DE `@layer` ICI (Story 2.10, dette R9) — MESURÉ
+
+   `Wrap` fusionne l'attribut `class` : il ne DÉCIDE PAS de la cascade. Une classe
+   d'appelant et `.wrap` ont la même spécificité (0,1,0), et à égalité c'est l'ordre
+   du CSS *compilé* qui tranche — ordre instable chez Turbopack (issues Next.js
+   #68412, #94895, #79531). La Story 2.10 devait verrouiller ça avec des CSS Cascade
+   Layers. **Essayé, mesuré, ÉCARTÉ — pour deux raisons, la première rédhibitoire :**
+
+   1. `@layer eds-wrap { .wrap { … } }` a CASSÉ le conteneur : padding 26px -> 0px et
+      centrage perdu sur les 23 conteneurs des 3 pages. La précédence de couche est
+      évaluée AVANT la spécificité, et le reset `* { margin: 0; padding: 0 }` de
+      globals.css n'est PAS layeré : un sélecteur universel à spécificité NULLE
+      l'emportait donc sur `.wrap`. Deux des trois propriétés réservées sont
+      justement dans ce reset.
+   2. La parade (layerer aussi le reset, `@layer eds-reset, eds-wrap;`) est CIRCULAIRE :
+      l'ordre des couches est fixé par leur PREMIÈRE APPARITION, donc par l'ordre
+      d'émission des feuilles — exactement ce que le layer devait neutraliser. Vérifié
+      sur le bundle : globals.css sort aujourd'hui avant ce fichier, mais rien ne le
+      garantit au prochain build, et l'inversion serait SILENCIEUSE.
+
+   Le layer aurait donc INTRODUIT une dépendance vivante à l'ordre d'émission (avec
+   `*`) là où il n'en existe aucune : après la migration de la Story 2.10, aucune
+   classe fusionnée ne déclare `max-width`, `margin` ni `padding`.
+
+   ⇒ La garde n'est pas dans la cascade, elle est dans la MESURE : géométrie des
+   conteneurs relevée au navigateur sur 3 pages × 7 largeurs (Story 2.10, AC3). Elle
+   est comportementale, donc elle attrape aussi une violation future — c'est elle,
+   d'ailleurs, qui a attrapé le défaut du layer.
+   ───────────────────────────────────────────────────────────────────────────── */
 
 .wrap {
   max-width: var(--wrap-max); /* 1160px */

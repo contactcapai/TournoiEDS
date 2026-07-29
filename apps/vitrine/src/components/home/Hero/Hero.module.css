@@ -37,7 +37,14 @@
   bottom: -40px;
 }
 
-/* Grille asymétrique par intention (DESIGN.md §Layout) — jamais 1fr 1fr. */
+/* Grille asymétrique par intention (DESIGN.md §Layout) — jamais 1fr 1fr.
+   Classe FUSIONNÉE dans <Wrap> (Story 2.10) : le conteneur central n'est plus
+   réécrit ici, il vient de Wrap.module.css. Cette classe ne déclare donc AUCUNE
+   des 3 propriétés réservées (max-width, margin, padding) — ni ici, ni dans la
+   @media 880px plus bas. C'est ce qui rend la fusion sûre.
+   ⚠️ `position: relative` + `z-index: 1` sont CONSERVÉS : ils empilent le contenu
+   au-dessus du filigrane couronne. Les retirer ferait passer la couronne devant
+   le texte et le cadre photo. */
 .grid {
   position: relative;
   z-index: 1;
@@ -45,9 +52,6 @@
   grid-template-columns: 1.05fr 0.95fr;
   gap: 54px;
   align-items: center;
-  max-width: var(--wrap-max);
-  margin: 0 auto;
-  padding: 0 var(--wrap-pad);
 }
 
 .title {

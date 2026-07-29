@@ -1,157 +1,26 @@
-/* Page « Animations & interventions » (Story 2.7).
+/* Page « Animations & interventions » (Story 2.7) — part LOCALE uniquement.
+
+   Le vocabulaire de mise en page éditoriale (`.head`, `.section`, `.band`, `.title`,
+   `.subtitle`, `.prose` et ses règles filles dont `.closing`, `.more`, `.cta`) a été
+   EXTRAIT en Story 2.10 vers `src/styles/editorial.module.css`, qu'il partage avec
+   /l-asso. Il n'est PAS redéclaré ici — la duplication comptée et routée par cette
+   story (dette R9b) est soldée.
 
    ⚠️ AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96) : il n'y a RIEN à
-   transcrire. Les valeurs ci-dessous ne sont pas des relevés — ce sont les DÉCISIONS
-   déjà prises et validées au gate visuel de la Story 2.6 pour /l-asso, reconduites à
-   l'identique. Deux pages de texte du même site ne doivent pas avoir deux rythmes.
+   transcrire. Les valeurs viennent des décisions validées au gate visuel de la
+   Story 2.6 pour /l-asso, reconduites à l'identique — deux pages de texte du même
+   site ne doivent pas avoir deux rythmes. C'est exactement ce que l'extraction rend
+   désormais structurel plutôt que discipliné.
 
-   ⚠️ DUPLICATION ASSUMÉE, COMPTÉE ET ROUTÉE (dette R9 → Story 2.10).
-   `.section`, `.title`, `.subtitle`, `.prose`, `.prose p + p` existent aussi dans
-   app/(public)/l-asso/page.module.css. Ce vocabulaire de mise en page éditoriale
-   est donc écrit en DEUX exemplaires, pas davantage.
-   Pourquoi ne PAS l'extraire ici, alors que la Story 2.6 l'annonçait :
-     - extraire sans retrofiter ne fait pas baisser le nombre de copies (composant
-       + copie locale de /l-asso = toujours 2) ; le bénéfice n'arrive qu'avec le
-       retrofit ;
-     - retrofiter /l-asso remettrait le rendu d'une story MERGÉE sous gate visuel,
-       à l'intérieur d'une story dont le risque principal est ÉDITORIAL ;
-     - la Story 2.10 est faite pour ça : elle touche déjà packages/** et re-gate
-       déjà /l-asso (R10, R11). Elle fera extraction + les deux retrofits en une
-       passe, avec UN SEUL gate visuel non ambigu.
-   Même trajectoire que `Wrap` : créé en 2.4, consommé par le nouveau code, retrofit
-   des 4 consommateurs existants routé vers la 2.10.
+   ⚠️ Cette page ne pose PAS de `position: relative` sur sa bande, contrairement à
+   /l-asso : elle ne porte AUCUN filigrane couronne (décision de la story — le
+   filigrane est une marque identitaire, hors sujet sur une page-offre). Rien à
+   ancrer, rien à empiler, donc <Wrap> y est utilisé NU : aucune classe fusionnée,
+   donc aucune dépendance à l'ordre du CSS compilé.
 
-   Tokens-only, à SEPT exceptions près — toutes des px structurels qu'aucun token ne
-   décrit, et toutes justifiées à leur ligne : `.subtitle` (font-size 24, margin-top
-   34, margin-bottom 10), `.prose` (max-width 680), `.prose p + p` (margin-top 18),
-   `.publics` (padding-left 20), `.publics li + li` (margin-top 12). Aucun rgba(),
-   aucun hex de charte. */
-
-/* ───────── Rythme vertical ─────────
-   Reconduction du choix de la Story 2.6 : la maquette ne connaît que le rythme de
-   la home (`section { padding: 90px 0 }`, soit 180px entre deux sections), trop
-   large pour une page de texte. On ne pose donc de padding QUE en bas des sections.
-
-   ⚠️ Écarts RÉELS mesurés au navigateur, parce que la règle n'est pas uniforme et
-   qu'un commentaire qui l'affirmerait serait faux :
-
-     head -> 1re section ............  48px  (margin-bottom de SectionHead ; VOULU
-                                              plus serré, le chapô introduit)
-     section -> BANDE .............. 180px  (90 sur --navy-deep + 90 À L'INTÉRIEUR
-                                              de la bande)
-     bande -> section ...............  90px
-     section -> section .............  90px
-
-   Les 180px de l'entrée dans la bande ne sont PAS le rythme de la home qu'on vient
-   d'écarter : la bascule de fond tombe pile au milieu, si bien qu'on ne voit jamais
-   180px de vide uniforme. Une bande qui porte son propre fond a besoin de sa propre
-   respiration intérieure — c'est le procédé de la maquette pour `.agenda`/`.proof`,
-   et le rendu est identique sur /l-asso (mesuré). Ne pas « harmoniser » à 90px : ça
-   collerait le titre au bord coloré. */
-
-.head {
-  padding-top: var(--section-y);
-  /* Pas de padding-bottom : SectionHead pose déjà `margin-bottom: --section-gap`
-     (48px) sous le chapô, et les deux s'additionneraient. Ce 48px est plus serré
-     que les 90px inter-sections, et c'est VOULU — le chapô introduit la première
-     section, il ne s'en détache pas. */
-}
-
-.section {
-  padding-bottom: var(--section-y);
-}
-
-/* ───────── Titres de section ─────────
-   ⚠️ SectionHead n'est PAS utilisé pour les <h2>, et c'est délibéré — même arbitrage
-   qu'en 2.4 et 2.6 : il impose un Eyebrow (cinq triades de losanges sur une page en
-   feraient un motif, pas un accent) et l'échelle --fs-section-title (clamp 40→66px),
-   qui est celle du <h1> de cette page. Un titre de section doit lui être subordonné
-   → --fs-block-heading (44px).
-
-   ⚠️ AUCUN `font-weight` déclaré ici, et c'est VOLONTAIRE : les titres Bebas du site
-   n'en déclarent pas (la valeur UA `bold` s'applique et le navigateur synthétise un
-   faux-gras, Bebas n'étant chargée qu'en 400). C'est la dette R11, arbitrée en bloc
-   par la Story 2.10 avec son gate visuel. En déclarer un ICI créerait un TROISIÈME
-   comportement sur le site (DoubleDoor en déclare un, /l-asso non) — donc un écart
-   visible entre deux pages sœurs. Ne pas « corriger » isolément. */
-.title {
-  font-family: var(--font-display);
-  font-size: var(--fs-block-heading);
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  text-transform: uppercase;
-  color: var(--cream);
-  /* 30px : le souligné de la primitive Brush descend 14px sous la boîte du titre
-     (::after { bottom: -14px }) → il reste 16px avant le texte. Ne pas réduire. */
-  margin-bottom: var(--block-gap);
-}
-
-/* Sous-titre des trois familles. 24px : px structurel sans token (l'échelle s'arrête
-   à --fs-block-heading = 44px au-dessus et --fs-eyebrow = 13px en dessous). Valeur
-   identique aux sous-titres de /l-asso : c'est le même niveau dans la même famille
-   de page, il n'y a aucune raison qu'il diverge. */
-.subtitle {
-  font-family: var(--font-display);
-  font-size: 24px;
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  text-transform: uppercase;
-  color: var(--cream);
-  margin-top: 34px;
-  margin-bottom: 10px;
-}
-
-/* ───────── Corps de texte ─────────
-   680px = mesure de lecture, valeur déjà retenue par `.axe p` (Axis.module.css) puis
-   par /l-asso. Le corps est en --light et JAMAIS en --grey : --grey est réservé au
-   texte secondaire sur les fonds les plus sombres (DESIGN.md §Contraste & AA) et ne
-   conviendrait pas au fond --navy de la bande ci-dessous. Le seul --grey de la page
-   est le chapô de SectionHead, qui est sur --navy-deep (mesuré 5,56:1 en 2.6). */
-.prose {
-  max-width: 680px;
-  color: var(--light);
-}
-
-/* Déterministe plutôt que de compter sur la fusion des marges à travers `.prose`
-   (le premier enfant peut être un <p> comme un <h3>). */
-.prose > :first-child {
-  margin-top: 0;
-}
-
-.prose p + p {
-  margin-top: 18px;
-}
-
-/* ───────── Bande « Ce qu'on propose » ─────────
-   SEULE section à fond distinct : procédé de la maquette pour ses sections relevées
-   (.agenda et .proof, toutes deux en `background: var(--navy)`).
-
-   Le `padding-top` est la SEULE dérogation au « padding en bas seulement » posé plus
-   haut : c'est la respiration intérieure de la bande, celle qui empêche le <h2> de
-   toucher le bord coloré. Il s'ajoute au padding-bas de la section précédente, d'où
-   les 180px mesurés à cette frontière — et eux seuls (cf. le tableau en tête).
-
-   Pas de `position: relative` ici, contrairement à /l-asso : cette bande ne porte
-   AUCUN filigrane couronne (décision de la story — le filigrane est une marque
-   identitaire, hors sujet sur une page-offre). Rien à ancrer, rien à empiler, donc
-   <Wrap> est utilisé NU : aucune classe fusionnée, donc aucune dépendance à l'ordre
-   du CSS compilé (le contrat de Wrap est respecté par construction).
-
-   Pas d'`overflow: hidden` non plus : rien ne déborde, il n'aurait rien à couper. */
-.band {
-  padding-top: var(--section-y);
-  background: var(--navy);
-}
-
-/* Le paragraphe de clôture de la bande se détache des trois familles : il ne décrit
-   pas une quatrième famille, il explique comment on choisit parmi les trois.
-   Il suit directement un <p>, donc `.prose p + p` (18px) s'applique — d'où le
-   sélecteur `.prose p.closing`, dont la spécificité (0,2,1) l'emporte sur celle de
-   `.prose p + p` (0,1,2). Un simple `.closing` (0,1,0) NE SUFFIRAIT PAS et la règle
-   serait silencieusement sans effet. */
-.prose p.closing {
-  margin-top: var(--block-gap);
-}
+   Tokens-only. EXCEPTIONS documentées : deux px structurels sans token (`.publics`
+   padding-left 20, `.publics li + li` margin-top 12), commentés sur place. Aucun
+   rgba(), aucun hex de charte. */
 
 /* ───────── Liste des publics ─────────
    ⚠️ PAS de `list-style: none` : Safari/VoiceOver retire alors la sémantique de
@@ -159,13 +28,18 @@
    on ne colore que le marqueur — si `::marker` n'est pas supporté, la puce prend la
    couleur du texte : dégradation propre, jamais de perte de sens.
    Le `padding-left` est nécessaire parce que le reset global (`* { padding: 0 }`)
-   a supprimé le retrait natif du <ul>. */
-/* ⚠️ Pas de `margin-top` ici, contrairement au `.facts` de /l-asso : cette <ul> est
+   a supprimé le retrait natif du <ul>.
+
+   ⚠️ Pas de `margin-top` ici, contrairement au `.facts` de /l-asso : cette <ul> est
    le PREMIER enfant de `.prose` (aucun paragraphe d'introduction ne la précède),
    donc `.prose > :first-child { margin-top: 0 }` (0,2,0) l'emporterait sur un
    `.publics { margin-top }` (0,1,0). La déclaration serait INERTE — et une
    déclaration inerte trompe le prochain lecteur. L'espacement sous le <h2> est
-   porté par le `margin-bottom: --block-gap` de `.title`. */
+   porté par le `margin-bottom: --block-gap` de `.title`.
+
+   ⚠️ C'est cette divergence assumée qui explique que les deux listes NE SOIENT PAS
+   extraites vers editorial.module.css, alors que leurs trois autres règles sont
+   identiques. Ne pas « terminer le travail » en les fusionnant. */
 .publics {
   padding-left: 20px;
 }
@@ -180,17 +54,6 @@
 
 .publics strong {
   color: var(--cream);
-}
-
-/* ───────── Renvois ─────────
-   --block-gap (30px) : même respiration que le lien « Découvrir l'asso » sous les
-   trois axes (.more de ThreeAxes.module.css) et que les renvois de /l-asso. */
-.more {
-  margin-top: var(--block-gap);
-}
-
-.cta {
-  margin-top: var(--block-gap);
 }
 
 /* Aucune @media ici : la page est en une seule colonne à toutes les largeurs (le

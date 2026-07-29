@@ -13,14 +13,11 @@
      (.agenda, background --navy), livré en Epic 3, qui viendra s'intercaler. */
 }
 
-/* Conteneur central. Répétition assumée du `.grid` du Hero : avec seulement deux
-   occurrences, extraire un composant conteneur serait prématuré. Si une 3ᵉ section
-   le réécrit, elle l'extrait (règle « payé deux fois », METHODE.md §5). */
-.wrap {
-  max-width: var(--wrap-max);
-  margin: 0 auto;
-  padding: 0 var(--wrap-pad);
-}
+/* Conteneur central : plus de classe locale — <Wrap> est monté directement dans
+   ThreeAxes.tsx (Story 2.10, dette R9). La règle était PURE, elle disparaît.
+   ⚠️ <Wrap> rend un <div>, exactement l'élément qu'il remplace : la structure est
+   inchangée, et le <div> SANS className qu'il contient — celui dont dépend le
+   `:last-child` du 3ᵉ axe — n'est pas touché. */
 
 /* Le lien vit HORS du conteneur des axes (sinon le filet bas du 3ᵉ axe saute) :
    sa marge haute remplace donc l'espacement qu'aurait donné un frère interne. */

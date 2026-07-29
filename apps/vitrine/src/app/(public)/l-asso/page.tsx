@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Brush, Button, CrownWatermark, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
 
@@ -57,7 +58,7 @@ export default function LAsso() {
       {/* ① Tête de page. Seul <h1> du document ; le <main id="content"> est fourni
           par (public)/layout.tsx → pas de <main> ici (un seul dans le DOM).
           Seule occurrence d'Eyebrow de la page : elle ouvre, elle ne rythme pas. */}
-      <section className={styles.head} aria-labelledby="asso-title">
+      <section className={editorial.head} aria-labelledby="asso-title">
         <Wrap>
           <SectionHead
             headingLevel={1}
@@ -78,14 +79,14 @@ export default function LAsso() {
           celle-ci est au-dessus de la ligne de flottaison, l'animer n'aurait pas de
           sens (règle uniforme du site : la 1ʳᵉ section d'une page ne s'anime pas). */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="histoire-title"
       >
         <Wrap>
-          <h2 id="histoire-title" className={styles.title}>
+          <h2 id="histoire-title" className={editorial.title}>
             Comment ça a <Brush>commencé</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               L&apos;association s&apos;est créée en 2022, à Reims. Le point de
               départ tenait en une phrase : donner au jeu vidéo une date, un lieu
@@ -111,7 +112,7 @@ export default function LAsso() {
           pour ses sections relevées (.agenda, .proof). Elle porte le filigrane
           couronne : Reims cité des sacres, c'est le cœur identitaire de la page. */}
       <section
-        className={`${styles.section} ${styles.band} ${motion.reveal}`}
+        className={`${editorial.section} ${editorial.band} ${styles.bandAnchor} ${motion.reveal}`}
         aria-labelledby="nom-title"
       >
         {/* Décoratif : aria-hidden + alt="" sont portés par la primitive, ne rien
@@ -127,10 +128,10 @@ export default function LAsso() {
             3 propriétés réservées de `.wrap`, donc aucune dépendance à l'ordre
             d'émission du CSS compilé. Preuve consignée au Debug Log. */}
         <Wrap className={styles.bandInner}>
-          <h2 id="nom-title" className={styles.title}>
+          <h2 id="nom-title" className={editorial.title}>
             Reims, <Brush>cité des sacres</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Les rois de France étaient couronnés ici, dans la cathédrale :
               c&apos;est ce qui vaut à Reims son surnom de cité des sacres. Notre
@@ -151,15 +152,15 @@ export default function LAsso() {
           donnerait l'impression d'un copier-coller et brouillerait le rapport
           teaser → page. Des <h3> + <p> simples, sans numéro et sans les filets. */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="partis-pris-title"
       >
         <Wrap>
-          <h2 id="partis-pris-title" className={styles.title}>
+          <h2 id="partis-pris-title" className={editorial.title}>
             Nos <Brush>partis pris</Brush>
           </h2>
-          <div className={styles.prose}>
-            <h3 className={styles.subtitle}>Le local d&apos;abord</h3>
+          <div className={editorial.prose}>
+            <h3 className={editorial.subtitle}>Le local d&apos;abord</h3>
             <p>
               On joue là où on vit. Les soirées se tiennent dans des bars rémois,
               et nos interventions se font dans les quartiers, les écoles et les
@@ -167,7 +168,7 @@ export default function LAsso() {
               profiter à la ville, pas seulement à nos adhérents.
             </p>
 
-            <h3 className={styles.subtitle}>L&apos;esport au sens large</h3>
+            <h3 className={editorial.subtitle}>L&apos;esport au sens large</h3>
             <p>
               Un plateau de compétition, oui, mais pas seulement. C&apos;est aussi
               une manette qu&apos;on se passe, une première partie gagnée, une
@@ -175,7 +176,7 @@ export default function LAsso() {
               curieux aussi bien que les joueurs assidus.
             </p>
 
-            <h3 className={styles.subtitle}>Le sérieux par la preuve</h3>
+            <h3 className={editorial.subtitle}>Le sérieux par la preuve</h3>
             <p>
               Une association qui reçoit du public s&apos;engage : sur ses dates,
               sur son accueil, sur ce qu&apos;elle annonce. On préfère montrer ce
@@ -193,14 +194,14 @@ export default function LAsso() {
           Arbitrage de Brice (2026-07-29) : collectif maintenant, nominatif plus
           tard → dette R16, absorbée par la Story 4.8. Ne PAS inventer de prénoms. */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="equipe-title"
       >
         <Wrap>
-          <h2 id="equipe-title" className={styles.title}>
+          <h2 id="equipe-title" className={editorial.title}>
             Une équipe de <Brush>bénévoles</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               L&apos;association est portée par des bénévoles : un bureau, et
               celles et ceux qui installent les écrans le jeudi soir, tiennent la
@@ -222,14 +223,14 @@ export default function LAsso() {
           l'Epic 4 — deux sources à maintenir sinon). Le LinkArrow route vers la
           preuve visuelle. */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="faits-title"
       >
         <Wrap>
-          <h2 id="faits-title" className={styles.title}>
+          <h2 id="faits-title" className={editorial.title}>
             On préfère les <Brush>faits</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Pas de compteur de membres ni de statistiques d&apos;audience sur ce
               site. Ce qu&apos;on peut montrer, en revanche, se vérifie :
@@ -271,7 +272,7 @@ export default function LAsso() {
               défaut d'ici là, comportement ATTENDU et cohérent avec le SiteHeader
               depuis la 1.4. Ne pas retomber sur href="#" (scroll-to-top + annonce
               trompeuse). Route interne → ni target, ni rel, ni mention SR. */}
-          <div className={styles.more}>
+          <div className={editorial.more}>
             <LinkArrow href="/partenaires">
               Nos partenaires et nos réalisations
             </LinkArrow>
@@ -289,21 +290,21 @@ export default function LAsso() {
           (un bloc qui n'atteint jamais la fin de sa plage resterait invisible pour
           toujours). Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5). */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="venir-title"
       >
         <Wrap>
-          <h2 id="venir-title" className={styles.title}>
+          <h2 id="venir-title" className={editorial.title}>
             Envie de passer un <Brush>jeudi</Brush> ?
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Le plus simple, c&apos;est de venir voir. C&apos;est gratuit, et on
               n&apos;attend de toi ni niveau ni matériel — juste de pousser la
               porte du bar.
             </p>
           </div>
-          <div className={styles.cta}>
+          <div className={editorial.cta}>
             <Button variant="gold" href="/agenda">
               Voir l&apos;agenda
             </Button>

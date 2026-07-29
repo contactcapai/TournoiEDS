@@ -1,98 +1,30 @@
-/* Page « L'asso » (Story 2.6).
+/* Page « L'asso » (Story 2.6) — part LOCALE uniquement.
+
+   Le vocabulaire de mise en page éditoriale (`.head`, `.section`, `.band`, `.title`,
+   `.subtitle`, `.prose` et ses règles filles, `.more`, `.cta`) a été EXTRAIT en
+   Story 2.10 vers `src/styles/editorial.module.css`, qu'il partage avec /animations.
+   Il n'est PAS redéclaré ici. Ce qui reste ci-dessous est spécifique à cette page.
 
    ⚠️ AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96) : il n'y a RIEN à
-   transcrire. Les valeurs ci-dessous sont des DÉCISIONS de la story, composées à
-   partir des tokens et des conventions déjà posées par la home — pas des relevés.
-   Elles sont validées au gate visuel, pas défendues comme une transcription.
+   transcrire. Les valeurs sont des DÉCISIONS de la story, validées au gate visuel.
 
-   Tokens-only. EXCEPTIONS documentées : le `rgba()` d'un filet (aucun token ne
-   décrit une opacité de filet — précédent `.door`, Story 2.5) et deux px
-   structurels sans token, commentés sur place. */
-
-/* ───────── Rythme vertical ─────────
-   La maquette ne connaît que le rythme de la home : `section { padding: 90px 0 }`,
-   soit 180px entre deux sections. Sur une page de six sections de TEXTE, c'est trop.
-   Décision de la story : un seul --section-y (90px) entre les sections. */
-
-.head {
-  padding-top: var(--section-y);
-  /* Pas de padding-bottom : SectionHead pose déjà `margin-bottom: --section-gap`
-     (48px) sous le chapô, et les deux s'additionneraient. Ce 48px est plus serré
-     que les 90px inter-sections, et c'est VOULU — le chapô introduit la première
-     section, il ne s'en détache pas. */
-}
-
-.section {
-  padding-bottom: var(--section-y);
-}
-
-/* ───────── Titres de section ─────────
-   ⚠️ SectionHead n'est PAS utilisé ici, et c'est délibéré — même arbitrage qu'en
-   Story 2.4 pour la bande Animations : il impose un Eyebrow (six triades de
-   losanges sur une page en feraient un motif, pas un accent) et l'échelle
-   --fs-section-title (clamp 40→66px), qui est celle du <h1> de cette page. Un titre
-   de section doit lui être subordonné → --fs-block-heading (44px), le token dont
-   DESIGN.md dit qu'il couvre « les titres de bloc ». */
-.title {
-  font-family: var(--font-display);
-  font-size: var(--fs-block-heading);
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  text-transform: uppercase;
-  color: var(--cream);
-  /* 30px : le souligné de la primitive Brush descend 14px sous la boîte du titre
-     (::after { bottom: -14px }) → il reste 16px avant le texte. Ne pas réduire. */
-  margin-bottom: var(--block-gap);
-}
-
-/* Sous-titre des partis pris. 24px : px structurel sans token (l'échelle s'arrête
-   à --fs-block-heading = 44px au-dessus et --fs-eyebrow = 13px en dessous). Valeur
-   de la même famille que les titres de colonne du footer (22px) et les libellés de
-   mention (23px) de la maquette. */
-.subtitle {
-  font-family: var(--font-display);
-  font-size: 24px;
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  text-transform: uppercase;
-  color: var(--cream);
-  margin-top: 34px;
-  margin-bottom: 10px;
-}
-
-/* ───────── Corps de texte ─────────
-   680px = mesure de lecture, valeur déjà retenue par `.axe p` (Axis.module.css).
-   Le corps est en --light et jamais en --grey : --grey est réservé au texte
-   secondaire sur les fonds les plus sombres (DESIGN.md §Contraste & AA) et ne
-   conviendrait pas au fond --navy de la bande ci-dessous. */
-.prose {
-  max-width: 680px;
-  color: var(--light);
-}
-
-/* Déterministe plutôt que de compter sur la fusion des marges à travers `.prose`
-   (le premier enfant peut être un <p> comme un <h3>). */
-.prose > :first-child {
-  margin-top: 0;
-}
-
-.prose p + p {
-  margin-top: 18px;
-}
+   Tokens-only. EXCEPTIONS documentées : deux px structurels sans token (`.facts`
+   padding-left 20 et margin-top 18, `.facts li + li` margin-top 12), commentés sur
+   place. Aucun rgba(), aucun hex de charte. */
 
 /* ───────── Bande « cité des sacres » ─────────
-   SEULE section à fond distinct : procédé de la maquette pour ses sections relevées
-   (.agenda et .proof, toutes deux en `background: var(--navy)`). */
-.band {
-  position: relative; /* ancre du filigrane couronne */
-  padding-top: var(--section-y);
-  background: var(--navy);
+   Le fond et la respiration intérieure viennent d'`editorial.band`. Cette classe
+   n'ajoute QUE l'ancrage du filigrane couronne — la bande de /animations n'en a pas
+   (décision de la Story 2.7 : le filigrane est une marque identitaire, hors sujet
+   sur une page-offre), d'où une classe locale plutôt qu'une propriété partagée. */
+.bandAnchor {
+  position: relative;
 }
 
 /* Contexte d'empilement du contenu AU-DESSUS du filigrane (patron du `.grid` du
    Hero). ⚠️ Cette classe est fusionnée dans `Wrap` : elle ne déclare QUE ces deux
    propriétés, aucune des 3 réservées de `.wrap` (max-width, margin, padding) —
-   donc aucune dépendance à l'ordre du CSS compilé. */
+   vérifié par la mesure de géométrie de la Story 2.10. */
 .bandInner {
   position: relative;
   z-index: 1;
@@ -103,7 +35,7 @@
 
    ⚠️ Offsets POSITIFS, contrairement au Hero (left:-70px, bottom:-40px, valeurs de
    la maquette pour LUI). Ici la couronne reste entièrement DANS la bande colorée :
-   la faire déborder l'afficherait à cheval sur deux fonds, et `overflow-x: hidden`
+   la faire déborder l'afficherait à cheval sur deux fonds, et `overflow-x: clip`
    (globals.css) rognerait le dépassement EN SILENCE — aucune porte automatique ne
    le verrait (dette R14).
 
@@ -121,9 +53,9 @@
    ⚠️ Ne pas descendre `bottom` à 24px : il ne resterait que 1,3px.
 
    ⚠️ Les deux axes ne se rognent PAS de la même façon : `globals.css` ne pose que
-   `overflow-x: hidden` — un débordement horizontal est coupé EN SILENCE (aucune
-   porte ne le voit, dette R14), un débordement vertical est simplement PEINT, donc
-   il chevaucherait la section suivante. Deux raisons différentes de ne pas déborder.
+   `overflow-x: clip` — un débordement horizontal est coupé EN SILENCE (aucune porte
+   ne le voit, dette R14), un débordement vertical est simplement PEINT, donc il
+   chevaucherait la section suivante. Deux raisons différentes de ne pas déborder.
 
    `max-width: 45%` borne la largeur à tout viewport ; `height: auto` (primitive)
    + les attributs width/height préservent le ratio, donc aucun CLS.
@@ -141,7 +73,12 @@
    on ne colore que le marqueur — si `::marker` n'est pas supporté, la puce prend la
    couleur du texte : dégradation propre, jamais de perte de sens.
    Le `padding-left` est nécessaire parce que le reset global (`* { padding: 0 }`)
-   a supprimé le retrait natif du <ul>. */
+   a supprimé le retrait natif du <ul>.
+
+   ⚠️ NON EXTRAITE vers editorial.module.css, et ce n'est pas un oubli : le
+   `margin-top` ci-dessous n'existe PAS sur la `.publics` de /animations, dont la
+   <ul> est le premier enfant de `.prose` (la règle y serait inerte). Les deux listes
+   divergent délibérément — voir la fin d'editorial.module.css. */
 .facts {
   margin-top: 18px;
   padding-left: 20px;
@@ -157,17 +94,6 @@
 
 .facts strong {
   color: var(--cream);
-}
-
-/* ───────── Renvois ─────────
-   --block-gap (30px) : même respiration que le lien « Découvrir l'asso » sous les
-   trois axes (.more de ThreeAxes.module.css). */
-.more {
-  margin-top: var(--block-gap);
-}
-
-.cta {
-  margin-top: var(--block-gap);
 }
 
 /* Aucune @media ici : la page est en une seule colonne à toutes les largeurs (le

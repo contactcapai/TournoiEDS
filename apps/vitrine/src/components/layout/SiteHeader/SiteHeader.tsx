@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { TOURNOI_URL } from "@/lib/links";
+import { Wrap } from "@/components/common/Wrap/Wrap";
 import { MobileMenu, type NavLink } from "../MobileMenu/MobileMenu";
 import styles from "./SiteHeader.module.css";
 
@@ -26,7 +27,7 @@ const NAV_LINKS: NavLink[] = [
 export function SiteHeader() {
   return (
     <header className={styles.header}>
-      <div className={styles.row}>
+      <Wrap className={styles.row}>
         <Link href="/" className={styles.logo} aria-label="Esport des Sacres — accueil">
           {/* Dimensions intrinsèques (339×393) pour l'aspect-ratio anti-CLS ;
               la hauteur d'affichage (~48px, maquette) est imposée en CSS. */}
@@ -41,7 +42,7 @@ export function SiteHeader() {
         </Link>
 
         <MobileMenu links={NAV_LINKS} />
-      </div>
+      </Wrap>
     </header>
   );
 }

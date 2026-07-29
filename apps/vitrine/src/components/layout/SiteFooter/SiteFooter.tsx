@@ -11,6 +11,7 @@ import {
   NEW_TAB_SR,
   isExternalUrl,
 } from "@/lib/links";
+import { Wrap } from "@/components/common/Wrap/Wrap";
 import styles from "./SiteFooter.module.css";
 
 // Pied de page persistant de la vitrine (Server Component — Garde-fou n°1/Conventions :
@@ -163,7 +164,7 @@ function FooterColumnLink({ link }: { link: FooterLink }) {
 export function SiteFooter() {
   return (
     <footer className={styles.footer}>
-      <div className={styles.wrap}>
+      <Wrap>
         <div className={styles.columns}>
           {/* Colonne Marque */}
           <div className={styles.brand}>
@@ -251,7 +252,7 @@ export function SiteFooter() {
             ))}
           </nav>
         </div>
-      </div>
+      </Wrap>
     </footer>
   );
 }

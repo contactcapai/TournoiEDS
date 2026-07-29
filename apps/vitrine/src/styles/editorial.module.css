@@ -1,0 +1,176 @@
+/* editorial.module.css — vocabulaire de MISE EN PAGE ÉDITORIALE partagé par les
+   pages dédiées de la vitrine (Story 2.10). Solde le volet R9b de la dette R9 :
+   `/l-asso` (Story 2.6) et `/animations` (Story 2.7) écrivaient ce vocabulaire en
+   DEUX exemplaires. La Story 2.6 annonçait l'extraction, la 2.7 l'a comptée et
+   routée ici — parce qu'extraire sans retrofiter ne fait pas baisser le nombre de
+   copies, et que retrofiter demande de re-gater deux pages déjà mergées.
+
+   ─────────────────────────────────────────────────────────────────────────────
+   CE FICHIER N'EST PAS JUMELÉ À UN COMPOSANT, ET C'EST VOULU.
+   La convention `<Nom>/<Nom>.module.css` (project-context.md §5) vise les
+   COMPOSANTS. Ceci n'en est pas un : c'est un VOCABULAIRE, du même ordre que
+   tokens.css. Précédent direct et identique : `motion.module.css` (Story 2.8).
+
+   ❌ PAS de composant `EditorialSection` : il ajouterait un nœud DOM par section.
+   ❌ PAS de `composes:` : la consommation deviendrait invisible dans le TSX, donc
+      non greppable — or ce projet s'audite par grep.
+   ✅ Consommation par CONCATÉNATION DE CLASSES en TSX :
+        className={`${editorial.section} ${motion.reveal}`}
+   ─────────────────────────────────────────────────────────────────────────────
+
+   AUCUNE MAQUETTE ne décrit les pages dédiées (.decision-log.md l.96). Les valeurs
+   ci-dessous ne sont pas des relevés : ce sont les décisions des Stories 2.6/2.7,
+   validées à leurs gates visuels, réunies ici SANS ÊTRE MODIFIÉES. Cette story est
+   un refactor — toute valeur qui changerait ici serait un défaut, pas une amélioration.
+
+   ⚠️ NE DÉCLARER AUCUNE propriété `animation-*` ici : c'est ce qui garantit qu'aucun
+   conflit de cascade avec `motion.module.css` ne peut exister (l'ordre du CSS
+   compilé par Turbopack est instable — précédent Wrap, dette R9).
+
+   Tokens-only, à SIX exceptions près — toutes des px structurels qu'aucun token ne
+   décrit, toutes justifiées à leur ligne : `.subtitle` (font-size 24, margin-top 34,
+   margin-bottom 10), `.prose` (max-width 680), `.prose p + p` (margin-top 18), et le
+   680px de mesure de lecture. Aucun rgba(), aucun hex de charte. */
+
+/* ───────── Rythme vertical ─────────
+   La maquette ne connaît que le rythme de la home (`section { padding: 90px 0 }`,
+   soit 180px entre deux sections), trop large pour une page de texte. On ne pose
+   donc de padding QU'EN BAS des sections.
+
+   ⚠️ Écarts RÉELS mesurés au navigateur — la règle n'est pas uniforme, et un
+   commentaire qui l'affirmerait serait faux :
+
+     head -> 1re section ............  48px  (margin-bottom de SectionHead ; VOULU
+                                              plus serré, le chapô introduit)
+     section -> BANDE .............. 180px  (90 sur --navy-deep + 90 À L'INTÉRIEUR
+                                              de la bande)
+     bande -> section ...............  90px
+     section -> section .............  90px
+
+   Les 180px de l'entrée dans la bande ne sont PAS le rythme de la home qu'on vient
+   d'écarter : la bascule de fond tombe pile au milieu, si bien qu'on ne voit jamais
+   180px de vide uniforme. Une bande qui porte son propre fond a besoin de sa propre
+   respiration intérieure — c'est le procédé de la maquette pour `.agenda`/`.proof`.
+   Ne pas « harmoniser » à 90px : ça collerait le titre au bord coloré. */
+
+.head {
+  padding-top: var(--section-y);
+  /* Pas de padding-bottom : SectionHead pose déjà `margin-bottom: --section-gap`
+     (48px) sous le chapô, et les deux s'additionneraient. */
+}
+
+.section {
+  padding-bottom: var(--section-y);
+}
+
+/* Bande à fond distinct — procédé de la maquette pour ses sections relevées
+   (.agenda et .proof, toutes deux en `background: var(--navy)`).
+   Le `padding-top` est la SEULE dérogation au « padding en bas seulement » : c'est
+   la respiration intérieure de la bande, celle qui empêche le titre de toucher le
+   bord coloré. Il s'ajoute au padding-bas de la section précédente, d'où les 180px
+   mesurés à cette frontière — et eux seuls.
+   ⚠️ `position: relative` n'est PAS ici : seule la bande de /l-asso ancre un
+   filigrane couronne, et elle porte pour ça sa propre classe locale `.bandAnchor`. */
+.band {
+  padding-top: var(--section-y);
+  background: var(--navy);
+}
+
+/* ───────── Titres de section ─────────
+   ⚠️ SectionHead n'est PAS utilisé pour les <h2>, et c'est délibéré (arbitrage des
+   Stories 2.4/2.6/2.7) : il impose un Eyebrow — plusieurs triades de losanges sur
+   une page en feraient un motif, pas un accent — et l'échelle --fs-section-title
+   (clamp 40→66px), qui est celle du <h1> de la page. Un titre de section doit lui
+   être subordonné → --fs-block-heading (44px), le token dont DESIGN.md dit qu'il
+   couvre « les titres de bloc ». */
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  /* 30px : le souligné de la primitive Brush descend 14px sous la boîte du titre
+     (::after { bottom: -14px }) → il reste 16px avant le texte. Ne pas réduire. */
+  margin-bottom: var(--block-gap);
+}
+
+/* Sous-titre. 24px : px structurel sans token (l'échelle s'arrête à
+   --fs-block-heading = 44px au-dessus et --fs-eyebrow = 13px en dessous). Valeur de
+   la même famille que les titres de colonne du footer (22px) de la maquette. */
+.subtitle {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-top: 34px;
+  margin-bottom: 10px;
+}
+
+/* ───────── Corps de texte ─────────
+   680px = mesure de lecture, valeur déjà retenue par `.axe p` (Axis.module.css).
+   Le corps est en --light et JAMAIS en --grey : --grey est réservé au texte
+   secondaire sur les fonds les plus sombres (DESIGN.md §Contraste & AA) et ne
+   conviendrait pas au fond --navy de la bande. */
+.prose {
+  max-width: 680px;
+  color: var(--light);
+}
+
+/* Déterministe plutôt que de compter sur la fusion des marges à travers `.prose`
+   (le premier enfant peut être un <p> comme un <h3>). */
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose p + p {
+  margin-top: 18px;
+}
+
+/* 🔴 `.closing` VIT ICI, ET C'EST UNE OBLIGATION, PAS UN CHOIX D'ORGANISATION.
+   Paragraphe qui se détache du bloc précédent (sur /animations : il n'ajoute pas une
+   4ᵉ famille, il explique comment on choisit parmi les trois). Il suit un <p>, donc
+   `.prose p + p` (0,1,2) s'applique — d'où le sélecteur `.prose p.closing`, dont la
+   spécificité (0,2,1) l'emporte.
+
+   ⚠️ Si `.closing` restait dans le fichier local de la page, celui-ci ne pourrait
+   plus écrire que `p.closing` (0,1,1) ou `.closing` (0,1,0) : LES DEUX PERDENT contre
+   `.prose p + p` (0,1,2), et la marge retomberait de 30px à 18px. En silence —
+   aucune porte automatique ne le verrait. Extraire un sélecteur parent oblige à
+   emporter tout ce qui en dépend. */
+.prose p.closing {
+  margin-top: var(--block-gap);
+}
+
+/* ───────── Renvois ─────────
+   --block-gap (30px) : même respiration que le lien « Découvrir l'asso » sous les
+   trois axes (.more de ThreeAxes.module.css).
+   ⚠️ `.more` et `.cta` ont un corps IDENTIQUE : Turbopack les FUSIONNE en un seul
+   sélecteur groupé dans le CSS compilé. Un contrôle `grep "\.more\s*{"` sur le
+   bundle ne les trouve donc pas et conclurait à tort à une classe fantôme (précédent
+   review 1.5 #1). Comparer des ENSEMBLES de noms de classes, jamais chercher une
+   règle par son sélecteur. */
+.more {
+  margin-top: var(--block-gap);
+}
+
+.cta {
+  margin-top: var(--block-gap);
+}
+
+/* ───────── Ce qui n'est VOLONTAIREMENT pas ici ─────────
+   ❌ Les listes `.facts` (/l-asso) et `.publics` (/animations). Elles partagent trois
+      règles identiques (`li + li`, `li::marker`, `strong`) mais DIVERGENT sur une
+      quatrième, et la divergence est délibérée : `.facts` déclare `margin-top: 18px`,
+      `.publics` non — parce que sa <ul> est le PREMIER enfant de `.prose`, donc
+      `.prose > :first-child { margin-top: 0 }` (0,2,0) l'emporterait sur un
+      `.publics { margin-top }` (0,1,0). La déclaration serait INERTE, et une
+      déclaration inerte trompe le prochain lecteur.
+      Les fusionner réintroduirait cette inertie sur /animations OU changerait le
+      rendu de /l-asso. Elles restent locales. NE PAS « terminer le travail ».
+   ❌ `.bandAnchor`, `.bandInner`, `.crown` : propres à /l-asso (ancrage du filigrane).
+
+   ⚠️ La 3ᵉ page dédiée (/partenaires, Story 4.6) consomme ce fichier — elle ne
+   recopie pas. Si elle a besoin d'une règle qui n'y est pas, elle l'ajoute ICI. */
