@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "gate": "node tools/visual-gate/gate.mjs",
+    "gate:selftest": "node tools/visual-gate/selftest.mjs"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
