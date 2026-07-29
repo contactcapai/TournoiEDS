@@ -41,6 +41,37 @@ body {
   overflow-x: clip;
 }
 
+/* 🔴 GRAISSE DES TITRES (Story 2.10, dette R11) — transcription de la maquette
+   (docs/refonte-2026/maquette/index.html l.24 : `h1,h2,h3,h4{…font-weight:400…}`).
+
+   Sans cette règle, la valeur UA `bold` s'applique à tous les <hN>. Or **Bebas Neue
+   est chargée en graisse 400 SEULE** (layout.tsx : `Bebas_Neue({ weight: "400" })`,
+   police STATIQUE) → le navigateur SYNTHÉTISE un faux-gras (`font-synthesis: weight`,
+   actif par défaut). Mesuré avant correctif : `getComputedStyle(h).fontWeight` = 700
+   sur tous les titres du site, sauf ceux de DoubleDoor (Story 2.5), seul endroit à
+   déclarer 400 — d'où DEUX rendus différents pour un même niveau de titre, côte à
+   côte sur la home.
+
+   ⚠️ PÉRIMÈTRE, et il est mesuré, pas supposé :
+     - **Roboto est une police VARIABLE** (layout.tsx, sans `weight` → axe 100-900) :
+       son gras est RÉEL. `<strong>`, `Eyebrow` (700) et `LinkArrow` (700) ne sont
+       PAS concernés et ne doivent pas bouger.
+     - Parmi les usages de Bebas, seuls les ÉLÉMENTS DE TITRE le sont : la feuille UA
+       ne met en gras que h1-h6 (et b/strong/th). Le <blockquote> de QuoteBand, et les
+       primitives Button / Sticker / Tag rendent déjà en 400.
+
+   h5/h6 sont inclus alors que la maquette s'arrête à h4 : le site n'en a aucun
+   aujourd'hui, et les omettre laisserait un trou qui se rouvrirait en silence.
+   Spécificité (0,0,1) → n'importe quelle classe de composant peut surcharger. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 400;
+}
+
 html {
   /* Offset d'ancre sous le header sticky (--head-height: 78px) : au saut vers une
      ancre interne (#content du skip-link, ancres one-page de l'Epic 2), la cible

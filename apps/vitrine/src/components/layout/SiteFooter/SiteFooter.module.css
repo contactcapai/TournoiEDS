@@ -11,12 +11,9 @@
   border-top: 1px solid rgba(218, 178, 101, 0.16);
 }
 
-/* Conteneur centré (équivalent .wrap de la maquette). */
-.wrap {
-  max-width: var(--wrap-max); /* 1160px */
-  margin: 0 auto;
-  padding: 0 var(--wrap-pad); /* 26px */
-}
+/* Conteneur centré : plus de classe locale — <Wrap> est monté directement dans
+   SiteFooter.tsx (Story 2.10, dette R9). La règle était PURE (les 3 déclarations
+   du conteneur, rien d'autre), donc rien à fusionner : elle disparaît. */
 
 /* ── Grille des 4 colonnes ─────────────────────────────────────────────── */
 .columns {

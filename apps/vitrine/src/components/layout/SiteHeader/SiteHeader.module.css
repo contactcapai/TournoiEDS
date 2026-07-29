@@ -14,15 +14,16 @@
   border-bottom: 1px solid rgba(218, 178, 101, 0.18);
 }
 
+/* Barre du header. Classe FUSIONNÉE dans <Wrap> (Story 2.10) : le conteneur central
+   n'est plus réécrit ici. Cette classe ne déclare AUCUNE des 3 propriétés réservées
+   (max-width, margin, padding), et ce fichier n'a aucune @media — donc rien ne peut
+   entrer en concurrence avec `.wrap`. */
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--block-gap);
   min-height: var(--head-height); /* 78px */
-  max-width: var(--wrap-max); /* 1160px (.wrap) */
-  margin: 0 auto;
-  padding: 0 var(--wrap-pad); /* 26px (.wrap) */
 }
 
 .logo {

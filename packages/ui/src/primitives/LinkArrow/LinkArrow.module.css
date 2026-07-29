@@ -7,6 +7,24 @@
   gap: 7px;
   color: var(--gold);
   font-weight: 700;
+  /* 🔴 CIBLE TACTILE (Story 2.10, dette R10) — 44px est la convention du projet,
+     déclarée NON NÉGOCIABLE (CLAUDE.md §6, project-context.md §5).
+
+     Sans cette ligne, la boîte de ce lien vaut `16px × --lh-body (1,65)` ≈ 26,4px
+     (mesuré sur les 5 consommateurs, avant correctif) : la primitive ne porte ni
+     padding ni font-size propres.
+
+     ⚠️ AUCUNE PORTE AUTOMATIQUE NE VOYAIT CE DÉFAUT, et n'en verrait le retour :
+     WCAG 2.5.8 AA n'exige que 24×24, donc l'audit `target-size` PASSE et Lighthouse
+     affiche 100/100 à 26,4px. C'est une décision de projet, pas une mesure — d'où
+     ce commentaire à l'endroit exact où la valeur se change.
+
+     `min-height` plutôt qu'un padding : le padding aurait aussi élargi la zone
+     cliquable horizontalement au-delà du texte, ce qui décale les liens alignés à
+     gauche. La largeur, elle, est déjà assurée par le libellé (le plus court du
+     site fait 136,9px — mesuré). ⚠️ Un futur LinkArrow au libellé TRÈS court
+     rouvrirait la question de la largeur : elle n'est pas garantie ici. */
+  min-height: 44px;
 }
 
 .linkArrow svg {

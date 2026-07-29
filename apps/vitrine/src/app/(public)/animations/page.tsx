@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Brush, Button, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
 
@@ -71,7 +72,7 @@ export default function Animations() {
           Seule occurrence d'Eyebrow de la page : elle ouvre, elle ne rythme pas.
           headingLevel={1} et intro sont les deux props ouvertes par la Story 2.6 —
           on les CONSOMME, SectionHead n'est pas retouché. */}
-      <section className={styles.head} aria-labelledby="anim-title">
+      <section className={editorial.head} aria-labelledby="anim-title">
         <Wrap>
           <SectionHead
             headingLevel={1}
@@ -95,14 +96,14 @@ export default function Animations() {
           celle-ci est au-dessus de la ligne de flottaison, l'animer n'aurait pas de
           sens (règle uniforme du site : la 1ʳᵉ section d'une page ne s'anime pas). */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="mission-title"
       >
         <Wrap>
-          <h2 id="mission-title" className={styles.title}>
+          <h2 id="mission-title" className={editorial.title}>
             Une mission, pas une <Brush>prestation</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Esport des Sacres est une association de bénévoles. Nos
               interventions ne sont pas un produit : elles prolongent ce
@@ -116,7 +117,7 @@ export default function Animations() {
               quartier n&apos;appellent pas le même format.
             </p>
           </div>
-          <div className={styles.more}>
+          <div className={editorial.more}>
             <LinkArrow href="/l-asso">
               L&apos;association et son histoire
             </LinkArrow>
@@ -141,21 +142,21 @@ export default function Animations() {
           01/02/03 est la signature visuelle du bloc « Trois axes » de la home. Des
           <h3> + <p> simples, comme les partis pris de /l-asso. */}
       <section
-        className={`${styles.section} ${styles.band} ${motion.reveal}`}
+        className={`${editorial.section} ${editorial.band} ${motion.reveal}`}
         aria-labelledby="offre-title"
       >
         <Wrap>
-          <h2 id="offre-title" className={styles.title}>
+          <h2 id="offre-title" className={editorial.title}>
             Ce qu&apos;on <Brush>propose</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Nos interventions se rangent en trois familles. Elles se combinent
               volontiers : un même après-midi peut mêler un temps de
               sensibilisation et un tournoi.
             </p>
 
-            <h3 className={styles.subtitle}>Ateliers et tournois conviviaux</h3>
+            <h3 className={editorial.subtitle}>Ateliers et tournois conviviaux</h3>
             <p>
               On installe les postes, on lance les parties, et on encadre — en
               tournoi léger ou en jeu libre. L&apos;objectif n&apos;est pas le
@@ -163,7 +164,7 @@ export default function Animations() {
               retrouvent devant le même écran.
             </p>
 
-            <h3 className={styles.subtitle}>Sensibilisation aux écrans</h3>
+            <h3 className={editorial.subtitle}>Sensibilisation aux écrans</h3>
             <p>
               Un temps d&apos;échange sur les usages : le temps passé devant un
               écran, ce qu&apos;on y joue, ce qui s&apos;y passe. On aborde le
@@ -171,7 +172,7 @@ export default function Animations() {
               que tout va bien.
             </p>
 
-            <h3 className={styles.subtitle}>Animations sur vos événements</h3>
+            <h3 className={editorial.subtitle}>Animations sur vos événements</h3>
             <p>
               Une fête de quartier, un forum, une journée portes ouvertes : on
               vient avec le matériel et on tient l&apos;espace jeu pendant toute
@@ -183,7 +184,7 @@ export default function Animations() {
                 masque pas un manque. Ne pas la retirer quand la Story 4.9 posera
                 le catalogue — c'est elle qui explique pourquoi il y a des familles
                 ET des ateliers. */}
-            <p className={styles.closing}>
+            <p className={editorial.closing}>
               Le format exact — durée, nombre de postes, jeux, âge du public — se
               définit avec vous. On préfère caler ça ensemble plutôt que de
               dérouler un catalogue.
@@ -196,14 +197,14 @@ export default function Animations() {
           maisons de quartier — plus les acteurs du territoire (positionnement §5
           Axe 3, « fédérer l'écosystème local »). Rien au-delà des sources. */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="publics-title"
       >
         <Wrap>
-          <h2 id="publics-title" className={styles.title}>
+          <h2 id="publics-title" className={editorial.title}>
             Pour <Brush>qui</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             {/* <ul> et non une suite de <p> : c'est une liste, elle doit être
                 annoncée comme telle (« liste de 4 éléments »).
 
@@ -242,14 +243,14 @@ export default function Animations() {
           sous 48h » est une [ASSUMPTION] d'EXPERIENCE.md attachée au FORMULAIRE,
           non figée (Q7, canal de réception non tranché). */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="deroulement-title"
       >
         <Wrap>
-          <h2 id="deroulement-title" className={styles.title}>
+          <h2 id="deroulement-title" className={editorial.title}>
             Comment ça se <Brush>passe</Brush>
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Vous nous écrivez en décrivant votre structure, votre public et ce
               que vous avez en tête. On revient vers vous pour caler le format,
@@ -277,21 +278,21 @@ export default function Animations() {
           (un bloc qui n'atteint jamais la fin de sa plage resterait invisible pour
           toujours). Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5). */}
       <section
-        className={`${styles.section} ${motion.reveal}`}
+        className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="contact-title"
       >
         <Wrap>
-          <h2 id="contact-title" className={styles.title}>
+          <h2 id="contact-title" className={editorial.title}>
             Un projet en <Brush>tête</Brush> ?
           </h2>
-          <div className={styles.prose}>
+          <div className={editorial.prose}>
             <p>
               Décrivez-nous votre besoin, même s&apos;il est encore flou. On vous
               répond — et si on n&apos;est pas les bons pour ce projet, on vous
               le dit.
             </p>
           </div>
-          <div className={styles.cta}>
+          <div className={editorial.cta}>
             <Button variant="gold" href="/partenaires">
               Nous solliciter
             </Button>

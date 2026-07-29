@@ -1,5 +1,6 @@
 import { Axis, Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
+import { Wrap } from "@/components/common/Wrap/Wrap";
 import motion from "@/styles/motion.module.css";
 import styles from "./ThreeAxes.module.css";
 
@@ -21,7 +22,7 @@ export function ThreeAxes() {
       className={`${styles.section} ${motion.reveal}`}
       aria-labelledby="axes-title"
     >
-      <div className={styles.wrap}>
+      <Wrap>
         <SectionHead
           eyebrow="Qui on est"
           titleId="axes-title"
@@ -71,7 +72,7 @@ export function ThreeAxes() {
         <div className={styles.more}>
           <LinkArrow href="/l-asso">Découvrir l&apos;asso</LinkArrow>
         </div>
-      </div>
+      </Wrap>
     </section>
   );
 }

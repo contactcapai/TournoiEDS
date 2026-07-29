@@ -10,16 +10,22 @@ export interface WrapProps {
    * ajouter un nœud DOM pour adopter ce composant.
    *
    * ⚠️ CE QUE CETTE FUSION NE FAIT PAS : elle concatène l'attribut `class`, elle ne
-   * décide PAS de la cascade. À spécificité égale, c'est l'ordre des règles dans le
-   * CSS *compilé* qui tranche — or cet ordre est un détail d'implémentation du
-   * bundler (mesuré sur le bundle Turbopack : il ne suit ni l'ordre du DOM, ni celui
-   * des imports, ni l'alphabet) et il peut changer d'un build à l'autre.
+   * décide PAS de la cascade. À spécificité égale, c'est l'ordre du CSS *compilé*
+   * qui tranche, et cet ordre est instable chez Turbopack.
    *
    * RÈGLE : une classe passée ici ne doit JAMAIS redéclarer `max-width`, `margin`
    * ni `padding` — les 3 propriétés réservées de `.wrap`. Elle complète, elle ne
-   * surcharge pas. Ce commentaire documente ; la GARDE est l'AC dédiée de la
-   * Story 2.10 (« un avertissement en commentaire n'est pas une garde »,
-   * 00 référence/pieges/avertissement-commentaire.md).
+   * surcharge pas. Aujourd'hui AUCUN des 19 sites de consommation ne la viole, et
+   * c'est ce qui rend le sujet inoffensif — pas un mécanisme de cascade.
+   *
+   * ⚠️ Les CSS Cascade Layers ont été essayés en Story 2.10 pour verrouiller ça, et
+   * ÉCARTÉS SUR MESURE : ils cassaient le conteneur (le reset non layeré
+   * `* { margin: 0; padding: 0 }` l'emportait), et leur parade dépendait elle-même
+   * de l'ordre d'émission. Raisonnement complet dans Wrap.module.css.
+   *
+   * La garde réelle est la MESURE de géométrie de la Story 2.10 — comportementale,
+   * donc elle attrape une violation future (« un avertissement en commentaire n'est
+   * pas une garde », 00 référence/pieges/avertissement-commentaire.md).
    */
   className?: string;
 }
@@ -31,9 +37,11 @@ export interface WrapProps {
 // (Hero `.grid`, ThreeAxes `.wrap`, SiteHeader, SiteFooter `.wrap`) — le décompte
 // annoncé en Story 2.2 (« 2ᵉ occurrence ») ne comptait que les sections de la home.
 //
-// ⚠️ Les 4 consommateurs existants ne sont PAS migrés ici, et ce n'est pas un oubli :
-// SiteHeader/SiteFooter sont le chrome de TOUTES les pages, et mêler ce refactor à une
-// story de rendu rendrait le gate visuel ambigu. Dette R9 → Story 2.10.
+// Les 4 consommateurs pré-2.4 ont été migrés en Story 2.10 : ce composant est
+// désormais la SEULE définition du conteneur central du site. Porte mesurée sur le
+// HTML servi (et non sur les sources) : les classes CSS Modules compilées portent le
+// nom de leur fichier, donc `Wrap:wrap` doit être la seule classe à porter
+// `max-width: 1160px` sur les 3 pages publiques.
 //
 // API volontairement minimale : pas de prop `as`/`tag` « au cas où ». Le jour où un
 // appelant a besoin d'un autre élément, on l'ajoute — même trajectoire que SectionHead.

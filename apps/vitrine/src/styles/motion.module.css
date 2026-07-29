@@ -16,8 +16,13 @@
       `.axe:last-child` dans Axis.module.css) qu'un wrapper casserait.
    ❌ PAS de `composes:` : il rendrait la consommation invisible dans le TSX, donc
       non greppable — or ce projet s'audite par grep (`grep -rn "motion.reveal"`).
-   ❌ RIEN dans packages/ui (ni classe, ni token de durée) : la variance
-      `packages/**` appartient à la Story 2.10.
+   ❌ RIEN dans packages/ui (ni classe, ni token de durée). La Story 2.8 renvoyait ce
+      point à la Story 2.10 ; celle-ci a tranché en NE créant PAS de token de motion,
+      pour une raison qui n'a rien de conjoncturel : il n'existe qu'UN SEUL
+      consommateur de ces valeurs (ce fichier, aligné sur le `hero-rise` du Hero).
+      Créer un token pour un usage unique, c'est de l'abstraction spéculative. La
+      règle du projet est « payé DEUX fois » (METHODE.md §5) : le jour où un 2ᵉ
+      consommateur écrit la même durée, le token se crée à ce moment-là.
    ─────────────────────────────────────────────────────────────────────────────
 
    ⚠️ PRÉREQUIS NON ÉVIDENT, mesuré en Story 2.8 : ce motif ne fonctionne QUE parce
@@ -52,8 +57,9 @@
          pour un bloc sous la ligne de flottaison, c'est-à-dire exactement le
          défaut que la Story 2.2 a refusé de livrer.
          `0.6s` et `ease-out` : valeurs alignées sur `hero-rise` (Hero, Story 2.1).
-         Aucun token `--dur-*`/`--ease-*` n'existe et cette story n'en crée pas
-         (variance packages/** = Story 2.10) — littéraux commentés, comme le Hero.
+         Aucun token `--dur-*`/`--ease-*` n'existe, et la Story 2.10 a confirmé qu'on
+         n'en crée pas (un seul consommateur — voir l'en-tête de ce fichier) :
+         littéraux commentés sur place, comme le Hero.
          La durée est IGNORÉE par un timeline de scroll (la progression vient du
          scroll) mais reste exigée par la syntaxe du raccourci : ne pas la retirer.
          `both` est OBLIGATOIRE : il maintient l'état `from` avant la plage et

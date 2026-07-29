@@ -8,6 +8,7 @@ import {
   PhotoFrame,
   Sticker,
 } from "@repo/ui";
+import { Wrap } from "@/components/common/Wrap/Wrap";
 import styles from "./Hero.module.css";
 
 // Hero de l'accueil (Story 2.1) — Server Component pur : toute l'animation est en
@@ -34,7 +35,10 @@ export function Hero() {
         className={styles.crown}
       />
 
-      <div className={styles.grid}>
+      {/* `.grid` est FUSIONNÉE dans Wrap (Story 2.10) : aucun nœud DOM ajouté, donc
+          le sélecteur `.grid > *` qui porte l'apparition du hero continue de viser
+          les deux colonnes ci-dessous. */}
+      <Wrap className={styles.grid}>
         <div>
           <Eyebrow>Reims · depuis 2022</Eyebrow>
 
@@ -128,7 +132,7 @@ export function Hero() {
             />
           </PhotoFrame>
         </div>
-      </div>
+      </Wrap>
     </section>
   );
 }
