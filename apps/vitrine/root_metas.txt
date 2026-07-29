@@ -1,0 +1,13 @@
+<meta charSet="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="next-size-adjust" content=""/>
+<meta name="description" content="Association esport rémoise : agenda des rendez-vous du jeudi, animations, interventions et tournois. Une communauté locale, chaleureuse et bien entourée."/>
+<meta name="robots" content="index, follow"/>
+<meta property="og:title" content="Esport des Sacres"/>
+<meta property="og:description" content="Association esport rémoise : agenda des rendez-vous du jeudi, animations, interventions et tournois."/>
+<meta property="og:site_name" content="Esport des Sacres"/>
+<meta property="og:locale" content="fr_FR"/>
+<meta property="og:type" content="website"/>
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Esport des Sacres"/>
+<meta name="twitter:description" content="Association esport rémoise : agenda des rendez-vous du jeudi, animations, interventions et tournois."/>

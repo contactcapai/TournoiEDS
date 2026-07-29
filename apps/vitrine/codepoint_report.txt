@@ -1,0 +1,11 @@
+U+2019 (curly apostrophe): 0
+U+0027 (straight apostrophe): 37
+U+2014 (em dash): 5
+U+2013 (en dash): 0
+U+00AB (guillemet open): 1
+U+00BB (guillemet close): 1
+U+00A0 (nbsp): 0
+U+0153 (oe ligature): 1
+literal &amp; in decoded text (should be 0 real ampersands rendered from &amp;, i.e. count '&' chars appearing that came from &amp; entity): raw '&amp;' occurrences in main_html = 0
+raw & (ampersand char literal, not escaped) count in decoded text = 0
+non-ascii inventory: [('é', 55), ('à', 12), ('—', 5), ('ç', 4), ('è', 4), ('ô', 2), ('ù', 2), ('œ', 1), ('«', 1), ('»', 1)]

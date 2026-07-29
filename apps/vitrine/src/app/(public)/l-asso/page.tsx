@@ -33,9 +33,17 @@ export const metadata: Metadata = {
   title: "L'asso",
   description:
     "Association esport née à Reims en 2022 : notre histoire, l'origine de notre nom, nos partis pris, notre équipe de bénévoles et les faits qui nous engagent.",
-  // ⚠️ openGraph NE DÉRIVE PAS du `title` de la page quand le parent en déclare un.
-  // Sans ce bloc, /l-asso servirait l'og:title du root (« Esport des Sacres »).
+  // ⚠️ DEUX pièges distincts, tous deux mesurés sur le HTML rendu :
+  //  1. openGraph NE DÉRIVE PAS du `title` de la page quand le parent en déclare un ;
+  //  2. Next REMPLACE l'objet `openGraph` du parent, il ne le fusionne PAS champ par
+  //     champ. Sans les trois premières lignes ci-dessous, /l-asso perdrait
+  //     `og:type`, `og:locale` et `og:site_name` (mesuré : 5 balises og sur `/`
+  //     contre 2 ici) → carte de partage sans nom de site sur Discord/LinkedIn.
+  // À reconduire tel quel sur toute nouvelle page dédiée (Story 2.7 et suivantes).
   openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Esport des Sacres",
     title: "L'asso · Esport des Sacres",
     description:
       "Association esport née à Reims en 2022 : notre histoire, l'origine de notre nom, nos partis pris et notre équipe de bénévoles.",
@@ -211,23 +219,35 @@ export default function LAsso() {
               site. Ce qu&apos;on peut montrer, en revanche, se vérifie :
             </p>
             {/* <ul> et non une suite de <p> : c'est une liste, elle doit être
-                annoncée comme telle (« liste de 4 éléments »). */}
+                annoncée comme telle (« liste de 4 éléments »).
+
+                ⚠️ Le `{" "}` après chaque </strong> n'est PAS décoratif : sans lui,
+                l'espace qui sépare le libellé du tiret DISPARAÎT au rendu. Mesuré
+                sur le HTML prérendu : les deux items dont le texte contient une
+                entité `&apos;` rendaient « Game in Reims— présents » (tiret collé),
+                les deux autres non. Un séparateur explicite est le seul à survivre
+                à la normalisation des espaces de JSX, quelle que soit la façon dont
+                le texte est réparti sur les lignes source.
+                Même remède qu'en Story 2.1 / 2.3 (Hero, QuoteBand) : ce piège est
+                déjà documenté dans QuoteBand.tsx. Ne pas retirer ces séparateurs. */}
             <ul className={styles.facts}>
               <li>
-                <strong>Game in Reims</strong> — présents à l&apos;événement
-                rémois du jeu vidéo depuis 2023.
+                <strong>Game in Reims</strong>{" "}
+                — présents à l&apos;événement rémois du jeu vidéo depuis 2023.
               </li>
               <li>
-                <strong>France Esport</strong> — association adhérente.
+                <strong>France Esport</strong>{" "}
+                — association adhérente.
               </li>
               <li>
-                <strong>Un réseau dans le Grand Est</strong> — d&apos;autres
-                associations et acteurs du jeu vidéo avec qui on monte des
-                projets.
+                <strong>Un réseau dans le Grand Est</strong>{" "}
+                — d&apos;autres associations et acteurs du jeu vidéo avec qui on
+                monte des projets.
               </li>
               <li>
-                <strong>Des soutiens locaux</strong> — des enseignes rémoises et
-                des acteurs institutionnels qui suivent nos actions.
+                <strong>Des soutiens locaux</strong>{" "}
+                — des enseignes rémoises et des acteurs institutionnels qui
+                suivent nos actions.
               </li>
             </ul>
           </div>

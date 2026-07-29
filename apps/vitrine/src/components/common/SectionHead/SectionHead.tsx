@@ -46,7 +46,11 @@ export function SectionHead({
       <Heading id={titleId} className={styles.title}>
         {title}
       </Heading>
-      {intro && <p className={styles.intro}>{intro}</p>}
+      {/* Ternaire et non `intro && …` : `intro` est un ReactNode, et `{0 && <p/>}`
+          rendrait le texte « 0 » NU, hors du <p>. Le ternaire renvoie null pour
+          toute valeur falsy — le composant est partagé, il ne doit pas dépendre de
+          la vigilance de ses appelants. */}
+      {intro ? <p className={styles.intro}>{intro}</p> : null}
     </div>
   );
 }

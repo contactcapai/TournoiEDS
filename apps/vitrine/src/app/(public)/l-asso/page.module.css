@@ -107,12 +107,23 @@
    (globals.css) rognerait le dépassement EN SILENCE — aucune porte automatique ne
    le verrait (dette R14).
 
-   ⚠️ Les 26px ne sont PAS un choix esthétique : la primitive tourne l'image de 8°,
-   et la boîte englobante d'un élément tourné est PLUS LARGE que l'image
-   (w·cos8 + h·sin8). Mesuré à `right: 0` : 340×204 débordait de 12,5px à droite,
-   invisiblement rogné. `--wrap-pad` (26px) couvre ce débordement AVEC de la marge
-   et aligne le filigrane sur la gouttière du contenu. Même raison pour `bottom`
-   (débordement vertical mesuré ≈ 11,4px). Ne pas remettre 0.
+   ⚠️ Ces deux offsets ne sont PAS un choix esthétique : la primitive tourne l'image
+   de 8°, et la boîte englobante d'un élément tourné est plus grande que l'image sur
+   les DEUX axes. Pour 340 × 203,8 :
+
+     largeur  w·cos8 + h·sin8 = 365,06  → +12,53px de chaque côté
+     hauteur  w·sin8 + h·cos8 = 249,14  → +22,67px de chaque côté
+
+   À `right: 0; bottom: 0`, le filigrane débordait donc de 12,5px à droite (mesuré
+   au navigateur : 12,5px, la formule concorde) et de 22,7px en bas.
+   `--wrap-pad` (26px) laisse 13,5px de marge horizontale et aligne le filigrane sur
+   la gouttière du contenu ; `--block-gap` (30px) laisse 7,3px de marge verticale.
+   ⚠️ Ne pas descendre `bottom` à 24px : il ne resterait que 1,3px.
+
+   ⚠️ Les deux axes ne se rognent PAS de la même façon : `globals.css` ne pose que
+   `overflow-x: hidden` — un débordement horizontal est coupé EN SILENCE (aucune
+   porte ne le voit, dette R14), un débordement vertical est simplement PEINT, donc
+   il chevaucherait la section suivante. Deux raisons différentes de ne pas déborder.
 
    `max-width: 45%` borne la largeur à tout viewport ; `height: auto` (primitive)
    + les attributs width/height préservent le ratio, donc aucun CLS.
@@ -120,7 +131,7 @@
    Pas d'`overflow: hidden` sur la section : rien ne déborde, il n'a rien à couper. */
 .crown {
   right: var(--wrap-pad);
-  bottom: 24px;
+  bottom: var(--block-gap);
   max-width: 45%;
 }
 
