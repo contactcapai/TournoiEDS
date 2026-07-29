@@ -1,6 +1,7 @@
 import { Button, Eyebrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { NEW_TAB_SR, REJOINDRE_URL, isExternalUrl } from "@/lib/links";
+import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
 
 // Double porte joueurs / partenaires (Story 2.5) — Server Component pur : aucune
@@ -24,7 +25,12 @@ export function DoubleDoor() {
     // maquette n'en pose aucun), et en fabriquer un serait inventer un niveau
     // absent. Précédent explicite : QuoteBand (Story 2.3) — une <section> sans nom
     // accessible n'est pas exposée comme landmark. Décision, pas oubli.
-    <section className={styles.section}>
+    //
+    // `motion.reveal` (Story 2.8) : apparition au scroll. ⚠️ C'est le DERNIER bloc de
+    // la home avant le footer, donc le cas critique de la plage d'animation — un bloc
+    // qui n'atteint jamais la fin de sa plage resterait invisible pour toujours.
+    // Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5).
+    <section className={`${styles.section} ${motion.reveal}`}>
       {/* La maquette pose `class="wrap doors"` sur UN SEUL élément : on consomme
           donc la prop `className` de Wrap plutôt que d'ajouter un nœud DOM.
           ⚠️ 1ʳᵉ consommation de cette prop dans le projet. Elle concatène l'attribut

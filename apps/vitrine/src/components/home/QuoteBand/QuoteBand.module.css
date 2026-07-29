@@ -17,38 +17,96 @@
    `--wrap-max` ici. Le déclencheur « 3ᵉ occurrence → extraire un conteneur
    partagé » posé par la Story 2.2 ne s'arme donc pas. Aucune astuce nécessaire
    (pas de `margin-left: calc(50% - 50vw)`) : `main#content` ne porte aucun
-   max-width, et `html, body { overflow-x: hidden }` couvre déjà le débordement.
+   max-width, et `html, body { overflow-x: clip }` couvre déjà le débordement.
 
-   Pas d'`overflow: hidden` (que la maquette pose sur `.quote-inner` pour clipper
-   sa couche photo en position:absolute) : les deux couches de fond sont repliées
-   dans le `background` ci-dessous, donc plus aucun enfant ne déborde. Le poser
-   quand même serait un no-op « par prudence » — le réflexe exact qui a rogné
-   l'ombre du cadre photo en Story 2.1 (revue 2.1 / EC3).
+   ───────── STRUCTURE EN 3 COUCHES (Story 2.8) ─────────
+   Le fond était un `background` à 2 couches empilées sur `.band`. La parallaxe
+   exige de bouger la couche « photo » SANS bouger le voile : les deux couches
+   sont donc séparées en pseudo-éléments (aucun nœud DOM ajouté), et l'ordre de
+   peinture est verrouillé par des `z-index` EXPLICITES.
 
-   Fond en 2 couches :
-     1. VOILE ASSOMBRISSANT — c'est lui qui garantit le contraste AA du texte
-        (cream 12,9:1 · or 7,4:1, calculés au point le plus clair du composite).
-        `rgba(20,18,48,…)` est `--ink` en décimal ; tolérance déjà posée en 2.1
-        pour les rgba() d'overlay.
-        ⚠️ Quand la vraie photo arrivera (dette R4 → Story 4.7), elle se glisse
-        SOUS ce voile, qui doit RESTER : une photo claire sans voile ferait
-        tomber le contraste sous AA. Elle passera par next/image
-        (architecture.md l.262), donc en couche <Image fill> avec le voile
-        repassé au-dessus d'elle et sous le texte.
-     2. PLACEHOLDER PHOTO — ⚠️ `#3a3672` / `#221f4d` ne sont PAS des couleurs de
-        charte : ce sont les valeurs de la maquette qui SIMULENT la photo. Ne pas
-        les recopier ailleurs, ne pas les prendre pour des tokens. Le fond de
-        base `linear-gradient(160deg,#322e6e,#1b1940)` de `.quote-inner` n'est
-        pas repris : il était intégralement masqué par `.ph-bg` (inset: 0).
-        Aucun texte de remplissage n'est rendu (le « [ Photo pleine largeur … ] »
-        de la maquette tomberait au centre exact, derrière la citation). */
+   ⚠️ Sans z-index, l'ordre serait faux et le VOILE PASSERAIT PAR-DESSUS LE TEXTE :
+   entre éléments positionnés à `z-index: auto`, la peinture suit l'ordre du
+   document, et `::after` vient APRÈS le contenu.
+
+     ① .band::before  z-index 0 — couche « photo » (placeholder), SEULE ANIMÉE
+     ② .band::after   z-index 1 — voile assombrissant, STATIQUE
+     ③ .content       z-index 2 — accroche + citation
+
+   `isolation: isolate` sur `.band` confine ces z-index à un contexte
+   d'empilement local : ils ne peuvent pas entrer en concurrence avec le header
+   sticky (z-index 50) ni avec quoi que ce soit d'autre dans la page. */
 .band {
+  position: relative; /* conteneur de bloc des 2 couches absolues */
+  isolation: isolate; /* confine les z-index 0/1/2 ci-dessous */
   display: flex;
   align-items: center;
   min-height: 420px;
-  background:
-    linear-gradient(120deg, rgba(20, 18, 48, 0.55), rgba(20, 18, 48, 0.85)),
-    linear-gradient(150deg, #3a3672, #221f4d);
+
+  /* 🔴 `clip` et NON `hidden`, pour DEUX raisons, toutes deux bloquantes :
+       1. la couche ① déborde volontairement en haut et en bas (c'est sa course
+          de parallaxe) et doit être rognée ;
+       2. `overflow: hidden` ferait de `.band` un CONTENEUR DE DÉFILEMENT, que
+          `animation-timeline: view()` de la couche ① prendrait alors pour son
+          scroller — et la parallaxe ne bougerait JAMAIS. C'est le même mécanisme
+          que celui mesuré sur `body` en Story 2.8 (voir globals.css), une couche
+          plus bas. `clip` interdit tout défilement : la boîte n'est pas un
+          conteneur de défilement.
+     ⚠️ Ceci REMPLACE le commentaire de la Story 2.3 qui expliquait pourquoi il
+     n'y avait PAS d'overflow ici : à l'époque rien ne débordait, c'est vrai ; ce
+     n'est plus le cas. Ne pas revenir à `hidden` « par cohérence ». */
+  overflow: clip;
+}
+
+/* ① COUCHE « PHOTO » — la SEULE couche animée.
+   ⚠️ `#3a3672` / `#221f4d` ne sont PAS des couleurs de charte : ce sont les
+   valeurs de la maquette qui SIMULENT la photo. Ne pas les recopier ailleurs, ne
+   pas les prendre pour des tokens. Le fond de base
+   `linear-gradient(160deg,#322e6e,#1b1940)` de `.quote-inner` n'est pas repris :
+   il était intégralement masqué par `.ph-bg` (inset: 0). Aucun texte de
+   remplissage n'est rendu (le « [ Photo pleine largeur … ] » de la maquette
+   tomberait au centre exact, derrière la citation).
+
+   `inset: -40px 0` : 40px de débordement en haut ET en bas, rognés par
+   `overflow: clip`. C'est la RÉSERVE dans laquelle la parallaxe se déplace —
+   ±30px (voir @keyframes), ce qui laisse 10px de marge à chaque extrémité : le
+   fond ne peut donc jamais laisser apparaître un bord. px structurels, dans la
+   tolérance déjà posée pour ce fichier.
+
+   ⚠️ Quand la vraie photo arrivera (dette R4/R15 → Story 4.7), elle se glisse
+   DANS CETTE COUCHE, sous le voile — qui doit RESTER : une photo claire sans
+   voile ferait tomber le contraste sous AA. Elle passera par next/image
+   (architecture.md l.262) en `<Image fill>` ; c'est alors l'image, et non ce
+   pseudo-élément, qui portera l'animation. La structure ci-dessous est faite
+   pour ça : la 4.7 n'a pas à la redécider. */
+.band::before {
+  content: "";
+  position: absolute;
+  inset: -40px 0;
+  z-index: 0;
+  background: linear-gradient(150deg, #3a3672, #221f4d);
+}
+
+/* ② VOILE ASSOMBRISSANT — STATIQUE, et c'est lui qui garantit le contraste AA du
+   texte (cream 12,87:1 · or 7,42:1, recalculés en Story 2.8 au point le plus
+   clair du composite, c'est-à-dire là où le voile est le plus fin — 0,55 — sur
+   l'extrémité la plus claire de la couche ①, `#3a3672`).
+   ⚠️ Ce point le plus clair est un MAJORANT indépendant de la position de la
+   couche ① : déplacer un dégradé ne crée aucune couleur plus claire que son
+   arrêt le plus clair. La parallaxe ne peut donc PAS dégrader ce contraste —
+   c'est la raison pour laquelle seule la couche ① bouge et pas le voile.
+   `rgba(20,18,48,…)` est `--ink` en décimal ; tolérance déjà posée en 2.1 pour
+   les rgba() d'overlay. */
+.band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    120deg,
+    rgba(20, 18, 48, 0.55),
+    rgba(20, 18, 48, 0.85)
+  );
 }
 
 /* Bloc de texte centré. 820px : ni `--wrap-max` (1160px) ni multiple d'un token.
@@ -56,6 +114,10 @@
    s'applique pas — cette bande n'est pas une section standard). Les 26px de
    gouttière horizontale de la maquette sont exactement `--wrap-pad`. */
 .content {
+  /* ③ Couche de contenu : `position: relative` + `z-index: 2` la placent au-dessus
+     du voile (①/② sont absolus, donc hors flux — sans ça, le voile la couvrirait). */
+  position: relative;
+  z-index: 2;
   max-width: 820px;
   margin: 0 auto;
   padding: 60px var(--wrap-pad);
@@ -101,11 +163,54 @@
 }
 
 /* Aucune @media : `var(--fs-quote)` = clamp(40px, 6vw, 76px) et le `max-width`
-   de `.content` suffisent — la @media 880px de la maquette ne touche pas ce bloc.
+   de `.content` suffisent — la @media 880px de la maquette ne touche pas ce bloc. */
 
-   Aucune animation : la parallaxe demandée par EXPERIENCE.md §Motion exigerait
-   du JS client (interdit, RSC pur) ou `background-attachment: fixed`, ignoré par
-   iOS Safari (effet desktop-only, donc incohérent). Reportée en dette R7 →
-   Story 2.8, qui posera un motif partagé en amélioration progressive. Rien à
-   neutraliser sous `prefers-reduced-motion` : il n'y a aucune animation à couper
-   (UX-DR29 satisfait par construction, pas par une @media vide). */
+/* ───────── Parallaxe (Story 2.8, solde la dette R7) ─────────
+   Ni JS client (l'Epic 2 est RSC pur), ni `background-attachment: fixed` (ignoré
+   par iOS Safari ⇒ effet desktop-only, donc incohérent — refus de la Story 2.3
+   toujours valable) : une animation pilotée par le scroll, sur la couche ① seule.
+
+   ⚠️ Cette bande N'A PAS de fondu d'apparition (`motion.reveal`), contrairement
+   aux autres blocs : le mouvement du fond EST son entrée. Empiler les deux
+   effets sur une bande pleine largeur alourdirait le moment le plus émotionnel
+   de la page. Décision de la Story 2.8, portée au gate visuel.
+
+   Mêmes deux conditions que le motif partagé, et pour les mêmes raisons :
+     - `no-preference` : sous `reduce`, la couche ① ne bouge pas du tout (UX-DR29) ;
+     - `@supports`     : Firefox stable n'implémente pas encore `view()` (≈ 83 %
+       de support global au 2026-07) → il rend la bande exactement comme avant
+       cette story. Amélioration progressive, pas dégradation.
+   L'état non animé est parfaitement correct : la couche ① est simplement centrée
+   dans sa réserve de 40px. Rien à « rattraper ». */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .band::before {
+      /* Le raccourci D'ABORD (il réinitialise `animation-timeline` à `auto`),
+         la propriété longue ENSUITE — même garde que dans motion.module.css.
+         `linear` et non `ease-out` : une parallaxe doit suivre le scroll de
+         façon strictement proportionnelle, sinon elle « colle » puis rattrape. */
+      animation: quote-parallax 1s linear both;
+      animation-timeline: view();
+      /* Plage `cover` (et non `entry`) : la course couvre TOUTE la traversée du
+         viewport par la bande, de son entrée par le bas à sa sortie par le haut.
+         C'est ce qui donne un mouvement continu pendant qu'on lit la citation.
+         Pas de risque de « bloc figé invisible » ici (le grief de l'AC4) : cette
+         couche est décorative et opaque à toutes les positions de la course. */
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+/* Amplitude FAIBLE, comme l'exige EXPERIENCE.md l.164 : ±30px sur une bande de
+   420px, soit ~7 % de sa hauteur, dans une réserve de 40px (10px de marge à
+   chaque extrémité ⇒ aucun bord ne peut apparaître).
+   Le sens est celui d'une vraie parallaxe : le fond monte MOINS VITE que le
+   contenu, donc il descend relativement à lui quand on scrolle vers le bas. */
+@keyframes quote-parallax {
+  from {
+    transform: translateY(-30px);
+  }
+  to {
+    transform: translateY(30px);
+  }
+}

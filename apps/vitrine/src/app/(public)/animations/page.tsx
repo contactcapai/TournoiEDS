@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Brush, Button, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
 
 // Page « Animations & interventions » (Story 2.7) — DEUXIÈME page dédiée du site.
@@ -90,7 +91,13 @@ export default function Animations() {
           Aucun tarif, aucun devis, aucune mention de prix nulle part sur la page.
           Le LinkArrow renvoie vers /l-asso plutôt que de recopier la légitimité
           (GIR, France Esport, réseau) qui y vit déjà — c'est le rôle du lien. */}
-      <section className={styles.section} aria-labelledby="mission-title">
+      {/* `motion.reveal` (Story 2.8) sur toutes les sections SAUF la tête de page :
+          celle-ci est au-dessus de la ligne de flottaison, l'animer n'aurait pas de
+          sens (règle uniforme du site : la 1ʳᵉ section d'une page ne s'anime pas). */}
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="mission-title"
+      >
         <Wrap>
           <h2 id="mission-title" className={styles.title}>
             Une mission, pas une <Brush>prestation</Brush>
@@ -134,7 +141,7 @@ export default function Animations() {
           01/02/03 est la signature visuelle du bloc « Trois axes » de la home. Des
           <h3> + <p> simples, comme les partis pris de /l-asso. */}
       <section
-        className={`${styles.section} ${styles.band}`}
+        className={`${styles.section} ${styles.band} ${motion.reveal}`}
         aria-labelledby="offre-title"
       >
         <Wrap>
@@ -188,7 +195,10 @@ export default function Animations() {
       {/* ④ Les publics de FR10 : collectivités, écoles, structures sociales /
           maisons de quartier — plus les acteurs du territoire (positionnement §5
           Axe 3, « fédérer l'écosystème local »). Rien au-delà des sources. */}
-      <section className={styles.section} aria-labelledby="publics-title">
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="publics-title"
+      >
         <Wrap>
           <h2 id="publics-title" className={styles.title}>
             Pour <Brush>qui</Brush>
@@ -231,7 +241,10 @@ export default function Animations() {
           catalogue, qu'on ne sait pas. Aucune promesse de délai : « on te répond
           sous 48h » est une [ASSUMPTION] d'EXPERIENCE.md attachée au FORMULAIRE,
           non figée (Q7, canal de réception non tranché). */}
-      <section className={styles.section} aria-labelledby="deroulement-title">
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="deroulement-title"
+      >
         <Wrap>
           <h2 id="deroulement-title" className={styles.title}>
             Comment ça se <Brush>passe</Brush>
@@ -260,7 +273,13 @@ export default function Animations() {
           livrée en Story 4.6 : le 404 est ATTENDU d'ici là, comme pour le CTA du
           hero depuis la 2.1. Ne pas retomber sur href="#" (scroll-to-top + annonce
           trompeuse). Route interne → ni target, ni rel, ni mention SR. */}
-      <section className={styles.section} aria-labelledby="contact-title">
+      {/* ⚠️ DERNIÈRE section avant le footer : cas critique de la plage d'animation
+          (un bloc qui n'atteint jamais la fin de sa plage resterait invisible pour
+          toujours). Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5). */}
+      <section
+        className={`${styles.section} ${motion.reveal}`}
+        aria-labelledby="contact-title"
+      >
         <Wrap>
           <h2 id="contact-title" className={styles.title}>
             Un projet en <Brush>tête</Brush> ?
