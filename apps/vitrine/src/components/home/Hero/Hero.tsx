@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   Brush,
   Button,
@@ -94,7 +95,38 @@ export function Hero() {
                 </span>
               </Sticker>
             }
-          />
+          >
+            {/* ⚠️ CÂBLAGE PROVISOIRE — ce n'est PAS l'implémentation de la Story 4.7.
+                Posé hors story, sur arbitrage de Brice (2026-07-28), pour remplacer
+                le placeholder par une image réelle en attendant. Dette R15.
+
+                Ce qui MANQUE et que la Story 4.7 doit livrer :
+                  - une photo en HAUTE DÉFINITION — celle-ci fait 922×480, et le
+                    recadrage 4/3 de PhotoFrame n'en laisse que 640px utiles pour un
+                    besoin d'environ 950px en retina (colonne photo ≈ 476px) ;
+                  - `sizes` + l'optimisation Next (jeu de tailles responsive) ;
+                  - le passage par le back-office (Epic 6), qui portera l'upload.
+
+                `unoptimized` est DÉLIBÉRÉ ici : `sharp` est absent de ce workspace,
+                et sans lui l'optimiseur d'images échoue à l'exécution — l'AVIF est
+                donc servi tel quel. À retirer en 4.7, avec sharp installé.
+
+                Dimensions intrinsèques 922×480 → aspect-ratio réservé, aucun CLS.
+                Le recadrage vient de PhotoFrame (`aspect-ratio: 4/3` +
+                `object-fit: cover`), pas d'ici.
+
+                ⚠️ Les visages sont identifiables : le consentement des personnes
+                photographiées doit être acquis AVANT la mise en service du VPS.
+                Rien n'est publié tant que le site n'est pas en ligne. */}
+            <Image
+              src="/photos/soiree-bar-eds-01.avif"
+              alt="Une soirée Esport des Sacres dans un bar rémois : des joueurs attablés devant un écran de jeu, sous le kakémono de l'association."
+              width={922}
+              height={480}
+              priority
+              unoptimized
+            />
+          </PhotoFrame>
         </div>
       </div>
     </section>
