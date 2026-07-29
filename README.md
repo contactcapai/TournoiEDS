@@ -411,11 +411,18 @@ docker compose -f docker/docker-compose.yml config >/dev/null && echo "compose O
 ```bash
 nano docker/.env
 # Ajouter VITRINE_DB_PASSWORD (mot de passe du role applicatif de la vitrine).
-# Generer : openssl rand -base64 32
+# 🔴 PAS `openssl rand -base64 32` pour CE secret : il finit dans le userinfo d'une
+# DSN (postgresql://vitrine:<MDP>@...), ou '+', '/' et '=' sont invalides sans
+# pourcent-encodage — et l'echec n'arriverait qu'au PREMIER APPEL BASE (connexion
+# Drizzle paresseuse), avec un message d'authentification trompeur. Generer :
+#   tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40; echo
 #
 # Ajouter AUSSI (cf. docker/.env.example) :
 #   VITRINE_HOST=preprod.esportdessacres.fr
-#   VITRINE_ROBOTS=noindex, nofollow
+#   VITRINE_ROBOTS="noindex, nofollow"   <- GUILLEMETS OBLIGATOIRES
+# 🔴 docker/.env a DEUX lecteurs : Compose ET le shell (`set -a; . ./.env`). Compose
+# tolere une valeur non quotee avec des espaces, le shell NON : il lirait
+# `VITRINE_ROBOTS=noindex,` puis executerait `nofollow`. Piege paye le 2026-07-29.
 # VITRINE_HOST pilote la regle Traefik ET le build-arg NEXT_PUBLIC_SITE_URL.
 # ⚠️ Ne PAS mettre esportdessacres.fr d'emblee : l'apex sert le site Hostinger
 # actuel de l'asso (cf. Etape 3).
