@@ -18,7 +18,9 @@ function createDb() {
       "DATABASE_URL manquante : renseigner apps/vitrine/.env.local (voir .env.example).",
     );
   }
-  // `prepare: false` : compatible avec un pooler en mode transaction (pgBouncer/Supabase).
+  // `prepare: false` : compatible avec un pooler en mode transaction (pgBouncer et
+  // assimiles). Conserve apres la sortie de Supabase (2026-07-29) : la contrainte vient
+  // du mode de pooling, pas du fournisseur.
   // `casing: 'snake_case'` : DOIT rester identique à drizzle.config.ts, sinon le SQL généré
   // par drizzle-kit divergerait du mapping runtime (Garde-fou n°7).
   return drizzle(postgres(url, { prepare: false }), { schema, casing: "snake_case" });

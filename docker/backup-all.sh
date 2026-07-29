@@ -6,8 +6,8 @@
 #
 # Enchaine les 3 sauvegardes locales, puis (optionnel) copie hors-VPS, puis rotation :
 #   1. backup-pg.sh        -> tournoi-*.sql.gz   (Postgres tournoi, REUTILISE tel quel)
-#   2. backup-supabase.sh  -> supabase-*.sql.gz  (Postgres Supabase / vitrine)
-#   3. backup-storage.sh   -> storage-*.tar.gz   (bucket Storage)
+#   2. backup-vitrine.sh   -> vitrine-*.sql.gz   (base 'vitrine', meme moteur Postgres)
+#   3. backup-medias.sh    -> medias-*.tar.gz    (volume des medias de la vitrine)
 #   4. copie hors-VPS (rclone) si docker/offsite.env present et OFFSITE_ENABLED=true
 #   5. rotation locale (et distante) au-dela de la fenetre de retention
 #
@@ -43,12 +43,12 @@ rc=0
 log "1/3 Sauvegarde DB tournoi (backup-pg.sh)..."
 sh   "$SCRIPT_DIR/backup-pg.sh"       || { log "ECHEC sauvegarde tournoi";  rc=1; }
 
-log "2/3 Sauvegarde DB Supabase (backup-supabase.sh)..."
-# backup-supabase.sh = bash (pipefail) -> l'invoquer avec bash (pas sh, qui ignorerait pipefail).
-bash "$SCRIPT_DIR/backup-supabase.sh" || { log "ECHEC sauvegarde Supabase"; rc=1; }
+log "2/3 Sauvegarde base vitrine (backup-vitrine.sh)..."
+# backup-vitrine.sh = bash (pipefail) -> l'invoquer avec bash (pas sh, qui ignorerait pipefail).
+bash "$SCRIPT_DIR/backup-vitrine.sh" || { log "ECHEC sauvegarde base vitrine"; rc=1; }
 
-log "3/3 Sauvegarde Storage (backup-storage.sh)..."
-sh   "$SCRIPT_DIR/backup-storage.sh"  || { log "ECHEC sauvegarde Storage";  rc=1; }
+log "3/3 Sauvegarde medias (backup-medias.sh)..."
+sh   "$SCRIPT_DIR/backup-medias.sh"  || { log "ECHEC sauvegarde medias";  rc=1; }
 
 if [ "$rc" -ne 0 ]; then
   log "FATAL: au moins une sauvegarde a echoue -> pas d'upload hors-VPS, pas de rotation."
@@ -90,9 +90,9 @@ fi
 # Rotation locale : purge les 3 familles au-dela de la fenetre de retention locale.
 # (Generalise le 'find -mtime' historique, limite a tournoi-*, aux 3 prefixes.)
 # ─────────────────────────────────────────────────
-log "Rotation locale : purge > ${RETENTION_LOCAL_DAYS} j (tournoi-*/supabase-*/storage-*)"
+log "Rotation locale : purge > ${RETENTION_LOCAL_DAYS} j (tournoi-*/vitrine-*/medias-*)"
 find "$BACKUP_DIR" -name 'tournoi-*.sql.gz'  -mtime +"$RETENTION_LOCAL_DAYS" -delete
-find "$BACKUP_DIR" -name 'supabase-*.sql.gz' -mtime +"$RETENTION_LOCAL_DAYS" -delete
-find "$BACKUP_DIR" -name 'storage-*.tar.gz'  -mtime +"$RETENTION_LOCAL_DAYS" -delete
+find "$BACKUP_DIR" -name 'vitrine-*.sql.gz'  -mtime +"$RETENTION_LOCAL_DAYS" -delete
+find "$BACKUP_DIR" -name 'medias-*.tar.gz'   -mtime +"$RETENTION_LOCAL_DAYS" -delete
 
 log "Sauvegarde complete terminee (rc=0)."
