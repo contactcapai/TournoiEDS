@@ -8,9 +8,12 @@
    ⚠️ AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96) : il n'y a RIEN à
    transcrire. Les valeurs sont des DÉCISIONS de la story, validées au gate visuel.
 
-   Tokens-only. EXCEPTIONS documentées : deux px structurels sans token (`.facts`
-   padding-left 20 et margin-top 18, `.facts li + li` margin-top 12), commentés sur
-   place. Aucun rgba(), aucun hex de charte. */
+   Tokens-only, à TROIS exceptions près — des px structurels sans token, commentés
+   sur place : `.facts` (margin-top 18, padding-left 20) et `.facts li + li`
+   (margin-top 12). Aucun rgba(), aucun hex de charte.
+   ⚠️ Décompte VÉRIFIÉ par comptage des littéraux px hors commentaires. L'en-tête
+   précédent de ce fichier annonçait « deux px structurels » alors qu'il y en avait
+   huit — inexactitude relevée en revue de la Story 2.7, corrigée ici. */
 
 /* ───────── Bande « cité des sacres » ─────────
    Le fond et la respiration intérieure viennent d'`editorial.band`. Cette classe

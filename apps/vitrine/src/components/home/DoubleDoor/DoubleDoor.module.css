@@ -74,13 +74,11 @@
      écrit `font-size: 40px` en littéral pour un titre de la même famille.
      Ne pas « corriger » en token : décision tracée, pas dérive. */
   font-size: 38px;
-  /* font-weight: 400 = valeur de la maquette (`h1,h2,h3,h4{font-weight:400}`, l.24).
-     ⚠️ Sans cette déclaration, la valeur UA d'un <hN> est `bold` — or Bebas Neue est
-     chargée en graisse 400 SEULE (layout.tsx) : le navigateur SYNTHÉTISE alors un
-     faux-gras. C'est le cas des 4 autres titres Bebas du site, qui ne déclarent pas
-     leur font-weight (dette R11 → Story 2.10, qui les alignera avec son gate
-     visuel). Cette story ne corrige que le titre qu'elle introduit. */
-  font-weight: 400;
+  /* ⚠️ PAS de `font-weight` ici : la Story 2.10 l'a posé UNE SEULE FOIS pour tout le
+     site, sur `h1…h6` dans globals.css (dette R11, transcription de la maquette l.24).
+     Cette classe le déclarait depuis la Story 2.5, quand elle était le seul titre du
+     site à le faire — le garder en ferait une seconde source de vérité pour la même
+     valeur. Retiré, rendu inchangé (vérifié par la mesure : 400 avant et après). */
   line-height: var(--lh-display);
   letter-spacing: var(--ls-display);
   text-transform: uppercase;

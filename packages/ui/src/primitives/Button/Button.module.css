@@ -32,10 +32,31 @@
   box-shadow: 0 10px 26px rgba(218, 178, 101, 0.32);
 }
 
-/* Variante outline : transparent, bord crème → or au hover, texte crème → or. */
+/* Variante outline : transparent, bord crème → or au hover, texte crème → or.
+
+   🔴 OPACITÉ DU BORD : 0.50, ET C'EST UNE VALEUR MESURÉE (Story 2.10, dette R13).
+
+   Le fond étant transparent, ce bord est le SEUL élément qui délimite le bouton :
+   il relève donc de **WCAG 1.4.11 (contraste des éléments non textuels), seuil 3:1**.
+
+   À 0.35 (valeur d'origine, Story 1.3), fondu sur le dégradé de la porte partenaires :
+     extrémité claire #3a3360 ... 2,61:1  ❌
+     extrémité foncée #241f48 ... 2,87:1  ❌
+   À 0.50 :
+     extrémité claire ........... 3,77:1  ✅
+     extrémité foncée ........... 4,40:1  ✅
+   (Le seuil de 3:1 est franchi vers α ≈ 0,41 ; 0,50 laisse une marge des deux côtés.)
+
+   ⚠️ NI LIGHTHOUSE NI AXE-CORE NE TESTENT CE POINT : la Story 2.5 affichait 100/100
+   avec le bord à 2,61:1. Le texte du bouton, lui, était déjà à ~10:1 — c'était bien
+   la bordure, et elle seule, qui était en cause.
+
+   Le `:hover` n'était PAS concerné et n'est pas touché : `border-color: var(--gold)`
+   sur le même fond donne 5,78:1. `.btnGold` non plus : son fond plein porte
+   lui-même la délimitation. */
 .btnOut {
   background: transparent;
-  border: 2px solid rgba(243, 239, 227, 0.35);
+  border: 2px solid rgba(243, 239, 227, 0.5);
   color: var(--cream);
 }
 

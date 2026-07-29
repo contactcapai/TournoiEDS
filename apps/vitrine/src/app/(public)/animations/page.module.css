@@ -18,9 +18,10 @@
    ancrer, rien à empiler, donc <Wrap> y est utilisé NU : aucune classe fusionnée,
    donc aucune dépendance à l'ordre du CSS compilé.
 
-   Tokens-only. EXCEPTIONS documentées : deux px structurels sans token (`.publics`
-   padding-left 20, `.publics li + li` margin-top 12), commentés sur place. Aucun
-   rgba(), aucun hex de charte. */
+   Tokens-only, à DEUX exceptions près — des px structurels sans token, commentés sur
+   place : `.publics` (padding-left 20) et `.publics li + li` (margin-top 12). Aucun
+   rgba(), aucun hex de charte. Décompte VÉRIFIÉ par comptage des littéraux px hors
+   commentaires, pas estimé. */
 
 /* ───────── Liste des publics ─────────
    ⚠️ PAS de `list-style: none` : Safari/VoiceOver retire alors la sémantique de

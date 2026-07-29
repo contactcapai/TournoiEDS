@@ -27,10 +27,13 @@
    conflit de cascade avec `motion.module.css` ne peut exister (l'ordre du CSS
    compilé par Turbopack est instable — précédent Wrap, dette R9).
 
-   Tokens-only, à SIX exceptions près — toutes des px structurels qu'aucun token ne
+   Tokens-only, à CINQ exceptions près — toutes des px structurels qu'aucun token ne
    décrit, toutes justifiées à leur ligne : `.subtitle` (font-size 24, margin-top 34,
-   margin-bottom 10), `.prose` (max-width 680), `.prose p + p` (margin-top 18), et le
-   680px de mesure de lecture. Aucun rgba(), aucun hex de charte. */
+   margin-bottom 10), `.prose` (max-width 680), `.prose p + p` (margin-top 18).
+   Aucun rgba(), aucun hex de charte.
+   ⚠️ Ce décompte est VÉRIFIÉ par comptage des littéraux px hors commentaires, pas
+   estimé : la revue de la Story 2.7 a trouvé DEUX inventaires de ce type inexacts,
+   et un inventaire faux est pire qu'absent — il fait croire au lecteur qu'on a compté. */
 
 /* ───────── Rythme vertical ─────────
    La maquette ne connaît que le rythme de la home (`section { padding: 90px 0 }`,
