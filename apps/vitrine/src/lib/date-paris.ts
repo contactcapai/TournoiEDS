@@ -153,3 +153,78 @@ export function nextThursdays(count: number, options: { from?: Date; hour?: numb
     parisWallClock(today.year, today.month, today.day + daysAhead + index * 7, hour),
   );
 }
+
+/* ───────────────────────────────────────────────────────────────────────────────
+   FORMATEURS D'AFFICHAGE (Story 3.2)
+
+   Ils vivent ICI et pas dans un `lib/format.ts` : la directive est explicite dans la
+   Story 3.1, et elle a une raison. Un second fichier de dates serait une seconde
+   source de vérité — or le piège `date-tz.md` naît précisément de la multiplication
+   des endroits qui convertissent. Tout ce qui s'AFFICHE passe par ces trois fonctions ;
+   aucun composant ne doit appeler `getDate()`, `getHours()` ni `toLocaleString()`.
+   (`architecture.md` mentionne un `lib/format.ts` non réconcilié : ne pas le créer.)
+
+   Les valeurs NUMÉRIQUES viennent de `parisParts` — la même fonction que la logique
+   métier —, seuls les NOMS (mois, jour de semaine) viennent d'`Intl`. Ce partage est
+   la garantie qu'un chiffre affiché ne peut pas diverger d'un chiffre calculé.
+   ─────────────────────────────────────────────────────────────────────────────── */
+
+// Instanciés une fois : construire un `Intl.DateTimeFormat` est l'opération coûteuse,
+// pas le `format()`. Ces deux objets sont sans état, donc sûrs à partager.
+const MONTH_LONG = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, month: "long" });
+const WEEKDAY_SHORT = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, weekday: "short" });
+
+/**
+ * ⚠️ `Intl` rend les noms français en MINUSCULES — « juin », « jeu. » —, alors que la
+ * maquette et les libellés de la story les veulent capitalisés (« Juin », « Jeu. »).
+ * Aucune option d'`Intl` ne le fait : la capitalisation est à notre charge.
+ * Aucun mois ni jour français ne commence par un caractère hors BMP : `charAt` suffit.
+ */
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/** Zéro de tête pour les champs de date à deux chiffres (« 25/06 », « 19h00 »). */
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * Grande date de la carte du prochain rendez-vous : `{ day: "18", month: "Juin" }`.
+ *
+ * Le jour est rendu SANS zéro de tête (« 8 » et non « 08 ») : c'est un nombre affiché
+ * en 74px, pas un champ de date — l'usage français d'un bloc calendrier. Le mois est
+ * en toutes lettres, comme la maquette (`.big-date span`).
+ */
+export function formatBigDate(instant: Date): { day: string; month: string } {
+  // Appelé en premier : c'est lui qui lève un `TypeError` parlant sur une date invalide.
+  // `Intl.format` lèverait sinon un `RangeError` à l'endroit du formatage plutôt qu'à
+  // celui de la donnée fautive.
+  const { day } = parisParts(instant);
+  return { day: String(day), month: capitalize(MONTH_LONG.format(instant)) };
+}
+
+/**
+ * Date compacte d'une ligne de roulement : `"Jeu. 25/06"`.
+ *
+ * ⚠️ UNE SEULE DATE, jamais une plage. La maquette affiche « 21-22/11 » pour Game in
+ * Reims, mais le modèle de la Story 3.1 ne porte qu'un `starts_at` : inventer une fin
+ * ici serait afficher une donnée qui n'existe pas. Écart assumé et tracé par la story.
+ */
+export function formatRowDate(instant: Date): string {
+  const { day, month } = parisParts(instant);
+  return `${capitalize(WEEKDAY_SHORT.format(instant))} ${pad2(day)}/${pad2(month)}`;
+}
+
+/**
+ * Heure murale de Paris : `"19h00"`, `"9h00"`.
+ *
+ * Heure NON paddée, minutes paddées — la typographie française écrit « 9h00 » et non
+ * « 09h00 ». La maquette écrit « 19h00 » sur la carte mais « 19h » sur les lignes de
+ * roulement, pour un même événement de 19:00 : cette incohérence de maquette statique
+ * n'est pas transcrite, un seul formateur sert les deux surfaces.
+ */
+export function formatTime(instant: Date): string {
+  const { hour, minute } = parisParts(instant);
+  return `${hour}h${pad2(minute)}`;
+}
