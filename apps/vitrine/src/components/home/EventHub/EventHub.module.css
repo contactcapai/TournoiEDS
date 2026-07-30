@@ -1,16 +1,16 @@
-/* Hub événementiel (Story 3.2) — transcription de la section `.agenda` de
-   docs/refonte-2026/maquette/index.html (CSS l.94-116, markup l.251-281).
+/* Hub événementiel de l'accueil — coquille de section, note de roulement, renvoi
+   agenda et état vide. Transcription de la section `.agenda` de
+   docs/refonte-2026/maquette/index.html (CSS l.94, l.115).
 
-   Tokens-only. EXCEPTIONS documentées sur place :
-     - `#262359`, extrémité sombre du dégradé de la carte : ce n'est PAS une couleur de
-       charte, c'est une valeur propre à la maquette (entre --surface et --navy-deep) —
-       même statut que le `#211d4c` d'AnimationsTeaser. Ne pas la recopier ailleurs, ne
-       pas la prendre pour un token ;
-     - les rgba() de filets (aucun token ne décrit un overlay — tolérance posée en 1.4/1.5) ;
-     - les px structurels fidèles à la maquette (30, 34, 28, 22, 84, 14, 15.5, 13.5, 12.5).
+   ⚠️ CE FICHIER N'HABILLE PLUS LA CARTE NI LA LISTE depuis la Story 3.3 : elles sont
+   parties dans `components/agenda/NextEventCard/` et `components/agenda/EventList/`
+   avec leur CSS **et leurs mesures de contraste**. Ne pas les réintroduire ici — une
+   seconde copie rouvrirait exactement la dette R9.
 
-   🔴 DEUX ÉCARTS DE COULEUR ASSUMÉS, ET ILS SONT MESURÉS — voir « Contraste » plus bas.
-   Le conteneur central (--wrap-max + gouttière) n'est PAS écrit ici : il vient de <Wrap>. */
+   Tokens-only. EXCEPTIONS documentées sur place : `#262359` (extrémité sombre du
+   dégradé, valeur propre à la maquette — même statut que le `#211d4c`
+   d'AnimationsTeaser, ce n'est PAS un token) et les px structurels (20, 12.5, 40, 34,
+   30, 620). */
 
 .section {
   padding: var(--section-y) 0;
@@ -19,169 +19,31 @@
   background: var(--navy);
 }
 
-/* ═══════════════════════ Carte « prochain jeudi » (.next) ═══════════════════════ */
-
-.next {
-  display: flex;
-  align-items: stretch;
-  /* `flex-wrap` EST le responsive de cette carte, comme la `.band` d'AnimationsTeaser :
-     sous 880px la grande date passe en pleine largeur, le corps suit, le CTA finit seul.
-     La @media plus bas ne fait qu'ACCOMPAGNER ce repli (filet, marges) — elle ne le
-     produit pas. */
-  flex-wrap: wrap;
-  gap: var(--block-gap); /* 30px */
-  padding: 32px 34px;
-  border-radius: var(--radius-card); /* 8px */
-  /* Le filet or à gauche est la signature visuelle de la carte : c'est lui qui dit
-     « c'est CE rendez-vous-là », pas un cadre complet. */
-  border-left: 5px solid var(--gold);
-  background: linear-gradient(135deg, var(--surface), #262359);
-}
-
-.bigDate {
-  text-align: center;
-  padding-right: 28px;
-  /* Filet crème à 14 % — overlay documenté (pas de token). `align-items: stretch` sur
-     `.next` lui donne toute la hauteur de la carte. ⚠️ Il ne survit PAS au repli mobile :
-     la @media le bascule en filet horizontal (voir plus bas). */
-  border-right: 1px solid rgba(243, 239, 227, 0.14);
-}
-
-.bigDate b {
-  display: block;
-  font-family: var(--font-display);
-  font-size: var(--fs-agenda-date); /* 74px — le token existe pour ce seul usage */
-  line-height: var(--lh-display);
-  color: var(--gold);
-}
-
-.bigDate span {
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  font-size: 14px;
-  color: var(--light);
-}
-
-.body {
-  flex: 1;
-  /* 240px : la mesure de la maquette. ⚠️ Elle DOIT être neutralisée sous 880px — à
-     320px la carte ne dispose que de ~223px utiles et ce plancher produirait un
-     débordement horizontal, rogné EN SILENCE par `overflow-x: clip` (dette R14). */
-  min-width: 240px;
-}
-
-.nextTitle {
-  font-family: var(--font-display);
-  /* 34px, valeur littérale de la maquette et BAS de la fourchette « titres de bloc
-     34-44px » de DESIGN.md. `--fs-block-heading` (44px) est le HAUT de cette même
-     fourchette : l'employer ici mettrait le titre en concurrence avec la date à 74px
-     qui doit dominer la carte. L'écart n'est pas sub-perceptible (10px), contrairement
-     aux 2px assumés par AnimationsTeaser — d'où le littéral plutôt que le token. */
-  font-size: 34px;
-  line-height: var(--lh-display);
-  letter-spacing: var(--ls-display);
-  text-transform: uppercase;
-  color: var(--cream);
-  margin-bottom: 14px;
-}
-
-.facts {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.facts div {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  font-size: 15px;
-}
-
-.facts svg {
-  width: 19px;
-  height: 19px;
-  color: var(--gold);
-  /* Sans ça, une icône se compresse quand le texte du fait passe sur deux lignes. */
-  flex-shrink: 0;
-}
-
-.act {
-  display: flex;
-  align-items: center;
-}
-
-/* ═══════════════════════ Roulement (.rest) ═══════════════════════ */
-
-.rest {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  /* Le rendu de la maquette n'a pas de puces. `list-style: none` seul retirerait la
-     sémantique de liste dans Safari/VoiceOver — d'où le `role="list"` explicite posé
-     côté markup, qui la restaure. Les deux vont ensemble : ne pas retirer l'un. */
-  list-style: none;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 18px 6px;
-  /* Filet crème à 8 % — overlay documenté. */
-  border-bottom: 1px solid rgba(243, 239, 227, 0.08);
-}
-
-.rowDate {
-  font-family: var(--font-display);
-  font-size: 26px;
-  letter-spacing: var(--ls-display);
-  color: var(--gold);
-  width: 84px;
-  flex-shrink: 0;
-}
-
-.rowText {
-  flex: 1;
-  /* Un enfant flex ne descend pas sous la largeur de son contenu sans ça : un titre
-     d'événement long pousserait la ligne au-delà du conteneur (débordement rogné en
-     silence par `overflow-x: clip`). */
-  min-width: 0;
-}
-
-.rowText b {
-  font-weight: 700; /* Roboto est VARIABLE → gras réel, pas de faux-gras (cf. globals.css) */
-  font-size: 15.5px;
-}
-
-.rowText p {
-  font-size: 13.5px;
-  /* 🔴 ÉCART ASSUMÉ ET MESURÉ : la maquette écrit `color: var(--grey)` ici.
-     Voir le bloc « Contraste » en fin de fichier — --grey sur --navy tombe à 3,24:1
-     pendant l'apparition au scroll. --light donne 7,46:1 dans les mêmes conditions.
-     La hiérarchie secondaire est portée par la TAILLE (13,5px contre 15,5px gras),
-     pas par la couleur. */
-  color: var(--light);
-}
-
 .footNote {
   margin-top: 20px;
   font-size: 12.5px;
   font-style: italic;
-  /* Même écart mesuré que `.rowText p` ci-dessus (la maquette écrit --grey). */
+  /* 🔴 ÉCART ASSUMÉ ET MESURÉ : la maquette écrit `color: var(--grey)` ici.
+     Cette note vit DANS le bloc animé par `motion.reveal` (voir EventHub.tsx), dont
+     l'état `from` est `opacity: 0.75` — `--grey` sur `--navy` y tombe à 3,24:1
+     (plancher admissible 0,985). `--light` donne 7,46:1 dans les mêmes conditions.
+     Mesures complètes : `EventList.module.css`, fin de fichier. */
   color: var(--light);
 }
 
-/* Lien « Voir tout l'agenda » : AJOUT délibéré (AC4), la maquette n'expose pas de lien
-   dans cette section — aucune valeur canonique à transcrire, donc token. */
+/* Lien « Voir tout l'agenda » : AJOUT délibéré, la maquette n'expose pas de lien dans
+   cette section — aucune valeur canonique à transcrire, donc token. */
 .more {
   margin-top: var(--block-gap);
 }
 
-/* ═══════════════════════ État vide (aucune date à venir) ═══════════════════════ */
+/* ═══════════════════════ État vide (aucune date à venir) ═══════════════════════
 
-/* Reprend la signature de la carte (filet or, même dégradé) : l'absence de date reste
-   un bloc CHALEUREUX et habité, pas un trou ni un message d'erreur (UX-DR20). */
+   Reprend la signature de la carte (filet or, même dégradé) : l'absence de date reste
+   un bloc CHALEUREUX et habité, pas un trou ni un message d'erreur (UX-DR20).
+   ⚠️ Le dégradé est RECOPIÉ ici et non partagé avec `NextEventCard` : ce bloc n'est
+   pas une carte d'événement, il n'en emprunte que le vocabulaire visuel. Les factoriser
+   coupleraient deux choses qui n'ont aucune raison d'évoluer ensemble. */
 .empty {
   display: flex;
   flex-direction: column;
@@ -215,104 +77,17 @@
   color: var(--gold);
 }
 
-/* ═══════════════════════ Responsive (< 880px) ═══════════════════════
-
-   ⚠️ LA MAQUETTE N'A AUCUNE RÈGLE MOBILE POUR .next / .rest : son unique
-   `@media (max-width:880px)` ne les cite pas. Tout ce bloc est donc une CONCEPTION,
-   pas une transcription — testée aux largeurs 320 / 412 / 768 par la porte outillée.
-   880px en littéral : une custom property n'est pas lisible en @media. */
 @media (max-width: 880px) {
-  .next {
-    gap: 22px;
-    /* 34px de gouttière de carte laissent trop peu de place à 320px (cf. .body). */
-    padding: 24px 20px;
-  }
-
-  /* Le filet VERTICAL de la grande date ne survit pas au repli : la date passe pleine
-     largeur, et sa séparation d'avec le corps redevient horizontale. Sans cette
-     bascule, le filet flotterait au milieu de nulle part sous la date. */
-  .bigDate {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    width: 100%;
-    text-align: left;
-    padding-right: 0;
-    padding-bottom: 16px;
-    border-right: none;
-    border-bottom: 1px solid rgba(243, 239, 227, 0.14);
-  }
-
-  .bigDate b {
-    /* 74px pour un jour à deux chiffres mange la moitié d'un écran de 320px. */
-    font-size: 52px;
-  }
-
-  /* 🔴 NEUTRALISE le plancher de 240px : à 320px la carte n'offre que ~223px utiles.
-     Sans cette ligne, le corps déborde de ~17px — et `overflow-x: clip` le rognerait
-     SANS scrollbar ni avertissement (dette R14, c'est le mode de défaillance que la
-     porte outillée existe pour attraper). */
-  .body {
-    min-width: 0;
-  }
-
-  /* Ligne de roulement en deux étages : « date … tag » puis le texte en dessous.
-     À 320px, les 84px fixes de la date + le tag + deux gouttières de 22px ne laissent
-     qu'une cinquantaine de pixels au titre. */
-  .row {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 10px 14px;
-    padding: 16px 2px;
-  }
-
-  .rowDate {
-    width: auto;
-  }
-
-  /* `order: 3` place le texte APRÈS le tag dans l'ordre visuel, alors qu'il le précède
-     dans le DOM — l'ordre du DOM reste « date, titre, tag », qui est l'ordre de
-     lecture correct pour un lecteur d'écran. `flex-basis: 100%` force le retour ligne. */
-  .rowText {
-    order: 3;
-    flex: 1 1 100%;
-  }
-
+  /* 880px en littéral : une custom property n'est pas lisible en @media. */
   .empty {
     padding: 30px 20px;
   }
 }
 
-/* ═══════════════════════ Contraste — mesures (WCAG 2.1) ═══════════════════════
-
-   Méthode de la Story 2.8 : une `opacity` sur un conteneur MÉLANGE réellement le texte
-   au fond, donc le rapport chute pendant tout le fondu. `motion.reveal` part de
-   `opacity: 0.75` (valeur mesurée, Story 2.8) — c'est cet état-là qu'il faut vérifier,
-   pas seulement l'état final.
-
-   Sur le fond de section --navy (#29265b) :
-     --grey  (#9293ad) ... 4,60:1 à plein  →  3,24:1 à 0,75   ❌  (plancher : α ≥ 0,985)
-     --light (#edeffd) .. 12,06:1 à plein  →  7,46:1 à 0,75   ✅
-     --gold  (#dab265) ... 6,92:1 à plein  →  4,53:1 à 0,75   ✅ (dates de ligne : 26px
-                                                                 ⇒ seuil grand texte 3:1)
-
-   Sur le dégradé de la carte (#322e6e → #262359), à 0,75 :
-     --cream ... 6,60:1  ✅   --light ... 6,64:1  ✅   --gold ... 4,05:1 ❌ en texte courant,
-     ✅ en grand texte (grande date 74px) et en élément non textuel (icônes, seuil 3:1).
-     Button gold (--ink sur --gold) ... 5,63:1  ✅
-
-   ⇒ DEUX conséquences, toutes deux appliquées ci-dessus :
-     1. aucun `--grey` À L'INTÉRIEUR du bloc animé (le chapô de SectionHead, lui, reste
-        en --grey mais HORS animation : 4,60:1 statique, conforme) ;
-     2. aucun `--gold` en TEXTE COURANT dans la carte (le lien de l'état vide est
-        souligné, pas doré).
-
-   C'est l'avertissement laissé en tête de motion.module.css pour les Epics 3/4/5, honoré :
-   « si une section devait un jour porter du --grey sur --navy, ce motif redeviendrait
-   non conforme sur elle ». Elle est arrivée : c'est celle-ci.
-
-   ⚠️ Toute réintroduction de --grey dans cette section DOIT rester hors du bloc animé.
-
-   Aucune propriété `animation-*` dans ce fichier : l'apparition vient exclusivement de
+/* Aucune propriété `animation-*` dans ce fichier : l'apparition vient exclusivement de
    la classe partagée `motion.reveal`, composée en markup (aucun conflit de cascade
-   possible avec l'ordre d'émission instable de Turbopack, dette R9). */
+   possible avec l'ordre d'émission instable de Turbopack, dette R9).
+
+   Le chapô de `SectionHead` reste en `--grey` sur `--navy` (4,60:1) et c'est conforme
+   PARCE QU'IL EST HORS du bloc animé. ⚠️ Le faire entrer dans l'animation le rendrait
+   non conforme (3,24:1) — voir le commentaire de `motion.reveal` dans EventHub.tsx. */

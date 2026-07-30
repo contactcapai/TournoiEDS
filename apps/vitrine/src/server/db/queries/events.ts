@@ -43,8 +43,12 @@ export async function getUpcomingEvents(limit: number) {
 }
 
 /**
- * Type d'une ligne rendue par `getUpcomingEvents`, DÉRIVÉ de la requête et non réécrit
- * à la main : ajouter une relation ou une colonne au schéma met ce type à jour tout seul.
- * Une interface recopiée aurait divergé au premier changement.
+ * Type d'une ligne d'agenda, DÉRIVÉ de la requête et non réécrit à la main : ajouter
+ * une relation ou une colonne au schéma met ce type à jour tout seul. Une interface
+ * recopiée aurait divergé au premier changement.
+ *
+ * ⚠️ Nommé `AgendaEvent` et non `UpcomingEvent` (Story 3.3) : la page `/agenda` rend
+ * aussi les événements PASSÉS, avec exactement la même forme. Un type nommé d'après
+ * un seul de ses usages aurait poussé à en déclarer un second, identique.
  */
-export type UpcomingEvent = Awaited<ReturnType<typeof getUpcomingEvents>>[number];
+export type AgendaEvent = Awaited<ReturnType<typeof getUpcomingEvents>>[number];

@@ -1,0 +1,114 @@
+/* Liste d'événements et sa ligne — transcription de `.rest` / `.rest .row` de
+   docs/refonte-2026/maquette/index.html (CSS l.107-114).
+
+   Écrites en Story 3.2 dans `EventHub.module.css`, DÉPLACÉES ICI par la 3.3 avec les
+   composants qu'elles habillent — **et avec la mesure de contraste qui justifie leur
+   seul écart de couleur** (fin de fichier).
+
+   Tokens-only. EXCEPTIONS documentées sur place : les rgba() de filets (aucun token
+   ne décrit un overlay) et les px structurels de la maquette (14, 22, 18, 84, 26,
+   15.5, 13.5). */
+
+.list {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  /* Le rendu de la maquette n'a pas de puces. ⚠️ `list-style: none` seul retirerait
+     la sémantique de liste dans Safari/VoiceOver — c'est le `role="list"` posé par
+     `EventList` qui la restaure. Les deux vont ENSEMBLE : ne jamais retirer l'un
+     sans l'autre (c'est pourquoi le `<ul>` n'est pas laissé à l'appelant). */
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 6px;
+  /* Filet crème à 8 % — overlay documenté. */
+  border-bottom: 1px solid rgba(243, 239, 227, 0.08);
+}
+
+.rowDate {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+  width: 84px;
+  flex-shrink: 0;
+}
+
+.rowText {
+  flex: 1;
+  /* Un enfant flex ne descend pas sous la largeur de son contenu sans ça : un titre
+     d'événement long pousserait la ligne au-delà du conteneur (débordement rogné en
+     silence par `overflow-x: clip`, dette R14). */
+  min-width: 0;
+}
+
+.rowText b {
+  font-weight: 700; /* Roboto est VARIABLE → gras réel, pas de faux-gras (globals.css) */
+  font-size: 15.5px;
+}
+
+.rowText p {
+  font-size: 13.5px;
+  /* 🔴 ÉCART ASSUMÉ ET MESURÉ : la maquette écrit `color: var(--grey)` ici.
+     Voir le bloc « Contraste » en fin de fichier — `--grey` sur `--navy` tombe à
+     3,24:1 pendant l'apparition au scroll. `--light` donne 7,46:1 dans les mêmes
+     conditions. La hiérarchie secondaire est portée par la TAILLE (13,5px contre
+     15,5px gras), pas par la couleur. */
+  color: var(--light);
+}
+
+/* ═══════════════════════ Responsive (< 880px) ═══════════════════════
+
+   ⚠️ LA MAQUETTE N'A AUCUNE RÈGLE MOBILE POUR `.rest` : son unique
+   `@media (max-width:880px)` ne la cite pas. Conception de la Story 3.2, couverte
+   par la porte outillée aux 7 largeurs. 880px en littéral. */
+@media (max-width: 880px) {
+  /* Ligne en deux étages : « date … tag » puis le texte en dessous. À 320px, les
+     84px fixes de la date + le tag + deux gouttières de 22px ne laisseraient qu'une
+     cinquantaine de pixels au titre. */
+  .row {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px 14px;
+    padding: 16px 2px;
+  }
+
+  .rowDate {
+    width: auto;
+  }
+
+  /* `order: 3` place le texte APRÈS le tag dans l'ordre visuel, alors qu'il le
+     précède dans le DOM — l'ordre du DOM reste « date, titre, tag », qui est l'ordre
+     de lecture correct pour un lecteur d'écran. `flex-basis: 100%` force le retour
+     à la ligne. */
+  .rowText {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
+
+/* ═══════════════════════ Contraste — mesures (WCAG 2.1) ═══════════════════════
+
+   Ces lignes sont posées sur le fond de section `--navy` (#29265b) et vivent dans un
+   bloc animé par `motion.reveal`, dont l'état `from` est `opacity: 0.75`. Une
+   `opacity` sur un conteneur MÉLANGE réellement le texte au fond : le rapport chute
+   pendant tout le fondu (méthode et mesure de la Story 2.8).
+
+     --grey  (#9293ad) ... 4,60:1 à plein  →  3,24:1 à 0,75  ❌
+                           plancher d'opacité admissible : 0,985
+     --light (#edeffd) .. 12,06:1 à plein  →  7,46:1 à 0,75  ✅
+     --gold  (#dab265) ... 6,92:1 à plein  →  4,53:1 à 0,75  ✅ pour `.rowDate`
+                           (26px ⇒ seuil « grand texte » 3:1)
+     Tag défaut / highlight ... 7,46:1 / 4,53:1  ✅
+
+   ⇒ D'où le seul écart de couleur du fichier : `.rowText p` en `--light` et non
+   `--grey`. ⚠️ Toute réintroduction de `--grey` ici serait non conforme tant que
+   l'appelant anime ce bloc — c'est l'avertissement laissé en tête de
+   `motion.module.css` pour les Epics 3/4/5, et il est arrivé sur cette section.
+
+   Aucune propriété `animation-*` ici : l'apparition vient exclusivement de
+   `motion.reveal`, composée en markup par l'appelant (dette R9). */
