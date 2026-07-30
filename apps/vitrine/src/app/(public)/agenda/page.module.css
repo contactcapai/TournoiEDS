@@ -86,12 +86,17 @@
   /* Filet crème à 10 % — overlay documenté (pas de token). */
   border: 1px solid rgba(243, 239, 227, 0.1);
   background: linear-gradient(135deg, var(--surface), #262359);
-  /* Les vignettes s'étirent à la hauteur de la plus haute (`align-items: stretch` de
-     la piste) : ce `height: 100%` fait descendre la colonne interne jusqu'en bas, ce
-     qui permet au `.pastBody` de pousser la photo en pied de carte. Résultat : les
-     photos s'alignent d'une vignette à l'autre, et la piste ne change pas de hauteur
-     pendant le défilement (NFR2, zéro saut). */
-  height: 100%;
+  /* 🔴 AUCUN `height: 100%` ICI — un premier jet en posait un, et il PRODUISAIT
+     exactement le défaut qu'il croyait corriger. Mesuré : hauteurs [580, 557, 499,
+     557] au lieu d'une seule valeur.
+     Raison : `align-items: stretch` (valeur par défaut de la piste) n'étire un élément
+     QUE si sa taille sur l'axe transversal vaut `auto`. Déclarer `height: 100%` la
+     rend explicite, l'étirement ne s'applique plus, et chaque vignette reprend la
+     hauteur de son propre contenu — donc le bloc grandit et rapetisse à chaque
+     défilement.
+     Sans cette ligne, la piste étire les quatre à la hauteur de la plus haute, et le
+     `flex: 1` de `.pastBody` pousse la photo en pied : le vide se place ENTRE le texte
+     et la photo, et les photos s'alignent d'une vignette à l'autre. */
 }
 
 .pastBody {
@@ -145,6 +150,12 @@
   font-size: 14px;
   color: var(--light);
   margin-top: 6px;
+  /* 62ch : largeur de lecture confortable (mesure classique 45-75 caractères), et
+     c'est ELLE qui donne son sens à la borne de 240 caractères posée dans page.tsx —
+     240 / 62 ≈ 4 lignes. Sans cette largeur, la même borne produirait 2 lignes très
+     larges en desktop et 8 en mobile : la hauteur ne serait plus prévisible, ce qui
+     est précisément ce qu'on cherche à éviter. */
+  max-width: 62ch;
 }
 
 .pastTag {
@@ -155,10 +166,18 @@
    La largeur est FIXÉE et le cadre porte son `aspect-ratio: 4/3` : la place que les
    photos occuperont est donc réservée dès aujourd'hui → aucun saut de mise en page le
    jour où elles arriveront (NFR2, zéro CLS). */
+/* 🔴 LE CADRE PHOTO EST POUSSÉ EN PIED DE VIGNETTE par le `flex: 1` de `.pastBody`.
+   C'est ce qui produit le comportement demandé : quand un compte-rendu est court, le
+   vide se place ENTRE le texte et la photo, et les photos s'alignent d'une vignette à
+   l'autre au lieu de remonter. Combiné à la borne de longueur, la hauteur du bloc ne
+   change plus d'une vignette à la suivante.
+   Largeur bornée : un « tirage » photo pleine largeur deviendrait une bannière et
+   écraserait le récit qu'il illustre. */
 .pastMedia {
-  /* En pied de vignette (le `.pastBody` en `flex: 1` l'y pousse), largeur pleine. */
   flex: 0 0 auto;
-  margin-top: 14px;
+  width: 300px;
+  max-width: 100%;
+  margin-top: 18px;
   /* Filet de sécurité en profondeur : `overflow-wrap` est HÉRITÉ, il atteint donc le
      `figcaption` rendu par la primitive PhotoFrame sans qu'on ait à toucher
      `@repo/ui`. La garde principale reste le libellé borné côté markup — celle-ci

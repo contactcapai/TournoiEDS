@@ -117,28 +117,16 @@
 }
 
 /* ───────── Vignette ─────────
-   Largeur FIXE : c'est ce qui fait qu'une vignette est une vignette et non une
-   colonne élastique, et c'est aussi ce qui rend le pas de défilement prévisible. */
+   🔴 UNE VIGNETTE PAR ÉCRAN (arbitrage de Brice) : `flex-basis: 100%`. Le pas de
+   défilement vaut donc exactement une vignette, et les flèches font passer à la
+   suivante — pas à « un peu plus loin ».
+
+   `flex-shrink: 0` est indispensable : sans lui, les 4 vignettes se comprimeraient
+   pour tenir dans la piste au lieu de la faire défiler, et le carrousel n'existerait
+   plus (elles seraient toutes visibles, à 25 % de largeur chacune). */
 .vignette {
-  flex: 0 0 300px;
-  max-width: 100%;
+  flex: 0 0 100%;
   scroll-snap-align: start;
   /* Un enfant flex ne descend pas sous la largeur de son contenu sans ça. */
   min-width: 0;
-}
-
-@media (max-width: 880px) {
-  /* 880px en LITTÉRAL : une custom property n'est pas lisible en @media.
-     `min(300px, 82vw)` laisse volontairement dépasser un morceau de la vignette
-     suivante : c'est l'indice visuel le plus fiable qu'il y a autre chose à droite,
-     et il fonctionne sans JavaScript comme sans survol (donc au doigt). */
-  .vignette {
-    flex-basis: min(300px, 82vw);
-  }
-
-  .commandes {
-    /* Les flèches restent utiles au clavier et à la souris, mais le geste principal
-       sur mobile est le glissement : on ne leur donne pas la vedette. */
-    justify-content: flex-start;
-  }
 }

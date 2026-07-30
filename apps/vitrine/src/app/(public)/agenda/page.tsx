@@ -8,7 +8,7 @@ import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
-import { cleanText } from "@/lib/text";
+import { cleanText, truncate } from "@/lib/text";
 import { getPastEvents, getUpcomingEvents, type AgendaEvent } from "@/server/db/queries/events";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -89,6 +89,23 @@ export const dynamic = "force-dynamic";
 const UPCOMING_LIMIT = 50;
 const PAST_LIMIT = 4;
 
+/**
+ * 🔴 BORNES DE LONGUEUR DES VIGNETTES — elles servent la HAUTEUR, pas l'esthétique.
+ *
+ * Les vignettes du carrousel s'étirent à la hauteur de la plus haute. Sans borne, **un
+ * seul** compte-rendu bavard imposerait sa hauteur aux quatre et laisserait les trois
+ * autres aux trois quarts vides — et le bloc changerait de taille à chaque défilement.
+ *
+ * 240 caractères ≈ 4 lignes à la largeur de lecture retenue (62ch). Les comptes-rendus
+ * semés font 150 à 180 caractères : la troncature ne se déclenche donc PAS sur les
+ * données actuelles — elle est éprouvée par injection, jamais par le seed (leçon de la
+ * garde de longueur, déjà payée dans cette story).
+ * 80 caractères pour le titre : deux lignes au plus, il ne doit pas concurrencer le
+ * compte-rendu.
+ */
+const RECAP_MAX = 240;
+const PAST_TITLE_MAX = 80;
+
 /** Lien Discord — même traitement que le footer, le menu mobile et le hub. */
 function DiscordLink({ className }: { className?: string }) {
   // DISCORD_URL vaut encore "#" (finalisé Story 5.5) : `isExternalUrl` le sait, donc
@@ -115,7 +132,8 @@ function DiscordLink({ className }: { className?: string }) {
  * blocs dans leur propre fichier.
  */
 function PastEvent({ event }: { event: AgendaEvent }) {
-  const recap = cleanText(event.recap);
+  const recap = truncate(event.recap, RECAP_MAX);
+  const titre = truncate(event.title, PAST_TITLE_MAX);
   const place = event.bar
     ? `${event.bar.name} — ${event.bar.district}, ${event.bar.city}`
     : (cleanText(event.venueName) ?? cleanText(event.venueAddress));
@@ -132,7 +150,7 @@ function PastEvent({ event }: { event: AgendaEvent }) {
           {formatLongDate(event.startsAt)} · {formatTime(event.startsAt)}
         </p>
         {/* <h3> : sous le <h2> de la section, lui-même sous le <h1> de la page. */}
-        <h3 className={styles.pastTitle}>{event.title}</h3>
+        <h3 className={styles.pastTitle}>{titre}</h3>
         {place ? <p className={styles.pastPlace}>{place}</p> : null}
         {/* Un passé SANS compte-rendu reste affiché — il prouve l'activité — mais
             sans bloc vide (NFR8). C'est le cas de tous les événements tant que
