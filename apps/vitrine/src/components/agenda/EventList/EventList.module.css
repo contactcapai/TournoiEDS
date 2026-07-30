@@ -44,6 +44,17 @@
      d'événement long pousserait la ligne au-delà du conteneur (débordement rogné en
      silence par `overflow-x: clip`, dette R14). */
   min-width: 0;
+  /* 🔴 GARDE DE LONGUEUR (Story 3.3). `title`, `description` et l'adresse sont du
+     texte libre saisi au back-office demain : un mot de 300 caractères sans espace —
+     une URL collée par un bénévole — déborderait la ligne. `min-width: 0` ne suffit
+     PAS : il autorise la boîte à rétrécir, pas le mot à se couper.
+
+     ⚠️ `break-word` et NON `anywhere`, et c'est mesuré, pas stylistique : `anywhere`
+     modifie la taille min-content intrinsèque de la boîte, donc la géométrie de la
+     ligne — y compris sur la home, dont le rendu vient d'être prouvé inchangé.
+     `break-word` ne casse que si le mot déborderait réellement : aucun effet sur les
+     contenus actuels, garde active sur les futurs. */
+  overflow-wrap: break-word;
 }
 
 .rowText b {
@@ -59,6 +70,33 @@
      conditions. La hiérarchie secondaire est portée par la TAILLE (13,5px contre
      15,5px gras), pas par la couleur. */
   color: var(--light);
+}
+
+/* ── Variante `detailed` (page /agenda uniquement) ──
+   Deux lignes de plus sous le sous-titre. Elles n'existent pas sur la home : la
+   règle ne s'y applique donc jamais, et le rendu du hub reste celui prouvé
+   inchangé par la moitié A de la Story 3.3. */
+
+.rowAddress {
+  /* 13,5px, aligné sur le sous-titre : c'est une information de même rang (où),
+     pas un niveau supplémentaire. */
+  font-size: 13.5px;
+  color: var(--light);
+  margin-top: 2px;
+  /* L'adresse est un repère secondaire : légèrement en retrait par l'italique,
+     jamais par une couleur plus faible (--grey serait non conforme, voir plus bas). */
+  font-style: italic;
+}
+
+.rowDescription {
+  font-size: 14px;
+  color: var(--light);
+  margin-top: 8px;
+  /* 62ch : confort de lecture. La ligne d'événement peut être large en desktop et
+     une description pleine largeur y deviendrait pénible (mesure de lisibilité
+     classique 45-75 caractères ; `.prose` du vocabulaire éditorial pose 680px pour
+     la même raison). */
+  max-width: 62ch;
 }
 
 /* ═══════════════════════ Responsive (< 880px) ═══════════════════════

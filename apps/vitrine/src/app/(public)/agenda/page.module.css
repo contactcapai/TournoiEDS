@@ -1,0 +1,212 @@
+/* Page « Agenda » (Story 3.3).
+
+   AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96). Ce fichier ne
+   transcrit donc rien : il COMPOSE, à partir du vocabulaire éditorial partagé
+   (`editorial.module.css`) et des composants de `components/agenda/`. Les valeurs
+   sont des décisions de la story, validées au gate visuel.
+
+   ⚠️ La carte et les lignes d'événement ne sont PAS habillées ici : elles portent leur
+   propre CSS dans `components/agenda/`. Rien de ce qui les concerne ne doit apparaître
+   dans ce fichier — ce serait une seconde source de vérité sur leur rendu.
+
+   Tokens-only. EXCEPTIONS documentées sur place : `#262359` (extrémité sombre du
+   dégradé, valeur propre à la maquette, pas un token) et les px structurels. */
+
+/* ───────── ② Section « À venir » ─────────
+   Fond relevé --navy : procédé de la maquette pour ses sections d'agenda
+   (DESIGN.md l.171, « navy = fond des sections relevées (agenda, preuve) »).
+   Le padding vertical vient d'`editorial.section` ; on ajoute seulement celui du
+   HAUT, qu'`editorial.section` ne pose pas (il ne paddera qu'en bas) — une bande
+   colorée a besoin de sa propre respiration intérieure, sinon le titre colle au bord
+   (même raisonnement que `editorial.band`). */
+.upcoming {
+  padding-top: var(--section-y);
+  background: var(--navy);
+}
+
+/* Renvoi Discord de fin de section. C'est le CTA de PAGE, unique — il remplace le
+   CTA « participer » par événement, qui n'avait aucune destination ici (arbitrage
+   de Brice). */
+.aside {
+  margin-top: var(--block-gap);
+  font-size: 15px;
+  color: var(--light);
+}
+
+/* 🔴 PAS `color: var(--gold)`. Mesuré : l'or à taille de texte courant sur --navy
+   donne 4,53:1 à `opacity 0.75` — au-dessus du seuil de 4,5 mais avec 0,03 de marge,
+   c'est-à-dire rien. Le crème donne 7,41:1 dans les mêmes conditions. L'affordance
+   du lien est portée par le SOULIGNÉ, jamais par la seule couleur (WCAG 1.4.1) —
+   même choix que l'état vide du hub. */
+.asideLink,
+.emptyLink {
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.asideLink:hover,
+.emptyLink:hover {
+  color: var(--gold);
+}
+
+/* ───────── État vide de « À venir » ─────────
+   Reprend la signature de la carte (filet or, même dégradé) : l'absence de date reste
+   un bloc CHALEUREUX et habité, pas un trou ni un message d'erreur (UX-DR20). */
+.empty {
+  padding: 40px 34px;
+  border-radius: var(--radius-card);
+  border-left: 5px solid var(--gold);
+  background: linear-gradient(135deg, var(--surface), #262359);
+}
+
+.emptyText {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  max-width: 620px;
+}
+
+/* ───────── ③ Section « Déjà passé » ─────────
+   Fond par défaut (--navy-deep, posé sur body) : le contraste des textes clairs y est
+   encore meilleur que sur --navy (mesuré : --light 8,67:1 contre 7,46:1 sous fondu). */
+.pastSection {
+  padding-top: var(--section-y);
+}
+
+.pastList {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  /* ⚠️ `list-style: none` retire la sémantique de liste dans Safari/VoiceOver — c'est
+     le `role="list"` posé côté markup qui la restaure. Les deux vont ensemble. */
+  list-style: none;
+}
+
+/* Un passé = un bloc en deux colonnes : le récit à gauche, l'emplacement photo à
+   droite. `flex-wrap` EST le responsive (patron d'AnimationsTeaser et de la carte) :
+   sous 880px la photo passe dessous. */
+.past {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--block-gap);
+  align-items: flex-start;
+  padding-bottom: 40px;
+  /* Filet crème à 8 %, comme les lignes de `EventList` — overlay documenté. */
+  border-bottom: 1px solid rgba(243, 239, 227, 0.08);
+}
+
+.past:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.pastBody {
+  flex: 1 1 340px;
+  /* Un enfant flex ne descend pas sous la largeur de son contenu sans ça. */
+  min-width: 0;
+  /* 🔴 GARDE DE LONGUEUR : `title` et `recap` seront saisis au back-office (Story
+     6.3). Un mot de 300 caractères sans espace — une URL collée — déborderait, et
+     `overflow-x: clip` le rognerait EN SILENCE (dette R14).
+     `break-word` et non `anywhere` : `anywhere` modifierait la taille min-content,
+     donc la géométrie, pour un cas qui ne se produit pas encore. */
+  overflow-wrap: break-word;
+}
+
+.pastDate {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: var(--ls-display);
+  /* Or sur --navy-deep : 5,24:1 même sous le fondu de `motion.reveal` — confortable,
+     contrairement à l'or sur --navy (4,53:1). Le fond plus sombre le permet ici. */
+  color: var(--gold);
+}
+
+.pastTitle {
+  font-family: var(--font-display);
+  /* 26px : entre le titre de carte (34px) et le titre de ligne (15,5px). Un passé
+     est un fait acquis, il n'a pas à crier plus fort que le prochain rendez-vous. */
+  font-size: 26px;
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-top: 6px;
+}
+
+.pastPlace {
+  font-size: 14px;
+  color: var(--light);
+  font-style: italic;
+  margin-top: 6px;
+}
+
+.pastRecap {
+  font-size: 15px;
+  color: var(--light);
+  margin-top: 14px;
+  /* 62ch : confort de lecture, même raison que la description des lignes. */
+  max-width: 62ch;
+}
+
+.pastTag {
+  margin-top: 16px;
+}
+
+/* Emplacement de galerie — structure seulement (Story 4.5 livrera les vraies photos).
+   La largeur est FIXÉE et le cadre porte son `aspect-ratio: 4/3` : la place que les
+   photos occuperont est donc réservée dès aujourd'hui → aucun saut de mise en page le
+   jour où elles arriveront (NFR2, zéro CLS). */
+.pastMedia {
+  flex: 0 0 260px;
+  max-width: 100%;
+  /* Filet de sécurité en profondeur : `overflow-wrap` est HÉRITÉ, il atteint donc le
+     `figcaption` rendu par la primitive PhotoFrame sans qu'on ait à toucher
+     `@repo/ui`. La garde principale reste le libellé borné côté markup — celle-ci
+     couvre le jour où la Story 4.5 y fera passer de la donnée de back-office.
+     ⚠️ Dette consignée : PhotoFrame lui-même n'a aucune garde de longueur sur sa
+     légende → `deferred-work.md`, absorption Story 4.5. */
+  overflow-wrap: break-word;
+}
+
+/* ───────── ④ Renvoi de fin ───────── */
+.outro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--block-gap);
+}
+
+.outro p {
+  font-size: 15.5px;
+  color: var(--light);
+  max-width: 560px;
+}
+
+/* ───────── Responsive (< 880px) ─────────
+   880px en LITTÉRAL : une custom property CSS n'est pas lisible dans une @media
+   (`--bp-mobile` est documentaire). Largeurs éprouvées par la porte outillée :
+   320 / 412 / 768 / 880 / 1024 / 1440 / 1920. */
+@media (max-width: 880px) {
+  .empty {
+    padding: 30px 20px;
+  }
+
+  /* La photo passe sous le texte et cesse d'être une colonne fixe : à 320px, 260px
+     de large laisseraient une colonne de texte inexploitable. */
+  .pastMedia {
+    flex: 1 1 100%;
+    /* Bornée pour que le cadre « tirage » ne devienne pas une bannière pleine
+       largeur, ce qui écraserait le récit qu'il illustre. */
+    max-width: 320px;
+  }
+
+  .past {
+    gap: 22px;
+  }
+
+  .pastList {
+    gap: 30px;
+  }
+}

@@ -43,6 +43,33 @@ export async function getUpcomingEvents(limit: number) {
 }
 
 /**
+ * Les `limit` derniers événements publiés DÉJÀ PASSÉS, du plus récent au plus ancien
+ * (Story 3.3, FR5).
+ *
+ * Jumelle exacte de `getUpcomingEvents` : même table, même relation, même index
+ * (`event_published_starts_at_idx`), comparaison brute à `now()` pour les mêmes
+ * raisons — la borne inverse et l'ordre inverse, rien d'autre.
+ *
+ * `lte` et non `lt` : la borne est le complément STRICT de `gt` employé par
+ * `getUpcomingEvents`. Un événement pile à `now()` doit appartenir à exactement une
+ * des deux listes ; avec `lt` des deux côtés il disparaîtrait des deux, avec `gte` il
+ * apparaîtrait dans les deux. Le cas est d'une probabilité infime et c'est justement
+ * pour ça qu'il ne serait jamais diagnostiqué.
+ *
+ * Borne courte assumée : un agenda n'est pas une archive. La mémoire longue viendra
+ * avec la galerie (Epic 4), qui a ses propres écrans.
+ */
+export async function getPastEvents(limit: number) {
+  return db.query.event.findMany({
+    where: (table, { and, eq, lte }) =>
+      and(eq(table.isPublished, true), lte(table.startsAt, new Date())),
+    orderBy: (table, { desc }) => desc(table.startsAt),
+    with: { bar: true },
+    limit,
+  });
+}
+
+/**
  * Type d'une ligne d'agenda, DÉRIVÉ de la requête et non réécrit à la main : ajouter
  * une relation ou une colonne au schéma met ce type à jour tout seul. Une interface
  * recopiée aurait divergé au premier changement.
