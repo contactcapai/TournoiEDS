@@ -117,7 +117,55 @@ const EVENT_IDS = {
   thursday4: "e0000000-0000-4000-8000-000000000004",
   special: "e0000000-0000-4000-8000-000000000005",
   past: "e0000000-0000-4000-8000-000000000006",
+  past2: "e0000000-0000-4000-8000-000000000007",
+  past3: "e0000000-0000-4000-8000-000000000008",
+  past4: "e0000000-0000-4000-8000-000000000009",
 } as const;
+
+/**
+ * Jeudis PASSÉS supplémentaires (Story 3.3).
+ *
+ * 🔴 QUATRE passés, et ce nombre n'est pas décoratif : la section « déjà passé » de
+ * `/agenda` est un carrousel **borné à 4**. Avec un seul passé (état du seed jusqu'ici),
+ * ni le gate visuel ni la porte outillée ne verraient jamais un carrousel se comporter
+ * en carrousel — on livrerait un composant de défilement que personne n'a vu défiler.
+ *
+ * `past3` est délibérément **sans `recap`** : il éprouve la règle « un passé sans
+ * compte-rendu reste affiché — il prouve l'activité — mais sans bloc vide ». C'est le
+ * pendant, côté passés, de ce que `thursday2` fait pour `games`.
+ */
+const PAST_EXTRA = [
+  {
+    id: EVENT_IDS.past2,
+    weeksAgo: 2,
+    barId: BAR_IDS.cavesJaures,
+    title: "Jeudi jeux — Les Caves Jaurès",
+    games: "Rocket League, Smash Bros",
+    description: "Soirée versus dans la salle du fond.",
+    recap:
+      "Deux heures de Rocket League à quatre, puis un Smash improvisé jusqu'à la fermeture. Le bar a sorti une seconde table quand on a manqué de place.",
+  },
+  {
+    id: EVENT_IDS.past3,
+    weeksAgo: 3,
+    barId: BAR_IDS.comptoirSacres,
+    title: "Jeudi jeux — Le Comptoir des Sacres",
+    games: "TFT",
+    description: "Format calme, plutôt discussion et découverte.",
+    // `recap` ABSENT et c'est voulu — voir le commentaire ci-dessus.
+    recap: null,
+  },
+  {
+    id: EVENT_IDS.past4,
+    weeksAgo: 4,
+    barId: BAR_IDS.tapCorner,
+    title: "Jeudi jeux — Le Tap Corner",
+    games: "Mario Kart, Just Dance",
+    description: "La soirée la plus familiale du mois.",
+    recap:
+      "Beaucoup de nouvelles têtes, dont deux qui n'avaient jamais touché une manette. On a fini sur un Just Dance à six.",
+  },
+] as const;
 
 /**
  * Quatre bars rémois pour le roulement (FR2).
@@ -240,6 +288,22 @@ async function main() {
           "Deux jours de salon, un stand tenu par les bénévoles : initiation, démonstrations, et de quoi discuter avec l'asso.",
         isPublished: true,
       }),
+      // Jeudis PASSÉS supplémentaires (Story 3.3) — dates RELATIVES à aujourd'hui,
+      // comme tout le reste du seed : elles restent donc dans le passé à chaque
+      // exécution, sans jamais dériver vers le futur.
+      ...PAST_EXTRA.map((p) =>
+        validatedEvent({
+          id: p.id,
+          type: "thursday",
+          title: p.title,
+          barId: p.barId,
+          startsAt: parisWallClock(today.year, today.month, today.day - 7 * p.weeksAgo, 19),
+          games: p.games,
+          description: p.description,
+          recap: p.recap,
+          isPublished: true,
+        }),
+      ),
       // Jeudi PASSÉ avec compte-rendu : matière de la section « passés » de la 3.3 (FR5).
       validatedEvent({
         id: EVENT_IDS.past,

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Brush, Button, PhotoFrame, Tag } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
+import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
+import carousel from "@/components/agenda/PastCarousel/PastCarousel.module.css";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
@@ -79,11 +81,13 @@ export const dynamic = "force-dynamic";
  *
  * 50 « à venir » : exhaustif en pratique (un jeudi par semaine = presque un an
  * d'avance) tout en restant borné. « Exhaustivité » n'est pas « non borné ».
- * 12 « passés » : un agenda n'est pas une archive. La mémoire longue viendra avec la
- * galerie (Epic 4), qui a ses propres écrans.
+ * **4 « passés »** : la section est un CARROUSEL, et cette borne est la sienne
+ * (arbitrage de Brice, 2026-07-30). Un agenda n'est pas une archive — la mémoire longue
+ * viendra avec la galerie (Epic 4), qui a ses propres écrans. Les 4 sont chargés d'un
+ * coup et tous rendus : le carrousel fait défiler, il ne pagine pas.
  */
 const UPCOMING_LIMIT = 50;
-const PAST_LIMIT = 12;
+const PAST_LIMIT = 4;
 
 /** Lien Discord — même traitement que le footer, le menu mobile et le hub. */
 function DiscordLink({ className }: { className?: string }) {
@@ -118,7 +122,11 @@ function PastEvent({ event }: { event: AgendaEvent }) {
   const isHighlight = event.type === "special";
 
   return (
-    <li className={styles.past}>
+    // `carousel.vignette` porte la largeur fixe et l'accrochage (`scroll-snap-align`) :
+    // ce sont des propriétés de la PISTE, pas du contenu. `styles.past` habille le bloc
+    // lui-même. Deux fichiers, deux responsabilités — et aucune des deux classes ne
+    // redéclare ce que l'autre pose.
+    <li className={`${carousel.vignette} ${styles.past}`}>
       <div className={styles.pastBody}>
         <p className={styles.pastDate}>
           {formatLongDate(event.startsAt)} · {formatTime(event.startsAt)}
@@ -264,12 +272,14 @@ export default async function Agenda() {
               title="Déjà passé"
             />
 
+            {/* Le carrousel affiche la vignette la PLUS RÉCENTE en premier : c'est
+                déjà l'ordre de `getPastEvents` (décroissant), rien à trier ici. */}
             <div className={motion.reveal}>
-              <ul className={styles.pastList} role="list">
+              <PastCarousel label="Événements passés, du plus récent au plus ancien">
                 {past.map((event) => (
                   <PastEvent key={event.id} event={event} />
                 ))}
-              </ul>
+              </PastCarousel>
             </div>
           </Wrap>
         </section>

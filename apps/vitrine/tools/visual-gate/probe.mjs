@@ -83,18 +83,59 @@ export const PROBE = `(() => {
   //    C'est le piège dans sa forme la plus pure : le témoin choisi pour surveiller
   //    l'effet d'une garde était neutralisé PAR cette garde.
   //
-  //    On mesure donc chaque boîte contre le viewport. Deux exclusions, et elles sont
+  //    On mesure donc chaque boîte contre le viewport. TROIS exclusions, et elles sont
   //    justifiées, pas cosmétiques :
   //      - \`aria-hidden\` : les décoratifs débordent PAR CONSTRUCTION (le filigrane
   //        couronne du hero est à left:-70px, valeur de la maquette) ;
   //      - tolérance de 2px : absorbe les arrondis sub-pixels et le \`margin: -1px\` du
-  //        motif « visuellement masqué » (.sr-only), qui n'est pas un débordement.
+  //        motif « visuellement masqué » (.sr-only), qui n'est pas un débordement ;
+  //      - le contenu d'un CONTENEUR DÉFILANT VOLONTAIRE (voir ci-dessous, Story 3.3).
   const de = document.documentElement;
   const vw = de.clientWidth;
   const TOL = 2;
-  const debordements = all
+
+  //    🔬 EXCLUSION n°3 — ce que R14 désigne vraiment, c'est du contenu **rogné EN
+  //    SILENCE et devenu inatteignable**. Du contenu qui dépasse À L'INTÉRIEUR d'une
+  //    boîte que l'utilisateur peut FAIRE DÉFILER n'est ni rogné ni inatteignable :
+  //    il est à un geste de distance, et il reste dans le fil d'accessibilité.
+  //    C'est le cas du carrousel « déjà passé » de /agenda (Story 3.3).
+  //
+  //    ⚠️ L'EXCLUSION EST CONDITIONNELLE, et c'est ce qui l'empêche d'être une porte
+  //    dérobée : elle ne vaut que si le conteneur défilant TIENT LUI-MÊME dans le
+  //    viewport. Un carrousel qui déborderait de l'écran resterait signalé — sinon il
+  //    aurait suffi d'écrire \`overflow-x: auto\` quelque part pour faire taire la porte
+  //    sur tout un sous-arbre.
+  //
+  //    \`clip\` (html/body, globals.css) n'est PAS un conteneur défilant : la boîte
+  //    n'est pas défilable, donc la règle ci-dessous ne l'attrape pas — ce qui est
+  //    exactement le comportement voulu.
+  const conteneurDefilant = (el) => {
+    let n = el.parentElement;
+    while (n) {
+      const ox = getComputedStyle(n).overflowX;
+      if (ox === "auto" || ox === "scroll") return n;
+      n = n.parentElement;
+    }
+    return null;
+  };
+  const dansDefilantSain = (el) => {
+    const c = conteneurDefilant(el);
+    if (!c) return false;
+    const r = c.getBoundingClientRect();
+    return -r.left <= TOL && r.right - vw <= TOL;
+  };
+
+  const candidats = all
     .filter((el) => !el.closest("[aria-hidden='true']"))
-    .filter((el) => (el.textContent || "").trim().length > 0)
+    .filter((el) => (el.textContent || "").trim().length > 0);
+
+  const exclusDefilant = candidats.filter((el) => {
+    const r = el.getBoundingClientRect();
+    return (-r.left > TOL || r.right - vw > TOL) && dansDefilantSain(el);
+  }).length;
+
+  const debordements = candidats
+    .filter((el) => !dansDefilantSain(el))
     .map((el) => { const r = el.getBoundingClientRect();
       return { el, gauche: r2(-r.left), droite: r2(r.right - vw) }; })
     .filter((o) => o.gauche > TOL || o.droite > TOL)
@@ -104,6 +145,9 @@ export const PROBE = `(() => {
       depasseADroite: o.droite > TOL ? o.droite : 0 }));
 
   const overflow = { viewportWidth: vw, debordements,
+    // Rapporté pour que l'exclusion soit VISIBLE et non silencieuse : si ce compte
+    // grimpe sans qu'un carrousel n'ait été ajouté, c'est le signal d'un abus.
+    exclusDefilant,
     // Conservé À TITRE INFORMATIF seulement — voir l'avertissement ci-dessus.
     scrollWidthInforme: de.scrollWidth,
     ok: debordements.length === 0 };

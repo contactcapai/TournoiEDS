@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/server/db/seed.ts",
     "gate": "node tools/visual-gate/gate.mjs",
-    "gate:selftest": "node tools/visual-gate/selftest.mjs"
+    "gate:selftest": "node tools/visual-gate/selftest.mjs",
+    "gate:carousel": "node tools/visual-gate/carousel-check.mjs"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
