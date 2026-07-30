@@ -5,6 +5,34 @@ const modules = import.meta.glob('../../assets/partners/*.{png,jpg,jpeg,webp,svg
   import: 'default',
 });
 
+/**
+ * 🔴 NOM RÉEL DU PARTENAIRE PAR NOM DE FICHIER (posé par la Story 4.1 de la vitrine).
+ *
+ * Avant cette table, le nom annoncé aux lecteurs d'écran était DÉRIVÉ DU NOM DE
+ * FICHIER. En production, les quatre partenaires étaient donc annoncés « Fichier 3 »,
+ * « LOGO V3 BLANC (1) », « logo clavicule (1) » et « logotype orange » — soit zéro
+ * information utile sur quatre. Un logo dit QUI soutient l'association : c'est
+ * exactement ce que le texte alternatif doit porter.
+ *
+ * ⚠️ L'ATTRIBUTION A ÉTÉ ÉTABLIE PAR L'IMAGE, PAS PAR LE NOM DE FICHIER. Deux de ces
+ * logos sont blancs sur fond transparent, donc invisibles sur fond clair : il a fallu
+ * les composer sur le navy de la charte pour les identifier. Ne JAMAIS réattribuer une
+ * entrée d'après son nom de fichier — c'est précisément ce que ce correctif défait.
+ *
+ * ⚠️ Cette app est « à moderniser dans un second temps » (project-context.md §1) : la
+ * Story 4.1 n'y touche QUE ces textes alternatifs. Son défilement ne s'arrête toujours
+ * qu'au SURVOL (`[@media(hover:hover)]:group-hover:` plus bas) — ni au doigt, ni au
+ * clavier, ce qui est un manquement à WCAG 2.2.2. C'est un vrai défaut, connu, et sa
+ * correction est un autre chantier : le corriger ici en aurait fait un chantier déguisé.
+ * La vitrine, elle, a un bouton de pause réel (`components/proof/PartnerMarquee/`).
+ */
+const NOMS_PAR_FICHIER: Record<string, string> = {
+  'logo clavicule (1).webp': 'Shop for Geek Reims',
+  'Fichier 3.webp': 'LDLC Reims Cormontreuil',
+  'logotype-orange.webp': 'Forgeblast',
+  'LOGO-V3-BLANC (1).webp': "L'Antre de Reims",
+};
+
 interface Partner {
   name: string;
   logoUrl: string;
@@ -13,10 +41,19 @@ interface Partner {
 const partners: Partner[] = Object.entries(modules)
   .map(([path, url]) => {
     const filename = path.split('/').pop() ?? '';
+    // 🔴 REPLI VOLONTAIRE SUR L'ANCIEN COMPORTEMENT pour un fichier NON LISTÉ.
+    // Tout l'intérêt de ce composant est que déposer un logo dans le dossier suffise :
+    // exiger une entrée dans la table ci-dessus ferait DISPARAÎTRE du carrousel tout
+    // nouveau logo, en silence. Un nom dérivé est médiocre ; une absence est pire.
+    // Un nom dérivé qui apparaît dans le rendu est d'ailleurs le signal visible qu'il
+    // reste une ligne à ajouter ici.
     const rawName = filename.replace(/\.[^.]+$/, '');
-    const name = rawName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Partenaire';
-    return { name, logoUrl: url as string };
+    const derive = rawName.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim() || 'Partenaire';
+    return { name: NOMS_PAR_FICHIER[filename] ?? derive, logoUrl: url as string };
   })
+  // Tri par nom RÉEL désormais, et non plus par nom de fichier : l'ordre affiché change
+  // donc (Forgeblast et LDLC permutent). C'est la conséquence directe et assumée du
+  // correctif — trier des logos par le nom de leur fichier n'avait aucun sens visible.
   .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function PartnersMarquee() {

@@ -23,10 +23,11 @@ import styles from "./page.module.css";
 // partenariat CRIJ. Arbitrage de Brice (2026-07-29) : « familles maintenant,
 // catalogue plus tard » + « ne pas nommer le CRIJ » (FR33 — pas d'ambition
 // présentée comme acquise). D'où les TROIS FAMILLES ci-dessous, et zéro intitulé,
-// zéro durée, zéro tarif, zéro effectif. Dette R17 → Story 4.9 puis 6.9.
+// zéro durée, zéro tarif, zéro effectif. Dette R17 → Story 6.9 (modèle `workshop` +
+// CRUD back-office, fusionnés lors de la restructuration de l'Epic 4 du 2026-07-30).
 //
 // ⚠️ Les trois familles ne sont pas un pis-aller : elles deviennent la TAXONOMIE
-// DURABLE (futur enum `workshop_family` de la Story 4.9, et cible de l'état vide
+// DURABLE (futur enum `workshop_family` de la Story 6.9, et cible de l'état vide
 // du catalogue). Ne pas les renommer à la légère.
 //
 // ⚠️ Registre : VOUVOIEMENT de bout en bout. C'est la première page pro du site ;
@@ -181,7 +182,7 @@ export default function Animations() {
 
             {/* Cette phrase est la réponse HONNÊTE à l'absence de catalogue : elle
                 décrit le fonctionnement réel d'une asso de bénévoles, elle ne
-                masque pas un manque. Ne pas la retirer quand la Story 4.9 posera
+                masque pas un manque. Ne pas la retirer quand la Story 6.9 posera
                 le catalogue — c'est elle qui explique pourquoi il y a des familles
                 ET des ateliers. */}
             <p className={editorial.closing}>
@@ -271,7 +272,7 @@ export default function Animations() {
           → /partenaires et NON un formulaire local : le formulaire de sollicitation
           vit sur la page Partenaires (Epic 5), cible du mapping EXPERIENCE.md l.65
           et déjà celle du CTA du teaser depuis la Story 2.4. /partenaires est
-          livrée en Story 4.6 : le 404 est ATTENDU d'ici là, comme pour le CTA du
+          livrée en Story 4.2 : le 404 est ATTENDU d'ici là, comme pour le CTA du
           hero depuis la 2.1. Ne pas retomber sur href="#" (scroll-to-top + annonce
           trompeuse). Route interne → ni target, ni rel, ni mention SR. */}
       {/* ⚠️ DERNIÈRE section avant le footer : cas critique de la plage d'animation

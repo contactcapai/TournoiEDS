@@ -9,17 +9,21 @@
    Tokens-only. EXCEPTIONS documentées sur place :
      - `#262359`, extrémité sombre du dégradé : ce n'est PAS une couleur de charte,
        c'est une valeur propre à la maquette (entre --surface et --navy-deep) — même
-       statut que le `#211d4c` d'AnimationsTeaser. Ne pas la recopier, ne pas la
-       prendre pour un token ;
+       statut que les 4 arrêts de dégradé de `DoubleDoor.module.css`. Ne pas la
+       recopier, ne pas la prendre pour un token.
+       ⚠️ Ce commentaire citait le `#211d4c` d'`AnimationsTeaser` jusqu'à la Story
+       4.1, qui a SUPPRIMÉ ce composant (AC7) : le précédent invoqué est désormais
+       DoubleDoor. La valeur `#211d4c` vit encore dans la maquette (l.147) ;
      - le rgba() du filet vertical (aucun token ne décrit un overlay) ;
      - les px structurels fidèles à la maquette (30, 34, 32, 28, 14, 11, 9, 19, 15). */
 
 .next {
   display: flex;
   align-items: stretch;
-  /* `flex-wrap` EST le responsive de cette carte, comme la `.band` d'AnimationsTeaser :
-     sous 880px la grande date passe en pleine largeur, le corps suit, le CTA finit
-     seul. La @media plus bas ne fait qu'ACCOMPAGNER ce repli — elle ne le produit pas. */
+  /* `flex-wrap` EST le responsive de cette carte : sous 880px la grande date passe en
+     pleine largeur, le corps suit, le CTA finit seul. La @media plus bas ne fait
+     qu'ACCOMPAGNER ce repli — elle ne le produit pas.
+     (Ce motif venait de la `.band` d'`AnimationsTeaser`, supprimé par la Story 4.1.) */
   flex-wrap: wrap;
   gap: var(--block-gap); /* 30px */
   padding: 32px 34px;
@@ -67,8 +71,10 @@
   /* 34px, valeur littérale de la maquette et BAS de la fourchette « titres de bloc
      34-44px » de DESIGN.md. `--fs-block-heading` (44px) est le HAUT de cette même
      fourchette : l'employer ici mettrait le titre en concurrence avec la date à 74px
-     qui doit dominer la carte. L'écart n'est pas sub-perceptible (10px), contrairement
-     aux 2px assumés par AnimationsTeaser — d'où le littéral plutôt que le token. */
+     qui doit dominer la carte. L'écart n'est pas sub-perceptible (10px) : c'est le même
+     critère qu'en Story 2.5 (38px en littéral dans `DoubleDoor`, écart de 6px, jugé
+     visible) et l'inverse d'un écart de 2px, qu'on aurait porté au token. D'où le
+     littéral. */
   font-size: 34px;
   line-height: var(--lh-display);
   letter-spacing: var(--ls-display);

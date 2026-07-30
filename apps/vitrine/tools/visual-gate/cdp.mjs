@@ -112,6 +112,22 @@ export async function launchChrome(port = 9222) {
   await send("Runtime.enable", {}, sessionId);
 
   return {
+    /**
+     * Coupe l'exécution de TOUT script dans la page (Story 4.1).
+     *
+     * 🔴 À APPELER AVANT `goto`, sinon le document est déjà hydraté quand la bascule
+     * prend effet et la mesure ne dit plus rien de l'état servi.
+     *
+     * Sert à prouver une propriété qu'aucune autre porte ne peut voir : que le HTML
+     * SERVI est utilisable seul. Le bandeau de logos en dépend (WCAG 2.2.2 — un
+     * défilement sans commande de pause serait non conforme, et la commande a besoin
+     * de JavaScript ; l'animation ne doit donc pas démarrer sans lui).
+     * ⚠️ `Emulation.setScriptExecutionDisabled` est un réglage de SESSION : il reste
+     * actif jusqu'à ce qu'on le remette à `false`. Ne pas l'oublier entre deux mesures.
+     */
+    async setScriptExecutionDisabled(value) {
+      await send("Emulation.setScriptExecutionDisabled", { value }, sessionId);
+    },
     // Émule une media feature (ex. prefers-reduced-motion: reduce).
     async setEmulatedMedia(features) {
       await send(
@@ -127,10 +143,31 @@ export async function launchChrome(port = 9222) {
         sessionId,
       );
     },
-    async goto(url) {
+    /**
+     * @param {string} url
+     * @param {{ sansScripts?: boolean }} [options] — mettre `sansScripts: true` quand
+     *   `setScriptExecutionDisabled(true)` est actif.
+     *
+     * 🔴 POURQUOI CETTE OPTION EXISTE (mesuré en Story 4.1) : les deux `eval` de
+     * stabilisation ci-dessous attendent une PROMESSE DE LA PAGE. Scripts coupés, cette
+     * promesse ne se résout jamais et CDP finit par rejeter
+     * « Promise was collected » — la porte tombe sur une erreur technique au lieu de
+     * mesurer. Le défaut a été trouvé par l'auto-validation de `gate:marquee`, pas par
+     * un raisonnement : c'est exactement ce à quoi sert de faire échouer une porte
+     * exprès avant de s'y fier (`pieges/instrument-non-valide.md`).
+     */
+    async goto(url, { sansScripts = false } = {}) {
       const loaded = once("Page.loadEventFired", sessionId);
       await send("Page.navigate", { url }, sessionId);
       await loaded;
+      if (sansScripts) {
+        // Aucun témoin lisible dans la page : on laisse la mise en page se poser par
+        // une attente côté Node. ⚠️ C'est le SEUL endroit de ce dossier où l'on se fie
+        // à un délai plutôt qu'à un témoin, et c'est parce qu'il n'y en a aucun de
+        // disponible — pas par commodité.
+        await new Promise((r) => setTimeout(r, 500));
+        return;
+      }
       // Laisser la mise en page se stabiliser (polices next/font, images).
       await this.eval(`new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))`, true);
       await this.eval(`document.fonts.ready.then(() => true)`, true);

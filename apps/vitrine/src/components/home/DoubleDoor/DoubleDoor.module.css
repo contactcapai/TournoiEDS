@@ -46,6 +46,14 @@
   border-radius: var(--radius-card-lg); /* 14px */
   /* Filet crème (#f3efe3) à 10 % — overlay documenté (pas de token). */
   border: 1px solid rgba(243, 239, 227, 0.1);
+  /* 🔴 AJOUTÉ EN STORY 4.1, ET C'EST LA MOITIÉ D'UN COUPLE — l'autre est
+     `.foot { margin-top: auto }`. Depuis que la porte partenaires a hérité du lien
+     « Toutes nos animations » (AC7), les deux portes n'ont plus la même quantité de
+     contenu : sans ce montage, les deux CTA flotteraient à des hauteurs différentes.
+     `column` + `auto` pousse le pied vers le bas de CHAQUE porte, quelle que soit la
+     longueur du texte au-dessus. */
+  display: flex;
+  flex-direction: column;
 }
 
 /* Les 4 hex ci-dessous NE SONT PAS des couleurs de charte : ce sont les arrêts de
@@ -93,9 +101,44 @@
 .lead {
   color: var(--light);
   font-size: 15.5px;
-  /* 26px : espacement paragraphe → CTA (maquette). Le CTA est un frère direct, pas
-     un enfant d'un conteneur dédié — comme dans la maquette. */
+  /* 26px : espacement MINIMAL paragraphe → CTA (maquette). C'est un plancher depuis la
+     Story 4.1 : `.foot { margin-top: auto }` peut l'agrandir dans la porte la plus
+     courte, jamais le réduire. */
   margin-bottom: 26px;
+}
+
+/* ═══════════════════════ Pied de porte (Story 4.1, AC7) ═══════════════════════
+
+   🔴 `margin-top: auto` ET SURTOUT PAS `height: 100%` — le défaut a été MESURÉ.
+   `align-items: stretch` (la valeur par défaut de la grille `.doors`) n'étire un
+   élément QUE si sa taille transversale vaut `auto`. Poser `height: 100%` la rend
+   DÉFINIE, ce qui désactive l'étirement et résout le pourcentage contre une hauteur de
+   ligne qui n'est plus imposée : la Story 3.3 a relevé `[580, 557, 499, 557]` au lieu
+   d'une valeur unique. Le remède PRODUIT donc la maladie.
+   Le montage qui marche est celui-ci, en deux morceaux inséparables :
+     `.door { display: flex; flex-direction: column }`  +  `.foot { margin-top: auto }`
+   ⚠️ Les deux portes ont un `.foot`, y compris celle des joueurs qui n'y met qu'un
+   bouton : sans lui, son CTA resterait collé à son paragraphe. Ne pas « simplifier »
+   en le retirant du côté joueurs.
+
+   🔬 CE QUI EST ALIGNÉ, EXACTEMENT : les deux BOUTONS. Chacun est le DERNIER enfant de
+   son pied, les deux portes ont le même `padding`, et les deux pieds sont poussés
+   contre le bas — les bords bas des deux boutons tombent donc à la même hauteur. Le
+   `LinkArrow` de la porte partenaires, lui, se place AU-DESSUS de son bouton et n'a
+   pas d'équivalent en face : c'est voulu (AC7), et c'est pourquoi on aligne par le BAS
+   et pas par le haut du pied. Hauteurs mesurées aux 7 largeurs : voir la story. */
+.foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  /* `align-items: flex-start` : sans lui, un enfant en `column` s'étirerait sur toute
+     la largeur de la porte — le Button et le LinkArrow doivent garder leur largeur
+     naturelle, comme quand ils étaient des frères directs du paragraphe. */
+  align-items: flex-start;
+  /* 18px : respiration entre le lien de découverte et le CTA. Aucune valeur canonique
+     à transcrire (la maquette n'empile pas deux actions dans une porte) — mais 18px est
+     déjà le rythme eyebrow → titre de ce même fichier. */
+  gap: 18px;
 }
 
 /* Passage en 1 colonne — c'est la @media de la maquette (`.doors`), ATTENDUE ici,

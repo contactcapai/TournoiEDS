@@ -1,19 +1,27 @@
-import { AnimationsTeaser } from "@/components/home/AnimationsTeaser/AnimationsTeaser";
 import { DoubleDoor } from "@/components/home/DoubleDoor/DoubleDoor";
 import { EventHub } from "@/components/home/EventHub/EventHub";
 import { Hero } from "@/components/home/Hero/Hero";
 import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
+import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { getUpcomingEvents } from "@/server/db/queries/events";
+import { getPartnersWithLogo } from "@/server/db/queries/partners";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
 // Hero (2.1) → hub événementiel (3.2) → trois axes (2.2) → citation (2.3) →
-// teaser Animations (2.4) → tournoi (5.4) → preuve & réseau (Epic 4) →
-// galerie (4.5) → double porte (2.5).
+// tournoi (5.4) → preuve & réseau (4.1) → galerie (4.3) → double porte (2.5).
 //
-// Le hub événementiel est livré (Story 3.2) et INSÉRÉ entre le hero et les trois
-// axes — il ne s'ajoute pas à la suite. Restent à insérer AVANT la double porte :
-// le bloc Tournoi (5.4), Preuve & réseau (Epic 4) et la galerie (4.5).
+// ⚠️ LE BLOC « TEASER ANIMATIONS » A ÉTÉ RETIRÉ PAR LA STORY 4.1, ET C'EST DÉFINITIF.
+// Motif mesuré au cadrage de l'Epic 4 : son CTA or « Nous solliciter » et le CTA outline
+// « Nous contacter » de la porte partenaires de DoubleDoor pointaient TOUS DEUX vers
+// /partenaires, à deux blocs d'écart, pour le même public. Son seul apport propre — le
+// lien « Toutes nos animations » — a migré dans la carte partenaires de DoubleDoor.
+// Le long-scroll compte donc 10 blocs et non 11 : FR7, UX-DR12, UX-DR19 et EXPERIENCE.md
+// ont été corrigés à la source dans le même commit (`pieges/cadrage-perime.md`).
+// Ne pas le réintroduire « pour équilibrer » : ce serait rouvrir la redondance.
+//
+// Restent à insérer AVANT la double porte : le bloc Tournoi (5.4), qui viendra AVANT
+// Preuve & réseau sans le modifier, et la galerie scrapbook (4.3).
 //
 // La double porte est le 10ᵉ et DERNIER bloc, juste avant le footer : elle est
 // donc déjà à sa place définitive. Aucun bloc ne s'ajoutera après elle.
@@ -56,11 +64,19 @@ export const dynamic = "force-dynamic";
 const HOME_EVENT_COUNT = 5;
 
 export default async function Home() {
-  // 🔴 UNE SEULE LECTURE, distribuée en props (AC1). Le macaron « CE JEUDI » du hero et
-  // la carte du hub doivent désigner la MÊME date : deux requêtes indépendantes
-  // pourraient diverger, et surtout dériveraient au premier changement de filtre d'un
-  // seul côté. Aucun composant enfant ne requête la base.
-  const upcoming = await getUpcomingEvents(HOME_EVENT_COUNT);
+  // 🔴 LES LECTURES VIVENT ICI ET SE DISTRIBUENT EN PROPS (AC1 de la 3.2). Le macaron
+  // « CE JEUDI » du hero et la carte du hub doivent désigner la MÊME date : deux requêtes
+  // indépendantes pourraient diverger, et surtout dériveraient au premier changement de
+  // filtre d'un seul côté. Aucun composant enfant ne requête la base.
+  //
+  // ⚠️ La Story 4.1 ajoute UNE SEULE lecture supplémentaire, et elle est PARALLÉLISÉE :
+  // agenda et partenaires sont indépendants, les enchaîner en deux `await` successifs
+  // ajouterait une latence de base de données à chaque requête pour rien (la page est
+  // `force-dynamic`, donc ce coût est payé à CHAQUE visite, pas une fois au build).
+  const [upcoming, partners] = await Promise.all([
+    getUpcomingEvents(HOME_EVENT_COUNT),
+    getPartnersWithLogo(),
+  ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
 
@@ -70,7 +86,10 @@ export default async function Home() {
       <EventHub next={next} rest={rest} />
       <ThreeAxes />
       <QuoteBand />
-      <AnimationsTeaser />
+      {/* Se rend `null` si aucun partenaire n'a de logo — pas de tête de section
+          orpheline ni de cadre vide (AC6). C'est le composant qui décide, pas cette
+          page : la règle appartient au bloc de preuve, pas à l'ordre des blocs. */}
+      <ProofBand partners={partners} />
       <DoubleDoor />
     </>
   );

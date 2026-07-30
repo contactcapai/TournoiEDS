@@ -3,7 +3,7 @@
 // ⚠️ AJOUTER ICI TOUTE NOUVELLE PAGE PUBLIQUE. Une page absente de cette liste
 // n'est couverte par AUCUNE des portes de ce dossier — en silence, ce qui est
 // exactement le mode de défaillance que cet outillage existe pour supprimer.
-// Les Epics 4 à 5 en ajoutent au moins une (/partenaires, Story 4.6).
+// Les Epics 4 à 5 en ajoutent au moins une (/partenaires, Story 4.2).
 //
 // ⚠️ `/` et `/agenda` LISENT LA BASE à chaque requête (Stories 3.2 et 3.3) : le
 // Postgres de dev doit tourner et `apps/vitrine/.env.local` être renseigné, sinon

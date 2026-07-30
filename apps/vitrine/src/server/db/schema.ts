@@ -2,8 +2,9 @@
 //
 // 🔴 UNE TABLE PAR STORY, JAMAIS D'ANTICIPATION (règle posée en Story 1.7 et maintenue).
 // Une table sans consommateur est une migration qu'il faudra défaire. À venir, chacune
-// avec sa story : `partner` (4.1), `achievement` (4.3), `photo` (4.4), `member` (4.8),
-// `workshop` (4.9), `solicitation` (5.1).
+// avec sa story : `photo` (4.3), `solicitation` (5.1), `member` / `workshop` (Epic 6).
+// ⚠️ La table `achievement` annoncée ici jusqu'à la Story 4.1 N'EXISTERA PAS : la
+// restructuration du 2026-07-30 l'a fondue dans `partner` (catégorie `participation`).
 //
 // 🔴 HORLOGE DE RÉFÉRENCE : Europe/Paris, et elle doit être EXPLICITE PARTOUT.
 // Le conteneur Next de production tourne en UTC. Piège `00 référence/pieges/date-tz.md`.
@@ -20,9 +21,20 @@
 // posé À LA FOIS dans `client.ts` et `drizzle.config.ts` (Garde-fou n°7 de la 1.7). Les
 // noms de colonnes ne sont donc pas répétés ici : c'est la conversion qui fait foi.
 import { relations, sql } from "drizzle-orm";
-import { boolean, check, index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { EVENT_TYPES } from "../../lib/schemas/event";
+import { PARTNER_CATEGORIES } from "../../lib/schemas/partner";
 
 /**
  * Nature d'un événement. Identifiants techniques en anglais, comme les tables ; les
@@ -121,6 +133,88 @@ export const event = pgTable(
   ],
 );
 
+/**
+ * Nature du lien entre l'asso et un tiers (Story 4.1).
+ *
+ * Les valeurs viennent de `src/lib/schemas/partner.ts` — **une seule liste**, même sens de
+ * dépendance que `eventType` et pour la même raison (le module Zod est bundlé côté client
+ * en Epic 6). Les libellés PUBLICS (« Nos sponsors », « Ils nous soutiennent »…) sont du
+ * RENDU et vivent sur `/partenaires` (Story 4.2) : le bandeau de la home n'en affiche
+ * aucun, il mélange délibérément toutes les catégories (arbitrage Brice du 2026-07-30).
+ */
+export const partnerCategory = pgEnum("partner_category", PARTNER_CATEGORIES);
+
+/**
+ * Sponsor, partenaire, soutien ou participation (FR13, FR14).
+ *
+ * 🔴 `logo` EST NULLABLE, ET C'EST LE PIVOT DE TOUT L'EPIC 4.
+ * Un partenaire sans logo existe pleinement en base : il est **documenté** sur
+ * `/partenaires` (Story 4.2, avec son nom et sa description) et **absent** du bandeau de
+ * la home, qui est un bandeau de LOGOS. Arbitrage de Brice du 2026-07-30 : « mieux vaut
+ * qu'il ne s'affiche pas en home que d'avoir un placeholder de logo ». Le filtre
+ * `logo IS NOT NULL` de `queries/partners.ts` est donc un FILET, pas un mode dégradé
+ * nominal — et c'est ce qui a permis de livrer le bandeau sans attendre les 7 fichiers
+ * manquants.
+ *
+ * ⚠️ `logo` PORTE UN CHEMIN, ET C'EST PROVISOIRE PAR CONSTRUCTION (garde-fou E de la 4.1).
+ * Aujourd'hui : `/partenaires/<slug>.webp`, servi depuis `apps/vitrine/public/`. Demain
+ * (Story 6.5), l'upload écrira dans le volume Docker des médias posé par la Story 4.3.
+ * **Ce qui changera alors est la VALEUR écrite, pas la colonne** — aucune migration à
+ * prévoir de ce fait. Ne pas contraindre le format ici : ce serait à rouvrir à ce
+ * moment-là. Ne jamais y stocker de chemin système absolu.
+ *
+ * ⚠️ Aucune colonne de DIMENSIONS, et c'est délibéré : le rendu impose la hauteur par la
+ * TUILE (`object-fit: contain`), il n'a donc jamais besoin de connaître la taille du
+ * fichier à l'avance. La Story 6.5 fera téléverser des fichiers de tailles quelconques
+ * par des bénévoles — un montage qui aurait eu besoin de ces dimensions se serait cassé
+ * à ce moment-là (garde-fou H de la 4.1).
+ */
+export const partner = pgTable(
+  "partner",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    logo: text(),
+    /** Une ligne de contexte (« Présents depuis 2023 »). Rendue sur /partenaires (4.2). */
+    description: text(),
+    /**
+     * Site du partenaire. `null` pour les 11 entrées d'aujourd'hui : aucune source du
+     * projet ne porte d'URL, et en inventer une serait pire que de ne pas en avoir.
+     * ⚠️ Le schéma Zod exige une URL `http(s)` ABSOLUE — une valeur relative casserait
+     * `isExternalUrl()` et ferait annoncer « nouvel onglet » à tort.
+     */
+    link: text(),
+    category: partnerCategory().notNull(),
+    /**
+     * Classement manuel à l'intérieur d'une catégorie (FR22 : « l'équipe peut classer les
+     * logos »). La colonne existe AVANT son écran de saisie (Story 6.5), et c'est un choix
+     * assumé : l'ajouter plus tard imposerait une seconde migration sur une table déjà
+     * peuplée, pour une colonne dont le contrat est déjà connu.
+     */
+    sortOrder: integer().notNull().default(0),
+    /** Défaut `false` : rien n'est public par accident (patron `event`). */
+    isPublished: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : elle filtre sur `is_published`,
+    // puis ordonne par `category`, puis par `sort_order` (`queries/partners.ts`).
+    // ⚠️ `logo IS NOT NULL`, second terme du filtre, n'est PAS dans l'index : un index
+    // partiel `WHERE logo IS NOT NULL` serait plus étroit mais ne servirait QUE la
+    // requête de la home — celle de /partenaires (4.2) lit toutes les entrées, avec le
+    // même tri. Un seul index sert les deux.
+    index("partner_published_category_order_idx").on(
+      table.isPublished,
+      table.category,
+      table.sortOrder,
+    ),
+  ],
+);
+
 // Relations déclarées ici pour que les stories de lecture puissent écrire
 // `db.query.event.findMany({ with: { bar: true } })` sans retoucher ce fichier.
 export const barRelations = relations(bar, ({ many }) => ({
@@ -137,3 +231,6 @@ export type NewBar = typeof bar.$inferInsert;
 export type Event = typeof event.$inferSelect;
 export type NewEvent = typeof event.$inferInsert;
 export type EventType = (typeof eventType.enumValues)[number];
+export type Partner = typeof partner.$inferSelect;
+export type NewPartner = typeof partner.$inferInsert;
+export type PartnerCategory = (typeof partnerCategory.enumValues)[number];

@@ -8,6 +8,13 @@
       "when": 1785389707022,
       "tag": "0000_agenda_event_bar",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785419690863,
+      "tag": "0001_partner_category",
+      "breakpoints": true
     }
   ]
 }

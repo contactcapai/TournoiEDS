@@ -1,10 +1,20 @@
 /**
- * Jeu de données initial de l'agenda (Story 3.1).
+ * Jeu de données initial : agenda (Story 3.1) et partenaires (Story 4.1).
  *
  *   pnpm --filter vitrine db:seed
  *
  * L'édition par l'équipe arrive en Epic 6 : d'ici là, ce script est la seule source de
- * données des surfaces agenda (3.2 hub home, 3.3 page Agenda).
+ * données des surfaces agenda (3.2 hub home, 3.3 page Agenda) et preuve (4.1 bandeau,
+ * 4.2 page Partenaires).
+ *
+ * ⚠️ DEUX NATURES DE DONNÉES COHABITENT ICI, et elles n'ont pas le même statut :
+ *   - l'agenda est FICTIF mais plausible (bars et dates inventés) — d'où les gardes 2 et 3
+ *     ci-dessous, qui existent pour qu'il ne soit jamais pris pour de vraies annonces ;
+ *   - les partenaires sont RÉELS : les 11 entrées sont celles que les sources du projet
+ *     attestent (`positionnement-refonte-site-v2.md` §5, maquette l.377-403).
+ * 🔴 La garde qui compte pour eux est INVERSE : n'insérer AUCUNE ambition. Le Département
+ * de la Marne, la Région Grand Est, le Grand Reims et les villes avoisinantes sont des
+ * cibles de démarchage (§6, FR33) — les semer ici les afficherait comme acquis sur la home.
  *
  * Trois propriétés voulues, et chacune est une garde :
  *
@@ -41,8 +51,17 @@ import postgres from "postgres";
 
 import { PARIS_TZ, parisParts, parisWallClock, nextThursdays } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
+import { partnerInputSchema } from "../../lib/schemas/partner";
 import * as schema from "./schema";
-import { bar, event, type NewBar, type NewEvent } from "./schema";
+import {
+  bar,
+  event,
+  partner,
+  type NewBar,
+  type NewEvent,
+  type NewPartner,
+  type PartnerCategory,
+} from "./schema";
 
 // Comme `drizzle.config.ts` : un script hors Next ne charge pas `.env.local` tout seul.
 config({ path: ".env.local" });
@@ -121,6 +140,158 @@ const EVENT_IDS = {
   past3: "e0000000-0000-4000-8000-000000000008",
   past4: "e0000000-0000-4000-8000-000000000009",
 } as const;
+
+/**
+ * Partenaires (Story 4.1). Identifiants fixes, même raison que ci-dessus.
+ * Préfixe `p` pour rester lisible à côté des `b` (bars) et `e` (événements).
+ */
+const PARTNER_IDS = {
+  shopForGeek: "a0000000-0000-4000-8000-000000000001",
+  ldlc: "a0000000-0000-4000-8000-000000000002",
+  forgeblast: "a0000000-0000-4000-8000-000000000003",
+  antreDeReims: "a0000000-0000-4000-8000-000000000004",
+  mately: "a0000000-0000-4000-8000-000000000005",
+  mosellan: "a0000000-0000-4000-8000-000000000006",
+  mulhouseGaming: "a0000000-0000-4000-8000-000000000007",
+  reimsLegendR: "a0000000-0000-4000-8000-000000000008",
+  villeDeReims: "a0000000-0000-4000-8000-000000000009",
+  gameInReims: "a0000000-0000-4000-8000-00000000000a",
+  franceEsport: "a0000000-0000-4000-8000-00000000000b",
+} as const;
+
+/**
+ * Les 11 partenaires RÉELS attestés par les sources du projet.
+ *
+ * 🔴 CE QUI N'EST PAS DANS CETTE LISTE EST AUSSI IMPORTANT QUE CE QUI Y EST.
+ * `positionnement-refonte-site-v2.md` §6 distingue explicitement la preuve de l'ambition :
+ * le Département de la Marne, la Région Grand Est, le Grand Reims et les villes
+ * avoisinantes sont des cibles de démarchage, PAS des soutiens. Les ajouter ici les
+ * afficherait comme acquis (FR33) — ne pas le faire, même « en attendant ».
+ * ⚠️ Cette garde vit ici aujourd'hui parce que ce script est le seul point d'écriture.
+ * Avec le back-office (Story 6.5) elle devra AUSSI être rappelée au point de SAISIE : un
+ * commentaire dans un fichier que le bénévole ne lira jamais ne protège rien.
+ *
+ * `logo` : seuls les 4 SPONSORS en ont un — ce sont les 4 fichiers que porte déjà le
+ * carrousel du tournoi, copiés (jamais déplacés) dans `public/partenaires/`.
+ * ⚠️ L'ATTRIBUTION A ÉTÉ ÉTABLIE PAR L'IMAGE, PAS PAR LE NOM DE FICHIER : deux des
+ * sources s'appellent `Fichier 3.webp` et `LOGO-V3-BLANC (1).webp`, et les deux logos
+ * blancs sont invisibles sur fond clair — il a fallu les composer sur `--navy` pour les
+ * identifier (refait et confirmé au dev). Ne jamais réattribuer d'après un nom de fichier.
+ * Les 7 autres entrées ont `logo: null` : elles sont donc ABSENTES du bandeau de la home
+ * (arbitrage Brice : mieux vaut un logo manquant qu'un placeholder) et seront documentées
+ * sur `/partenaires` (Story 4.2).
+ *
+ * `link` : `null` pour les 11. AUCUNE source du projet ne porte d'URL de partenaire, et
+ * en inventer une serait pire que de ne pas en avoir — un lien faux abîme la confiance
+ * qu'un bloc de preuve existe pour construire.
+ *
+ * `sortOrder` : l'ordre de cette liste À L'INTÉRIEUR de chaque catégorie. La valeur est
+ * écrite en clair plutôt que déduite de l'index du tableau — c'est une donnée que l'équipe
+ * modifiera depuis le back-office (FR22), pas une position de code.
+ */
+const PARTNERS: ReadonlyArray<{
+  id: string;
+  name: string;
+  category: PartnerCategory;
+  logo: string | null;
+  description: string | null;
+  sortOrder: number;
+}> = [
+  // ── Sponsors : les 4 qui ont un logo, donc les 4 seuls visibles sur la home ────
+  {
+    id: PARTNER_IDS.shopForGeek,
+    name: "Shop for Geek Reims",
+    category: "sponsor",
+    logo: "/partenaires/shop-for-geek-reims.webp",
+    description: null,
+    sortOrder: 1,
+  },
+  {
+    id: PARTNER_IDS.ldlc,
+    name: "LDLC Cormontreuil",
+    category: "sponsor",
+    logo: "/partenaires/ldlc-cormontreuil.webp",
+    description: null,
+    sortOrder: 2,
+  },
+  {
+    id: PARTNER_IDS.forgeblast,
+    name: "Forgeblast",
+    category: "sponsor",
+    logo: "/partenaires/forgeblast.webp",
+    description: null,
+    sortOrder: 3,
+  },
+  {
+    id: PARTNER_IDS.antreDeReims,
+    name: "L'Antre de Reims",
+    category: "sponsor",
+    logo: "/partenaires/l-antre-de-reims.webp",
+    description: null,
+    sortOrder: 4,
+  },
+  // ── Partenaires réseau : pas de logo fourni ⇒ absents du bandeau ───────────────
+  {
+    id: PARTNER_IDS.mately,
+    name: "Mately",
+    category: "partenaire",
+    logo: null,
+    description: null,
+    sortOrder: 1,
+  },
+  {
+    id: PARTNER_IDS.mosellan,
+    name: "Mosel'lan Project",
+    category: "partenaire",
+    logo: null,
+    description: null,
+    sortOrder: 2,
+  },
+  {
+    id: PARTNER_IDS.mulhouseGaming,
+    name: "Mulhouse Gaming",
+    category: "partenaire",
+    logo: null,
+    description: null,
+    sortOrder: 3,
+  },
+  // ── Soutiens : appuis RÉELS et déjà acquis, jamais une collectivité démarchée ──
+  {
+    id: PARTNER_IDS.reimsLegendR,
+    name: "Reims Legend'R",
+    category: "soutien",
+    logo: null,
+    description: null,
+    sortOrder: 1,
+  },
+  {
+    id: PARTNER_IDS.villeDeReims,
+    name: "Ville de Reims",
+    category: "soutien",
+    logo: null,
+    description: null,
+    sortOrder: 2,
+  },
+  // ── Participations : ni sponsors ni partenaires — la nuance est factuelle (FR33) ─
+  // Ces deux `description` sont VERBATIM de la maquette (l.379, l.383) : elles disent
+  // exactement la nature du lien, ce qui est tout l'objet de cette catégorie.
+  {
+    id: PARTNER_IDS.gameInReims,
+    name: "Game in Reims",
+    category: "participation",
+    logo: null,
+    description: "Présents depuis 2023",
+    sortOrder: 1,
+  },
+  {
+    id: PARTNER_IDS.franceEsport,
+    name: "France Esport",
+    category: "participation",
+    logo: null,
+    description: "Association adhérente",
+    sortOrder: 2,
+  },
+];
 
 /**
  * Jeudis PASSÉS supplémentaires (Story 3.3).
@@ -245,6 +416,15 @@ function validatedEvent({ id, ...input }: Omit<NewEvent, "id"> & { id: string })
   return { id, ...eventInputSchema.parse(input) };
 }
 
+/**
+ * Idem pour un partenaire. 🔴 LE SEED EST LE SEUL CONSOMMATEUR DE `partnerInputSchema`
+ * jusqu'à la Story 6.5 : sans cet appel, le schéma serait un commentaire — un garde-fou
+ * que personne n'exécute ne garde rien (leçon relevée en Story 3.1).
+ */
+function validatedPartner({ id, ...input }: Omit<NewPartner, "id"> & { id: string }): NewPartner {
+  return { id, ...partnerInputSchema.parse(input) };
+}
+
 async function main() {
   const client = postgres(databaseUrl!, { prepare: false, max: 1 });
   // MÊME `casing` que `client.ts` et `drizzle.config.ts`, sinon ce script écrirait dans
@@ -260,6 +440,10 @@ async function main() {
     const lastThursday = parisParts(thursdays[thursdays.length - 1]!);
 
     const barRows = BARS.map(({ id, ...rest }) => ({ id, ...barInputSchema.parse(rest) }));
+
+    const partnerRows: NewPartner[] = PARTNERS.map((p) =>
+      validatedPartner({ ...p, link: null, isPublished: true }),
+    );
 
     const eventRows: NewEvent[] = [
       ...THURSDAY_ROTATION.map((thursday, index) =>
@@ -337,6 +521,23 @@ async function main() {
       });
 
     await db
+      .insert(partner)
+      .values(partnerRows)
+      .onConflictDoUpdate({
+        target: partner.id,
+        set: {
+          name: sql`excluded.name`,
+          logo: sql`excluded.logo`,
+          description: sql`excluded.description`,
+          link: sql`excluded.link`,
+          category: sql`excluded.category`,
+          sortOrder: sql`excluded.sort_order`,
+          isPublished: sql`excluded.is_published`,
+          updatedAt: new Date(),
+        },
+      });
+
+    await db
       .insert(event)
       .values(eventRows)
       .onConflictDoUpdate({
@@ -380,6 +581,31 @@ async function main() {
       });
       const where = row.bar?.name ?? row.venueName ?? "?";
       console.log(`  ${when}  ${row.title}  [${where}]`);
+    }
+
+    // 🔴 MÊME PRINCIPE POUR LES PARTENAIRES : on relit, on ne réaffiche pas `partnerRows`.
+    // Le décompte « avec logo » est la PREUVE d'AC6 — c'est lui qui dit combien de tuiles
+    // le bandeau de la home peut rendre. Un décompte calculé sur les valeurs en mémoire
+    // serait vrai même si rien n'avait été persisté (`pieges/faux-succes.md`).
+    const storedPartners = await db.query.partner.findMany({
+      orderBy: (table, { asc }) => [asc(table.category), asc(table.sortOrder), asc(table.name)],
+    });
+    const withLogo = storedPartners.filter((p) => p.logo !== null);
+    const byCategory = storedPartners.reduce<Record<string, number>>((acc, p) => {
+      acc[p.category] = (acc[p.category] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    console.log(
+      `\nSeed partenaires terminé : ${storedPartners.length} entrées, ` +
+        `dont ${withLogo.length} AVEC LOGO (= le nombre de tuiles du bandeau de la home).`,
+    );
+    console.log("  par catégorie :", byCategory);
+    for (const p of storedPartners) {
+      const publie = p.isPublished ? "publié" : "NON PUBLIÉ";
+      console.log(
+        `  [${p.category}] ${p.name} — ${p.logo ?? "pas de logo (absent du bandeau)"} (${publie})`,
+      );
     }
   } finally {
     await client.end();

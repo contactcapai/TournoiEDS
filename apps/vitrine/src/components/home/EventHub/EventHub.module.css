@@ -8,14 +8,19 @@
    seconde copie rouvrirait exactement la dette R9.
 
    Tokens-only. EXCEPTIONS documentées sur place : `#262359` (extrémité sombre du
-   dégradé, valeur propre à la maquette — même statut que le `#211d4c`
-   d'AnimationsTeaser, ce n'est PAS un token) et les px structurels (20, 12.5, 40, 34,
-   30, 620). */
+   dégradé, valeur propre à la maquette — même statut que les arrêts de dégradé de
+   `DoubleDoor.module.css`, ce n'est PAS un token) et les px structurels (20, 12.5, 40,
+   34, 30, 620). */
 
 .section {
   padding: var(--section-y) 0;
-  /* Seule section de la home à poser un fond propre : le reste hérite du --navy-deep
-     du body. C'est ce contraste de fond qui détache le hub du récit éditorial. */
+  /* Fond propre, là où le reste de la home hérite du --navy-deep du body : c'est ce
+     contraste de fond qui détache le hub du récit éditorial.
+     ⚠️ CE N'EST PLUS LA SEULE SECTION À LE FAIRE depuis la Story 4.1 — le bloc
+     « Preuve & réseau » (`components/proof/ProofBand/`) porte le même `--navy`.
+     DESIGN.md (l.171) les nomme d'ailleurs tous les deux : « agenda, preuve ».
+     Les deux partagent aussi la même contrainte de contraste (chapô `--grey` sur
+     `--navy` ⇒ `motion.reveal` sur un <div> intérieur, jamais sur la <section>). */
   background: var(--navy);
 }
 
