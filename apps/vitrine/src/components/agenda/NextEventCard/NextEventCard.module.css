@@ -1,0 +1,171 @@
+/* Carte du prochain rendez-vous — transcription de `.next` de
+   docs/refonte-2026/maquette/index.html (CSS l.95-105).
+
+   Écrite en Story 3.2 dans `EventHub.module.css`, DÉPLACÉE ICI par la 3.3 avec le
+   composant qu'elle habille — **et avec ses mesures de contraste** (fin de fichier).
+   Un bloc de mesures resté orphelin dans un fichier dont les règles sont parties est
+   une mesure perdue en silence (`pieges/avertissement-commentaire.md`).
+
+   Tokens-only. EXCEPTIONS documentées sur place :
+     - `#262359`, extrémité sombre du dégradé : ce n'est PAS une couleur de charte,
+       c'est une valeur propre à la maquette (entre --surface et --navy-deep) — même
+       statut que le `#211d4c` d'AnimationsTeaser. Ne pas la recopier, ne pas la
+       prendre pour un token ;
+     - le rgba() du filet vertical (aucun token ne décrit un overlay) ;
+     - les px structurels fidèles à la maquette (30, 34, 32, 28, 14, 11, 9, 19, 15). */
+
+.next {
+  display: flex;
+  align-items: stretch;
+  /* `flex-wrap` EST le responsive de cette carte, comme la `.band` d'AnimationsTeaser :
+     sous 880px la grande date passe en pleine largeur, le corps suit, le CTA finit
+     seul. La @media plus bas ne fait qu'ACCOMPAGNER ce repli — elle ne le produit pas. */
+  flex-wrap: wrap;
+  gap: var(--block-gap); /* 30px */
+  padding: 32px 34px;
+  border-radius: var(--radius-card); /* 8px */
+  /* Le filet or à gauche est la signature visuelle de la carte : c'est lui qui dit
+     « c'est CE rendez-vous-là », pas un cadre complet. */
+  border-left: 5px solid var(--gold);
+  background: linear-gradient(135deg, var(--surface), #262359);
+}
+
+.bigDate {
+  text-align: center;
+  padding-right: 28px;
+  /* Filet crème à 14 % — overlay documenté. `align-items: stretch` sur `.next` lui
+     donne toute la hauteur de la carte. ⚠️ Il ne survit PAS au repli mobile : la
+     @media le bascule en filet horizontal. */
+  border-right: 1px solid rgba(243, 239, 227, 0.14);
+}
+
+.bigDate b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-agenda-date); /* 74px — le token existe pour ce seul usage */
+  line-height: var(--lh-display);
+  color: var(--gold);
+}
+
+.bigDate span {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 14px;
+  color: var(--light);
+}
+
+.body {
+  flex: 1;
+  /* 240px : la mesure de la maquette. ⚠️ Elle DOIT être neutralisée sous 880px — à
+     320px la carte ne dispose que de ~223px utiles et ce plancher produirait un
+     débordement horizontal, rogné EN SILENCE par `overflow-x: clip` (dette R14). */
+  min-width: 240px;
+}
+
+.nextTitle {
+  font-family: var(--font-display);
+  /* 34px, valeur littérale de la maquette et BAS de la fourchette « titres de bloc
+     34-44px » de DESIGN.md. `--fs-block-heading` (44px) est le HAUT de cette même
+     fourchette : l'employer ici mettrait le titre en concurrence avec la date à 74px
+     qui doit dominer la carte. L'écart n'est pas sub-perceptible (10px), contrairement
+     aux 2px assumés par AnimationsTeaser — d'où le littéral plutôt que le token. */
+  font-size: 34px;
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-bottom: 14px;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.facts div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 15px;
+}
+
+.facts svg {
+  width: 19px;
+  height: 19px;
+  color: var(--gold);
+  /* Sans ça, une icône se compresse quand le texte du fait passe sur deux lignes. */
+  flex-shrink: 0;
+}
+
+.act {
+  display: flex;
+  align-items: center;
+}
+
+/* ═══════════════════════ Responsive (< 880px) ═══════════════════════
+
+   ⚠️ LA MAQUETTE N'A AUCUNE RÈGLE MOBILE POUR `.next` : son unique
+   `@media (max-width:880px)` ne la cite pas. Tout ce bloc est une CONCEPTION
+   (Story 3.2), pas une transcription — couverte par la porte outillée aux 7 largeurs.
+   880px en littéral : une custom property n'est pas lisible en @media. */
+@media (max-width: 880px) {
+  .next {
+    gap: 22px;
+    /* 34px de gouttière laissent trop peu de place à 320px (cf. .body). */
+    padding: 24px 20px;
+  }
+
+  /* Le filet VERTICAL de la grande date ne survit pas au repli : la date passe pleine
+     largeur, et sa séparation d'avec le corps redevient horizontale. Sans cette
+     bascule, le filet flotterait au milieu de nulle part sous la date. */
+  .bigDate {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding-right: 0;
+    padding-bottom: 16px;
+    border-right: none;
+    border-bottom: 1px solid rgba(243, 239, 227, 0.14);
+  }
+
+  .bigDate b {
+    /* 74px pour un jour à deux chiffres mange la moitié d'un écran de 320px. */
+    font-size: 52px;
+  }
+
+  /* 🔴 NEUTRALISE le plancher de 240px : à 320px la carte n'offre que ~223px utiles.
+     Sans cette ligne, le corps déborde de ~17px — et `overflow-x: clip` le rognerait
+     SANS scrollbar ni avertissement (dette R14, le mode de défaillance que la porte
+     outillée existe pour attraper). */
+  .body {
+    min-width: 0;
+  }
+}
+
+/* ═══════════════════════ Contraste — mesures (WCAG 2.1) ═══════════════════════
+
+   Méthode de la Story 2.8 : une `opacity` sur un conteneur MÉLANGE réellement le texte
+   au fond, donc le rapport chute pendant tout le fondu. `motion.reveal` part de
+   `opacity: 0.75` — c'est cet état-là qu'il faut vérifier, pas seulement l'état final.
+
+   Sur le dégradé de cette carte (#322e6e → #262359), à 0,75 :
+     --cream ..... 6,60:1  ✅        --light ..... 6,64:1  ✅
+     --gold ...... 4,05:1  ❌ en TEXTE COURANT (seuil 4,5)
+                          ✅ en GRAND texte (grande date 74px) et en élément non
+                             textuel (icônes des faits) — seuil 3:1
+     Button gold (--ink sur --gold) ... 5,63:1  ✅
+
+   ⇒ Règle qui en découle et qui vaut pour tout ajout futur à cette carte :
+   **aucun `--gold` en texte courant ici.** Un lien doré à 15px y serait non conforme
+   pendant l'apparition — c'est exactement le défaut que Lighthouse a attrapé en
+   Story 2.8, et qu'un calcul de tête avait manqué.
+
+   Les mesures des textes posés sur le fond de section (`--navy`) vivent avec eux :
+   voir `EventList.module.css` et `EventHub.module.css`.
+
+   Aucune propriété `animation-*` ici : l'apparition vient exclusivement de la classe
+   partagée `motion.reveal`, composée en markup par l'appelant (aucun conflit de
+   cascade possible avec l'ordre d'émission instable de Turbopack, dette R9). */

@@ -9,8 +9,10 @@
 // servir de porte (prédicat trop large qui attrapait 4 tuiles de pied de page pour des
 // liens fléchés ; compteur de nœuds non déterministe ; bruit d'animation à 0,65px).
 //
-// La page synthétique ci-dessous porte les TROIS défauts que gate.mjs doit voir. Elle
-// ne dépend d'aucun serveur : l'auto-test tourne sans build et sans site.
+// La page synthétique ci-dessous porte les défauts que gate.mjs doit voir — ET, depuis
+// la Story 3.3, un cas qu'il ne doit PAS signaler (④a) : une exclusion sans preuve de
+// non-aveuglement transformerait la porte en décor. Elle ne dépend d'aucun serveur :
+// l'auto-test tourne sans build et sans site.
 //
 // Usage :  pnpm --filter vitrine gate:selftest
 import { launchChrome } from "./cdp.mjs";
@@ -18,6 +20,12 @@ import { PROBE, STICKY } from "./probe.mjs";
 
 // ① un bloc plus large que le viewport  ② un <header> qui ne colle pas
 // ③ un élément dont l'attribut class contient le littéral "undefined"
+// ④ (Story 3.3) DEUX conteneurs défilants, et l'instrument doit les DISTINGUER :
+//    - `.carrousel-sain`  : défilant, tenant dans le viewport → son contenu large est
+//      atteignable d'un geste ⇒ NE DOIT PAS être signalé (faux positif interdit) ;
+//    - `.carrousel-malade`: défilant MAIS débordant lui-même de l'écran ⇒ DOIT rester
+//      signalé. Sans ce second cas, l'exclusion serait une porte dérobée : il aurait
+//      suffi d'écrire `overflow-x: auto` pour faire taire la porte sur tout un sous-arbre.
 const PAGE_MALADE = `
 <!doctype html><html><head><meta charset="utf-8"><style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,11 +33,16 @@ const PAGE_MALADE = `
   header { position: static; height: 60px; background: #333; }  /* ② PAS sticky */
   .large { width: 3000px; height: 40px; background: #c33; }     /* ① déborde */
   .long { height: 4000px; }                  /* de quoi défiler */
+  .carrousel-sain { overflow-x: auto; width: 600px; white-space: nowrap; }
+  .carrousel-malade { overflow-x: auto; width: 1200px; white-space: nowrap; }
+  .piste { width: 2400px; }
 </style></head><body>
   <header>en-tete</header>
   <main id="content">
     <div class="large">bloc trop large</div>
     <div class="undefined">classe fantome</div>   <!-- ③ -->
+    <div class="carrousel-sain"><div class="piste">contenu large mais ATTEIGNABLE</div></div>
+    <div class="carrousel-malade"><div class="piste">contenu large et conteneur hors ecran</div></div>
     <div class="long"></div>
   </main>
   <footer>pied</footer>
@@ -68,6 +81,22 @@ try {
       vu: d.phantomClasses.length === 1,
       detail: `${d.phantomClasses.length} détectée(s)`,
     },
+    {
+      // Le contenu du carrousel SAIN ne doit apparaître dans AUCUN débordement…
+      n: "④a conteneur défilant sain — pas de faux positif",
+      vu:
+        d.overflow.exclusDefilant >= 1 &&
+        !d.overflow.debordements.some((b) => /ATTEIGNABLE/.test(b.texte)),
+      detail:
+        `${d.overflow.exclusDefilant} élément(s) excusé(s) par un conteneur défilant sain ; ` +
+        `« ATTEIGNABLE » signalé : ${d.overflow.debordements.some((b) => /ATTEIGNABLE/.test(b.texte))}`,
+    },
+    {
+      // …mais l'exclusion ne doit PAS s'étendre à un conteneur qui déborde lui-même.
+      n: "④b conteneur défilant hors écran — toujours signalé",
+      vu: d.overflow.debordements.some((b) => /hors ecran/.test(b.texte)),
+      detail: `signalé : ${d.overflow.debordements.some((b) => /hors ecran/.test(b.texte))}`,
+    },
   ];
 
   for (const a of attendus) {
@@ -84,7 +113,7 @@ try {
 
 if (echecs.length === 0) {
   console.log(
-    "\n✅ INSTRUMENT VALIDE — les 3 détecteurs voient les 3 défauts d'une page qui les porte.",
+    "\n✅ INSTRUMENT VALIDE — les détecteurs voient les défauts d'une page qui les porte.",
   );
   console.log("   Un « PORTE VERTE » de gate.mjs a donc du contenu.\n");
   process.exit(0);

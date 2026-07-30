@@ -3,8 +3,13 @@
 // ⚠️ AJOUTER ICI TOUTE NOUVELLE PAGE PUBLIQUE. Une page absente de cette liste
 // n'est couverte par AUCUNE des portes de ce dossier — en silence, ce qui est
 // exactement le mode de défaillance que cet outillage existe pour supprimer.
-// Les Epics 3 à 5 en ajoutent au moins deux (/agenda, /partenaires).
-export const PAGES = (process.env.GATE_PAGES ?? "/,/l-asso,/animations").split(",");
+// Les Epics 4 à 5 en ajoutent au moins une (/partenaires, Story 4.6).
+//
+// ⚠️ `/` et `/agenda` LISENT LA BASE à chaque requête (Stories 3.2 et 3.3) : le
+// Postgres de dev doit tourner et `apps/vitrine/.env.local` être renseigné, sinon
+// elles répondent en erreur et la porte ne mesure rien.
+//   docker compose -f docker/docker-compose.dev.yml up -d
+export const PAGES = (process.env.GATE_PAGES ?? "/,/agenda,/l-asso,/animations").split(",");
 
 // 7 largeurs de référence du projet : 320 (le plus tendu), 412, 768, 880 (le
 // breakpoint), 1024, 1440, 1920.

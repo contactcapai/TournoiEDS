@@ -173,6 +173,7 @@ export function nextThursdays(count: number, options: { from?: Date; hour?: numb
 // pas le `format()`. Ces deux objets sont sans état, donc sûrs à partager.
 const MONTH_LONG = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, month: "long" });
 const WEEKDAY_SHORT = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, weekday: "short" });
+const WEEKDAY_LONG = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, weekday: "long" });
 
 /**
  * ⚠️ `Intl` rend les noms français en MINUSCULES — « juin », « jeu. » —, alors que la
@@ -214,6 +215,23 @@ export function formatBigDate(instant: Date): { day: string; month: string } {
 export function formatRowDate(instant: Date): string {
   const { day, month } = parisParts(instant);
   return `${capitalize(WEEKDAY_SHORT.format(instant))} ${pad2(day)}/${pad2(month)}`;
+}
+
+/**
+ * Date complète, pour les blocs qui ont la place de l'écrire : `"Jeudi 23 juillet 2026"`.
+ *
+ * Ajouté par la Story 3.3 pour les événements PASSÉS de la page `/agenda`. L'ANNÉE y
+ * est obligatoire et ce n'est pas de la verbosité : la liste des passés remonte le
+ * temps et franchit donc les changements d'année. « Jeu. 02/01 » y serait ambigu, et
+ * l'ambiguïté ne se verrait qu'en janvier — c'est-à-dire trop tard.
+ *
+ * Le mois reste en minuscules (« 23 juillet ») : en français il n'est capitalisé qu'en
+ * tête d'énoncé, ce qu'il n'est pas ici. Seul le jour de semaine, qui ouvre la chaîne,
+ * l'est.
+ */
+export function formatLongDate(instant: Date): string {
+  const { day, year } = parisParts(instant);
+  return `${capitalize(WEEKDAY_LONG.format(instant))} ${day} ${MONTH_LONG.format(instant)} ${year}`;
 }
 
 /**

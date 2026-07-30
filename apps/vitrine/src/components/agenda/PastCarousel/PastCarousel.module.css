@@ -1,0 +1,132 @@
+/* Carrousel des événements passés (Story 3.3).
+
+   AUCUNE MAQUETTE ne décrit ce composant. Les valeurs sont des décisions de la story,
+   validées au gate visuel.
+
+   Tokens-only. EXCEPTIONS documentées sur place : les rgba() de filets et les px
+   structurels (300, 44, 18, 12). */
+
+.carousel {
+  /* `position: relative` n'est PAS posé : les flèches sont dans le flux, au-dessus de
+     la piste. Un positionnement absolu par-dessus les vignettes masquerait du contenu
+     à 320px, où chaque pixel de largeur compte. */
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ───────── Flèches ─────────
+   Rendues UNIQUEMENT après hydratation (voir le composant) : sans JavaScript, aucun
+   bouton inerte n'apparaît. Elles sont un raccourci, pas le mécanisme. */
+.commandes {
+  display: flex;
+  gap: 12px;
+  /* Alignées à droite : la piste se lit de gauche à droite, les commandes se posent
+     au bout du geste. */
+  justify-content: flex-end;
+}
+
+.fleche {
+  /* 44×44 : cible tactile minimale, non négociable (project-context.md §Accessibilité). */
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  /* Filet crème à 50 % : c'est le SEUL élément qui délimite le bouton (fond
+     transparent), il relève donc de WCAG 1.4.11, seuil 3:1. Même valeur que
+     `Button.btnOut`, où elle a été mesurée en Story 2.10 (0,35 donnait 2,61:1). */
+  border: 2px solid rgba(243, 239, 227, 0.5);
+  border-radius: var(--radius-button);
+  color: var(--cream);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.fleche svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fleche:hover:not(:disabled) {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* 🔴 L'ÉTAT DÉSACTIVÉ N'EST PAS QU'UNE OPACITÉ. Une opacité seule ferait chuter le
+   contraste du bord sous le seuil 1.4.11 sans le dire. On garde donc le bord visible
+   et on retire l'affordance : curseur par défaut, plus de survol. Un bouton
+   `disabled` est de toute façon retiré de l'ordre de tabulation par le navigateur —
+   l'information « on est au bout » est portée par le comportement, pas par la seule
+   couleur. */
+.fleche:disabled {
+  cursor: default;
+  border-color: rgba(243, 239, 227, 0.22);
+  color: var(--grey);
+}
+
+/* ───────── Région défilante ─────────
+   C'est ELLE qui défile, et elle est focusable (WCAG 2.1.1). */
+.viewport {
+  overflow-x: auto;
+  /* 🔴 AUCUN `padding` ICI, ET C'EST UNE CORRECTION MESURÉE.
+     Un premier jet posait `padding: 4px; margin: -4px` pour dégager l'anneau de focus.
+     Effet de bord attrapé par `gate:carousel` : avec `scroll-snap`, la position
+     d'accrochage de la 1ʳᵉ vignette devient le padding lui-même, donc `scrollLeft`
+     vaut **4 au repos et non 0** — la flèche « plus récent » restait ACTIVE alors
+     qu'on était déjà au début. Aucune porte visuelle ni Lighthouse ne voyait ce
+     défaut : il est purement comportemental.
+     L'anneau de focus est traité par la règle explicite ci-dessous, pas par de la
+     géométrie. */
+  scroll-snap-type: x mandatory;
+  /* Barre de défilement discrète mais PRÉSENTE : elle est le seul indice permanent
+     qu'il y a plus à voir quand le JavaScript n'a pas chargé. Ne pas la masquer. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(243, 239, 227, 0.3) transparent;
+}
+
+/* 🔴 ANNEAU DE FOCUS EXPLICITE — l'anneau global de globals.css ne couvre PAS ce cas :
+   son sélecteur est `:where(a, button):focus-visible`, or cette région défilante est un
+   `<div>` rendu focusable par `tabIndex`. Sans cette règle, un utilisateur au clavier
+   n'aurait que l'anneau par défaut du navigateur, hors charte et parfois invisible sur
+   fond sombre. Mêmes valeurs que l'anneau global → cohérence de tout le site. */
+.viewport:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Défilement doux réservé au mouvement autorisé. `scrollBy()` est appelé SANS
+   `behavior` dans le composant : il suit donc cette propriété, et le respect de
+   `prefers-reduced-motion` reste déclaré ICI, en un seul endroit. */
+@media (prefers-reduced-motion: no-preference) {
+  .viewport {
+    scroll-behavior: smooth;
+  }
+}
+
+.piste {
+  display: flex;
+  gap: var(--block-gap);
+  /* ⚠️ `list-style: none` retire la sémantique de liste sous Safari/VoiceOver — c'est
+     le `role="list"` posé côté markup qui la restaure. Les deux vont ensemble. */
+  list-style: none;
+  /* `align-items: stretch` (défaut) : toutes les vignettes prennent la hauteur de la
+     plus haute → la piste ne change pas de hauteur d'une vignette à l'autre, donc
+     aucun saut de mise en page pendant le défilement (NFR2). */
+}
+
+/* ───────── Vignette ─────────
+   🔴 UNE VIGNETTE PAR ÉCRAN (arbitrage de Brice) : `flex-basis: 100%`. Le pas de
+   défilement vaut donc exactement une vignette, et les flèches font passer à la
+   suivante — pas à « un peu plus loin ».
+
+   `flex-shrink: 0` est indispensable : sans lui, les 4 vignettes se comprimeraient
+   pour tenir dans la piste au lieu de la faire défiler, et le carrousel n'existerait
+   plus (elles seraient toutes visibles, à 25 % de largeur chacune). */
+.vignette {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  /* Un enfant flex ne descend pas sous la largeur de son contenu sans ça. */
+  min-width: 0;
+}
