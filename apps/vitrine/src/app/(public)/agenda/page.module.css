@@ -162,7 +162,7 @@
   margin-top: 10px;
 }
 
-/* Emplacement de galerie — structure seulement (Story 4.5 livrera les vraies photos).
+/* Emplacement de galerie — structure seulement (Story 4.3 livrera les vraies photos).
    La largeur est FIXÉE et le cadre porte son `aspect-ratio: 4/3` : la place que les
    photos occuperont est donc réservée dès aujourd'hui → aucun saut de mise en page le
    jour où elles arriveront (NFR2, zéro CLS). */
@@ -181,9 +181,9 @@
   /* Filet de sécurité en profondeur : `overflow-wrap` est HÉRITÉ, il atteint donc le
      `figcaption` rendu par la primitive PhotoFrame sans qu'on ait à toucher
      `@repo/ui`. La garde principale reste le libellé borné côté markup — celle-ci
-     couvre le jour où la Story 4.5 y fera passer de la donnée de back-office.
+     couvre le jour où la Story 4.3 y fera passer de la donnée de back-office.
      ⚠️ Dette consignée : PhotoFrame lui-même n'a aucune garde de longueur sur sa
-     légende → `deferred-work.md`, absorption Story 4.5. */
+     légende → `deferred-work.md`, absorption Story 4.3. */
   overflow-wrap: break-word;
 }
 

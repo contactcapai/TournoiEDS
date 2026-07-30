@@ -82,9 +82,12 @@ export function EventHub({ next, rest }: EventHubProps) {
         />
 
         {/* 🔴 `motion.reveal` EST POSÉ ICI, ET SÛREMENT PAS SUR LA <section> —
-            contrairement à ThreeAxes et AnimationsTeaser. Raison MESURÉE : cette
-            section est la seule du site à poser du `--grey` (le chapô de SectionHead)
-            sur `--navy`. À pleine opacité la combinaison donne 4,60:1 — conforme, mais
+            contrairement à ThreeAxes et DoubleDoor, qui la portent sur la section.
+            Raison MESURÉE : cette section pose du `--grey` (le chapô de SectionHead)
+            sur `--navy`. ⚠️ Elle n'est PLUS la seule depuis la Story 4.1 : `ProofBand`
+            est dans le même cas et applique le même montage — c'est devenu le patron
+            par défaut de toute section animée à fond `--navy` (motion.module.css).
+            À pleine opacité la combinaison donne 4,60:1 — conforme, mais
             avec 0,10 de marge seulement. Or `motion.reveal` part de `opacity: 0.75`,
             ce qui mélange 25 % de fond dans le texte et fait tomber le rapport à
             ≈ 3,25:1 pendant toute l'apparition — même magnitude d'échec que l'or sur

@@ -192,7 +192,7 @@ export default function LAsso() {
           Le projet n'a aucune donnée nominative, et NFR5 pose un bloquant projet :
           aucune procédure de consentement au droit à l'image n'existe côté asso.
           Arbitrage de Brice (2026-07-29) : collectif maintenant, nominatif plus
-          tard → dette R16, absorbée par la Story 4.8. Ne PAS inventer de prénoms. */}
+          tard → dette R16, absorbée par la Story 6.10. Ne PAS inventer de prénoms. */}
       <section
         className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="equipe-title"
@@ -268,7 +268,7 @@ export default function LAsso() {
               </li>
             </ul>
           </div>
-          {/* /partenaires est créée en Story 4.6 : ce lien renvoie un 404 par
+          {/* /partenaires est créée en Story 4.2 : ce lien renvoie un 404 par
               défaut d'ici là, comportement ATTENDU et cohérent avec le SiteHeader
               depuis la 1.4. Ne pas retomber sur href="#" (scroll-to-top + annonce
               trompeuse). Route interne → ni target, ni rel, ni mention SR. */}

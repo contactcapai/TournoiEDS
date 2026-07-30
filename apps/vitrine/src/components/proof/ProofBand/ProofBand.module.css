@@ -1,0 +1,66 @@
+/* Bloc « Preuve & réseau » de l'accueil (Story 4.1) — coquille de section et renvoi.
+   Transcription de `.proof` de docs/refonte-2026/maquette/index.html (l.153).
+   La tuile et la piste vivent dans `PartnerMarquee.module.css`.
+
+   Tokens-only, sans exception dans ce fichier. */
+
+.section {
+  padding: var(--section-y) 0;
+  /* `--navy` : DESIGN.md (l.171) réserve ce fond aux sections RELEVÉES du long-scroll
+     et nomme littéralement les deux qui le portent — « agenda, preuve ». C'est ce
+     contraste de fond qui détache le bloc du récit éditorial servi sur `--navy-deep`. */
+  background: var(--navy);
+}
+
+/* Renvoi « Devenir partenaire ». AJOUT délibéré vs la maquette, qui clôt la section
+   sur une note de travail (« Cases = emplacements logos, à remplacer… ») : UX-DR19
+   exige que chaque bloc renvoie à sa page dédiée. Aucune valeur canonique à
+   transcrire, donc token. */
+.more {
+  margin-top: var(--block-gap);
+}
+
+/* ═══════════════════ 🔬 CONTRASTES CALCULÉS DE CE BLOC ═══════════════════════
+   Garde-fou A de la story. La règle du projet (motion.module.css) est de mesurer les
+   combinaisons PRÉSENTES DANS LE BLOC, pas la palette entière — un premier calcul de
+   la Story 2.8 fait sur toute la palette avait sorti un plancher faux (0,985) imposé
+   par une combinaison qui n'existait dans aucune section animée.
+   ⚠️ La Story 3.2 avait dimensionné ce même garde-fou à UN texte ; la mesure en avait
+   trouvé TROIS, plus un quatrième défaut non anticipé. Lu comme un plancher, donc.
+
+   Fond effectif du premier ancêtre opaque = `--navy` (#29265b) pour tout le bloc.
+   Les deux overlays crème (5 % de fond de tuile, 12 % / 24 % de filet) ne portent
+   AUCUN texte : ils ne changent pas un rapport de contraste de texte.
+
+   HORS du bloc animé (opacité 1) — porté par SectionHead :
+     eyebrow      --gold  #dab265 sur --navy →  6,92:1  (seuil 4,5)               ✅
+     titre h2     --cream #f3efe3 sur --navy → 12,00:1  (seuil 3,0 — 40px+ gras)  ✅
+     chapô        --grey  #9293ad sur --navy →  4,60:1  (seuil 4,5, marge 0,10)   ✅
+     souligné Brush : décoratif (::after, aucun texte)                            n/a
+
+   DANS le bloc animé (opacité effective 0,75 — état `from` de motion.reveal) :
+     LinkArrow    --gold  sur --navy → plein  6,92:1 · sous fondu 4,54:1 (s. 4,5) ✅
+     bouton pause --cream sur --navy → plein 12,00:1 · sous fondu 7,43:1 (s. 4,5) ✅
+     bouton pause au survol : --gold → identique au LinkArrow                     ✅
+
+   Les overlays crème (fond de tuile 5 %, filets 12 % / 24 %) ne portent AUCUN texte :
+   ils ne peuvent pas changer un rapport de contraste de texte. Les LOGOS ne sont pas
+   du texte non plus — ce sont des marques tierces dont le contraste sur `--navy` a été
+   vérifié par composition. ⚠️ Ne leur appliquer NI filtre, NI `opacity` de repos, NI
+   `mix-blend-mode` : ce serait altérer la marque d'un tiers pour rien.
+
+   🔴 CE QUI A DÉCIDÉ DU PLACEMENT DE `motion.reveal` — CONTRE-ÉPREUVE CALCULÉE :
+   le chapô en `--grey` tomberait à 3,25:1 s'il entrait dans le bloc animé, soit un
+   ÉCHEC net (seuil 4,5). Il est donc HORS du <div>. C'est le seul montage conforme, et
+   il est identique à celui d'`EventHub` (Story 3.2). Ne pas remonter la classe sur la
+   <section>.
+
+   🔴 CE BLOC RESSERRE LE PLANCHER D'OPACITÉ DE `motion.reveal`, ET C'EST UN FAIT
+   NOUVEAU. `motion.module.css` documentait un plancher de **0,677**, imposé par l'or
+   sur `--navy-deep`. Ici l'or est sur `--navy`, plus clair : le plancher réel devient
+   **0,747** — et le fondu vaut 0,75, soit **0,003 de marge**. La valeur documentée dans
+   `motion.module.css` a donc été mise à jour dans le même commit : la laisser à 0,68
+   aurait autorisé une story future à descendre le fondu à 0,70 en croyant être sûre.
+   ⚠️ Corollaire : ne pas non plus « éclaircir » le fond de cette section (un fond plus
+   clair remonterait encore le plancher). Toute modification de l'un des deux exige de
+   rejouer le calcul. */

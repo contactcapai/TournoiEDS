@@ -1,0 +1,252 @@
+/* Bandeau de logos partenaires (Story 4.1).
+   La tuile transcrit `.logo-tile` de docs/refonte-2026/maquette/index.html (l.162) :
+   fond crème à 5 %, filet crème à 12 %, `--radius-tile`. La PISTE DÉFILANTE, elle,
+   n'a pas de source dans la maquette (qui rend 3 murs statiques étiquetés) : c'est
+   l'arbitrage de Brice du 2026-07-30 qui l'a tranchée, et l'AC de `epics.md` qui la
+   spécifie. Le MUR enveloppé, lui, est bien la maquette — c'est l'état servi.
+
+   Tokens-only. EXCEPTIONS documentées sur place : les rgba() d'overlay (aucun token ne
+   décrit un voile) et les px structurels (160, 76, 14, 10, 44). */
+
+.bandeau {
+  display: flex;
+  flex-direction: column;
+  /* Le bouton de pause au-dessus du cadre, aligné à droite : il commande le bandeau
+     sans s'imposer avant lui à la lecture. */
+  align-items: flex-end;
+  gap: 14px;
+}
+
+/* ═════════════════════════════ Le cadre (rogneur) ═════════════════════════════
+   🔴 `overflow: clip` ET JAMAIS `hidden`. `hidden` fait calculer `overflow-y: auto`,
+   ce qui transforme l'élément en CONTENEUR DE DÉFILEMENT : `view()` y résoudrait son
+   scroller et les apparitions au scroll resteraient figées, et un ancêtre sticky
+   cesserait de coller. Les deux défauts ont été MESURÉS en Story 2.8 (dette R19,
+   9 stories de header non sticky). project-context.md §6 l'interdit nommément.
+   ⚠️ Ne pas « faire taire » une porte en posant `overflow-x: auto` ici : un conteneur
+   défilable rouvrirait aussi le problème de focus clavier de l'AC5. */
+.cadre {
+  width: 100%;
+  overflow: clip;
+}
+
+/* ═══════════════════════════ Régime 1 : le MUR (défaut) ═══════════════════════
+   C'est l'état SERVI et l'état sous `prefers-reduced-motion: reduce`. Enveloppé :
+   toutes les tuiles restent visibles et atteignables, à toutes les largeurs. */
+.piste {
+  display: flex;
+  flex-wrap: wrap;
+  /* 14px : gouttière de `.logos-wall` (maquette l.161). Lue par le composant via
+     `getComputedStyle(...).columnGap` pour mesurer la largeur naturelle — elle n'est
+     donc écrite qu'ICI, jamais recopiée en JS. */
+  gap: 14px;
+  /* Centré : les tuiles plafonnent à 210px (maquette), donc 4 logos occupent 882px des
+     1108px disponibles en desktop. Aligné à gauche, le reliquat se lirait comme un
+     défaut de mise en page ; centré, il se lit comme une composition. */
+  justify-content: center;
+  /* Reset de liste : `globals.css` ne pose pas de reset de `ul` (vérifié). */
+  list-style: none;
+}
+
+/* ══════════════════════ Régime 2 : la PISTE défilante ════════════════════════
+   Appliqué par le composant APRÈS hydratation, et SEULEMENT si la largeur mesurée
+   déborde du cadre. Sans JavaScript, cette classe n'apparaît jamais. */
+.piste_defile {
+  flex-wrap: nowrap;
+  /* `max-content` : la piste prend sa largeur naturelle et déborde du cadre (qui la
+     rogne). Sans ça elle se comprimerait à 100 % du cadre et rien ne défilerait. */
+  width: max-content;
+  /* Le centrage du mur n'a pas de sens sur une piste qui déborde. */
+  justify-content: flex-start;
+}
+
+/* 🔴 SUR LA PISTE, LA TUILE EST FIGÉE À SA BASE — et ce n'est pas un reniement de la
+   tuile souple ci-dessous, c'est la seule géométrie possible ici. Dans une piste
+   `nowrap` en `max-content`, `flex-grow` n'a rien à distribuer (le conteneur épouse
+   déjà son contenu) et `flex-shrink` ne doit SURTOUT pas agir : une tuile qui se
+   comprimerait ferait rentrer la piste dans le cadre, donc supprimerait le débordement
+   qui a justifié le passage en piste — le bandeau s'arrêterait tout seul.
+   `max-width: none` retire le plafond de 100 % : sur la piste, dépasser le cadre est
+   précisément l'effet voulu. */
+.piste_defile .tuile {
+  flex: 0 0 150px;
+  max-width: none;
+}
+
+/* Le mouvement lui-même. Double emboîtement, même doctrine que motion.module.css :
+   sous `reduce`, RIEN n'est déclaré ⇒ l'état sans animation EST le rendu.
+   ⚠️ C'est une CEINTURE, pas la garde principale : le composant retire carrément le
+   régime piste sous `reduce` (sinon la piste resterait sur une ligne et plus de la
+   moitié des logos serait rognée hors du cadre — perte de contenu, AC5). Les deux
+   existent parce qu'elles couvrent des instants différents : le CSS agit au tout
+   premier rendu, le JS réagit au changement de préférence en cours de session. */
+@media (prefers-reduced-motion: no-preference) {
+  .piste_defile {
+    /* La durée est SURCHARGÉE EN INLINE par le composant, calculée depuis la largeur
+       mesurée (vitesse constante de 40 px/s). Le `20s` ici n'est qu'un défaut de
+       syntaxe du raccourci — il ne s'applique jamais en pratique. */
+    animation: eds-marquee 20s linear infinite;
+  }
+
+  /* 🔴 LA PAUSE EST RÉELLE : `animation-play-state: paused` arrête la progression et
+     la reprend là où elle s'est arrêtée. Ce n'est PAS `animation: none`, qui
+     ramènerait brutalement la piste à sa position initiale — un saut visuel qui
+     donnerait à croire que le bouton a rechargé quelque chose. */
+  .piste_pause {
+    animation-play-state: paused;
+  }
+}
+
+/* 🔬 LE DÉCALAGE EXACT, ET IL N'EST PAS DE -50 %.
+   La piste porte 2N tuiles séparées par N·2−1 gouttières :
+     largeur totale W = 2N·t + (2N−1)·g
+   Pour boucler sans couture il faut décaler d'exactement UNE copie ET la gouttière
+   qui la suit, soit N·t + N·g. Or :
+     50 % de W = N·t + (N − 0,5)·g
+   Il manque donc une DEMI-gouttière. Un `translateX(-50%)` nu ferait sauter le
+   bandeau de 7px à chaque boucle — visible, et impossible à diagnostiquer sans avoir
+   posé ce calcul. Le `7px` ci-dessous est la moitié du `gap: 14px` de `.piste` :
+   les deux valeurs sont liées, changer l'une exige de changer l'autre. */
+@keyframes eds-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 7px));
+  }
+}
+
+/* ═══════════════════════════════ La tuile ════════════════════════════════════ */
+
+/* 🔴 TUILE SOUPLE, EXACTEMENT CELLE DE LA MAQUETTE (`.logo-tile`, l.162) :
+   `flex: 1 1 150px` + `max-width: 210px`. Garde-fou H l'exige nommément et interdit
+   « une `width` commune sur les tuiles » — un logo très large et un logo carré n'ont
+   pas la même empreinte, c'est normal.
+   ⚠️ Une première version posait `flex: 0 0 160px` (largeur commune) pour simplifier la
+   mesure du composant. Écarté : le mur en desktop rendait alors 4 tuiles maigres de
+   160px dans 1108px de place, là où la maquette les fait grandir jusqu'à 210px et
+   remplir la ligne. La mesure a été rendue indépendante du régime à la place
+   (voir `mesurerLargeurNaturelle` dans le .tsx) — c'est l'instrument qui s'adapte au
+   rendu, pas le rendu qui se déforme pour l'instrument.
+
+   🔴 CE QUI PROTÈGE DU ROGNAGE SUR UN CADRE ÉTROIT, C'EST LE `1` DE `flex: 1 1 150px`
+   (le flex-shrink) — pas un `max-width` en pourcentage. Une version intermédiaire posait
+   `max-width: min(210px, 100%)` en croyant ajouter une garde : elle était REDONDANTE
+   (dans une ligne flex, un item de base 150px dans 148px de place est déjà réduit à
+   148px par `flex-shrink: 1`) et elle a coûté une mesure fausse. Retirée.
+
+   ⚠️ CETTE TUILE EST LUE PAR UN INSTRUMENT — voir `mesurerLargeurNaturelle` dans le
+   .tsx. La mesure applique `.piste_defile` le temps d'une lecture, précisément parce
+   que le `flex-shrink: 1` d'ici rend la contribution intrinsèque de la tuile égale à
+   son CONTENU (vide : le logo est en `position: absolute`) et non à sa base. Toute
+   modification du modèle de boîte de `.tuile` doit être revalidée par
+   `pnpm --filter vitrine gate:marquee`, qui mesure le régime réellement obtenu. */
+.tuile {
+  flex: 1 1 150px;
+  max-width: 210px;
+  /* 76px : hauteur de `.logo-tile` (maquette l.162). C'est la TUILE qui réserve la
+     place, donc aucun CLS (NFR2) même si l'image arrive tard. */
+  height: 76px;
+  /* Exigé par `fill` sur l'<Image> : elle se positionne sur l'ancêtre positionné. */
+  position: relative;
+  border-radius: var(--radius-tile);
+  /* Overlays crème (#f3efe3) à 5 % et 12 % — valeurs de la maquette. Aucun token ne
+     décrit un voile : tolérance posée en 1.4/1.5, reconduite en 2.1, 2.4 et 2.5. */
+  background: rgba(243, 239, 227, 0.05);
+  border: 1px solid rgba(243, 239, 227, 0.12);
+}
+
+/* 🔬 LE SEUIL DE BASCULE MUR ↔ PISTE, MESURÉ (et non choisi).
+   C'est la base de 150px qui le fixe, PAS le plafond de 210px : la largeur naturelle de
+   la piste est celle qu'auraient les tuiles sans croissance.
+   Avec 4 logos : 4×150 + 3×14 = **642px**. Place disponible = viewport − 2×`--wrap-pad` :
+
+     1920 / 1440 / 1024 px → 1108px → MUR    (statique, AUCUN bouton de pause)
+      880 px               →  828px → MUR
+      768 px               →  716px → MUR    (74px de marge — le cas le plus tendu)
+      412 px               →  360px → PISTE  (bouton de pause présent et fonctionnel)
+      320 px               →  268px → PISTE
+
+   ⚠️ Toute modification de la base, de la gouttière ou du NOMBRE de logos déplace ce
+   seuil. Avec les 11 entrées (l'état vers lequel va le projet), la piste fait 1790px et
+   déborde à TOUTES les largeurs : le bandeau défile alors partout, et c'est correct.
+   Re-mesurer avec `pnpm --filter vitrine gate:marquee`, dont le contrat est dérivé du
+   régime OBSERVÉ et non supposé d'une largeur.
+   ⚠️ Ne PAS « arranger » le desktop en dupliquant les 4 logos pour remplir la largeur :
+   un ruban qui répète les mêmes marques MENT sur la taille du réseau. */
+
+/* 🔴 CE NŒUD INTERMÉDIAIRE N'EST PAS DÉCORATIF, IL EST LA SEULE FAÇON PROPRE
+   D'INSÉRER LA RESPIRATION DE 10px DE LA MAQUETTE. Deux impasses écartées :
+   ① un `padding: 10px` sur `.tuile` ne réduirait PAS la boîte de l'image : pour un
+      élément en `position: absolute`, le bloc conteneur est la boîte de PADDING de
+      l'ancêtre positionné — `inset: 0` recouvre donc le padding, et le logo
+      toucherait le filet ;
+   ② surcharger `inset` depuis `.image` est impossible : `fill` fait poser à
+      next/image des styles EN INLINE (`position:absolute; width/height:100%;
+      left/top/right/bottom:0`), qu'aucune classe CSS ne peut battre. Il faudrait
+      passer la géométrie par la prop `style` en TSX — le projet est en CSS Modules,
+      et une valeur de mise en page dans le markup est exactement ce que ça évite.
+   Cette zone porte donc l'`inset`, et l'image la remplit. */
+.zone {
+  position: absolute;
+  /* 10px : respiration interne de `.logo-tile` (maquette l.162). */
+  inset: 10px;
+}
+
+/* 🔴 `contain`, JAMAIS `cover` : `cover` recadrerait — donc mutilerait — la marque
+   d'un tiers. Avec une hauteur portée par la tuile et `contain`, AUCUN fichier ne
+   peut être déformé, quel que soit son rapport d'aspect (garde-fou H).
+   ⚠️ `object-fit` est la SEULE propriété que cette classe a besoin de poser, et c'est
+   pour ça qu'elle marche malgré les styles inline de `fill` : next/image ne déclare
+   pas `object-fit`. Ne rien ajouter ici qui toucherait à `position`, `inset`,
+   `width` ou `height` — ce serait écrasé en silence. */
+.image {
+  object-fit: contain;
+}
+
+/* ═══════════════════════════ Le bouton de pause ══════════════════════════════
+   Rendu UNIQUEMENT dans le régime piste (le composant ne l'émet pas autrement) :
+   un bouton qui n'arrête rien est une commande morte, défaut réel attrapé par
+   `gate:carousel` en 3.3. */
+.commandes {
+  display: flex;
+}
+
+.pause {
+  /* 🔴 44×44 : convention de projet NON NÉGOCIABLE (CLAUDE.md §6). ⚠️ Aucune porte
+     automatique ne la vérifie — WCAG 2.5.8 AA n'exige que 24×24, donc Lighthouse
+     affiche 100/100 bien en dessous. Même situation que `LinkArrow` (dette R10). */
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-tile);
+  /* `--cream` sur `--navy` : 11,66:1 (calculé). Reste 8,42:1 sous l'état `from` du
+     fondu de `motion.reveal` (opacity 0,75), qui couvre ce bouton — largement AA.
+     Le filet reprend l'overlay crème à 24 % des cartes du site. */
+  color: var(--cream);
+  background: rgba(243, 239, 227, 0.05);
+  border: 1px solid rgba(243, 239, 227, 0.24);
+  cursor: pointer;
+}
+
+.pause svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pause:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* AUCUNE règle `:focus-visible` ici, et c'est délibéré : `globals.css` pose déjà
+   `:where(a, button):focus-visible { outline: 2px solid var(--gold); outline-offset: 3px }`
+   (Story 1.4) — la redéclarer en ferait une seconde source de vérité pour la même
+   valeur. Le bouton vit HORS du cadre `overflow: clip` (frère, pas enfant) : son
+   anneau n'est donc pas rogné, ce qui a été vérifié et pas supposé. */
+
+/* Aucune `transition` non plus : ce bouton n'en porte pas, il n'y a donc rien à
+   neutraliser sous `prefers-reduced-motion` — le survol change des couleurs
+   instantanément, comme les flèches du carrousel de la 3.3. */

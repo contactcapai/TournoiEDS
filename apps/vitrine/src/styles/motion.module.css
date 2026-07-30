@@ -113,7 +113,15 @@
    réellement dans une section animée** (couleur calculée + fond effectif du
    premier ancêtre opaque, seuil WCAG choisi selon taille/graisse) :
    **0,68**, imposé par l'or `--gold` sur `--navy-deep` (8,36:1 au plein).
-   `0.75` laisse une marge confortable.
+
+   🔴 CE PLANCHER A ÉTÉ RESSERRÉ À **0,747** PAR LA STORY 4.1 — NE PLUS LIRE 0,68.
+   Le bloc « Preuve & réseau » de la home est la première section animée à poser du
+   `--gold` sur `--navy` (et non `--navy-deep`) : son `LinkArrow` sort à 6,92:1 au
+   plein et **4,54:1 à 0,75**, pour un seuil de 4,5. Le fondu actuel ne laisse donc
+   plus que **0,003 de marge**, contre 0,073 avant cette story.
+   ⚠️ Conséquence pratique : `0.75` n'est PLUS « une marge confortable », c'est la
+   valeur juste au-dessus du plancher. Toute baisse — même à 0,74 — rend
+   `ProofBand` non conforme. Mesures détaillées en fin de `ProofBand.module.css`.
 
    ⚠️ NE PAS calculer ce plancher sur TOUTE la palette : un premier calcul l'avait
    fait et sortait **0,985** — imposé par `--grey` sur `--navy` (4,60:1 au plein),
@@ -126,6 +134,13 @@
    plancher sur les combinaisons **présentes dans ce bloc**. Si une section
    devait un jour porter du `--grey` sur `--navy`, ce motif redeviendrait non
    conforme sur elle.
+
+   🔬 CE CAS S'EST PRODUIT DEUX FOIS, ET IL A ÉTÉ TRAITÉ DE LA MÊME FAÇON LES DEUX
+   FOIS : `EventHub` (3.2) puis `ProofBand` (4.1) posent tous deux un chapô
+   `--grey` sur `--navy` (4,60:1 au plein, **3,25:1 sous ce fondu** — échec net).
+   La parade n'est PAS de renoncer au fondu : c'est de poser `.reveal` sur un
+   `<div>` INTÉRIEUR qui EXCLUT le `SectionHead`. Deux précédents identiques ⇒
+   c'est désormais le patron par défaut de toute section animée à fond `--navy`.
 
    Amplitude : **40px** de translation + **25 %** de fondu. Une 1ʳᵉ version à 18px
    sans fondu s'est révélée **imperceptible au gate visuel** (retour de Brice) :

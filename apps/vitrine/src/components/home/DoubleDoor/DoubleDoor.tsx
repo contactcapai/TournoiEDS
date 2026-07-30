@@ -1,15 +1,24 @@
-import { Button, Eyebrow } from "@repo/ui";
+import { Button, Eyebrow, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { NEW_TAB_SR, REJOINDRE_URL, isExternalUrl } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
 
 // Double porte joueurs / partenaires (Story 2.5) — Server Component pur : aucune
-// interactivité propre, donc aucun 'use client'. La home reste prérendue Static
-// (acquis Story 1.6). 10ᵉ et dernier bloc du long-scroll, avant le footer.
+// interactivité propre, donc aucun 'use client'. 10ᵉ et dernier bloc du long-scroll,
+// avant le footer.
+// ⚠️ La home n'est plus prérendue Static depuis la Story 3.2 (elle lit la base) : ce
+// composant, lui, ne requête rien et n'y est pour rien.
 //
-// Composé des primitives @repo/ui de la Story 1.3 (Button, Eyebrow) et du
+// Composé des primitives @repo/ui de la Story 1.3 (Button, Eyebrow, LinkArrow) et du
 // conteneur partagé Wrap (Story 2.4) : rien n'est réimplémenté ici.
+//
+// ⚠️ LA PORTE PARTENAIRES A HÉRITÉ D'UN LIEN EN STORY 4.1 : « Toutes nos animations »
+// venait du bloc `AnimationsTeaser`, que cette story a SUPPRIMÉ de la home (AC7). Motif
+// mesuré : le CTA or « Nous solliciter » de ce bloc et le CTA outline « Nous contacter »
+// ci-dessous pointaient TOUS DEUX vers /partenaires, à deux blocs d'écart, pour le même
+// public. Le lien vers /animations, lui, n'avait pas d'autre point d'entrée dans le
+// long-scroll — il ne pouvait pas disparaître avec le bloc.
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
 export function DoubleDoor() {
@@ -52,24 +61,32 @@ export function DoubleDoor() {
             l&apos;asso. Aucun niveau requis — juste l&apos;envie de partager.
           </p>
 
-          {/* Lien SORTANT (1ᵉʳ d'un bloc de contenu de la home — jusqu'ici seuls le
-              header et le footer en portaient). L'URL vient de lib/links.ts, source
-              unique : jamais en dur ici.
-              ⚠️ Pas d'icône visible de lien sortant, contrairement à ce qu'exige
-              EXPERIENCE.md l.186 : `ExternalIcon` vit dans MobileMenu (composant
-              client, non exportée) et la recopier en ferait une 2ᵉ occurrence. Le
-              texte SR, lui, est bien rendu. Dette R12 → Story 5.5, qui traitera tous
-              les CTA sortants d'un coup. */}
-          <Button
-            variant="gold"
-            href={REJOINDRE_URL}
-            {...(rejoindreExternal
-              ? { target: "_blank", rel: "noopener noreferrer" }
-              : {})}
-          >
-            Adhérer via HelloAsso
-            {rejoindreExternal && <span className="sr-only">{NEW_TAB_SR}</span>}
-          </Button>
+          {/* 🔴 CE PIED EXISTE POUR ALIGNER LES DEUX CTA, ET SON `margin-top: auto` EST
+              LA SEULE MÉTHODE ADMISE ICI. Ne PAS chercher l'égalisation par
+              `height: 100%` : `align-items: stretch` n'étire un élément de grille QUE
+              si sa taille transversale vaut `auto`, si bien que `height: 100%` PRODUIT
+              le défaut qu'on croit corriger — mesuré en Story 3.3 (hauteurs
+              [580, 557, 499, 557] au lieu d'une valeur unique). Détail en CSS. */}
+          <div className={styles.foot}>
+            {/* Lien SORTANT (1ᵉʳ d'un bloc de contenu de la home — jusqu'ici seuls le
+                header et le footer en portaient). L'URL vient de lib/links.ts, source
+                unique : jamais en dur ici.
+                ⚠️ Pas d'icône visible de lien sortant, contrairement à ce qu'exige
+                EXPERIENCE.md l.186 : `ExternalIcon` vit dans MobileMenu (composant
+                client, non exportée) et la recopier en ferait une 2ᵉ occurrence. Le
+                texte SR, lui, est bien rendu. Dette R12 → Story 5.5, qui traitera tous
+                les CTA sortants d'un coup. */}
+            <Button
+              variant="gold"
+              href={REJOINDRE_URL}
+              {...(rejoindreExternal
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
+            >
+              Adhérer via HelloAsso
+              {rejoindreExternal && <span className="sr-only">{NEW_TAB_SR}</span>}
+            </Button>
+          </div>
         </div>
 
         {/* Porte PARTENAIRES (`.door.p2` de la maquette). */}
@@ -85,18 +102,31 @@ export function DoubleDoor() {
             territoire et on monte des événements clés en main.
           </p>
 
-          {/* 1ʳᵉ consommation de `variant="outline"` du projet (livrée en Story 1.3,
-              jamais rendue). DESIGN.md §Components la désigne NOMMÉMENT comme le CTA
-              secondaire de la porte partenaires : c'est cette hiérarchie visuelle
-              (or plein vs outline) qui segmente les deux publics — ne pas la
-              « simplifier » en gold.
-              Route INTERNE : ni target, ni rel, ni mention « nouvel onglet ».
-              /partenaires est créée en Story 4.6 → 404 ATTENDU d'ici là, comme les
-              cibles du hero (2.1), des axes (2.2) et de la bande (2.4). Ne pas
-              retomber sur href="#" (scroll-to-top + annonce trompeuse). */}
-          <Button variant="outline" href="/partenaires">
-            Nous contacter
-          </Button>
+          <div className={styles.foot}>
+            {/* HÉRITÉ D'`AnimationsTeaser` (Story 4.1, AC7), dont ce lien était le seul
+                apport propre. Il reste un `LinkArrow` et non un `Button` : deux boutons
+                empilés dans la même porte mettraient deux actions en concurrence, et
+                la hiérarchie de cette carte est déjà posée (outline = secondaire).
+                AU-DESSUS du bouton, comme l'exige AC7 : /animations est une page à
+                DÉCOUVRIR, /partenaires l'action à faire — l'ordre visuel dit lequel des
+                deux est l'objectif de la carte.
+                EXPERIENCE.md (l.40) nomme littéralement ce libellé comme point d'entrée
+                de la page Animations : ne pas le reformuler. */}
+            <LinkArrow href="/animations">Toutes nos animations</LinkArrow>
+
+            {/* 1ʳᵉ consommation de `variant="outline"` du projet (livrée en Story 1.3,
+                jamais rendue). DESIGN.md §Components la désigne NOMMÉMENT comme le CTA
+                secondaire de la porte partenaires : c'est cette hiérarchie visuelle
+                (or plein vs outline) qui segmente les deux publics — ne pas la
+                « simplifier » en gold.
+                Route INTERNE : ni target, ni rel, ni mention « nouvel onglet ».
+                /partenaires est créée en Story 4.2 → 404 ATTENDU d'ici là, comme les
+                cibles du hero (2.1) et des axes (2.2). Ne pas retomber sur href="#"
+                (scroll-to-top + annonce trompeuse). */}
+            <Button variant="outline" href="/partenaires">
+              Nous contacter
+            </Button>
+          </div>
         </div>
       </Wrap>
     </section>

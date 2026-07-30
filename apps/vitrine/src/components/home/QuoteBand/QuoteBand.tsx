@@ -17,7 +17,7 @@ import styles from "./QuoteBand.module.css";
 // (losanges + capitales espacées) pour « consommer une primitive à tout prix » :
 // ce serait un contresens visuel. Et ne pas extraire de primitive pour
 // l'accroche manuscrite — c'est sa 1ʳᵉ occurrence, la 2ᵉ arrive avec la galerie
-// (Story 4.5), qui codifiera (règle « payé deux fois », METHODE.md §5).
+// (Story 4.3), qui codifiera (règle « payé deux fois », METHODE.md §5).
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
 export function QuoteBand() {

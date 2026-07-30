@@ -130,20 +130,27 @@ export function Hero({ hasUpcomingEvent }: HeroProps) {
               ) : undefined
             }
           >
-            {/* ⚠️ CÂBLAGE PROVISOIRE — ce n'est PAS l'implémentation de la Story 4.7.
+            {/* ⚠️ CÂBLAGE PROVISOIRE — ce n'est PAS l'implémentation de la Story 4.3.
                 Posé hors story, sur arbitrage de Brice (2026-07-28), pour remplacer
                 le placeholder par une image réelle en attendant. Dette R15.
 
-                Ce qui MANQUE et que la Story 4.7 doit livrer :
+                Ce qui MANQUE et que la Story 4.3 doit livrer :
                   - une photo en HAUTE DÉFINITION — celle-ci fait 922×480, et le
                     recadrage 4/3 de PhotoFrame n'en laisse que 640px utiles pour un
                     besoin d'environ 950px en retina (colonne photo ≈ 476px) ;
                   - `sizes` + l'optimisation Next (jeu de tailles responsive) ;
                   - le passage par le back-office (Epic 6), qui portera l'upload.
 
-                `unoptimized` est DÉLIBÉRÉ ici : `sharp` est absent de ce workspace,
-                et sans lui l'optimiseur d'images échoue à l'exécution — l'AVIF est
-                donc servi tel quel. À retirer en 4.7, avec sharp installé.
+                `unoptimized` est DÉLIBÉRÉ ici, mais ⚠️ **PAS pour le motif écrit
+                jusqu'à la Story 4.1** : ce commentaire affirmait que « sharp est
+                absent de ce workspace ». C'est FAUX, mesuré le 2026-07-30 —
+                `require.resolve('sharp')` depuis `apps/vitrine` répond, et AUCUN
+                `package.json` ne le déclare. Il est donc PRÉSENT et NON DÉCLARÉ,
+                hissé à la racine du monorepo par une dépendance de transit.
+                La nuance change la décision : s'appuyer dessus marcherait aujourd'hui
+                et casserait EN SILENCE au premier `pnpm install` qui bouge l'arbre.
+                ⇒ La Story 4.3, qui retirera `unoptimized`, doit D'ABORD DÉCLARER
+                `sharp` dans `apps/vitrine/package.json`.
 
                 Dimensions intrinsèques 922×480 → aspect-ratio réservé, aucun CLS.
                 Le recadrage vient de PhotoFrame (`aspect-ratio: 4/3` +
