@@ -230,6 +230,12 @@ Sur le VPS, où le tournoi tourne déjà, jouer les ordres à la main **une fois
 
 ```bash
 cd /opt/tournoi-tft/docker
+# 🔴 Charger docker/.env dans le SHELL : $POSTGRES_USER / $POSTGRES_DB ci-dessous sont
+# developpes par le shell de l'HOTE, pas par Compose. Sans cette ligne, psql recoit
+# -U "" et tente de se connecter sous l'utilisateur systeme (deploy), qui n'est pas un
+# role Postgres -> echec. (Meme prerequis qu'au § Restore DB tournoi, qui lui le disait.)
+set -a; . ./.env; set +a
+
 # Le mot de passe doit être IDENTIQUE a VITRINE_DB_PASSWORD de docker/.env
 # et a celui de DATABASE_URL dans apps/vitrine/.env.prod.
 docker exec -i tournoi-tft-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<'SQL'
@@ -368,9 +374,36 @@ bash /opt/tournoi-tft/docker/smoke-test.sh https://api-tournoi.esportdessacres.f
 
 ### Étape 1 — Pull du code
 
+> 🔴 **Piège mesuré le 2026-07-29 — lire AVANT de tirer.** Le VPS était resté à `c158e56`
+> (26 avril 2026), soit **60 commits en retard et en structure PRÉ-MONOREPO** (`backend/`,
+> `frontend/` à la racine). Le `git pull` fait apparaître `apps/` et `packages/` — mais les
+> fichiers de secrets sont **gitignorés, donc ils ne bougent pas** : `backend/.env.prod`
+> reste où il est, alors que le compose attend désormais `../apps/tournoi-api/.env.prod`.
+>
+> **Symptôme si on saute l'étape** : Compose valide les `env_file` de **tous** les services
+> au chargement du fichier → `docker compose up -d vitrine` échoue lui aussi, alors même
+> qu'il ne concerne pas le backend. Le tournoi continue de tourner (images déjà
+> construites), ce qui rend le diagnostic contre-intuitif.
+
 ```bash
 cd /opt/tournoi-tft
+
+# Filet : dump de la base du tournoi, sans sudo (l'utilisateur deploy est dans le groupe docker).
+set -a; . docker/.env; set +a
+docker exec tournoi-tft-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  | gzip > ~/pre-pull-tournoi-$(date -u +%Y%m%d-%H%M%S).sql.gz
+
+# Sauvegarder les fichiers de secrets AVANT toute manipulation
+cp docker/.env         ~/env-docker.bak
+cp backend/.env.prod   ~/env-backend.bak   # n'existe que sur un VPS pré-monorepo
+
 git pull origin main
+
+# 🔴 Relocaliser les secrets du backend vers leur nouveau chemin (monorepo)
+[ -f backend/.env.prod ] && cp backend/.env.prod apps/tournoi-api/.env.prod
+
+# Vérifier que Compose relit le fichier sans erreur AVANT de démarrer quoi que ce soit
+docker compose -f docker/docker-compose.yml config >/dev/null && echo "compose OK"
 ```
 
 ### Étape 2 — Remplir les fichiers `.env` (JAMAIS commités)
@@ -378,7 +411,21 @@ git pull origin main
 ```bash
 nano docker/.env
 # Ajouter VITRINE_DB_PASSWORD (mot de passe du role applicatif de la vitrine).
-# Generer : openssl rand -base64 32
+# 🔴 PAS `openssl rand -base64 32` pour CE secret : il finit dans le userinfo d'une
+# DSN (postgresql://vitrine:<MDP>@...), ou '+', '/' et '=' sont invalides sans
+# pourcent-encodage — et l'echec n'arriverait qu'au PREMIER APPEL BASE (connexion
+# Drizzle paresseuse), avec un message d'authentification trompeur. Generer :
+#   tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40; echo
+#
+# Ajouter AUSSI (cf. docker/.env.example) :
+#   VITRINE_HOST=preprod.esportdessacres.fr
+#   VITRINE_ROBOTS="noindex, nofollow"   <- GUILLEMETS OBLIGATOIRES
+# 🔴 docker/.env a DEUX lecteurs : Compose ET le shell (`set -a; . ./.env`). Compose
+# tolere une valeur non quotee avec des espaces, le shell NON : il lirait
+# `VITRINE_ROBOTS=noindex,` puis executerait `nofollow`. Piege paye le 2026-07-29.
+# VITRINE_HOST pilote la regle Traefik ET le build-arg NEXT_PUBLIC_SITE_URL.
+# ⚠️ Ne PAS mettre esportdessacres.fr d'emblee : l'apex sert le site Hostinger
+# actuel de l'asso (cf. Etape 3).
 
 # Secrets vitrine
 cp apps/vitrine/.env.prod.example apps/vitrine/.env.prod
@@ -400,15 +447,36 @@ procédure complète au §« Créer la base `vitrine` sur un volume DÉJÀ initi
 mais toute requête base échouera — et la connexion Drizzle étant **paresseuse**, l'erreur
 n'apparaîtra qu'au premier appel réel, pas au démarrage du conteneur.
 
-### Étape 3 — DNS `esportdessacres.fr`
+### Étape 3 — DNS
 
-Dans le panel Hostinger DNS, créer (ou vérifier) l'enregistrement :
+> 🔴 **Corrigé le 2026-07-29 — la version précédente de cette étape se trompait de
+> prémisse.** Elle disait « créer (ou vérifier) l'enregistrement A `esportdessacres.fr` »,
+> comme si l'apex était vierge. **Il ne l'est pas** : mesuré le 2026-07-29, il sert le site
+> public de l'association (`Server: hcdn`, `X-Powered-By: HostingerWebsiteBuilder`, 200,
+> 385 Ko, `<title>` « Le club d'esport Reims | Esport des Sacres »). Y pointer le VPS est
+> une **bascule de site public**, pas une mise en service.
+>
+> De plus, à la date de rédaction, le site à basculer laisse **`/agenda` (Epic 3) et
+> `/partenaires` (Story 4.6) en 404** — dont le CTA doré du hero et la moitié droite de la
+> double porte, soit les deux appels à l'action principaux de l'accueil.
+
+**Préproduction (défaut).** Créer dans le panel Hostinger DNS :
 ```
-A  esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
+A  preprod.esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
 ```
-Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt rate limit) :
+
+**Bascule en production**, une fois `/agenda` et `/partenaires` livrées : repointer l'apex
+sur `<IP_VPS>`, passer `VITRINE_HOST=esportdessacres.fr` + `VITRINE_ROBOTS=` (vide) dans
+`docker/.env`, puis `docker compose build vitrine && docker compose up -d vitrine`.
+⚠️ **Traiter `www` dans le même geste** : `www.esportdessacres.fr` est un CNAME vers le CDN
+Hostinger et servirait sinon l'**ancien** site à côté du nouveau. Le routeur Traefik ne
+déclare qu'un seul hôte — ajouter `www` à la règle + une redirection 301 vers l'apex.
+*Atout : le TTL de l'apex est à 17 s → bascule et rollback quasi instantanés.*
+
+Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt brûle une tentative sur le
+rate limit prod, 5 / 7 jours) :
 ```bash
-dig +short esportdessacres.fr
+dig +short preprod.esportdessacres.fr
 # Attendu : <IP_VPS>
 ```
 
