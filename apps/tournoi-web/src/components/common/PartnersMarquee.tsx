@@ -28,7 +28,12 @@ const modules = import.meta.glob('../../assets/partners/*.{png,jpg,jpeg,webp,svg
  */
 const NOMS_PAR_FICHIER: Record<string, string> = {
   'logo clavicule (1).webp': 'Shop for Geek Reims',
-  'Fichier 3.webp': 'LDLC Reims Cormontreuil',
+  // ⚠️ « LDLC Cormontreuil » et NON « LDLC Reims Cormontreuil », qui est ce que le
+  // logo affiche. Quatre sources du projet écrivent la première forme (la maquette,
+  // `positionnement-refonte-site-v2.md` §5, le brief de refonte, et l'AC de la story) ;
+  // c'est aussi le nom stocké en base par la vitrine. Deux surfaces publiques qui
+  // nomment différemment le même partenaire, c'est une incohérence visible.
+  'Fichier 3.webp': 'LDLC Cormontreuil',
   'logotype-orange.webp': 'Forgeblast',
   'LOGO-V3-BLANC (1).webp': "L'Antre de Reims",
 };

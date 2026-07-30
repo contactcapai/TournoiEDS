@@ -92,17 +92,29 @@ if (!databaseUrl) {
  * montage délibéré.
  */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"]);
-const targetHost = (() => {
+// ⚠️ On distingue « URL illisible » de « hôte vide mais URL parfaitement parsée » — les
+// deux menaient au même message « hôte illisible », ce qui était TROMPEUR : une chaîne de
+// connexion par socket Unix (`postgresql:///base?host=/var/run/postgresql`) se parse très
+// bien et donne un `hostname` VIDE. Le refus reste le bon comportement (par défaut, un
+// hôte non reconnu est traité comme distant), mais le diagnostic doit dire la vérité —
+// sinon on cherche une faute de frappe dans une URL qui n'en a pas. Relevé à la revue.
+const cible = (() => {
   try {
-    return new URL(databaseUrl).hostname;
+    return { hote: new URL(databaseUrl).hostname, lisible: true };
   } catch {
-    return "";
+    return { hote: "", lisible: false };
   }
 })();
+const targetHost = cible.hote;
+const descriptionCible = !cible.lisible
+  ? "URL illisible"
+  : targetHost === ""
+    ? "hôte vide (socket Unix ?)"
+    : targetHost;
 
 if (!LOCAL_HOSTS.has(targetHost) && process.env.SEED_ALLOW_REMOTE !== "1") {
   console.error(
-    `db:seed REFUSÉ : DATABASE_URL pointe vers « ${targetHost || "hôte illisible"} », qui n'est pas local.\n` +
+    `db:seed REFUSÉ : DATABASE_URL pointe vers « ${descriptionCible} », qui n'est pas local.\n` +
       "Ces données sont fictives mais plausibles — semées ailleurs qu'en développement, elles\n" +
       "passeraient pour de vraies annonces publiées.\n" +
       "Postgres de dev : docker compose -f docker/docker-compose.dev.yml up -d\n" +

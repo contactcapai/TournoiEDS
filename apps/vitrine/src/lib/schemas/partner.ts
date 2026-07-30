@@ -31,9 +31,39 @@ export const PARTNER_CATEGORIES = ["sponsor", "partenaire", "soutien", "particip
 
 const trimmedText = z.string().trim();
 
+/**
+ * 🔴 CARACTÈRES SANS LARGEUR — `.trim()` NE LES ENLÈVE PAS, ET C'EST UN TROU RÉEL.
+ *
+ * `String.prototype.trim()` ne retire que les espaces au sens Unicode (`Zs`, plus
+ * quelques contrôles). Une chaîne faite d'un seul U+200B (espace de largeur nulle)
+ * survit donc au trim avec `length === 1` : elle est traitée comme RENSEIGNÉE alors
+ * qu'elle est invisible. Mesuré à la revue — `logo = "<U+200B>"` était accepté et
+ * ressortait non-null.
+ *
+ * Conséquence concrète, et elle n'est pas théorique : `queries/partners.ts` filtre sur
+ * `logo IS NOT NULL`, donc une telle entrée entrait dans le bandeau de la home et rendait
+ * un `<img src="<U+200B>">` — une requête vers la page courante à la place d'un logo.
+ * C'est exactement le défaut que le commentaire de `schema.ts` dit vouloir empêcher.
+ * Ces caractères arrivent par copier-coller depuis une page web ou un traitement de
+ * texte : le cas est banal dès que la Story 6.5 fera saisir par des bénévoles.
+ *
+ * ⚠️ ON NE LES RETIRE PAS DE LA VALEUR STOCKÉE, on s'en sert seulement pour décider si
+ * elle est VIDE. ZWJ et ZWNJ (U+200C/U+200D) sont porteurs de sens dans plusieurs
+ * écritures et dans les séquences d'emoji : les supprimer d'un nom légitime le
+ * corromprait. La garde reste donc minimale — elle ne rejette que ce qui n'a AUCUN
+ * caractère visible.
+ */
+// Échappements explicites, jamais les caractères eux-mêmes : ils sont INVISIBLES dans
+// un éditeur, donc une classe écrite en littéral serait impossible à relire ou à
+// modifier sans risque. U+00AD trait d'union conditionnel · U+200B→U+200F espaces de
+// largeur nulle et marques de direction · U+2060→U+2064 jointures invisibles ·
+// U+FEFF BOM (déjà retiré par `.trim()`, listé pour que la classe soit complète).
+const SANS_LARGEUR = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
+const visiblementVide = (value: string) => value.replace(SANS_LARGEUR, "").length === 0;
+
 /** Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`. */
 const optionalText = trimmedText
-  .transform((value) => (value.length === 0 ? null : value))
+  .transform((value) => (visiblementVide(value) ? null : value))
   .nullable()
   .default(null);
 
@@ -56,7 +86,7 @@ const HTTP_URL_MESSAGE =
   "visiteur sur une page inexistante du site de l'asso.";
 
 const optionalHttpUrl = trimmedText
-  .transform((value) => (value.length === 0 ? null : value))
+  .transform((value) => (visiblementVide(value) ? null : value))
   .nullable()
   .default(null)
   .refine(
@@ -65,7 +95,24 @@ const optionalHttpUrl = trimmedText
       const parsed = z.url().safeParse(value);
       if (!parsed.success) return false;
       // `z.url()` a validé la forme ; on restreint ici le SCHÉMA.
-      return /^https?:$/i.test(new URL(value).protocol);
+      if (!/^https?:$/i.test(new URL(value).protocol)) return false;
+      // 🔴 ON EXIGE EN PLUS LA FORME LITTÉRALE QUE `isExternalUrl()` SAIT RECONNAÎTRE,
+      // et ce n'est pas une redondance — c'est la seule façon que la promesse de ce
+      // schéma soit TENUE. Trouvé à la revue : `new URL()` NORMALISE, alors que la
+      // valeur stockée est la chaîne BRUTE, et que `links.ts` la teste avec
+      // `/^https?:\/\//` — sans le drapeau `i`, et en exigeant le double slash.
+      // Trois valeurs passaient donc le schéma puis étaient classées INTERNES :
+      //   « HTTPS://exemple.fr »  (casse)
+      //   « https:exemple.fr »    (pas de slash)
+      //   « https:/exemple.fr »   (un seul slash)
+      // Le navigateur, lui, y navigue bien comme à une URL absolue. Résultat : ni
+      // `target="_blank"`, ni l'annonce « nouvel onglet » — soit exactement la garde
+      // d'accessibilité que ce schéma existe pour rendre possible. Le cas n'est pas
+      // atteignable aujourd'hui (`link` vaut `null` pour les 11), il le devient dès
+      // que la Story 6.5 écrira dans cette colonne AVEC CE MÊME SCHÉMA.
+      // ⚠️ Ne pas « simplifier » en retirant ce test : les deux conditions couvrent des
+      // choses différentes, et c'est la seconde qui lie ce fichier à `links.ts`.
+      return /^https?:\/\//.test(value);
     },
     { message: HTTP_URL_MESSAGE },
   );
@@ -80,13 +127,38 @@ const optionalHttpUrl = trimmedText
  * rendrait un `<img src="">` (requête vers la page courante) au lieu d'omettre la tuile.
  */
 export const partnerInputSchema = z.object({
-  name: trimmedText.min(2, "Le nom doit faire au moins 2 caractères.").max(120),
+  /**
+   * ⚠️ `.min(2)` COMPTE DES UNITÉS DE CODE, PAS DES CARACTÈRES VISIBLES. Un nom fait de
+   * deux U+200B mesure 2 et passait donc la borne — alors qu'il sert d'`alt` au logo
+   * dans le bandeau, c'est-à-dire du seul texte qu'un lecteur d'écran restituera.
+   * Le `refine` ci-dessous rétablit le sens de la règle. Trouvé à la revue.
+   */
+  name: trimmedText
+    .min(2, "Le nom doit faire au moins 2 caractères.")
+    .max(120)
+    .refine((value) => !visiblementVide(value), {
+      message: "Le nom ne peut pas être composé uniquement de caractères invisibles.",
+    }),
   category: z.enum(PARTNER_CATEGORIES),
   /** `null` = pas de logo ⇒ absent du bandeau de la home, documenté sur /partenaires. */
   logo: optionalText,
   description: optionalText,
   link: optionalHttpUrl,
-  sortOrder: z.number().int().default(0),
+  /**
+   * 🔴 BORNÉ À LA PLAGE DE `integer` POSTGRES (int4), et ce n'est pas de la préciosité :
+   * `z.number().int()` accepte 5 000 000 000, que la colonne `integer` refuse. Sans ces
+   * bornes, la valeur traversait la validation puis faisait remonter une erreur BRUTE du
+   * driver (« value out of range for type integer ») — au bénévole du back-office, dans
+   * un formulaire dont tout le reste soigne ses messages. Trouvé à la revue.
+   * Pas de `.min(0)` : un `sortOrder` négatif est un moyen légitime d'épingler une entrée
+   * en tête sans renuméroter les autres.
+   */
+  sortOrder: z
+    .number()
+    .int()
+    .min(-2147483648, "Ordre d'affichage hors limites.")
+    .max(2147483647, "Ordre d'affichage hors limites.")
+    .default(0),
   /** Défaut `false` : rien n'est public par accident (patron `event`). */
   isPublished: z.boolean().default(false),
 });

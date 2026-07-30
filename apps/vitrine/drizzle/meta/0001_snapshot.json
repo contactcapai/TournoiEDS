@@ -1,5 +1,5 @@
 {
-  "id": "4bafa8d1-282c-4465-b98e-b90db6de1804",
+  "id": "513c0de3-1e59-4a24-bb9d-1c627213fa01",
   "prevId": "b1b09ccb-4530-4226-92fa-98767405634c",
   "version": "7",
   "dialect": "postgresql",
@@ -305,7 +305,20 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "partner_name_not_blank": {
+          "name": "partner_name_not_blank",
+          "value": "length(btrim(\"partner\".\"name\")) > 0"
+        },
+        "partner_logo_not_blank": {
+          "name": "partner_logo_not_blank",
+          "value": "\"partner\".\"logo\" is null or length(btrim(\"partner\".\"logo\")) > 0"
+        },
+        "partner_link_not_blank": {
+          "name": "partner_link_not_blank",
+          "value": "\"partner\".\"link\" is null or length(btrim(\"partner\".\"link\")) > 0"
+        }
+      },
       "isRLSEnabled": false
     }
   },

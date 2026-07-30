@@ -31,11 +31,16 @@ import { db } from "../client";
  *     ⚠️ Un `ORDER BY` sur une colonne d'enum trie par ORDRE DE DÉCLARATION, pas
  *     alphabétiquement : réordonner ce tableau réordonnerait le bandeau.
  *   - `sort_order` ensuite — le classement manuel que la Story 6.5 exposera (FR22) ;
- *   - `name` en dernier, et ce n'est pas décoratif : sans lui, deux entrées de même
+ *   - `name` ensuite, et ce n'est pas décoratif : sans lui, deux entrées de même
  *     catégorie et même `sort_order` (cas nominal après un back-office qui laisse le
  *     défaut `0`) sortiraient dans un ordre que Postgres ne garantit PAS. Le bandeau
  *     changerait d'ordre entre deux requêtes, sur une page dynamique — un scintillement
- *     qu'on ne saurait pas reproduire.
+ *     qu'on ne saurait pas reproduire ;
+ *   - `id` en dernier, pour que l'ordre soit TOTAL. Relevé à la revue : le raisonnement
+ *     qui a fait ajouter `name` vaut un cran plus loin — deux entrées de même catégorie,
+ *     même `sort_order` ET même `name` (un doublon de saisie, que rien n'interdit)
+ *     laissaient l'ordre indéterminé. Un tri qui départage tout est déterministe ou ne
+ *     l'est pas ; il n'y a pas de « suffisamment déterministe ».
  *
  * `is_published` puis `category` puis `sort_order` : c'est exactement l'ordre de l'index
  * `partner_published_category_order_idx` posé par la Story 4.1 pour cette requête.
@@ -49,7 +54,12 @@ export async function getPartnersWithLogo() {
   return db.query.partner.findMany({
     columns: { id: true, name: true, logo: true },
     where: (table, { and, eq }) => and(eq(table.isPublished, true), isNotNull(table.logo)),
-    orderBy: (table, { asc }) => [asc(table.category), asc(table.sortOrder), asc(table.name)],
+    orderBy: (table, { asc }) => [
+      asc(table.category),
+      asc(table.sortOrder),
+      asc(table.name),
+      asc(table.id),
+    ],
   });
 }
 

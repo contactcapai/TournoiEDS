@@ -201,6 +201,38 @@ export const partner = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    /**
+     * 🔴 GARDES AU NIVEAU DES DONNÉES — MÊME DOCTRINE QUE `event_has_venue` (Story 3.1),
+     * et c'est la revue qui a relevé qu'elle n'avait pas été appliquée ici.
+     *
+     * Le principe est écrit noir sur blanc dans `lib/schemas/event.ts` : « la base est le
+     * garde-fou qu'on ne peut pas contourner ; le schéma Zod est celui qui donne un
+     * message utilisable à un bénévole ». Le commentaire de `logo` ci-dessus DÉCRIVAIT
+     * déjà le défaut à empêcher (« jamais la chaîne vide, qui rendrait un `<img src="">` »)
+     * — mais rien ne l'empêchait au niveau de la table.
+     *
+     * 🔬 Le défaut est concret et il ne passe par aucun formulaire :
+     *   `UPDATE partner SET logo = '' WHERE …`
+     * est accepté par Postgres ; `'' IS NOT NULL` est VRAI en SQL, donc la ligne remonte
+     * dans `getPartnersWithLogo()` et le bandeau de la home rend un `<img src="">` —
+     * c'est-à-dire une requête vers la page courante à la place d'un logo. Zod ne protège
+     * rien ici : il n'est pas appelé par un `UPDATE` direct, par une restauration de
+     * sauvegarde, ni par une migration de données.
+     *
+     * ⚠️ `btrim` ne retire que les blancs ASCII : ces contraintes attrapent `''` et
+     * `'   '`, pas un caractère de largeur nulle. C'est voulu et c'est le bon partage —
+     * le cas subtil est traité par `visiblementVide()` côté Zod, au point de saisie, avec
+     * un message humain ; la base tient le plancher qu'on ne peut pas contourner.
+     */
+    check("partner_name_not_blank", sql`length(btrim(${table.name})) > 0`),
+    check(
+      "partner_logo_not_blank",
+      sql`${table.logo} is null or length(btrim(${table.logo})) > 0`,
+    ),
+    check(
+      "partner_link_not_blank",
+      sql`${table.link} is null or length(btrim(${table.link})) > 0`,
+    ),
     // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : elle filtre sur `is_published`,
     // puis ordonne par `category`, puis par `sort_order` (`queries/partners.ts`).
     // ⚠️ `logo IS NOT NULL`, second terme du filtre, n'est PAS dans l'index : un index
