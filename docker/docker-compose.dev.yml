@@ -1,0 +1,62 @@
+# docker-compose.dev.yml — Postgres de DEVELOPPEMENT pour la vitrine (Story 3.1)
+#
+# USAGE — depuis le dossier docker/ :
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down          # garde les donnees
+#   docker compose -f docker-compose.dev.yml down -v       # remet a zero
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 🔴 POURQUOI UN FICHIER SEPARE, ET SURTOUT PAS UN PROFIL DANS docker-compose.yml
+# docker-compose.yml est le compose de PRODUCTION : il monte Traefik, demande des
+# certificats Let's Encrypt et construit les images des apps. Un `up` local dessus
+# aurait des effets hors du poste. Ici : Postgres seul, rien d'autre.
+#
+# 🔴 VOLUME DEDIE, JAMAIS tournoi-pg-data
+# Le volume de production porte la base du tournoi ET la base vitrine (revision
+# d'architecture du 2026-07-29 : un moteur, deux bases). Le detruire serait une perte
+# de donnees. Ce compose a son propre volume : `docker compose down -v` ici ne peut
+# atteindre que les donnees de developpement.
+#
+# 🔴 PORT HOTE 5434
+# `drizzle-kit` tourne sur l'hote (Windows), pas dans le reseau Docker : le port DOIT
+# etre publie. 5432, 5433 et 5442 sont deja pris par d'autres projets du poste, et le
+# conteneur `tournoi-pg` (Postgres 16 de l'app tournoi) n'publie rien du tout.
+#
+# Version majeure 17 : la MEME que le compose de production. Developper sur une majeure
+# differente reviendrait a valider les migrations sur un autre moteur que la cible.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres-dev:
+    image: postgres:17-alpine
+    container_name: vitrine-pg-dev
+    restart: unless-stopped
+    environment:
+      # En developpement, le role applicatif EST le superutilisateur de ce conteneur
+      # jetable : le cloisonnement de roles se joue en production (initdb/01-vitrine.sh),
+      # ou il protege la base du tournoi. Ici il n'y a pas de base du tournoi a proteger.
+      POSTGRES_DB: vitrine
+      POSTGRES_USER: vitrine
+      POSTGRES_PASSWORD: vitrine
+      # Fuseau du conteneur volontairement UTC : c'est celui de la production, et c'est
+      # ce qui rend visible en local tout calcul de date qui aurait oublie son fuseau
+      # (piege `00 reference/pieges/date-tz.md`, couche B).
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      # 🔴 LIE A 127.0.0.1, ET PAS SEULEMENT "5434:5432". Sans l'adresse d'hote, Docker
+      # publie sur 0.0.0.0 : n'importe quelle machine du meme reseau (wifi partage,
+      # coworking) pourrait se connecter a cette base avec des identifiants triviaux.
+      # Releve en revue de la Story 3.1.
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - vitrine-pg-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vitrine -d vitrine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  vitrine-pg-dev-data:
