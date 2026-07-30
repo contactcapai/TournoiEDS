@@ -62,6 +62,17 @@ function parisOffsetMs(instant: Date): number {
  * 🔴 DEUX PASSAGES, ET C'EST NÉCESSAIRE. Le premier calcule l'offset sur un instant faux
  * d'une à deux heures ; le second le recalcule sur le résultat. Sans ce second tour, les
  * deux jours de bascule (fin mars, fin octobre) tombent une heure à côté.
+ *
+ * ⚠️ LES DEUX JOURS DE BASCULE ONT CHACUN UNE HEURE PATHOLOGIQUE, et le comportement de
+ * cette fonction y est déterministe mais arbitraire — mesuré à la revue de la Story 3.1 :
+ *   - **fin mars, 02h00 → 02h59 n'existent pas** (l'horloge saute de 02h00 à 03h00).
+ *     `parisWallClock(2026, 3, 29, 2, 30)` rend un instant qui se relit **03h30**. Aucune
+ *     erreur n'est levée : la valeur est décalée en avant, en silence.
+ *   - **fin octobre, 02h00 → 02h59 existent deux fois.** La fonction retient toujours la
+ *     **seconde** occurrence (heure d'hiver, UTC+1).
+ * Sans conséquence pour l'agenda tel qu'il est semé (19h00, 10h00). À reprendre quand un
+ * bénévole saisira une heure libre — **Story 6.3**, où la parade appartient au formulaire :
+ * avertir plutôt que corriger dans le dos de l'utilisateur.
  */
 export function parisWallClock(
   year: number,
@@ -85,6 +96,14 @@ export function parisParts(instant: Date): {
   /** Jour de la semaine ISO : lundi = 1 … dimanche = 7. */
   isoWeekday: number;
 } {
+  // `Intl` lèverait un `RangeError: Invalid time value` peu parlant, à l'endroit du
+  // formatage plutôt qu'à celui de la donnée fautive. Les stories 3.2/3.3 appelleront
+  // cette fonction sur des `starts_at` venant de la base : une ligne corrompue par une
+  // écriture SQL directe doit se diagnostiquer, pas faire tomber un rendu.
+  if (Number.isNaN(instant.getTime())) {
+    throw new TypeError("parisParts a reçu une date invalide (NaN).");
+  }
+
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: PARIS_TZ,
     year: "numeric",

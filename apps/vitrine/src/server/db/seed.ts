@@ -8,12 +8,17 @@
  *
  * Trois propriétés voulues, et chacune est une garde :
  *
- * 1. 🔴 IDEMPOTENT — identifiants fixes + `onConflictDoNothing`. Deux exécutions donnent
- *    le même état. Un seed qui empile des doublons rendrait inexploitable toute mesure
- *    faite ensuite sur la base.
- * 2. 🔴 RELATIF À MAINTENANT — dates calculées depuis `new Date()` via `nextThursdays()`.
- *    Un seed à dates figées se périme : « les 4 prochains jeudis » seraient tous passés
- *    dans un mois, et le hub afficherait son état vide alors qu'on croit avoir des données.
+ * 1. 🔴 IDEMPOTENT — identifiants fixes et **upsert**. Deux exécutions donnent le même
+ *    état, sans doublon. Un seed qui empile des doublons rendrait inexploitable toute
+ *    mesure faite ensuite sur la base.
+ * 2. 🔴 RELATIF À MAINTENANT, ET RAFRAÎCHISSANT — dates recalculées depuis `new Date()` à
+ *    chaque exécution, puis **écrites** par `onConflictDoUpdate`.
+ *    ⚠️ Un `onConflictDoNothing` aurait rendu ce script INERTE dès la seconde exécution :
+ *    les dates seraient restées figées au premier seed, et « les 4 prochains jeudis »
+ *    seraient tous passés au bout d'un mois — le hub se remettrait à afficher son état
+ *    vide sur la base de développement dont on se sert tous les jours, en donnant à
+ *    croire que le rendu est cassé. Défaut relevé DEUX FOIS en revue (Story 3.1) : être
+ *    idempotent ne veut pas dire ne rien faire, mais converger vers le même état.
  * 3. 🔴 INOFFENSIF EN PRODUCTION — refus si `NODE_ENV === 'production'`. Ces bars et ces
  *    dates sont plausibles, donc dangereux : semés en production ils passeraient pour de
  *    vraies annonces.
@@ -31,20 +36,16 @@
  */
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { gt } from "drizzle-orm";
+import { gt, sql } from "drizzle-orm";
 import postgres from "postgres";
 
 import { PARIS_TZ, parisParts, parisWallClock, nextThursdays } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
+import * as schema from "./schema";
 import { bar, event, type NewBar, type NewEvent } from "./schema";
 
 // Comme `drizzle.config.ts` : un script hors Next ne charge pas `.env.local` tout seul.
 config({ path: ".env.local" });
-
-if (process.env.NODE_ENV === "production") {
-  console.error("db:seed refuse de tourner avec NODE_ENV=production : ces données sont fictives.");
-  process.exit(1);
-}
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -52,6 +53,49 @@ if (!databaseUrl) {
     "DATABASE_URL manquante : renseigner apps/vitrine/.env.local (voir .env.example).\n" +
       "Postgres de dev : docker compose -f docker/docker-compose.dev.yml up -d",
   );
+  process.exit(1);
+}
+
+/**
+ * 🔴 LA GARDE PORTE SUR LA CIBLE, PAS SUR L'ENVIRONNEMENT DÉCLARÉ.
+ *
+ * Un `NODE_ENV === 'production'` seul serait un garde-fou en trompe-l'œil : `NODE_ENV`
+ * n'est **pas** défini quand on lance un script pnpm à la main, y compris sur le VPS.
+ * Quelqu'un qui débogue en production avec un `.env` pointant la vraie base publierait
+ * six annonces fictives dans l'agenda réel sans jamais croiser l'avertissement.
+ *
+ * On vérifie donc un fait observable — **où** on est en train d'écrire — et on n'autorise
+ * que les hôtes locaux. Refus par défaut : un hôte inconnu est traité comme distant.
+ * Contournement possible et volontairement bruyant : `SEED_ALLOW_REMOTE=1`.
+ *
+ * Limite assumée : un tunnel SSH présente la production sur `localhost`. Cette garde
+ * couvre le cas réaliste (chaîne de production, exécution sur le serveur), pas un
+ * montage délibéré.
+ */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"]);
+const targetHost = (() => {
+  try {
+    return new URL(databaseUrl).hostname;
+  } catch {
+    return "";
+  }
+})();
+
+if (!LOCAL_HOSTS.has(targetHost) && process.env.SEED_ALLOW_REMOTE !== "1") {
+  console.error(
+    `db:seed REFUSÉ : DATABASE_URL pointe vers « ${targetHost || "hôte illisible"} », qui n'est pas local.\n` +
+      "Ces données sont fictives mais plausibles — semées ailleurs qu'en développement, elles\n" +
+      "passeraient pour de vraies annonces publiées.\n" +
+      "Postgres de dev : docker compose -f docker/docker-compose.dev.yml up -d\n" +
+      "Si c'est réellement voulu : SEED_ALLOW_REMOTE=1 pnpm --filter vitrine db:seed",
+  );
+  process.exit(1);
+}
+
+// Défense en profondeur : si l'environnement se déclare production, on s'arrête même sur
+// un hôte local.
+if (process.env.NODE_ENV === "production") {
+  console.error("db:seed refuse de tourner avec NODE_ENV=production : ces données sont fictives.");
   process.exit(1);
 }
 
@@ -156,8 +200,9 @@ function validatedEvent({ id, ...input }: Omit<NewEvent, "id"> & { id: string })
 async function main() {
   const client = postgres(databaseUrl!, { prepare: false, max: 1 });
   // MÊME `casing` que `client.ts` et `drizzle.config.ts`, sinon ce script écrirait dans
-  // des colonnes qui n'existent pas.
-  const db = drizzle(client, { casing: "snake_case" });
+  // des colonnes qui n'existent pas. `schema` est passé pour que `db.query.*` — utilisé
+  // plus bas pour relire ce qui a réellement été écrit — soit disponible.
+  const db = drizzle(client, { schema, casing: "snake_case" });
 
   try {
     const now = new Date();
@@ -210,25 +255,67 @@ async function main() {
       }),
     ];
 
-    await db.insert(bar).values(barRows).onConflictDoNothing();
-    await db.insert(event).values(eventRows).onConflictDoNothing();
+    // Upsert : sur conflit d'identifiant, on RÉÉCRIT les champs que ce script possède.
+    // `created_at` est délibérément absent des colonnes mises à jour (il date la première
+    // insertion) ; `updated_at` est repositionné pour que la trace reflète la réécriture.
+    await db
+      .insert(bar)
+      .values(barRows)
+      .onConflictDoUpdate({
+        target: bar.id,
+        set: {
+          name: sql`excluded.name`,
+          address: sql`excluded.address`,
+          district: sql`excluded.district`,
+          city: sql`excluded.city`,
+          updatedAt: new Date(),
+        },
+      });
 
-    // On compte APRÈS, DEPUIS la base : le nombre de lignes envoyées ne prouve rien sur ce
-    // qui a été écrit (leçon 2.10 — valider l'instrument, puis mesurer l'effet).
+    await db
+      .insert(event)
+      .values(eventRows)
+      .onConflictDoUpdate({
+        target: event.id,
+        set: {
+          type: sql`excluded.type`,
+          title: sql`excluded.title`,
+          barId: sql`excluded.bar_id`,
+          venueName: sql`excluded.venue_name`,
+          venueAddress: sql`excluded.venue_address`,
+          startsAt: sql`excluded.starts_at`,
+          games: sql`excluded.games`,
+          description: sql`excluded.description`,
+          recap: sql`excluded.recap`,
+          isPublished: sql`excluded.is_published`,
+          updatedAt: new Date(),
+        },
+      });
+
+    // 🔴 ON RELIT LA BASE POUR RENDRE COMPTE, on n'affiche pas ce qu'on croit avoir écrit.
+    // Réafficher `eventRows` (les valeurs en mémoire) donnerait à voir des dates fraîches
+    // même si rien n'avait été persisté — un faux témoin, exactement le motif de
+    // `00 référence/pieges/faux-succes.md`.
+    const stored = await db.query.event.findMany({
+      with: { bar: true },
+      orderBy: (table, { asc }) => asc(table.startsAt),
+    });
+
     const counts = {
       bars: await db.$count(bar),
       events: await db.$count(event),
       upcoming: await db.$count(event, gt(event.startsAt, now)),
     };
 
-    console.log("Seed agenda terminé (idempotent) :", counts);
-    for (const row of eventRows) {
-      const when = row.startsAt!.toLocaleString("fr-FR", {
+    console.log("Seed agenda terminé (idempotent, dates rafraîchies) :", counts);
+    for (const row of stored) {
+      const when = row.startsAt.toLocaleString("fr-FR", {
         timeZone: PARIS_TZ,
         dateStyle: "full",
         timeStyle: "short",
       });
-      console.log(`  ${when}  ${row.title}`);
+      const where = row.bar?.name ?? row.venueName ?? "?";
+      console.log(`  ${when}  ${row.title}  [${where}]`);
     }
   } finally {
     await client.end();

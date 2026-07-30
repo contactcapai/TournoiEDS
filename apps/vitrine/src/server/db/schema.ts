@@ -22,11 +22,17 @@
 import { relations, sql } from "drizzle-orm";
 import { boolean, check, index, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+import { EVENT_TYPES } from "../../lib/schemas/event";
+
 /**
  * Nature d'un événement. Identifiants techniques en anglais, comme les tables ; les
  * libellés publics (« Hebdo », « Temps fort ») sont du RENDU et vivent dans la 3.2.
+ *
+ * Les valeurs viennent de `src/lib/schemas/event.ts` : **une seule liste**, pas deux
+ * reliées par un commentaire. Le sens de l'import est celui-là parce que le module Zod
+ * est bundlé côté client en Epic 6 — l'inverse y ferait entrer tout Drizzle.
  */
-export const eventType = pgEnum("event_type", ["thursday", "special"]);
+export const eventType = pgEnum("event_type", EVENT_TYPES);
 
 /**
  * Bar rémois accueillant le roulement des jeudis (FR2 : quatre bars, un jeudi par mois
@@ -58,6 +64,12 @@ export const bar = pgTable("bar", {
  * in Reims, un meetup. La contrainte `event_has_venue` interdit qu'il n'y en ait aucun :
  * le rendu public ne doit jamais pouvoir afficher un événement dont on ne sait pas dire
  * où il est (NFR8, garde-fou AU NIVEAU DES DONNÉES et pas seulement du formulaire).
+ *
+ * ⚠️ Elle teste la LONGUEUR du lieu libre, pas seulement sa présence : `'' IS NOT NULL`
+ * est vrai en SQL, si bien qu'un `venue_name` vide aurait satisfait une contrainte
+ * naïve. Zod ramène déjà `''` à `null`, mais une écriture qui le contournerait (SQL
+ * direct, migration de données, script futur) aurait produit un événement au lieu
+ * visuellement vide sans que rien ne le bloque. C'était le cas — corrigé à la revue.
  */
 export const event = pgTable(
   "event",
@@ -99,7 +111,10 @@ export const event = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    check("event_has_venue", sql`${table.barId} is not null or ${table.venueName} is not null`),
+    check(
+      "event_has_venue",
+      sql`${table.barId} is not null or length(btrim(${table.venueName})) > 0`,
+    ),
     // Sert la requête « prochaine date à venir » de la 3.2 et les listes de la 3.3 :
     // toutes filtrent sur `is_published` puis ordonnent par `starts_at`.
     index("event_published_starts_at_idx").on(table.isPublished, table.startsAt),

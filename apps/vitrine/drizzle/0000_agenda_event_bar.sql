@@ -23,7 +23,7 @@ CREATE TABLE "event" (
 	"is_published" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "event_has_venue" CHECK ("event"."bar_id" is not null or "event"."venue_name" is not null)
+	CONSTRAINT "event_has_venue" CHECK ("event"."bar_id" is not null or length(btrim("event"."venue_name")) > 0)
 );
 --> statement-breakpoint
 ALTER TABLE "event" ADD CONSTRAINT "event_bar_id_bar_id_fk" FOREIGN KEY ("bar_id") REFERENCES "public"."bar"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

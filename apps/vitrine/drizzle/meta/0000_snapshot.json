@@ -1,5 +1,5 @@
 {
-  "id": "10850742-20b4-47b4-a772-cf8705c00804",
+  "id": "b1b09ccb-4530-4226-92fa-98767405634c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -196,7 +196,7 @@
       "checkConstraints": {
         "event_has_venue": {
           "name": "event_has_venue",
-          "value": "\"event\".\"bar_id\" is not null or \"event\".\"venue_name\" is not null"
+          "value": "\"event\".\"bar_id\" is not null or length(btrim(\"event\".\"venue_name\")) > 0"
         }
       },
       "isRLSEnabled": false
