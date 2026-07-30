@@ -12,14 +12,37 @@ import { Wrap } from "@/components/common/Wrap/Wrap";
 import styles from "./Hero.module.css";
 
 // Hero de l'accueil (Story 2.1) — Server Component pur : toute l'animation est en
-// CSS (apparition + pulse du sticker), donc aucun 'use client'. La home reste
-// prérendue Static, acquis de la Story 1.6.
+// CSS (apparition + pulse du sticker), donc aucun 'use client'.
+//
+// ⚠️ La home n'est PLUS prérendue Static depuis la Story 3.2 : elle lit l'agenda à
+// chaque requête (`force-dynamic` dans page.tsx). Ce composant, lui, ne lit rien — il
+// reçoit `hasUpcomingEvent` en prop.
 //
 // Composé EXCLUSIVEMENT à partir des primitives @repo/ui livrées en Story 1.3 :
 // aucune brique visuelle n'est réimplémentée ici, seul le layout est local.
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
-export function Hero() {
+
+export interface HeroProps {
+  /**
+   * Y a-t-il une prochaine date publiée ? Pilote l'affichage du macaron « CE JEUDI »
+   * (Story 3.2, AC5).
+   *
+   * 🔴 C'EST UNE PROP, ET SÛREMENT PAS UNE LECTURE LOCALE. La page fait UNE seule
+   * requête et la distribue au hero et au hub : c'est ce qui garantit que le macaron
+   * et la carte désignent la MÊME date. Deux lectures indépendantes pourraient
+   * diverger à la milliseconde près autour d'un `starts_at`, et surtout dériveraient
+   * au premier changement de filtre d'un seul côté.
+   *
+   * ⚠️ Le libellé du macaron reste LITTÉRALEMENT « CE JEUDI » dans tous les cas
+   * (formulation contractuelle, UX-DR18) : il ne dépend PAS du `type` de l'événement.
+   * Le prochain rendez-vous peut être un temps fort un autre jour de la semaine —
+   * epics.md relie le macaron à « cette prochaine date », pas à un filtre sur le type.
+   */
+  hasUpcomingEvent: boolean;
+}
+
+export function Hero({ hasUpcomingEvent }: HeroProps) {
   return (
     // aria-labelledby ↔ id du <h1> : nomme la région (pattern acquis review 1.6 F6).
     // Le <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici.
@@ -85,19 +108,26 @@ export function Hero() {
           <PhotoFrame
             rotation={2}
             caption="On se retrouve au bar ✦ Reims"
+            // `undefined` et non `null` : PhotoFrame rend `{sticker}` tel quel, et sa
+            // prop est optionnelle — pas de nœud, pas de macaron. Le pulse CSS de la
+            // Story 2.1 (`sticker-pulse`, déclaré sous
+            // `@media (prefers-reduced-motion: no-preference)`) suit le macaron : rien
+            // à ajouter ni à dupliquer côté animation (AC8).
             sticker={
-              <Sticker className={styles.sticker}>
-                {/* Deux blocs plutôt qu'un <br> : le conteneur du Sticker est un
-                    flex, un <br> y deviendrait un item et casserait l'empilement.
-                    Le {" "} sépare le texte accessible (« CE JEUDI » et non
-                    « CEJEUDI ») — même raison que les lignes du <h1>. Un nœud de
-                    texte blanc seul n'est pas rendu comme item flex : aucun effet
-                    visuel. */}
-                <span className={styles.stickerLines}>
-                  <span>CE</span>{" "}
-                  <span>JEUDI</span>
-                </span>
-              </Sticker>
+              hasUpcomingEvent ? (
+                <Sticker className={styles.sticker}>
+                  {/* Deux blocs plutôt qu'un <br> : le conteneur du Sticker est un
+                      flex, un <br> y deviendrait un item et casserait l'empilement.
+                      Le {" "} sépare le texte accessible (« CE JEUDI » et non
+                      « CEJEUDI ») — même raison que les lignes du <h1>. Un nœud de
+                      texte blanc seul n'est pas rendu comme item flex : aucun effet
+                      visuel. */}
+                  <span className={styles.stickerLines}>
+                    <span>CE</span>{" "}
+                    <span>JEUDI</span>
+                  </span>
+                </Sticker>
+              ) : undefined
             }
           >
             {/* ⚠️ CÂBLAGE PROVISOIRE — ce n'est PAS l'implémentation de la Story 4.7.
