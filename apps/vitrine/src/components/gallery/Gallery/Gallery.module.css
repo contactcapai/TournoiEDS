@@ -50,9 +50,12 @@
        texte » : le seuil WCAG « large » commence à 24px en régulier, donc le seuil
        applicable est 4,5:1 et non 3:1. C'est la marche qu'on rate en lisant « 22px,
        c'est grand ».
-     - texte du placeholder `.phFill` : `rgba(cream, .5)` sur le dégradé
-       `--surface → --navy-deep`. ⚠️ Sous le fondu, l'opacité EFFECTIVE tombe à
-       0,5 × 0,75 = 0,375. Ce texte est `aria-hidden`, donc Lighthouse ne l'audite PAS :
-       c'est une dette invisible caractérisée (`pieges/dette-invisible.md`), et c'est
-       pourquoi elle est mesurée à la main.
+     - texte du placeholder `.phFill` (état É7) : mesuré **8,45:1** au plein et
+       **5,87:1 sous fondu**, seuil 4,5. ⚠️ Ce n'était PAS le cas au début de cette
+       story : l'opacité valait `.5` (valeur de la maquette) et donnait **3,82:1** puis
+       **2,91:1** sous fondu — NON CONFORME. Relevée à **0,88** dans
+       `PhotoFrame.module.css`, où la mesure complète est écrite.
+       🔴 Le bloc est `aria-hidden`, donc **Lighthouse ne l'audite PAS** : la page
+       affichait 100/100 avec cet échec dessus. Dette invisible caractérisée
+       (`pieges/dette-invisible.md`) — d'où la mesure à la main.
    ═══════════════════════════════════════════════════════════════════════════════ */

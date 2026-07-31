@@ -27,19 +27,33 @@
   transition: transform 0.25s ease-out;
 }
 
-/* Inclinaison en alternance — valeurs de la maquette (l.169-171).
-   ⚠️ L'ordre des classes ne suffit PAS à reproduire sa cascade : elle s'appuie sur
-   `:nth-child(odd|even|3n)` où `3n` gagne parce qu'il est déclaré en dernier. Ici
-   l'index est calculé en JS (`index % 3`), donc les trois classes sont exclusives et
-   l'ordre de déclaration n'a aucun effet. Le rendu est équivalent : 1 → -2,2° ;
-   2 → +1,8° ; 3 → +2,6°, puis répétition. */
-.tilt0 {
+/* 🔴 INCLINAISON — TRANSCRIPTION LITTÉRALE DE LA CASCADE DE LA MAQUETTE (l.169-171),
+   ET C'EST UNE CORRECTION DE REVUE.
+
+   Une première version calculait l'inclinaison en JS (`index % 3`, trois classes
+   exclusives) avec un commentaire affirmant que « le rendu est équivalent ». **C'était
+   FAUX**, et l'Acceptance Auditor l'a démontré par le calcul :
+
+     position     1     2     3     4     5     6     7     8     9    10    11    12
+     maquette  -2,2  +1,8  +2,6  +1,8  -2,2  +2,6  -2,2  +1,8  +2,6  +1,8  -2,2  +2,6
+     index%3   -2,2  +1,8  +2,6  -2,2  +1,8  +2,6  -2,2  +1,8  +2,6  -2,2  +1,8  +2,6
+                                    ↑     ↑                             ↑     ↑
+
+   **4 divergences sur 12 positions** — le motif de la maquette a une période de 6, pas
+   de 3, parce que `3n` ne coïncide avec `odd` qu'une fois sur deux. Défaut invisible
+   aujourd'hui (une seule photo publiée), qui serait apparu dès la 4ᵉ.
+
+   Les trois sélecteurs ont la MÊME spécificité (0,2,0) : c'est donc l'ORDRE DE
+   DÉCLARATION qui tranche, et `3n` doit rester en dernier — exactement comme dans la
+   maquette. ⚠️ Ne pas les réordonner, et ne pas « simplifier » en revenant à un calcul
+   d'index : la cascade EST le motif. */
+.vignette:nth-child(odd) {
   transform: rotate(-2.2deg);
 }
-.tilt1 {
+.vignette:nth-child(even) {
   transform: rotate(1.8deg);
 }
-.tilt2 {
+.vignette:nth-child(3n) {
   transform: rotate(2.6deg);
 }
 

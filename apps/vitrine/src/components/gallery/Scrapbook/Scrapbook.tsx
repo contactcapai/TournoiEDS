@@ -189,8 +189,8 @@ export function Scrapbook({ photos }: ScrapbookProps) {
   if (photos.length === 0) {
     return (
       <ul className={styles.grille} aria-label="Photos à venir">
-        {PLACEHOLDERS.map((legende, index) => (
-          <li key={legende} className={`${styles.vignette} ${styles[`tilt${index % 3}`]}`}>
+        {PLACEHOLDERS.map((legende) => (
+          <li key={legende} className={styles.vignette}>
             <PhotoFrame caption={legende} />
           </li>
         ))}
@@ -204,7 +204,7 @@ export function Scrapbook({ photos }: ScrapbookProps) {
     <>
       <ul className={styles.grille}>
         {photos.map((photo, index) => (
-          <li key={photo.id} className={`${styles.vignette} ${styles[`tilt${index % 3}`]}`}>
+          <li key={photo.id} className={styles.vignette}>
             {/* 🔴 UN <button>, ET JAMAIS UN <div onClick> NI UN <a href="#">.
                 Un `href="#"` ferait un scroll-to-top et annoncerait une navigation qui
                 n'a pas lieu — c'est la dette R2, déjà consignée sur ce projet.

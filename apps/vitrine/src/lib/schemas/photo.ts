@@ -15,6 +15,20 @@ import { z } from "zod";
 
 import { visiblementVide } from "./texte";
 
+/**
+ * ⚠️ `trimmedText` est redéfini ici plutôt qu'importé de `partner.ts`, et `caption`
+ * réimplémente la forme d'`optionalText` — relevé en revue, et c'est délibéré :
+ *   - `trimmedText` est `z.string().trim()`, une ligne sans règle métier. La partager
+ *     créerait une dépendance entre deux domaines pour zéro invariant commun. Ce qui
+ *     valait l'extraction, c'est `visiblementVide` — une règle Unicode qui peut
+ *     DIVERGER en silence ; celle-ci ne le peut pas.
+ *   - `optionalText` n'est pas réutilisable **en l'état** : il applique son `transform`
+ *     avant toute borne, alors que `caption` doit être plafonnée à 60 caractères AVANT
+ *     de devenir `null`. L'importer obligerait à le paramétrer, donc à le compliquer
+ *     pour ses deux consommateurs actuels.
+ * Le jour où un 3ᵉ schéma a besoin d'un texte optionnel BORNÉ, c'est là qu'il faut
+ * extraire une fabrique — pas avant (règle « payé deux fois », METHODE.md §5).
+ */
 const trimmedText = z.string().trim();
 
 /**
