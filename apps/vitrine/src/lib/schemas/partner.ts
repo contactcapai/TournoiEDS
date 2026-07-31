@@ -12,6 +12,8 @@
  */
 import { z } from "zod";
 
+import { visiblementVide } from "./texte";
+
 /**
  * Valeurs de l'enum `partner_category`, **définies ici une seule fois**.
  *
@@ -32,34 +34,19 @@ export const PARTNER_CATEGORIES = ["sponsor", "partenaire", "soutien", "particip
 const trimmedText = z.string().trim();
 
 /**
- * 🔴 CARACTÈRES SANS LARGEUR — `.trim()` NE LES ENLÈVE PAS, ET C'EST UN TROU RÉEL.
+ * 🔴 CARACTÈRES SANS LARGEUR — la garde a été EXTRAITE vers `./texte.ts` (Story 4.3).
  *
- * `String.prototype.trim()` ne retire que les espaces au sens Unicode (`Zs`, plus
- * quelques contrôles). Une chaîne faite d'un seul U+200B (espace de largeur nulle)
- * survit donc au trim avec `length === 1` : elle est traitée comme RENSEIGNÉE alors
- * qu'elle est invisible. Mesuré à la revue — `logo = "<U+200B>"` était accepté et
- * ressortait non-null.
+ * Écart délibéré à la règle « payé deux fois » (METHODE.md §5) : `photo.ts` en est le
+ * 2ᵉ consommateur, et ceci est une garde de CORRECTION, pas de présentation. Deux
+ * copies d'une règle Unicode divergent en SILENCE — combler demain un trou dans l'une
+ * laisserait l'autre ouverte, et un `git diff` sur des caractères invisibles ne montre
+ * rien. Le raisonnement complet vit dans `texte.ts`, en un seul exemplaire.
  *
- * Conséquence concrète, et elle n'est pas théorique : `queries/partners.ts` filtre sur
- * `logo IS NOT NULL`, donc une telle entrée entrait dans le bandeau de la home et rendait
- * un `<img src="<U+200B>">` — une requête vers la page courante à la place d'un logo.
- * C'est exactement le défaut que le commentaire de `schema.ts` dit vouloir empêcher.
- * Ces caractères arrivent par copier-coller depuis une page web ou un traitement de
- * texte : le cas est banal dès que la Story 6.5 fera saisir par des bénévoles.
- *
- * ⚠️ ON NE LES RETIRE PAS DE LA VALEUR STOCKÉE, on s'en sert seulement pour décider si
- * elle est VIDE. ZWJ et ZWNJ (U+200C/U+200D) sont porteurs de sens dans plusieurs
- * écritures et dans les séquences d'emoji : les supprimer d'un nom légitime le
- * corromprait. La garde reste donc minimale — elle ne rejette que ce qui n'a AUCUN
- * caractère visible.
+ * Rappel du défaut qui l'a fait naître (revue de la Story 4.1) : `logo = "<U+200B>"`
+ * était accepté et ressortait non-null, donc entrait dans le filtre `logo IS NOT NULL`
+ * de `queries/partners.ts` et rendait un `<img src="<U+200B>">` dans le bandeau de la
+ * home — une requête vers la page courante à la place d'un logo.
  */
-// Échappements explicites, jamais les caractères eux-mêmes : ils sont INVISIBLES dans
-// un éditeur, donc une classe écrite en littéral serait impossible à relire ou à
-// modifier sans risque. U+00AD trait d'union conditionnel · U+200B→U+200F espaces de
-// largeur nulle et marques de direction · U+2060→U+2064 jointures invisibles ·
-// U+FEFF BOM (déjà retiré par `.trim()`, listé pour que la classe soit complète).
-const SANS_LARGEUR = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
-const visiblementVide = (value: string) => value.replace(SANS_LARGEUR, "").length === 0;
 
 /** Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`. */
 const optionalText = trimmedText
