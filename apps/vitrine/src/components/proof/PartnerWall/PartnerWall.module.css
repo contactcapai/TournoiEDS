@@ -1,0 +1,213 @@
+/* Mur de partenaires de /partenaires (Story 4.2).
+   Transcription de `.logos-wall` (maquette l.161) et de `.logo-tile` / `.logo-tile.inst`
+   (l.162-164). C'est la tuile COMPLÈTE de la maquette — celle du bandeau de la home
+   (PartnerMarquee.module.css) n'en est qu'un sous-ensemble : elle ne porte ni texte, ni
+   survol, ni variante, ni lien. Voir le décompte de duplication en fin de fichier.
+
+   Tokens-only. EXCEPTIONS documentées sur place : les rgba() d'overlay (aucun token ne
+   décrit un voile) et les px structurels de la maquette (150, 210, 76, 14, 10, 13.5). */
+
+.wall {
+  /* Aucun padding vertical propre : le rythme entre deux murs est porté par le
+     `margin-top: 34px` d'`editorial.subtitle`, très proche du `margin: 30px 0 14px`
+     de `.lbl` dans la maquette. Ne pas en ajouter un second, il s'additionnerait.
+     ⚠️ Le PREMIER mur hérite donc de 90px (padding de section) + 34px = 124px avant
+     son titre. C'est volontairement laissé tel quel : la bande de /l-asso mesure 180px
+     à la même frontière et a passé son gate visuel. */
+}
+
+/* `.logos-wall` de la maquette (l.161), à l'identique.
+   ⚠️ `align-items: flex-start` est un AJOUT : la maquette n'a pas de descriptions sous
+   ses tuiles, donc tous ses items ont la même hauteur. Ici deux entrées sur onze en
+   portent une — sans cette ligne, `align-items: stretch` étirerait les items courts et
+   les tuiles ne s'aligneraient plus en haut de rangée (AC4 : « aucune grille cassée »). */
+.grille {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px;
+  /* Reset de liste : `globals.css` ne pose pas de reset de `ul` (vérifié en 4.1). */
+  list-style: none;
+}
+
+/* 🔴 C'EST L'ITEM QUI PORTE LA SOUPLESSE, PAS LA TUILE — et c'est la différence
+   structurelle avec le bandeau, où la tuile EST l'item flex. Ici l'item contient la
+   tuile ET la description, donc la géométrie de la maquette (`flex: 1 1 150px;
+   max-width: 210px`) remonte d'un cran et la tuile occupe 100 % de sa largeur.
+   ⚠️ Ne PAS poser de `width` commune et ne PAS retirer le `flex-shrink: 1` : c'est
+   lui — et non un `max-width` en pourcentage — qui empêche le débordement sur un
+   conteneur étroit (mesuré en 4.1, où un `max-width: min(210px, 100%)` posé « en
+   garde » était redondant ET a coûté une mesure fausse). */
+.item {
+  flex: 1 1 150px;
+  max-width: 210px;
+}
+
+/* `.logo-tile` de la maquette (l.162). */
+.tuile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  /* 76px : hauteur de `.logo-tile`. C'est la TUILE qui réserve la place, donc aucun
+     CLS (NFR2) même si l'image arrive tard — et c'est aussi ce qui rend TOUT fichier
+     indéformable, quelle que soit sa taille d'origine (garde-fou H de la 4.1). */
+  height: 76px;
+  /* Exigé par `fill` sur l'<Image> : elle se positionne sur l'ancêtre positionné. */
+  position: relative;
+  border-radius: var(--radius-tile);
+  /* Overlays crème (#f3efe3) à 5 % et 12 % — valeurs de la maquette. Aucun token ne
+     décrit un voile : tolérance posée en 1.4/1.5, reconduite en 2.1, 2.4, 2.5 et 4.1. */
+  background: rgba(243, 239, 227, 0.05);
+  border: 1px solid rgba(243, 239, 227, 0.12);
+  transition: 0.2s;
+}
+
+/* Variante `.inst` (maquette l.164) : filet OR à 30 % au lieu de crème à 12 %.
+   ⚠️ Réservée aux SOUTIENS, et à eux seuls. La maquette la pose sur les deux seules
+   tuiles institutionnelles (Reims Legend'R, Ville de Reims, l.400-402). Les
+   participations (Game in Reims, France Esport) y étaient rendues en `.mention`, pas en
+   tuile `.inst` : leur donner ce filet inventerait une équivalence que la maquette
+   n'établit pas. */
+.inst {
+  border-color: rgba(218, 178, 101, 0.3);
+}
+
+/* Le nom, quand il n'y a pas de logo. `.logo-tile` de la maquette porte ces valeurs
+   directement ; ici elles vivent sur un <span> intérieur parce que la tuile peut aussi
+   contenir une image.
+
+   🔴 L'OPACITÉ DE REPOS EST 0,78 ET NON LE 0,55 DE LA MAQUETTE — C'EST LA MESURE QUI
+   L'IMPOSE, PAS UN GOÛT. Ce mur est enveloppé par `motion.reveal`, dont l'état `from`
+   vaut `opacity: 0.75` : la couleur effective du texte est composée DEUX fois, une fois
+   par cette opacité-ci et une fois par celle du fondu. Valeurs MESURÉES sur le rendu
+   (balayage des 23 textes de la page, couleur calculée × fond effectif × fondu) :
+
+     α = 0,55 (maquette) → plein 4,72:1 · sous fondu **3,29:1**  ❌ (seuil 4,5)
+     α = 0,78 (retenu)   → plein 7,06:1 · sous fondu **4,70:1**  ✅
+
+   🔴 LE FOND EFFECTIF N'EST PAS `--navy`, ET C'EST CE QUI A RENDU MON CALCUL DE CADRAGE
+   OPTIMISTE. Ce texte est posé sur la TUILE, qui porte elle-même un voile crème à 5 % :
+   le fond réel est donc **rgb(51, 48, 98)** et non `--navy` #29265b (41, 38, 91). Un
+   fond plus clair sous un texte clair = MOINS de contraste. Le cadrage annonçait 5,13:1
+   sous fondu en calculant sur `--navy` nu ; la mesure donne **4,70:1**. L'écart est
+   petit mais il va dans le mauvais sens, et c'est exactement pourquoi la règle du projet
+   est de MESURER le fond effectif du premier ancêtre opaque plutôt que de le déduire des
+   tokens.
+
+   La marge retenue (0,20 au-dessus du seuil) est SUPÉRIEURE à celle de deux
+   combinaisons déjà mergées et validées : le chapô de SectionHead (4,60:1, marge 0,10)
+   et le `LinkArrow` de `ProofBand` sous fondu (4,54:1, marge 0,04). Elle est donc
+   conforme à la tolérance que le projet s'est déjà donnée, pas à un goût du jour.
+   ⚠️ La maquette n'a AUCUNE animation d'apparition : son 0,55 est juste sur son propre
+   rendu. C'est l'ajout du fondu qui rend la transcription non conforme, pas la maquette.
+   Toute baisse de cette valeur, tout éclaircissement du fond de la section OU du voile
+   de la tuile exige de rejouer la mesure.
+
+   13.5px / 700 : valeurs de `.logo-tile`. Le gras est RÉEL (Roboto est une police
+   variable, chargée sans `weight` — aucune synthèse, cf. dette R11).
+   `overflow-wrap: anywhere` : `name` est borné à 120 caractères par Zod, mais 120
+   caractères SANS ESPACE dans une tuile de 150px déborderaient — et `overflow-x: clip`
+   les rognerait EN SILENCE (leçon 3.3, où c'est une donnée libre passée en légende qui
+   a débordé, pas celle qu'on surveillait). */
+.nom {
+  padding: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: rgba(243, 239, 227, 0.78);
+  overflow-wrap: anywhere;
+  transition: 0.2s;
+}
+
+/* 🔴 CE NŒUD N'EST PAS DÉCORATIF (raisonnement complet dans PartnerMarquee.module.css) :
+   un `padding` sur la tuile ne réduirait pas la boîte d'une image en `position:
+   absolute` (son `inset` se résout sur la boîte de PADDING de l'ancêtre positionné), et
+   `fill` fait poser à next/image des styles EN INLINE qu'aucune classe ne peut battre.
+   Cette zone porte donc l'`inset`, et l'image la remplit. 10px = maquette. */
+.zone {
+  position: absolute;
+  inset: 10px;
+}
+
+/* `object-fit` est la SEULE propriété que cette classe a besoin de poser, et c'est
+   pour ça qu'elle marche malgré les styles inline de `fill` : next/image ne la déclare
+   pas. Ne rien ajouter ici qui toucherait à `position`, `inset`, `width` ou `height` —
+   ce serait écrasé en silence. */
+.image {
+  object-fit: contain;
+}
+
+/* ═══════════════════════════════ Survol ══════════════════════════════════════
+   `.logo-tile:hover` de la maquette (l.163) : le filet vire à l'or et le nom passe à
+   pleine présence.
+   🔴 LE SURVOL NE TOUCHE JAMAIS UN LOGO — ni filtre, ni `opacity` de repos, ni
+   `mix-blend-mode` : ce sont des marques tierces et leur contraste sur `--navy` a été
+   vérifié par composition en 4.1. `EXPERIENCE.md` l.142 prescrivait « le logo se
+   révèle (passe de l'état atténué à pleine présence) » : c'est une lecture erronée de
+   la maquette, dont l'atténuation porte sur le TEXTE du nom (elle ne contient aucun
+   vrai logo). La ligne a été corrigée à la source dans cette story. */
+.cliquable {
+  cursor: pointer;
+}
+
+.tuile:hover {
+  border-color: var(--gold);
+}
+
+.tuile:hover .nom {
+  color: var(--cream);
+}
+
+/* AUCUNE règle `:focus-visible` ici, et c'est délibéré : `globals.css` pose déjà
+   `:where(a, button):focus-visible { outline: 2px solid var(--gold); outline-offset: 3px }`
+   (Story 1.4) — la redéclarer en ferait une seconde source de vérité. Seules les tuiles
+   qui SONT des liens sont focalisables, et aucun conteneur de ce mur n'est en
+   `overflow: clip` : l'anneau n'est donc pas rogné. */
+
+/* AA — reduced-motion : on neutralise la transition, on garde l'état couleur
+   (patron `Button.module.css` l.68-77). */
+@media (prefers-reduced-motion: reduce) {
+  .tuile,
+  .nom {
+    transition: none;
+  }
+}
+
+/* ═════════════════════════════ La description ════════════════════════════════
+   `--light` et JAMAIS `--grey` : `editorial.module.css` (l.115-119) pose déjà cette
+   doctrine, et la mesure la confirme ici. Sous le fondu de `motion.reveal` (0,75), sur
+   `--navy` (fond effectif mesuré : la description est HORS de la tuile, donc pas de
+   voile crème à ajouter, contrairement au nom ci-dessus) :
+     --grey  #9293ad → **3,70:1**  ❌ (seuil 4,5) — même valeur que celle MESURÉE en 3.3
+     --light #edeffd → **7,46:1**  ✅ (plein 12,06:1) — mesuré, pas déduit
+   13px : taille de `.mention .tx span` dans la maquette (l.157), qui est le rendu dont
+   ces deux descriptions (« Présents depuis 2023 », « Association adhérente ») sont la
+   transcription littérale. Aucun token à cette taille. */
+.description {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--light);
+}
+
+/* ════════════════════ 🔢 DUPLICATION COMPTÉE, PAS EXTRAITE ═══════════════════
+   La géométrie de tuile est désormais écrite DEUX fois : ici et dans
+   `PartnerMarquee.module.css` (l.144-157). Déclarations communes : `height: 76px`,
+   `--radius-tile`, fond crème 5 %, filet crème 12 %, `position: relative`, et la base
+   150 / plafond 210 (portés ici par `.item`, là-bas par `.tuile`).
+
+   🔴 NE PAS EXTRAIRE, et ce n'est pas de la paresse — trois raisons, dans cet ordre :
+   ① elles ne sont PAS identiques : ce mur porte en plus le texte du nom, le survol, la
+      variante `.inst` et le lien ; le bandeau porte en plus `.piste_defile .tuile`
+      (`flex: 0 0 150px; max-width: none`). Ce fichier-ci est le `.logo-tile` COMPLET de
+      la maquette, celui du bandeau en est un SOUS-ENSEMBLE ;
+   ② `PartnerMarquee.module.css` (l.138-143) interdit nommément de toucher au modèle de
+      boîte de sa `.tuile` sans revalider `gate:marquee` — cette classe est LUE par un
+      instrument de mesure. Extraire remettrait le rendu d'une story mergée sous porte à
+      l'intérieur d'une story au risque différent (précédent 2.7 → 2.10) ;
+   ③ règle du projet : on extrait ce qui est PAYÉ DEUX FOIS (METHODE.md §5), et la leçon
+      de la dette R9 est « toujours COMPTER », pas « ne jamais dupliquer ».
+   ⇒ 2 copies, comptées et routées : dette **R27 → Story 6.5**, qui rendra une
+   prévisualisation de tuile au back-office et sera donc le 3ᵉ consommateur. Si elle n'en
+   a finalement pas besoin, la ligne se ferme comme ACCEPTÉE, pas comme oubliée. */

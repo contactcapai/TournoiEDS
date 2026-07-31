@@ -1,0 +1,41 @@
+/* Page « Partenaires » (Story 4.2) — part LOCALE uniquement.
+
+   Le vocabulaire de mise en page éditoriale (`.head`, `.section`, `.band`, `.title`,
+   `.subtitle`, `.prose`, `.more`) vient de `src/styles/editorial.module.css`, partagé
+   avec /l-asso et /animations. Il n'est PAS redéclaré ici : la 3ᵉ page dédiée CONSOMME
+   ce fichier, elle ne le recopie pas (note finale d'editorial.module.css, dette R9).
+   ⚠️ Aucune règle n'a eu besoin d'y être AJOUTÉE là-bas non plus : la seule classe
+   ci-dessous est propre à cette page (un lien e-mail), ce n'est pas du vocabulaire.
+   ⚠️ L'état « aucun partenaire publié » consomme `editorial.prose` DIRECTEMENT sur son
+   <p> (mesure de lecture 680px + `--light`) plutôt qu'une classe locale : une 2ᵉ
+   déclaration de la mesure de lecture aurait été une copie de R9 rouverte pour rien.
+
+   La tuile, la grille et le survol vivent dans `components/proof/PartnerWall/`.
+
+   Tokens-only, sans exception dans ce fichier : aucun px littéral, aucun rgba(), aucun
+   hex de charte. Décompte VÉRIFIÉ par lecture, pas estimé (la revue de la Story 2.7 a
+   trouvé DEUX inventaires de ce type inexacts, et un inventaire faux est pire
+   qu'absent — il fait croire au lecteur qu'on a compté).
+
+   Aucune @media : la page est en une seule colonne à toutes les largeurs, et la seule
+   grille (les murs) se replie d'elle-même par `flex-wrap`.
+
+   ⚠️ Ne déclarer ici AUCUNE propriété `animation-*` : c'est ce qui garantit qu'aucun
+   conflit de cascade avec `motion.module.css` ne peut exister (l'ordre du CSS compilé
+   par Turbopack est instable — précédent Wrap, dette R9). */
+
+/* Lien e-mail en prose. L'affordance passe par le SOULIGNÉ et pas par la seule couleur
+   (WCAG 1.4.1) — patron `.asideLink` / `.emptyLink` de /agenda, repris à l'identique.
+   `--cream` au repos plutôt que `--gold` : sur `--navy-deep` l'or passe (8,36:1), mais
+   le réserver au SURVOL donne au lien le même comportement que partout ailleurs sur le
+   site, et évite un troisième traitement de lien en prose. */
+.email {
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.email:hover {
+  color: var(--gold);
+}

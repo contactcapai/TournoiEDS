@@ -10,8 +10,14 @@
  * ⚠️ DEUX NATURES DE DONNÉES COHABITENT ICI, et elles n'ont pas le même statut :
  *   - l'agenda est FICTIF mais plausible (bars et dates inventés) — d'où les gardes 2 et 3
  *     ci-dessous, qui existent pour qu'il ne soit jamais pris pour de vraies annonces ;
- *   - les partenaires sont RÉELS : les 11 entrées sont celles que les sources du projet
- *     attestent (`positionnement-refonte-site-v2.md` §5, maquette l.377-403).
+ *   - les partenaires sont RÉELS **par leur nom, leur catégorie et leur logo** : les
+ *     11 entrées sont celles que les sources du projet attestent
+ *     (`positionnement-refonte-site-v2.md` §5, maquette l.377-403).
+ *     ⚠️ En revanche leurs `description` et `link` sont des **PLACEHOLDERS** depuis la
+ *     Story 4.2 (arbitrage de Brice, 2026-07-31) : aucune source ne les porte, ils
+ *     donnent à `/partenaires` sa forme réelle en attendant que l'équipe les saisisse
+ *     au back-office (Story 6.5) — ce qui sera fait **avant toute mise en production
+ *     officielle**. Détail et gardes dans l'encadré de `PARTNERS`, plus bas.
  * 🔴 La garde qui compte pour eux est INVERSE : n'insérer AUCUNE ambition. Le Département
  * de la Marne, la Région Grand Est, le Grand Reims et les villes avoisinantes sont des
  * cibles de démarchage (§6, FR33) — les semer ici les afficherait comme acquis sur la home.
@@ -193,9 +199,25 @@ const PARTNER_IDS = {
  * (arbitrage Brice : mieux vaut un logo manquant qu'un placeholder) et seront documentées
  * sur `/partenaires` (Story 4.2).
  *
- * `link` : `null` pour les 11. AUCUNE source du projet ne porte d'URL de partenaire, et
- * en inventer une serait pire que de ne pas en avoir — un lien faux abîme la confiance
- * qu'un bloc de preuve existe pour construire.
+ * 🔴 `description` ET `link` SONT DES PLACEHOLDERS ASSUMÉS (arbitrage de Brice, 2026-07-31,
+ * Story 4.2) — À REMPLACER PAR L'ÉQUIPE VIA LE BACK-OFFICE (Story 6.5).
+ *
+ * AUCUNE source du projet ne porte d'URL ni de descriptif de partenaire : ces valeurs ne
+ * sont donc PAS des faits, elles servent à donner à la page `/partenaires` sa forme réelle
+ * (grille, alignement, tuiles cliquables) au lieu d'un mur de noms nus. Motif donné par
+ * Brice : « c'est juste pour voir ce que ça donne visuellement, je mettrai à jour via le
+ * back-office ».
+ *
+ * ⚠️ DEUX GARDES QUI NE COÛTENT RIEN ET QU'IL NE FAUT PAS RETIRER :
+ *   1. les URLs sont toutes en **`exemple-*.fr`**, un domaine qui ne résout pas. Un
+ *      placeholder qui ressemble à une vraie URL finit par être pris pour une vraie — et
+ *      un lien faux vers un VRAI site tiers serait pire encore ;
+ *   2. les descriptifs restent **neutres et factuels** : aucun n'attribue à un tiers un
+ *      engagement qu'il n'a pas pris, et aucun ne présente une ambition comme acquise
+ *      (**FR33**). Ce sont des phrases de forme, pas des affirmations à défendre.
+ * ⚠️ Les DEUX descriptions de `participation` (« Présents depuis 2023 », « Association
+ * adhérente ») ne sont PAS des placeholders : elles sont verbatim de la maquette (l.379,
+ * l.383) et disent la nature réelle du lien. Ne pas les réécrire.
  *
  * `sortOrder` : l'ordre de cette liste À L'INTÉRIEUR de chaque catégorie. La valeur est
  * écrite en clair plutôt que déduite de l'index du tableau — c'est une donnée que l'équipe
@@ -207,6 +229,8 @@ const PARTNERS: ReadonlyArray<{
   category: PartnerCategory;
   logo: string | null;
   description: string | null;
+  /** ⚠️ Placeholder `exemple-*.fr` — voir l'encadré ci-dessus. Jamais une vraie URL tierce. */
+  link: string | null;
   sortOrder: number;
 }> = [
   // ── Sponsors : les 4 qui ont un logo, donc les 4 seuls visibles sur la home ────
@@ -215,7 +239,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Shop for Geek Reims",
     category: "sponsor",
     logo: "/partenaires/shop-for-geek-reims.webp",
-    description: null,
+    description:
+      "Boutique de jeux, figurines et cartes à collectionner, au cœur de Reims.",
+    link: "https://exemple-shopforgeek.fr",
     sortOrder: 1,
   },
   {
@@ -223,7 +249,9 @@ const PARTNERS: ReadonlyArray<{
     name: "LDLC Cormontreuil",
     category: "sponsor",
     logo: "/partenaires/ldlc-cormontreuil.webp",
-    description: null,
+    description:
+      "Matériel informatique et périphériques gaming.",
+    link: "https://exemple-ldlc.fr",
     sortOrder: 2,
   },
   {
@@ -231,7 +259,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Forgeblast",
     category: "sponsor",
     logo: "/partenaires/forgeblast.webp",
-    description: null,
+    description:
+      "Studio rémois de production et de création de contenu autour du jeu vidéo compétitif, présent sur nos temps forts depuis les premières éditions.",
+    link: "https://exemple-forgeblast.fr",
     sortOrder: 3,
   },
   {
@@ -239,7 +269,9 @@ const PARTNERS: ReadonlyArray<{
     name: "L'Antre de Reims",
     category: "sponsor",
     logo: "/partenaires/l-antre-de-reims.webp",
-    description: null,
+    description:
+      "Bar à jeux du centre-ville, l'une des étapes du roulement des jeudis.",
+    link: "https://exemple-antre.fr",
     sortOrder: 4,
   },
   // ── Partenaires réseau : pas de logo fourni ⇒ absents du bandeau ───────────────
@@ -248,7 +280,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Mately",
     category: "partenaire",
     logo: null,
-    description: null,
+    description:
+      "Association partenaire sur le réseau Grand Est.",
+    link: "https://exemple-mately.fr",
     sortOrder: 1,
   },
   {
@@ -256,7 +290,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Mosel'lan Project",
     category: "partenaire",
     logo: null,
-    description: null,
+    description:
+      "Organisateur de LAN et de rencontres joueurs en Moselle.",
+    link: "https://exemple-mosellan.fr",
     sortOrder: 2,
   },
   {
@@ -264,7 +300,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Mulhouse Gaming",
     category: "partenaire",
     logo: null,
-    description: null,
+    description:
+      "Association esport alsacienne, avec qui nous croisons régulièrement nos événements.",
+    link: "https://exemple-mulhousegaming.fr",
     sortOrder: 3,
   },
   // ── Soutiens : appuis RÉELS et déjà acquis, jamais une collectivité démarchée ──
@@ -273,7 +311,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Reims Legend'R",
     category: "soutien",
     logo: null,
-    description: null,
+    description:
+      "Collectif rémois de passionnés.",
+    link: "https://exemple-legendr.fr",
     sortOrder: 1,
   },
   {
@@ -281,7 +321,9 @@ const PARTNERS: ReadonlyArray<{
     name: "Ville de Reims",
     category: "soutien",
     logo: null,
-    description: null,
+    description:
+      "Soutien de la collectivité aux initiatives associatives locales.",
+    link: "https://exemple-reims.fr",
     sortOrder: 2,
   },
   // ── Participations : ni sponsors ni partenaires — la nuance est factuelle (FR33) ─
@@ -293,6 +335,7 @@ const PARTNERS: ReadonlyArray<{
     category: "participation",
     logo: null,
     description: "Présents depuis 2023",
+    link: "https://exemple-gameinreims.fr",
     sortOrder: 1,
   },
   {
@@ -301,6 +344,7 @@ const PARTNERS: ReadonlyArray<{
     category: "participation",
     logo: null,
     description: "Association adhérente",
+    link: "https://exemple-franceesport.fr",
     sortOrder: 2,
   },
 ];
@@ -454,7 +498,7 @@ async function main() {
     const barRows = BARS.map(({ id, ...rest }) => ({ id, ...barInputSchema.parse(rest) }));
 
     const partnerRows: NewPartner[] = PARTNERS.map((p) =>
-      validatedPartner({ ...p, link: null, isPublished: true }),
+      validatedPartner({ ...p, isPublished: true }),
     );
 
     const eventRows: NewEvent[] = [

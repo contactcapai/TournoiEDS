@@ -120,9 +120,9 @@ export function DoubleDoor() {
                 (or plein vs outline) qui segmente les deux publics — ne pas la
                 « simplifier » en gold.
                 Route INTERNE : ni target, ni rel, ni mention « nouvel onglet ».
-                /partenaires est créée en Story 4.2 → 404 ATTENDU d'ici là, comme les
-                cibles du hero (2.1) et des axes (2.2). Ne pas retomber sur href="#"
-                (scroll-to-top + annonce trompeuse). */}
+                ✅ /partenaires EXISTE depuis la Story 4.2, et elle porte un moyen de
+                contact (e-mail) en attendant le formulaire de l'Epic 5 : ce CTA a donc
+                enfin une destination utile. Ne pas retomber sur href="#". */}
             <Button variant="outline" href="/partenaires">
               Nous contacter
             </Button>

@@ -89,9 +89,8 @@ export function ProofBand({ partners }: ProofBandProps) {
               « Nous solliciter » d'AnimationsTeaser, AC7). Un troisième bouton or
               rouvrirait le défaut qu'on solde.
               Route INTERNE : ni target, ni rel, ni mention « nouvel onglet ».
-              /partenaires est créée en Story 4.2 → 404 ATTENDU d'ici là, comme les
-              cibles du hero (2.1) et des axes (2.2). Ne pas retomber sur href="#"
-              (scroll-to-top + annonce trompeuse). */}
+              ✅ /partenaires EXISTE depuis la Story 4.2 : ce lien ne renvoie plus de
+              404. Ne pas retomber sur href="#" (scroll-to-top + annonce trompeuse). */}
           <div className={styles.more}>
             <LinkArrow href="/partenaires">Devenir partenaire</LinkArrow>
           </div>
