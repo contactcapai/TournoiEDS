@@ -271,10 +271,10 @@ export default function Animations() {
           différents sont la redondance relevée en revue 2.5 / EC2.
           → /partenaires et NON un formulaire local : le formulaire de sollicitation
           vit sur la page Partenaires (Epic 5), cible du mapping EXPERIENCE.md l.65
-          et déjà celle du CTA du teaser depuis la Story 2.4. /partenaires est
-          livrée en Story 4.2 : le 404 est ATTENDU d'ici là, comme pour le CTA du
-          hero depuis la 2.1. Ne pas retomber sur href="#" (scroll-to-top + annonce
-          trompeuse). Route interne → ni target, ni rel, ni mention SR. */}
+          et déjà celle du CTA du teaser depuis la Story 2.4. ✅ /partenaires est
+          LIVRÉE (Story 4.2) et porte un moyen de contact par e-mail en attendant ce
+          formulaire — ce CTA ne renvoie donc plus de 404. Ne pas retomber sur
+          href="#". Route interne → ni target, ni rel, ni mention SR. */}
       {/* ⚠️ DERNIÈRE section avant le footer : cas critique de la plage d'animation
           (un bloc qui n'atteint jamais la fin de sa plage resterait invisible pour
           toujours). Mesuré vert aux 7 largeurs de référence (Story 2.8, Tâche 5). */}

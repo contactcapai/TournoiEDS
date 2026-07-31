@@ -268,10 +268,10 @@ export default function LAsso() {
               </li>
             </ul>
           </div>
-          {/* /partenaires est créée en Story 4.2 : ce lien renvoie un 404 par
-              défaut d'ici là, comportement ATTENDU et cohérent avec le SiteHeader
-              depuis la 1.4. Ne pas retomber sur href="#" (scroll-to-top + annonce
-              trompeuse). Route interne → ni target, ni rel, ni mention SR. */}
+          {/* ✅ /partenaires EXISTE depuis la Story 4.2 : ce lien ne renvoie plus de
+              404. Il pointe bien la page qui DOCUMENTE le réseau (murs par catégorie,
+              descriptions), là où /l-asso n'en donne que le résumé — pas de doublon.
+              Ne pas retomber sur href="#". Route interne → ni target, ni rel, ni SR. */}
           <div className={editorial.more}>
             <LinkArrow href="/partenaires">
               Nos partenaires et nos réalisations

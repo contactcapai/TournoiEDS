@@ -175,5 +175,13 @@
       rendu de /l-asso. Elles restent locales. NE PAS « terminer le travail ».
    ❌ `.bandAnchor`, `.bandInner`, `.crown` : propres à /l-asso (ancrage du filigrane).
 
-   ⚠️ La 3ᵉ page dédiée (/partenaires, Story 4.2) consomme ce fichier — elle ne
-   recopie pas. Si elle a besoin d'une règle qui n'y est pas, elle l'ajoute ICI. */
+   ✅ VERDICT RENDU (Story 4.2, 2026-07-31) : la 3ᵉ page dédiée, /partenaires, CONSOMME
+      bien ce fichier — `.head`, `.section`, `.band`, `.title`, `.subtitle`, `.prose`,
+      `.more` — et n'en a recopié AUCUNE règle. Elle n'a eu besoin d'AJOUTER aucune
+      règle ici non plus : ses deux seuls besoins propres (un lien e-mail en prose, la
+      tuile de logo) ne sont pas du vocabulaire de mise en page, ils vivent donc dans
+      son `page.module.css` et dans `components/proof/PartnerWall/`.
+      ⚠️ Fait notable pour la suite : `.subtitle` sert désormais aussi de titre de MUR
+      (<h2> de catégorie sur /partenaires), pas seulement de <h3> de prose. C'est un
+      élargissement d'usage, pas un changement de valeur — ne pas « spécialiser » cette
+      classe pour la prose sans vérifier /partenaires. */

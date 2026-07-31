@@ -25,7 +25,9 @@ import styles from "./page.module.css";
 //
 // Elle clôt les sept déclarations `href="/agenda"` qui renvoyaient un 404 assumé
 // depuis la Story 1.4 (header, menu mobile, footer, hero, /l-asso, et trois liens du
-// hub). `/partenaires` reste le seul 404 attendu du site (→ Story 4.2).
+// hub). ✅ `/partenaires`, dernier 404 interne du site, a été fermé par la Story 4.2 :
+// le site n'en compte plus AUCUN — recompté sur le HTML servi des 5 pages (15 routes
+// internes distinctes, toutes en 200), pas supposé.
 
 export const metadata: Metadata = {
   // Le root layout pose `title.template: "%s · Esport des Sacres"` → le <title>
