@@ -282,7 +282,23 @@ export const photo = pgTable(
   "photo",
   {
     id: uuid().primaryKey().defaultRandom(),
-    filename: text().notNull(),
+    /**
+     * 🔴 `unique()` — UN NOM DE FICHIER DÉSIGNE UNE SEULE PHOTO. Trouvé en revue
+     * (Edge Case Hunter) et reproduit : sans cette contrainte, deux lignes d'`id`
+     * différents pouvaient porter le même `filename`, et rien ne s'y opposait.
+     *
+     * Trois conséquences, toutes atteignables dès la Story 6.4 (téléversement par des
+     * bénévoles, qui re-téléverseront le même fichier sans le savoir) :
+     *   ① la route de service fait un `findFirst` — elle en choisirait une
+     *      ARBITRAIREMENT, donc le `is_published` appliqué serait celui d'une ligne
+     *      qu'on ne choisit pas. Dépublier « la » photo pourrait ne rien changer,
+     *      l'autre ligne continuant de l'autoriser ;
+     *   ② la galerie afficherait deux fois la même image ;
+     *   ③ supprimer une des deux lignes suggérerait de supprimer le fichier — et
+     *      casserait l'autre.
+     * Le nom de fichier est l'identifiant du média sur le volume : la base doit le dire.
+     */
+    filename: text().notNull().unique(),
     /**
      * 🔴 `notNull`, ET C'EST UNE EXTENSION ASSUMÉE DE L'AC D'`epics.md` (qui listait
      * « fichier, légende, event_id, ordre, is_published »). `EXPERIENCE.md` l.194 et
@@ -368,9 +384,27 @@ export const photo = pgTable(
     // exactement ce que la colonne existe pour empêcher. Même défaut que celui trouvé sur
     // `partner.logo` à la revue de la 4.1.
     check("photo_alt_not_blank", sql`length(btrim(${table.alt})) > 0`),
+    /**
+     * 🔴 NON VIDE **ET BORNÉE**, ET LA BORNE EST UNE DETTE DÉJÀ PAYÉE (R24).
+     *
+     * Trouvé en revue (Edge Case Hunter) : la borne de 60 caractères ne vivait que dans
+     * `photoInputSchema`, donc uniquement au point de SAISIE. Or un `UPDATE` direct, une
+     * restauration de sauvegarde ou un script de migration ne passent par AUCUN schéma
+     * Zod — et R24 a été payée sur exactement ce scénario : 299 caractères sans espace
+     * en légende ont fait déborder `/agenda` de 32,89px à 320px de viewport,
+     * **rogné en silence** par `overflow-x: clip`.
+     *
+     * `overflow-wrap: anywhere` (posé sur `.cap` par cette story) empêche le
+     * DÉBORDEMENT, mais pas une légende de 300 caractères illisible dans un tirage.
+     * Les deux gardes ne protègent pas la même chose, et aucune ne remplace celle-ci.
+     *
+     * ⚠️ Même valeur que Zod (60), délibérément : la base et le schéma expriment ici la
+     * MÊME règle en deux langages — c'est le montage de `filename`. Les faire diverger
+     * ferait remonter au bénévole une erreur brute du driver là où Zod avait un message.
+     */
     check(
-      "photo_caption_not_blank",
-      sql`${table.caption} is null or length(btrim(${table.caption})) > 0`,
+      "photo_caption_valide",
+      sql`${table.caption} is null or (length(btrim(${table.caption})) > 0 and length(${table.caption}) <= 60)`,
     ),
     // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : la galerie filtre sur
     // `is_published` puis ordonne par `sort_order` (`queries/photos.ts`).

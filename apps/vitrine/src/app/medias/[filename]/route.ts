@@ -53,12 +53,29 @@ import { ouvrirMedia } from "@/server/medias";
 export const dynamic = "force-dynamic";
 
 /**
- * Un an, `immutable` : le nom de fichier IDENTIFIE le contenu (le back-office de la 6.4
- * écrira un nouveau nom plutôt que d'écraser un fichier servi). Remplacer un fichier en
- * gardant son nom serait donc le seul geste que ce cache prendrait mal — à rappeler au
- * point de saisie quand la 6.4 arrivera.
+ * 🔴 UNE HEURE, ET SURTOUT PAS `immutable` — CORRIGÉ EN REVUE (Edge Case Hunter).
+ *
+ * La première version posait `max-age=31536000, immutable`, en raisonnant sur le
+ * CONTENU : le nom de fichier identifie l'image, donc l'image ne change jamais. Le
+ * raisonnement est juste et **la conclusion était fausse**, parce qu'il oubliait que ce
+ * qui change n'est pas le fichier mais son **AUTORISATION**.
+ *
+ * ⚠️ `immutable` interdit toute revalidation. Un visiteur ayant déjà chargé la photo
+ * continuerait donc de la voir **pendant un an** après que l'équipe l'a dépubliée — et
+ * la dépublication EST le mécanisme de retrait du back-office (Story 6.4). Vérifié en
+ * revue : le serveur répond bien 404 à froid, mais aucun client déjà servi ne le lui
+ * redemande. Une garde qui ne s'applique qu'aux nouveaux venus n'est pas une garde.
+ *
+ * Une heure : le retrait se propage en une heure au pire, et le coût est négligeable —
+ * la route lit un fichier sur un volume local, elle ne calcule rien. `must-revalidate`
+ * interdit en plus à un cache intermédiaire de servir une réponse périmée.
+ *
+ * ⚠️ Ne pas « optimiser » en remontant cette durée sans traiter le retrait autrement
+ * (par exemple en changeant le nom du fichier à chaque publication). Le compromis est
+ * entre la fraîcheur du RETRAIT et le trafic, pas entre la fraîcheur du CONTENU et le
+ * trafic.
  */
-const CACHE = "public, max-age=31536000, immutable";
+const CACHE = "public, max-age=3600, must-revalidate";
 
 function introuvable() {
   // Corps volontairement muet et identique dans TOUS les cas d'échec (inconnu, non
@@ -79,11 +96,31 @@ export async function GET(
   // `eq()` est paramétré par Drizzle : pas d'injection SQL possible. Et une valeur
   // biscornue (`../../.env`) ne peut ici que ne rien trouver — elle n'atteint pas le
   // disque, elle n'atteint même pas `server/medias`.
-  const ligne = await db.query.photo.findFirst({
-    columns: { filename: true },
-    where: (table, { and, eq }) =>
-      and(eq(table.filename, filename), eq(table.isPublished, true)),
-  });
+  //
+  // 🔴 LA LECTURE EST ENTOURÉE D'UN `try`, ET CE N'EST PAS DE LA PRUDENCE DÉCORATIVE :
+  // certaines valeurs font échouer la requête AVANT toute réponse de Postgres. Trouvé
+  // en revue (Blind Hunter) et REPRODUIT : `/medias/x.avif%00.jpg` — le driver
+  // `postgres` rejette un octet NUL côté client, l'exception remontait non gérée, et
+  // Next la transformait en **500**. C'est-à-dire un QUATRIÈME état de réponse, alors
+  // que tout le dessin de cette route repose sur le fait qu'il n'y en a que deux
+  // (200 ou 404) et que l'échec est INDISCERNABLE de l'extérieur.
+  // ⚠️ Le danger n'est pas le 500 en lui-même — c'est qu'il DISTINGUE une valeur d'une
+  // autre. Un 500 sur `%00` et un 404 sur `nope.avif` disent à un attaquant que les
+  // deux ne suivent pas le même chemin de code, et c'est exactement le genre de signal
+  // qui sert à cartographier une surface. On rend donc 404, comme partout ailleurs.
+  let ligne;
+  try {
+    ligne = await db.query.photo.findFirst({
+      columns: { filename: true },
+      where: (table, { and, eq }) =>
+        and(eq(table.filename, filename), eq(table.isPublished, true)),
+    });
+  } catch {
+    // Base injoignable, valeur que le driver refuse, délai dépassé… : dans tous les
+    // cas la photo n'est pas servable. Le diagnostic appartient aux logs serveur, pas
+    // à la réponse (NFR8 : une donnée fautive ne casse pas le rendu public).
+    return introuvable();
+  }
   if (!ligne) return introuvable();
 
   // ── ② Le chemin se construit sur la valeur RELUE EN BASE, pas sur le paramètre ───
