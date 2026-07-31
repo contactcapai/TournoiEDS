@@ -14,7 +14,9 @@
     "gate": "node tools/visual-gate/gate.mjs",
     "gate:selftest": "node tools/visual-gate/selftest.mjs",
     "gate:carousel": "node tools/visual-gate/carousel-check.mjs",
-    "gate:marquee": "node tools/visual-gate/marquee-check.mjs"
+    "gate:marquee": "node tools/visual-gate/marquee-check.mjs",
+    "gate:lightbox": "node tools/visual-gate/lightbox-check.mjs",
+    "gate:images": "node tools/visual-gate/images-check.mjs"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
@@ -24,6 +26,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

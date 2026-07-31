@@ -50,6 +50,9 @@
  * du code serveur Next. Le `casing: 'snake_case'` est donc à répéter ici, et il DOIT
  * rester identique à `client.ts` et `drizzle.config.ts`.
  */
+import { existsSync } from "node:fs";
+import path from "node:path";
+
 import { config } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { gt, sql } from "drizzle-orm";
@@ -58,14 +61,17 @@ import postgres from "postgres";
 import { PARIS_TZ, parisParts, parisWallClock, nextThursdays } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
 import { partnerInputSchema } from "../../lib/schemas/partner";
+import { photoInputSchema } from "../../lib/schemas/photo";
 import * as schema from "./schema";
 import {
   bar,
   event,
   partner,
+  photo,
   type NewBar,
   type NewEvent,
   type NewPartner,
+  type NewPhoto,
   type PartnerCategory,
 } from "./schema";
 
@@ -176,6 +182,85 @@ const PARTNER_IDS = {
   gameInReims: "a0000000-0000-4000-8000-00000000000a",
   franceEsport: "a0000000-0000-4000-8000-00000000000b",
 } as const;
+
+/**
+ * Photos de la galerie (Story 4.3). Identifiants fixes, même raison que ci-dessus.
+ *
+ * ⚠️ Préfixe `c` comme « cliché » : `p` de photo n'est pas un chiffre hexadécimal, ce qui
+ * est déjà la raison pour laquelle les partenaires portent `a` et non `p`.
+ */
+const PHOTO_IDS = {
+  soireeBar: "c0000000-0000-4000-8000-000000000001",
+  brouillon: "c0000000-0000-4000-8000-000000000002",
+} as const;
+
+/**
+ * 🔴 UNE SEULE PHOTO RÉELLE, ET C'EST L'ÉTAT HONNÊTE DU PROJET.
+ *
+ * `soiree-bar-eds-01.avif` est le **seul** fichier fourni à ce jour (2026-07-28,
+ * « c'est juste pour faire le smoke »). Les dettes R4 / R15 attendent toujours les
+ * originaux haute définition.
+ *
+ * L'arbitrage de cadrage du 2026-07-31 (Brice) est de **scinder par résolution** : cette
+ * photo est insuffisante pour le hero (~950px après recadrage) et hors de portée pour la
+ * bande citation (~1920px), mais **suffisante pour une vignette de scrapbook**. Mesuré,
+ * pas supposé : 922×480, recadré en 4/3 par le cadre ⇒ 640×480 utiles ; une vignette de
+ * 276px CSS en 2× demande 552×414 utiles, soit une variante pleine largeur de **796px**
+ * pour une source de 922. Ça passe, avec 126px de marge — et **pas en 3×**, où il en
+ * faudrait 1194. Limite déclarée, pas tue.
+ *
+ * ⚠️ NE PAS SEMER LA MÊME IMAGE SOUS PLUSIEURS NOMS pour « remplir » la galerie. Une
+ * grille de quatre fois la même photo ne dit rien de la vie de l'asso, et donnerait au
+ * gate visuel un rendu que la production n'aura jamais. La galerie affiche ce qu'il y a.
+ *
+ * 🔴 LE FICHIER ET LA LIGNE SONT UN SEUL GESTE. Semer une ligne dont le fichier n'est pas
+ * sur le volume produit une galerie de 404 — la base et le disque doivent être peuplés
+ * ensemble. Procédure dans le README de la vitrine (§ Médias).
+ */
+const PHOTOS = [
+  {
+    id: PHOTO_IDS.soireeBar,
+    filename: "soiree-bar-eds-01.avif",
+    /**
+     * ⚠️ DESCRIPTION, PAS LÉGENDE. Repris tel quel du câblage du hero (Story 2.1) :
+     * c'est la même image, elle se décrit de la même façon. La légende ci-dessous, elle,
+     * commente — les deux ne sont pas interchangeables (voir `lib/schemas/photo.ts`).
+     */
+    alt:
+      "Une soirée Esport des Sacres dans un bar rémois : des joueurs attablés devant un " +
+      "écran de jeu, sous le kakémono de l'association.",
+    caption: "Entre deux games",
+    /**
+     * Rattachée au jeudi passé le plus récent ⇒ `/agenda` rend UNE vignette avec photo
+     * réelle et TROIS avec le placeholder (dette R25). C'est délibéré : sans au moins un
+     * passé sans photo, personne ne verrait jamais l'état de repli, qui est pourtant le
+     * cas majoritaire. Même raisonnement que le passé sans compte-rendu semé en 3.3.
+     */
+    eventId: EVENT_IDS.past,
+    sortOrder: 0,
+    isPublished: true,
+  },
+  {
+    id: PHOTO_IDS.brouillon,
+    /**
+     * 🔴 TÉMOIN PERMANENT DE LA GARDE D'ÉNUMÉRATION : une ligne NON PUBLIÉE. La route de
+     * service doit lui répondre **404 et non 403** — un 403 confirmerait son existence et
+     * ferait de `/medias/` un moyen d'énumérer les brouillons du back-office (6.4).
+     *
+     * ⚠️ Son fichier n'est PAS sur le volume, donc ce témoin exerce **deux** gardes à la
+     * fois (non publiée ET absente) : à lui seul il ne prouve pas laquelle a répondu.
+     * La preuve ISOLÉE se fait en basculant `is_published` sur la photo réelle — même
+     * nom, même fichier, une seule variable qui change. Les deux se complètent : celui-ci
+     * vit dans le seed en permanence, l'autre est une manipulation de mesure.
+     */
+    filename: "brouillon-non-publie.avif",
+    alt: "Photo en préparation, jamais servie publiquement.",
+    caption: null,
+    eventId: null,
+    sortOrder: 10,
+    isPublished: false,
+  },
+] as const;
 
 /**
  * Les 11 partenaires RÉELS attestés par les sources du projet.
@@ -481,6 +566,17 @@ function validatedPartner({ id, ...input }: Omit<NewPartner, "id"> & { id: strin
   return { id, ...partnerInputSchema.parse(input) };
 }
 
+/**
+ * Idem pour une photo. Le seed est le seul consommateur de `photoInputSchema` jusqu'à la
+ * Story 6.4 — et c'est ce qui empêche le schéma d'être un commentaire.
+ * ⚠️ Il éprouve donc aussi le `CHECK photo_filename_safe` : un nom de fichier que Zod
+ * accepterait mais que la base refuse ferait échouer le seed, ce qui est exactement le
+ * signal voulu si les deux règles venaient à diverger.
+ */
+function validatedPhoto({ id, ...input }: Omit<NewPhoto, "id"> & { id: string }): NewPhoto {
+  return { id, ...photoInputSchema.parse(input) };
+}
+
 async function main() {
   const client = postgres(databaseUrl!, { prepare: false, max: 1 });
   // MÊME `casing` que `client.ts` et `drizzle.config.ts`, sinon ce script écrirait dans
@@ -500,6 +596,11 @@ async function main() {
     const partnerRows: NewPartner[] = PARTNERS.map((p) =>
       validatedPartner({ ...p, isPublished: true }),
     );
+
+    // ⚠️ Contrairement aux partenaires, `isPublished` n'est PAS force ici : la liste porte
+    // deliberement une entree non publiee (temoin de la garde d'enumeration de la route
+    // de service). L'ecraser viderait ce temoin de son sens.
+    const photoRows: NewPhoto[] = PHOTOS.map((p) => validatedPhoto({ ...p }));
 
     const eventRows: NewEvent[] = [
       ...THURSDAY_ROTATION.map((thursday, index) =>
@@ -613,6 +714,26 @@ async function main() {
         },
       });
 
+    // 🔴 APRES `event` ET JAMAIS AVANT : `photo.event_id` porte une cle etrangere vers
+    // `event`. Semer les photos en premier violerait la contrainte des la premiere
+    // execution sur une base vierge — l'ordre des trois `insert` ci-dessus est donc une
+    // dependance, pas une preference de lecture.
+    await db
+      .insert(photo)
+      .values(photoRows)
+      .onConflictDoUpdate({
+        target: photo.id,
+        set: {
+          filename: sql`excluded.filename`,
+          alt: sql`excluded.alt`,
+          caption: sql`excluded.caption`,
+          eventId: sql`excluded.event_id`,
+          sortOrder: sql`excluded.sort_order`,
+          isPublished: sql`excluded.is_published`,
+          updatedAt: new Date(),
+        },
+      });
+
     // 🔴 ON RELIT LA BASE POUR RENDRE COMPTE, on n'affiche pas ce qu'on croit avoir écrit.
     // Réafficher `eventRows` (les valeurs en mémoire) donnerait à voir des dates fraîches
     // même si rien n'avait été persisté — un faux témoin, exactement le motif de
@@ -662,6 +783,46 @@ async function main() {
       console.log(
         `  [${p.category}] ${p.name} — ${p.logo ?? "pas de logo (absent du bandeau)"} (${publie})`,
       );
+    }
+
+    // 🔴 MÊME PRINCIPE POUR LES PHOTOS : on relit, et on rend compte de DEUX faits que
+    // personne d'autre ne dira — combien de vignettes la galerie peut rendre, et si le
+    // FICHIER est réellement sur le volume. Une ligne sans fichier produit un 404 à
+    // l'affichage : c'est le seul défaut de cette table qu'aucune contrainte ne peut
+    // attraper, puisqu'il vit hors de la base (`pieges/faux-succes.md`).
+    const storedPhotos = await db.query.photo.findMany({
+      orderBy: (table, { asc }) => [asc(table.sortOrder), asc(table.id)],
+    });
+    const racineMedias = process.env.MEDIA_DIR;
+    console.log(
+      `
+Seed photos terminé : ${storedPhotos.length} entrées, ` +
+        `dont ${storedPhotos.filter((p) => p.isPublished).length} PUBLIÉE(S) ` +
+        `(= le nombre de vignettes de la galerie).`,
+    );
+    for (const p of storedPhotos) {
+      const publie = p.isPublished ? "publiée" : "NON PUBLIÉE";
+      let fichier = "MEDIA_DIR non renseignée — impossible de vérifier";
+      if (racineMedias) {
+        const chemin = path.resolve(racineMedias, p.filename);
+        fichier = existsSync(chemin) ? "fichier présent" : "🔴 FICHIER ABSENT DU VOLUME";
+      }
+      const rattachement = p.eventId ? "rattachée à un événement" : "sans événement";
+      console.log(`  ${p.filename} — ${publie}, ${rattachement}, ${fichier}`);
+    }
+    if (racineMedias) {
+      const manquantes = storedPhotos.filter(
+        (p) => p.isPublished && !existsSync(path.resolve(racineMedias, p.filename)),
+      );
+      if (manquantes.length > 0) {
+        console.log(
+          `
+⚠️ ${manquantes.length} photo(s) PUBLIÉE(S) sans fichier sur le volume : la ` +
+            `galerie rendra autant de 404.
+   Copier les fichiers dans ${racineMedias} ` +
+            `(voir README de la vitrine, § Médias).`,
+        );
+      }
     }
   } finally {
     await client.end();

@@ -172,6 +172,49 @@ export async function launchChrome(port = 9222) {
       await this.eval(`new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))`, true);
       await this.eval(`document.fonts.ready.then(() => true)`, true);
     },
+    /**
+     * Envoie une VRAIE frappe clavier par la pile d'entrée de Chrome (Story 4.3).
+     *
+     * 🔴 POURQUOI PAS `dispatchEvent(new KeyboardEvent('keydown', …))` : un événement
+     * fabriqué en JS est `isTrusted: false`. Le navigateur exécute bien les gestionnaires
+     * qui l'écoutent, mais il **ne fait pas l'action par défaut** — un Tab fabriqué ne
+     * DÉPLACE PAS le focus. Une porte qui mesurerait un piège de focus avec de tels
+     * événements verrait le focus immobile et conclurait « piégé » quoi qu'il arrive :
+     * elle serait verte sur un composant sans aucun piège.
+     * `Input.dispatchKeyEvent` passe par la pile d'entrée réelle, donc le focus bouge
+     * vraiment et la mesure dit quelque chose.
+     *
+     * 🔴 `rawKeyDown` NE SUFFIT PAS POUR ENTRÉE, ET C'EST MESURÉ, PAS SUPPOSÉ.
+     * Diagnostic fait pendant la Story 4.3, sur un `<button>` focalisé :
+     *     `.click()` programmatique ......... ouvre ✅
+     *     `rawKeyDown` Espace ............... ouvre ✅   (l'activation se fait au keyUp)
+     *     `rawKeyDown` Entrée ............... N'OUVRE PAS ❌
+     * Chrome ne déclenche l'action par défaut d'Entrée que sur un `keyDown` porteur de
+     * `text` (`"\r"`). Sans cette distinction, une porte conclurait que le composant ne
+     * répond pas au clavier alors que c'est l'INSTRUMENT qui ne frappe pas vraiment —
+     * exactement l'inverse du diagnostic, et un défaut inventé de toutes pièces.
+     * ⚠️ Ne pas « simplifier » en mettant `keyDown` partout : `keyDown` sans `text` sur
+     * Tab ou Échap n'est pas la forme attendue par CDP.
+     *
+     * @param {{ key: string, code: string, windowsVirtualKeyCode: number, modifiers?: number, text?: string }} touche
+     *   `modifiers` : masque CDP — 1 Alt, 2 Ctrl, 4 Meta, **8 Maj**.
+     *   `text` : à fournir pour les touches dont on attend l'ACTION PAR DÉFAUT (Entrée).
+     */
+    async envoyerTouche({ key, code, windowsVirtualKeyCode, modifiers = 0, text }) {
+      const commun = { key, code, windowsVirtualKeyCode, nativeVirtualKeyCode: windowsVirtualKeyCode, modifiers };
+      await send(
+        "Input.dispatchKeyEvent",
+        text === undefined
+          ? { type: "rawKeyDown", ...commun }
+          : { type: "keyDown", text, unmodifiedText: text, ...commun },
+        sessionId,
+      );
+      await send("Input.dispatchKeyEvent", { type: "keyUp", ...commun }, sessionId);
+      // Laisse React re-rendre avant que l'appelant ne relève l'état. Sans cette
+      // respiration, un relevé immédiat lirait l'état d'AVANT la frappe et la porte
+      // mesurerait systématiquement un cran en retard.
+      await new Promise((r) => setTimeout(r, 60));
+    },
     async eval(expression, awaitPromise = false) {
       const r = await send(
         "Runtime.evaluate",

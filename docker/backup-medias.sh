@@ -7,11 +7,15 @@
 # Produit : /root/backups/medias-YYYYMMDD-HHMMSS.tar.gz (archive du volume Docker).
 #
 # Les fichiers televerses par le back-office vivent dans le volume nomme 'eds-medias'
-# (montage /app/apps/vitrine/medias dans le conteneur vitrine). Revision d'architecture
+# (montage /repo/apps/vitrine/medias dans le conteneur vitrine — chemin CORRIGE par la
+# Story 4.3, il valait /app/... alors que le Dockerfile fixe WORKDIR /repo). Ce script
+# sauvegarde le VOLUME et non un chemin du conteneur : il etait donc juste malgre
+# l'erreur de montage, et c'est precisement pourquoi elle n'a rien signale.
+# Revision d'architecture
 # du 2026-07-29 : remplace le bucket Supabase Storage, retire avec le reste de la stack.
 #
 # COHERENCE (Garde-fou n3, INCHANGE PAR LA REVISION) :
-#   Les METADONNEES des medias (table 'photo', Story 4.4) vivent dans la base 'vitrine'
+#   Les METADONNEES des medias (table 'photo', Story 4.3) vivent dans la base 'vitrine'
 #   -> restaurer BASE + MEDIAS ENSEMBLE, dans l'ordre base -> medias.
 #   Le tar (volume) et le pg_dump (base) sont SEQUENTIELS : un televersement concurrent
 #   peut faire diverger fichiers <-> metadonnees. Tolere pour une vitrine a faible trafic

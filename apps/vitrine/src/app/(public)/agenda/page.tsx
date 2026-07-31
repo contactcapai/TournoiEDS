@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Brush, Button, PhotoFrame, Tag } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
@@ -10,6 +11,7 @@ import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
 import { cleanText, truncate } from "@/lib/text";
 import { getPastEvents, getUpcomingEvents, type AgendaEvent } from "@/server/db/queries/events";
+import { getPhotosForEvents, type GalleryPhoto } from "@/server/db/queries/photos";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
@@ -133,7 +135,7 @@ function DiscordLink({ className }: { className?: string }) {
  * jusqu'à leur 2ᵉ surface. Précédent direct : les pages 2.6 et 2.7 composent leurs
  * blocs dans leur propre fichier.
  */
-function PastEvent({ event }: { event: AgendaEvent }) {
+function PastEvent({ event, photo }: { event: AgendaEvent; photo?: GalleryPhoto }) {
   const recap = truncate(event.recap, RECAP_MAX);
   const titre = truncate(event.title, PAST_TITLE_MAX);
   const place = event.bar
@@ -165,14 +167,15 @@ function PastEvent({ event }: { event: AgendaEvent }) {
         </div>
       </div>
 
-      {/* 🔴 EMPLACEMENT DE GALERIE — STRUCTURE SEULEMENT (arbitrage de Brice).
-          On réutilise le placeholder que la primitive PhotoFrame rend DÉJÀ quand elle
-          n'a pas d'enfant (cadre « tirage » + icône + « Photo à venir ») : aucun
-          composant, aucune table, aucune image à créer ici. La table `photo` arrive
-          en Story 4.4 et l'affichage réel en 4.5.
-          Il sert aussi le zéro CLS (NFR2) : son `aspect-ratio: 4/3` réserve la place
-          que les vraies photos occuperont, donc rien ne sautera le jour où elles
-          arriveront. */}
+      {/* ✅ EMPLACEMENT DE GALERIE — LES VRAIES PHOTOS SONT BRANCHÉES (Story 4.3,
+          dette R25 soldée). `photo` vaut `undefined` quand l'événement n'a aucune photo
+          publiée : on retombe alors sur le placeholder que `PhotoFrame` rend DÉJÀ sans
+          enfant (cadre « tirage » + icône + « Photo à venir »).
+          🔴 C'EST LE CAS MAJORITAIRE AUJOURD'HUI — une seule photo est en base, donc
+          une vignette sur quatre porte une image et trois montrent le placeholder. Ce
+          n'est pas un état dégradé à corriger : c'est ce que le gate visuel doit voir.
+          Le zéro CLS (NFR2) est inchangé et vient du même endroit qu'avant :
+          l'`aspect-ratio: 4/3` du cadre réserve la place dans les deux cas. */}
       <div className={styles.pastMedia}>
         {/* 🔴 LA LÉGENDE N'EST PAS LE TITRE DE L'ÉVÉNEMENT, et c'est un correctif
             mesuré : la porte outillée a fait déborder `/agenda` de 33px à 320px quand
@@ -184,7 +187,20 @@ function PastEvent({ event }: { event: AgendaEvent }) {
               - une légende manuscrite longue est illisible par nature.
             Le libellé est donc BORNÉ PAR CONSTRUCTION : deux valeurs possibles, jamais
             de la donnée libre. */}
-        <PhotoFrame rotation={-2} caption={isHighlight ? "Temps fort" : "Soirée jeudi"} />
+        <PhotoFrame rotation={-2} caption={isHighlight ? "Temps fort" : "Soirée jeudi"}>
+          {photo ? (
+            /* `sizes` tient compte du RECADRAGE `cover` du cadre, comme dans le
+               scrapbook : la vignette du carrousel fait au plus 100 % de sa piste, et
+               une source plus large que 4/3 doit fournir davantage de pixels que la
+               largeur affichée. Le raisonnement complet est dans `Scrapbook.tsx`.
+               ⚠️ `alt=""` : la légende du cadre et le titre de l'événement décrivent
+               déjà le bloc, et l'image y est ILLUSTRATIVE. Un `alt` répétant le
+               contexte ferait dire deux fois la même chose au lecteur d'écran. La
+               description complète de la photo, elle, est portée par la galerie de la
+               home, où l'image EST le contenu. */
+            <Image src={`/medias/${photo.filename}`} alt="" fill sizes="398px" loading="lazy" />
+          ) : null}
+        </PhotoFrame>
       </div>
     </li>
   );
@@ -198,6 +214,13 @@ export default async function Agenda() {
     getUpcomingEvents(UPCOMING_LIMIT),
     getPastEvents(PAST_LIMIT),
   ]);
+
+  // 🔴 UNE SEULE REQUÊTE POUR LES N VIGNETTES, PAS UNE PAR CARTE (dette R25). Une
+  // lecture par événement serait un N+1 sur une page `force-dynamic`, donc payé à
+  // CHAQUE visite. ⚠️ Elle vient APRÈS le `Promise.all` et non dedans : elle dépend de
+  // ses résultats (les identifiants des passés), donc elle ne peut pas être
+  // parallélisée avec eux. C'est le seul aller-retour séquentiel de la page.
+  const photosParEvenement = await getPhotosForEvents(past.map((event) => event.id));
 
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -297,7 +320,11 @@ export default async function Agenda() {
             <div className={motion.reveal}>
               <PastCarousel label="Événements passés, du plus récent au plus ancien">
                 {past.map((event) => (
-                  <PastEvent key={event.id} event={event} />
+                  <PastEvent
+                    key={event.id}
+                    event={event}
+                    photo={photosParEvenement.get(event.id)}
+                  />
                 ))}
               </PastCarousel>
             </div>

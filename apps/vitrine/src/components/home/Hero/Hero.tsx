@@ -149,16 +149,36 @@ export function Hero({ hasUpcomingEvent }: HeroProps) {
                 hissé à la racine du monorepo par une dépendance de transit.
                 La nuance change la décision : s'appuyer dessus marcherait aujourd'hui
                 et casserait EN SILENCE au premier `pnpm install` qui bouge l'arbre.
-                ⇒ La Story 4.3, qui retirera `unoptimized`, doit D'ABORD DÉCLARER
-                `sharp` dans `apps/vitrine/package.json`.
+                ⇒ ✅ FAIT LE 2026-07-31 (Story 4.3) : `sharp` EST DÉCLARÉ dans
+                `apps/vitrine/package.json` (`^0.34.5`), et le lockfile l'enregistre
+                comme dépendance directe. L'optimiseur est réellement utilisé — par la
+                GALERIE.
+
+                🔴 MAIS `unoptimized` RESTE ICI, ET C'EST DÉLIBÉRÉ. La Story 4.3 a
+                scindé la substitution PAR RÉSOLUTION (arbitrage de Brice du
+                2026-07-31) : mesurée, la photo suffit à une vignette de scrapbook
+                (276px CSS en 2× ⇒ 796px requis, 922 disponibles) et NE SUFFIT PAS au
+                hero, qui a besoin d'environ 950px après le recadrage 4/3.
+                Lever `unoptimized` ici n'apporterait donc RIEN : aucun optimiseur ne
+                fabrique du retina depuis une source de 922 × 480. Le blocage n'est pas
+                technique, il est MATÉRIEL — il faut les originaux (dette R15, désormais
+                RESSERRÉE sur le hero et la bande citation).
+                ⚠️ Ne pas « finir le travail » en retirant ce drapeau sans photo HD : on
+                paierait le coût de l'optimisation pour un rendu identique, et on
+                perdrait le dernier endroit qui documente ce qui manque.
 
                 Dimensions intrinsèques 922×480 → aspect-ratio réservé, aucun CLS.
                 Le recadrage vient de PhotoFrame (`aspect-ratio: 4/3` +
                 `object-fit: cover`), pas d'ici.
 
-                ⚠️ Les visages sont identifiables : le consentement des personnes
-                photographiées doit être acquis AVANT la mise en service du VPS.
-                Rien n'est publié tant que le site n'est pas en ligne. */}
+                ⚠️ Droit à l'image — ARBITRÉ, ce point n'est plus ouvert. Les visages
+                sont identifiables, mais les personnes photographiées sont ADHÉRENTES et
+                couvertes par la clause des statuts de l'association (arbitrage de Brice
+                du 2026-07-29, tracé dans `deferred-work.md`, note de R4). Il n'y a donc
+                rien à acquérir avant la mise en service, et rien à garder ici.
+                ⚠️ Ne pas ré-ajouter un avertissement « consentement à obtenir » : ce
+                serait payer un garde-fou pour neutraliser un cadrage déjà tranché
+                (`00 référence/pieges/cadrage-perime.md`). */}
             <Image
               src="/photos/soiree-bar-eds-01.avif"
               alt="Une soirée Esport des Sacres dans un bar rémois : des joueurs attablés devant un écran de jeu, sous le kakémono de l'association."

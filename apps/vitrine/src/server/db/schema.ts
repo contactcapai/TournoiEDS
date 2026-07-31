@@ -35,6 +35,11 @@ import {
 
 import { EVENT_TYPES } from "../../lib/schemas/event";
 import { PARTNER_CATEGORIES } from "../../lib/schemas/partner";
+// Même sens de dépendance que les deux listes d'enum ci-dessus : la liste des extensions
+// autorisées vit dans le module Zod (bundlé côté client en Epic 6), et le schéma Drizzle
+// la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
+// navigateur. Une seule liste pour Zod, la base et la table de `Content-Type`.
+import { EXTENSIONS } from "../../lib/schemas/photo";
 
 /**
  * Nature d'un événement. Identifiants techniques en anglais, comme les tables ; les
@@ -247,14 +252,186 @@ export const partner = pgTable(
   ],
 );
 
+/**
+ * Photo de la galerie « la vie de l'asso » (FR15, FR21, Story 4.3).
+ *
+ * 🔴 `filename` PORTE UN NOM DE FICHIER NU, ET C'EST LA VALEUR LA PLUS DANGEREUSE DU
+ * PROJET. Elle est résolue contre le volume Docker des médias par la route de service
+ * `/medias/[filename]` : une valeur mal formée serait une **traversée de répertoire**,
+ * c'est-à-dire la lecture d'un fichier arbitraire du conteneur — au premier rang duquel
+ * `.env.prod`, qui porte la chaîne de connexion Postgres. Ce risque n'existait pas avec
+ * un stockage tiers : la révision d'architecture du 2026-07-29 (sortie de Supabase
+ * Storage) le crée, et c'est cette story qui le traite.
+ *
+ * ⚠️ JAMAIS DE CHEMIN, JAMAIS DE DOSSIER, JAMAIS D'ABSOLU — un nom nu et rien d'autre.
+ * C'est la même consigne que le commentaire de `partner.logo` (« ne jamais y stocker de
+ * chemin système absolu »), mais ici elle est APPLIQUÉE PAR LA BASE et non seulement
+ * écrite : `logo` reste volontairement permissif (il désigne aujourd'hui un chemin sous
+ * `public/`), `filename` ne peut pas se le permettre.
+ *
+ * ⚠️ Aucune colonne de DIMENSIONS, délibérément — même raison que `partner.logo` : le
+ * cadre impose `aspect-ratio: 4/3` + `object-fit: cover`, le rendu n'a donc jamais besoin
+ * de connaître la taille du fichier. La Story 6.4 fera téléverser des fichiers de tailles
+ * quelconques par des bénévoles ; un montage qui aurait eu besoin de ces dimensions se
+ * casserait à ce moment-là.
+ *
+ * ⚠️ Aucun enum non plus. La galerie est un flux unique — ne pas inventer une « catégorie
+ * de photo » par symétrie avec `partner` (règle de tête de fichier : jamais d'anticipation).
+ */
+export const photo = pgTable(
+  "photo",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /**
+     * 🔴 `unique()` — UN NOM DE FICHIER DÉSIGNE UNE SEULE PHOTO. Trouvé en revue
+     * (Edge Case Hunter) et reproduit : sans cette contrainte, deux lignes d'`id`
+     * différents pouvaient porter le même `filename`, et rien ne s'y opposait.
+     *
+     * Trois conséquences, toutes atteignables dès la Story 6.4 (téléversement par des
+     * bénévoles, qui re-téléverseront le même fichier sans le savoir) :
+     *   ① la route de service fait un `findFirst` — elle en choisirait une
+     *      ARBITRAIREMENT, donc le `is_published` appliqué serait celui d'une ligne
+     *      qu'on ne choisit pas. Dépublier « la » photo pourrait ne rien changer,
+     *      l'autre ligne continuant de l'autoriser ;
+     *   ② la galerie afficherait deux fois la même image ;
+     *   ③ supprimer une des deux lignes suggérerait de supprimer le fichier — et
+     *      casserait l'autre.
+     * Le nom de fichier est l'identifiant du média sur le volume : la base doit le dire.
+     */
+    filename: text().notNull().unique(),
+    /**
+     * 🔴 `notNull`, ET C'EST UNE EXTENSION ASSUMÉE DE L'AC D'`epics.md` (qui listait
+     * « fichier, légende, event_id, ordre, is_published »). `EXPERIENCE.md` l.194 et
+     * **NFR3** posent l'alt-text comme obligatoire et non négociable, et l'AC2 de la
+     * story le réexige. Sans colonne dédiée, le back-office de la 6.4 n'aurait aucun
+     * endroit où l'exiger et la garde retomberait sur chaque appelant du rendu.
+     * ⚠️ La LÉGENDE N'EST PAS UN ALT : « Le stand, plein à craquer » commente, il ne
+     * décrit pas. Les confondre livrerait une galerie inutilisable au lecteur d'écran
+     * tout en affichant 100/100 — Lighthouse voit un `alt` non vide, pas un `alt` juste.
+     */
+    alt: text().notNull(),
+    /** Légende manuscrite (Caveat, `--ink` sur cream). Facultative. Bornée — voir R24. */
+    caption: text(),
+    /**
+     * 🔴 `ON DELETE SET NULL` et non `CASCADE`, et le raisonnement est PLUS FORT que
+     * pour `event.barId` : supprimer un événement ne doit pas effacer les PHOTOS de cet
+     * événement. Une photo orpheline reste une photo de la vie de l'asso — elle sort du
+     * compte-rendu de `/agenda` et **reste dans la galerie de la home**. Un `CASCADE`
+     * détruirait un média que personne ne peut recréer, sur une opération que le
+     * back-office (6.3) rendra banale.
+     * ⚠️ Nullable AUSSI par conception, pas seulement par conséquence : une photo « de la
+     * vie de l'asso » sans occasion précise est un cas nominal. La galerie de la home ne
+     * joint donc PAS `event` ; seule `/agenda` joint, dans l'autre sens.
+     */
+    eventId: uuid().references(() => event.id, { onDelete: "set null" }),
+    /** Classement manuel dans la galerie (FR21). Colonne posée avant son écran (6.4). */
+    sortOrder: integer().notNull().default(0),
+    /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`). */
+    isPublished: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * 🔴 LISTE BLANCHE, JAMAIS LISTE NOIRE — et c'est la contrainte la plus importante
+     * de ce fichier. Doctrine `event_has_venue` (3.1) puis `partner_*_not_blank` (4.1,
+     * après un finding de revue) : la base est le garde-fou qu'on ne peut PAS
+     * contourner. Un `UPDATE` direct, une restauration de sauvegarde ou une migration de
+     * données ne passent par AUCUN schéma Zod — et ici l'enjeu n'est pas un rendu cassé
+     * mais la lecture d'un fichier arbitraire du conteneur.
+     *
+     * Trois règles, et chacune ferme une porte différente :
+     *   ① `^[a-z0-9]` — premier caractère alphanumérique : interdit `.cache`, `-flag`, `..` ;
+     *   ② `[a-z0-9._-]*` — corps sans `/`, sans `\`, sans `%`, sans `:` ;
+     *   ③ extension dans la liste close de `EXTENSIONS`, en minuscules (`~` est
+     *      sensible à la casse en Postgres, donc `.PNG` est refusé).
+     *
+     * 🔴 `.svg` EST ABSENT, ET CE N'EST PAS UN CHOIX DE FORMAT : un SVG servi `inline`
+     * depuis notre propre origine exécute son `<script>` dans le contexte du site —
+     * XSS stocké, livré par le formulaire de la 6.4 à un bénévole qui téléverserait un
+     * fichier reçu par mail. Next lui-même refuse d'optimiser les SVG sans le drapeau
+     * `dangerouslyAllowSVG` ; le nom du drapeau dit tout.
+     *
+     * 🔴 `\\.` ET NON `\.` — PIÈGE D'ÉCHAPPEMENT À DEUX ÉTAGES, ET IL EST SILENCIEUX.
+     * Dans un littéral de gabarit JS, `\.` est un échappement NON RECONNU et s'évalue en
+     * `.` : la chaîne remise à Postgres contiendrait donc un point « n'importe quel
+     * caractère » au lieu d'un point littéral, et `axjpg` passerait la contrainte. Rien
+     * ne le signalerait — ni le typecheck, ni le build, ni un test qui n'essaierait que
+     * des noms valides. C'est pourquoi la story exige d'ÉPROUVER ce `CHECK` par des
+     * écritures qui doivent ÉCHOUER, dont `axjpg` précisément.
+     *
+     * ⚠️ Le `!~ '\\.\\.'` est REDONDANT avec ① (un nom ne peut pas commencer par un
+     * point) mais il reste : la sécurité de cette valeur ne doit pas dépendre d'un
+     * raisonnement à deux détentes que quelqu'un devra retenir dans six mois.
+     *
+     * 🔴 `sql.raw()` ET NON UNE INTERPOLATION NUE — DÉFAUT MESURÉ À LA GÉNÉRATION.
+     * Dans un gabarit `sql\`\``, une valeur interpolée devient un PARAMÈTRE LIÉ. Écrite
+     * `sql\`… ~ ${motif}\``, la contrainte est sortie dans le `.sql` sous la forme
+     * `CHECK ("photo"."filename" ~ $1 …)` — une migration **invalide**, puisqu'un DDL
+     * versionné n'a personne pour lier `$1`. Ni le typecheck ni le build ne l'auraient
+     * vu : le seul témoin est le SQL généré, qu'il faut donc LIRE (`pieges/faux-succes.md`).
+     * `sql.raw()` inline le texte — les apostrophes SQL sont donc à écrire ici.
+     */
+    check(
+      "photo_filename_safe",
+      sql`${table.filename} ~ ${sql.raw(`'^[a-z0-9][a-z0-9._-]*\\.(${EXTENSIONS.join("|")})$'`)} and ${table.filename} !~ '\\.\\.'`,
+    ),
+    // `alt` est `notNull`, mais `'' IS NOT NULL` est VRAI en SQL : sans ce CHECK, un
+    // `UPDATE photo SET alt = ''` produirait une image sans texte alternatif, c'est-à-dire
+    // exactement ce que la colonne existe pour empêcher. Même défaut que celui trouvé sur
+    // `partner.logo` à la revue de la 4.1.
+    check("photo_alt_not_blank", sql`length(btrim(${table.alt})) > 0`),
+    /**
+     * 🔴 NON VIDE **ET BORNÉE**, ET LA BORNE EST UNE DETTE DÉJÀ PAYÉE (R24).
+     *
+     * Trouvé en revue (Edge Case Hunter) : la borne de 60 caractères ne vivait que dans
+     * `photoInputSchema`, donc uniquement au point de SAISIE. Or un `UPDATE` direct, une
+     * restauration de sauvegarde ou un script de migration ne passent par AUCUN schéma
+     * Zod — et R24 a été payée sur exactement ce scénario : 299 caractères sans espace
+     * en légende ont fait déborder `/agenda` de 32,89px à 320px de viewport,
+     * **rogné en silence** par `overflow-x: clip`.
+     *
+     * `overflow-wrap: anywhere` (posé sur `.cap` par cette story) empêche le
+     * DÉBORDEMENT, mais pas une légende de 300 caractères illisible dans un tirage.
+     * Les deux gardes ne protègent pas la même chose, et aucune ne remplace celle-ci.
+     *
+     * ⚠️ Même valeur que Zod (60), délibérément : la base et le schéma expriment ici la
+     * MÊME règle en deux langages — c'est le montage de `filename`. Les faire diverger
+     * ferait remonter au bénévole une erreur brute du driver là où Zod avait un message.
+     */
+    check(
+      "photo_caption_valide",
+      sql`${table.caption} is null or (length(btrim(${table.caption})) > 0 and length(${table.caption}) <= 60)`,
+    ),
+    // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : la galerie filtre sur
+    // `is_published` puis ordonne par `sort_order` (`queries/photos.ts`).
+    index("photo_published_order_idx").on(table.isPublished, table.sortOrder),
+    // Sert la lecture PAR ÉVÉNEMENT des vignettes de `/agenda` (R25) : le filtre porte
+    // sur `event_id`, et l'ordre sur `sort_order`. Index distinct du précédent — celui-ci
+    // ne peut pas servir une recherche par `event_id`, dont il n'a pas la colonne de tête.
+    index("photo_event_order_idx").on(table.eventId, table.sortOrder),
+  ],
+);
+
 // Relations déclarées ici pour que les stories de lecture puissent écrire
 // `db.query.event.findMany({ with: { bar: true } })` sans retoucher ce fichier.
 export const barRelations = relations(bar, ({ many }) => ({
   events: many(event),
 }));
 
-export const eventRelations = relations(event, ({ one }) => ({
+export const eventRelations = relations(event, ({ one, many }) => ({
   bar: one(bar, { fields: [event.barId], references: [bar.id] }),
+  // Sens `event → photos` : c'est celui dont `/agenda` a besoin (une vignette par
+  // événement passé, R25). Le sens inverse sert la galerie si elle veut un jour nommer
+  // l'occasion ; il ne coûte rien à déclarer et évite de rouvrir ce fichier.
+  photos: many(photo),
+}));
+
+export const photoRelations = relations(photo, ({ one }) => ({
+  event: one(event, { fields: [photo.eventId], references: [event.id] }),
 }));
 
 /** Types inférés du schéma — à consommer par les requêtes et le rendu. */
@@ -266,3 +443,5 @@ export type EventType = (typeof eventType.enumValues)[number];
 export type Partner = typeof partner.$inferSelect;
 export type NewPartner = typeof partner.$inferInsert;
 export type PartnerCategory = (typeof partnerCategory.enumValues)[number];
+export type Photo = typeof photo.$inferSelect;
+export type NewPhoto = typeof photo.$inferInsert;

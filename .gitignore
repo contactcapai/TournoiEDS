@@ -40,3 +40,7 @@ npm-debug.log*
 .claude/
 .agent/
 _bmad/
+
+# Medias de la galerie en developpement (Story 4.3) : contenu local, jamais commite.
+# La racine est pilotee par MEDIA_DIR ; en production c est le volume Docker eds-medias.
+/apps/vitrine/medias/
