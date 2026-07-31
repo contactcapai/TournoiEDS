@@ -84,11 +84,25 @@ export function Scrapbook({ photos }: ScrapbookProps) {
   const fermer = useCallback(() => setOuverte(null), []);
 
   /**
-   * 🔴 LE FOCUS EST RESTITUÉ À LA VIGNETTE D'ORIGINE (UX-DR23, `EXPERIENCE.md` l.195).
-   * Sans cela, la fermeture renvoie le focus en tête de document et l'utilisateur au
-   * clavier doit re-parcourir toute la page pour revenir où il était. C'est le genre de
-   * défaut qu'aucune porte automatique ne voit et que l'œil ne voit pas non plus — d'où
-   * `gate:lightbox`.
+   * 🔴 LE FOCUS EST RESTITUÉ À LA VIGNETTE (UX-DR23, `EXPERIENCE.md` l.195). Sans cela la
+   * fermeture renvoie le focus en tête de document, et l'utilisateur au clavier doit
+   * re-parcourir toute la page pour revenir où il était.
+   *
+   * 🔴 PRÉCISION QUI N'EST PAS UN DÉTAIL, ET QUE `gate:lightbox` A FAIT TRANCHER :
+   * c'est la vignette de la photo **DERNIÈRE AFFICHÉE**, pas celle qui a ouvert le
+   * dialogue. Ouvrir la 1ʳᵉ photo, naviguer jusqu'à la 3ᵉ, puis fermer ramène donc sur
+   * la 3ᵉ vignette.
+   *
+   * L'ARIA APG demande de rendre le focus « à l'élément qui a invoqué le dialogue », avec
+   * une exception explicite quand le dialogue a changé le contexte. La navigation EST ce
+   * changement : rendre le focus à la 1ʳᵉ vignette après avoir parcouru la galerie
+   * désynchroniserait la position au clavier de ce que la personne vient de regarder, et
+   * l'obligerait à re-naviguer pour se retrouver. Sans navigation, `ouverte` n'a pas
+   * bougé et le comportement redevient exactement celui de l'APG.
+   *
+   * ⚠️ C'est ce que fait `indexPrecedent`, qui suit `ouverte` à CHAQUE changement et non
+   * seulement à l'ouverture. Ne pas le « corriger » en mémorisant l'index d'ouverture :
+   * ce serait défaire une décision, pas réparer un défaut.
    */
   const indexPrecedent = useRef<number | null>(null);
   useEffect(() => {
@@ -203,11 +217,24 @@ export function Scrapbook({ photos }: ScrapbookProps) {
               }}
               className={styles.declencheur}
               onClick={() => setOuverte(index)}
-              // Le contenu visible du bouton est l'image, dont l'`alt` décrit la scène ;
-              // le libellé accessible doit dire ce que le bouton FAIT, pas ce qu'il
-              // montre. Sans cela un lecteur d'écran annonce « bouton, <description de
-              // la photo> », sans jamais dire qu'on peut l'agrandir.
-              aria-label={`Agrandir la photo : ${photo.alt}`}
+              /* 🔴 LE NOM ACCESSIBLE COMMENCE PAR LE TEXTE VISIBLE — WCAG 2.5.3
+                 (« Label in Name »), et c'est un DÉFAUT RÉEL trouvé par la mesure.
+                 Une 1ʳᵉ version rendait `Agrandir la photo : <alt>`. Lighthouse
+                 affichait **100/100** et pourtant l'audit `label-content-name-mismatch`
+                 était en ÉCHEC : le seul texte VISIBLE du bouton est la légende du
+                 cadre (« Entre deux games »), et elle n'apparaissait nulle part dans le
+                 nom accessible. Conséquence concrète : une personne pilotant à la voix
+                 qui prononce ce qu'elle LIT n'active pas le bouton.
+                 ⚠️ Le score de 100 ne dit rien ici — cet audit n'est pas pondéré. C'est
+                 la LISTE DES AUDITS EN ÉCHEC qu'il faut lire, pas la note
+                 (`pieges/dette-invisible.md`).
+                 Sans légende il n'y a aucun texte visible, donc aucune correspondance à
+                 tenir : on décrit alors la photo, sinon le bouton n'aurait pas de nom. */
+              aria-label={
+                photo.caption
+                  ? `${photo.caption} — agrandir la photo`
+                  : `Agrandir la photo : ${photo.alt}`
+              }
             >
               <PhotoFrame caption={photo.caption ?? undefined}>
                 <Image

@@ -25,6 +25,25 @@
   object-fit: cover;
 }
 
+/* 🔴 OPACITÉ RELEVÉE DE 0,5 À 0,88 PAR LA STORY 4.3 — ÉCART ASSUMÉ À LA MAQUETTE,
+   IMPOSÉ PAR LA MESURE, ET DANS LE SENS DE PLUS DE CONTRASTE.
+
+   La maquette pose `rgba(243,239,227,.5)` (l.78). Mesuré sur le rendu, à 12,5px sur la
+   borne la plus claire du dégradé (`--surface`) : **3,82:1 à pleine opacité** et
+   **2,91:1 sous le fondu `motion.reveal`** (opacité effective 0,5 × 0,75 = 0,375), pour
+   un seuil de **4,5:1** — 12,5px n'est ni grand ni gras.
+
+   ⚠️ DETTE INVISIBLE CARACTÉRISÉE, et c'est pour ça qu'elle a duré : le bloc est
+   `aria-hidden`, donc **Lighthouse ne l'audite pas**. La page affichait 100/100 avec un
+   échec AA réel dessus. Le défaut PRÉEXISTE à cette story (la primitive rend ce
+   placeholder depuis la Story 1.3, et `/agenda` l'anime depuis la 3.3) — c'est la
+   Story 4.3 qui l'a MESURÉ, parce qu'elle est la première à en afficher une grille
+   entière (état É7 de la galerie).
+   ⚠️ `aria-hidden` ne dispense PAS du contraste : le texte reste VISIBLE, donc 1.4.3
+   s'applique. Il rend même la situation pire — les personnes voyantes doivent le lire,
+   les lecteurs d'écran ne le peuvent pas.
+
+   Valeur retenue par la mesure et non choisie : voir le Debug Log de la Story 4.3. */
 .phFill {
   position: absolute;
   inset: 0;
@@ -33,7 +52,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: rgba(243, 239, 227, 0.5);
+  color: rgba(243, 239, 227, 0.88);
 }
 
 .phFill svg {
