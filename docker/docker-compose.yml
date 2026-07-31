@@ -160,9 +160,21 @@ services:
     # statiques meme si la base n'est pas encore healthy. Acquis de la Story 1.7,
     # conserve tel quel par la sortie de Supabase.
     volumes:
-      # Medias televerses par le back-office (Epic 6). Remplace Supabase Storage.
-      # Sauvegarde par docker/backup-medias.sh.
-      - eds-medias:/app/apps/vitrine/medias
+      # Medias de la galerie (Story 4.3) + televersements du back-office (Epic 6).
+      # Remplace Supabase Storage. Sauvegarde par docker/backup-medias.sh.
+      #
+      # 🔴 CHEMIN CORRIGE PAR LA STORY 4.3 — il valait `/app/apps/vitrine/medias`, et
+      # c'etait FAUX : le Dockerfile fixe `WORKDIR /repo` et lance
+      # `node apps/vitrine/server.js`, donc l'application vit sous /repo/apps/vitrine/.
+      # Le montage designait un chemin sans aucun rapport avec l'arborescence reelle.
+      # ⚠️ Le mode de defaillance etait le pire possible : Docker CREE le point de
+      # montage, `up` reussit, le healthcheck passe, backup-medias.sh sauvegarde un
+      # volume qui existe — et l'application ne trouve aucun fichier. Rien ne le
+      # signale avant qu'un visiteur ne voie une galerie de 404 (famille de la dette R21).
+      # ⚠️ DOIT rester identique a MEDIA_DIR dans apps/vitrine/.env.prod : c'est cette
+      # variable que lit src/server/medias, et c'est ce qui rend l'accord VERIFIABLE
+      # au lieu de reposer sur deux chemins en dur qui se desynchroniseront.
+      - eds-medias:/repo/apps/vitrine/medias
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 30s

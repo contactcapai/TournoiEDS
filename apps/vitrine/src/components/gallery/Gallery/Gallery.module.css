@@ -1,0 +1,58 @@
+/* Gallery — section « La vie de l'asso » de l'accueil (Story 4.3).
+   Transcription de la maquette : markup l.408-423, `.s-head` l.90, `.hand` l.28. */
+
+.section {
+  /* `--section-y` = 90px, le rythme vertical de toutes les sections (DESIGN.md l.92). */
+  padding: var(--section-y) 0;
+  position: relative;
+}
+
+/* Tête CENTRÉE — la maquette pose ici `text-align:center` + marges auto (l.411), ce qui
+   fait de ce bloc le seul de la home dans ce registre. `.s-head` de la maquette porte
+   `max-width: 660px`, conservé : une accroche manuscrite sur toute la largeur perdrait
+   son air de note posée à la main. */
+.head {
+  max-width: 660px;
+  margin: 0 auto var(--section-gap);
+  text-align: center;
+}
+
+/* `.hand` de la maquette (l.28), avec la taille surchargée sur place à 28px (l.412). */
+.hand {
+  font-family: var(--font-hand);
+  color: var(--gold);
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* `.s-title` de la maquette, avec le `margin-top: 8px` posé sur place (l.413). */
+.title {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-size: var(--fs-section-title);
+  letter-spacing: 0.5px;
+  line-height: 0.98;
+  color: var(--cream);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   🔬 CONTRASTES DE CE BLOC — CALCULÉS SUR LE RENDU, sous le fondu `motion.reveal`
+   (`from: opacity 0.75`, plancher global 0,747 depuis la Story 4.1).
+
+   Ce qui est HORS du bloc animé (donc à opacité 1, jamais mélangé au fond) :
+     - accroche Caveat `--gold` sur `--navy-deep` ....... 8,36:1  (seuil 4,5 — 28px
+       en Caveat reste du texte « normal » au sens WCAG : la graisse est régulière)
+     - titre `--cream` sur `--navy-deep` ............... 14,50:1  (seuil 3,0, grand texte)
+
+   Ce qui est DANS le bloc animé (mesuré sous fondu — voir le Debug Log de la story) :
+     - légende du cadre : `--ink` sur `--cream` (le PAPIER du tirage, un fond OPAQUE qui
+       remplace complètement le fond de page). ⚠️ 22px en Caveat n'est PAS du « grand
+       texte » : le seuil WCAG « large » commence à 24px en régulier, donc le seuil
+       applicable est 4,5:1 et non 3:1. C'est la marche qu'on rate en lisant « 22px,
+       c'est grand ».
+     - texte du placeholder `.phFill` : `rgba(cream, .5)` sur le dégradé
+       `--surface → --navy-deep`. ⚠️ Sous le fondu, l'opacité EFFECTIVE tombe à
+       0,5 × 0,75 = 0,375. Ce texte est `aria-hidden`, donc Lighthouse ne l'audite PAS :
+       c'est une dette invisible caractérisée (`pieges/dette-invisible.md`), et c'est
+       pourquoi elle est mesurée à la main.
+   ═══════════════════════════════════════════════════════════════════════════════ */

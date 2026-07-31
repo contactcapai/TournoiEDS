@@ -47,11 +47,36 @@
   letter-spacing: 0.5px;
 }
 
-/* Légende manuscrite : Caveat en ink sur cream (lisible). Jamais Caveat or sur cream. */
+/* Légende manuscrite : Caveat en ink sur cream (lisible). Jamais Caveat or sur cream.
+   ⚠️ 22px en Caveat régulier n'est PAS du « grand texte » au sens WCAG (le seuil commence
+   à 24px) : le rapport de contraste applicable est donc 4,5:1 et non 3:1. */
 .cap {
   font-family: var(--font-hand);
   color: var(--ink);
   font-size: 22px;
   padding: 9px 4px 12px;
   text-align: center;
+  /* 🔴 GARDE DE DÉBORDEMENT — DETTE R24, ET ELLE A ÉTÉ MESURÉE AVANT D'ÊTRE POSÉE.
+     Story 3.3, sur donnée réellement injectée : un titre d'événement de 299 caractères
+     SANS ESPACE passé en `caption` a fait déborder `/agenda` de 32,89px à 320px de
+     viewport — débordement ROGNÉ EN SILENCE par `overflow-x: clip` (CLAUDE.md §3).
+     Caveat ne coupe pas les mots longs, et rien dans cette primitive ne l'y obligeait.
+
+     La 3.3 avait corrigé CHEZ L'APPELANT (libellé borné par construction : « Soirée
+     jeudi » / « Temps fort ») pour ne pas élargir le rayon de dégâts à `packages/ui` en
+     cours de story. La Story 4.3 fait passer de la DONNÉE DE BACK-OFFICE dans `caption`
+     (les légendes de photos, saisies en 6.4) : la garde doit donc vivre ici, sinon
+     chaque consommateur la repaie.
+
+     ⚠️ `anywhere` et non `break-word` : `break-word` ne coupe qu'en dernier recours et
+     ne contribue PAS à la largeur minimale intrinsèque de la boîte — un mot de 299
+     caractères imposerait donc toujours sa largeur au conteneur flex. `anywhere`
+     autorise la coupure ET réduit le `min-content`, ce qui est précisément ce qu'il faut
+     pour qu'un cadre en `flex: 0 1 300px` puisse rétrécir.
+
+     ⚠️ Cette garde protège la MISE EN PAGE. Elle ne protège pas le CONTENU : une légende
+     de 299 caractères resterait illisible dans un tirage. La borne de longueur vit donc
+     AUSSI dans `lib/schemas/photo.ts` (60 caractères), au point de saisie — patron de la
+     dette R26, qui reprochait à la 3.3 de n'avoir borné qu'au rendu. */
+  overflow-wrap: anywhere;
 }

@@ -1,0 +1,200 @@
+/* Scrapbook — grille de tirages inclinés + lightbox (Story 4.3).
+   Transcription de `.scrap` de la maquette (CSS l.166-172). */
+
+.grille {
+  display: flex;
+  flex-wrap: wrap;
+  /* 30px = `--block-gap` (DESIGN.md l.95, `spacing.blockGap`), la valeur de la maquette. */
+  gap: var(--block-gap);
+  justify-content: center;
+  list-style: none;
+}
+
+/* 🔴 `max-width: 100%` EST UN AJOUT À LA MAQUETTE, ET IL EST OBLIGATOIRE.
+   La maquette pose `width: 300px` en dur : à 320px de viewport il ne reste que 268px
+   entre les gouttières (`--wrap-pad` × 2), donc un cadre de 300px DÉBORDE de 32px —
+   rognés EN SILENCE par `overflow-x: clip` (piège central du projet, CLAUDE.md §3).
+   `flex: 0 1 300px` + `max-width: 100%` donne 300px quand la place existe et rétrécit
+   sinon. Vérifié par `pnpm --filter vitrine gate` aux 7 largeurs. */
+.vignette {
+  flex: 0 1 300px;
+  max-width: 100%;
+  /* La ROTATION VIT ICI, PAS SUR `PhotoFrame`. La primitive applique sa prop `rotation`
+     en style INLINE, qui bat n'importe quelle règle CSS : le redressement au survol
+     serait donc impossible à écrire si on passait par elle. Porter la rotation sur
+     l'enveloppe rend le survol possible — et c'est exactement ce que fait la maquette,
+     qui incline `.photo` par une règle et non par un attribut. */
+  transition: transform 0.25s ease-out;
+}
+
+/* Inclinaison en alternance — valeurs de la maquette (l.169-171).
+   ⚠️ L'ordre des classes ne suffit PAS à reproduire sa cascade : elle s'appuie sur
+   `:nth-child(odd|even|3n)` où `3n` gagne parce qu'il est déclaré en dernier. Ici
+   l'index est calculé en JS (`index % 3`), donc les trois classes sont exclusives et
+   l'ordre de déclaration n'a aucun effet. Le rendu est équivalent : 1 → -2,2° ;
+   2 → +1,8° ; 3 → +2,6°, puis répétition. */
+.tilt0 {
+  transform: rotate(-2.2deg);
+}
+.tilt1 {
+  transform: rotate(1.8deg);
+}
+.tilt2 {
+  transform: rotate(2.6deg);
+}
+
+/* Le déclencheur est un <button> : la feuille UA lui donne un fond, une bordure et un
+   padding qu'il faut neutraliser pour qu'il soit exactement le cadre. */
+.declencheur {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  /* Le cadre a son propre rayon ; l'anneau de focus global doit l'épouser. */
+  border-radius: var(--radius-frame);
+}
+
+/* 🔴 REDRESSEMENT AU SURVOL — `rotate(0) scale(1.03)`, valeurs de la maquette (l.172).
+   `:focus-within` et pas seulement `:hover` : au clavier, la vignette doit se comporter
+   comme à la souris. Sans lui, un utilisateur au clavier ne verrait jamais l'effet et,
+   surtout, la vignette focalisée resterait sous ses voisines (`z-index`). */
+.vignette:hover,
+.vignette:focus-within {
+  transform: rotate(0deg) scale(1.03);
+  /* Passe au-dessus de ses voisines, qui se chevauchent par leurs ombres portées. */
+  z-index: 2;
+}
+
+/* 🔴 `prefers-reduced-motion` — L'ÉTAT FINAL RESTE ATTEINT, INSTANTANÉMENT (UX-DR29).
+   On coupe la TRANSITION, pas le redressement : la photo se redresse toujours au survol,
+   sans animation. Supprimer aussi l'effet retirerait une affordance sans rien apporter —
+   la consigne est « couper le redressement ANIMÉ », pas « figer la page ». */
+@media (prefers-reduced-motion: reduce) {
+  .vignette {
+    transition: none;
+  }
+}
+
+/* ══════════════════════════════ LIGHTBOX ══════════════════════════════ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Fond très opaque : c'est lui qui porte le contraste de tout ce qui est dessus, et
+     il permet de calculer les rapports sans dépendre de la page en dessous. */
+  background: rgba(20, 18, 48, 0.92);
+}
+
+.boite {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(1000px, 100%);
+  max-height: 100%;
+}
+
+.media {
+  position: relative;
+  /* Réserve la place AVANT le chargement : zéro CLS (NFR2). La hauteur est bornée par le
+     viewport pour qu'une photo verticale ne pousse jamais les commandes hors écran. */
+  aspect-ratio: 4 / 3;
+  max-height: 70vh;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+/* `contain` et NON `cover` : la lightbox sert à VOIR la photo entière. C'est la
+   différence de fond avec la vignette, qui elle recadre pour tenir dans le tirage. */
+.image {
+  object-fit: contain;
+}
+
+.legende {
+  font-family: var(--font-hand);
+  color: var(--gold);
+  font-size: 26px;
+  text-align: center;
+  /* Caveat OR est autorisé ici parce que le fond est SOMBRE (DESIGN.md l.195 :
+     « Caveat-or uniquement sur fond sombre ; sur cream, légende en ink »). Dans le
+     cadre `PhotoFrame`, qui est crème, la primitive rend donc `--ink` — les deux
+     règles disent la même chose et s'appliquent à des fonds différents. */
+}
+
+.commandes {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.compteur {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  color: var(--light);
+}
+
+/* Cibles ≥ 44×44 (UX-DR25, convention projet non négociable).
+   ⚠️ AUCUNE porte automatique ne le vérifie : WCAG 2.5.8 AA n'exige que 24×24 et
+   Lighthouse affichait 100/100 à 26,39px en Story 2.10 (dette R10). C'est
+   `gate:lightbox` qui le mesure. */
+.fermer,
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid rgba(243, 239, 227, 0.35);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--cream);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+.fermer {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  transform: translateY(-100%);
+}
+
+.fermer:hover,
+.nav:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fermer,
+  .nav {
+    transition: none;
+  }
+}
+
+@media (max-width: 880px) {
+  .media {
+    max-height: 60vh;
+  }
+  /* En mobile la commande de fermeture ne peut pas sortir au-dessus de la boîte : il n'y
+     a pas la place. Elle revient dans le flux, en tête. */
+  .fermer {
+    position: static;
+    transform: none;
+    align-self: flex-end;
+  }
+}

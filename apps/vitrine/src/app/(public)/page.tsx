@@ -1,4 +1,5 @@
 import { DoubleDoor } from "@/components/home/DoubleDoor/DoubleDoor";
+import { Gallery } from "@/components/gallery/Gallery/Gallery";
 import { EventHub } from "@/components/home/EventHub/EventHub";
 import { Hero } from "@/components/home/Hero/Hero";
 import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
@@ -6,6 +7,7 @@ import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { getUpcomingEvents } from "@/server/db/queries/events";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
+import { getPublishedPhotos } from "@/server/db/queries/photos";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
 // Hero (2.1) → hub événementiel (3.2) → trois axes (2.2) → citation (2.3) →
@@ -20,8 +22,9 @@ import { getPartnersWithLogo } from "@/server/db/queries/partners";
 // ont été corrigés à la source dans le même commit (`pieges/cadrage-perime.md`).
 // Ne pas le réintroduire « pour équilibrer » : ce serait rouvrir la redondance.
 //
-// Restent à insérer AVANT la double porte : le bloc Tournoi (5.4), qui viendra AVANT
-// Preuve & réseau sans le modifier, et la galerie scrapbook (4.3).
+// La galerie scrapbook (4.3) est en place, entre Preuve & réseau et la double porte.
+// Reste à insérer AVANT la double porte : le bloc Tournoi (5.4), qui viendra AVANT
+// Preuve & réseau sans le modifier.
 //
 // La double porte est le 10ᵉ et DERNIER bloc, juste avant le footer : elle est
 // donc déjà à sa place définitive. Aucun bloc ne s'ajoutera après elle.
@@ -63,19 +66,31 @@ export const dynamic = "force-dynamic";
  */
 const HOME_EVENT_COUNT = 5;
 
+/**
+ * La home donne un APERÇU, pas l'exhaustivité (EXPERIENCE.md l.119) — même règle que pour
+ * l'agenda ci-dessus. UX-DR13 dit « 5 à 10 photos suffisent pour démarrer » : 8 est le
+ * milieu de cette fourchette et tient sur deux rangées de quatre en desktop.
+ * ⚠️ Cette borne s'applique DÉJÀ alors qu'une seule photo est en base : elle existe pour
+ * que la galerie ne se mette pas à grossir sans limite au fil des téléversements du
+ * back-office (Story 6.4), pas pour un besoin d'aujourd'hui.
+ */
+const HOME_PHOTO_COUNT = 8;
+
 export default async function Home() {
   // 🔴 LES LECTURES VIVENT ICI ET SE DISTRIBUENT EN PROPS (AC1 de la 3.2). Le macaron
   // « CE JEUDI » du hero et la carte du hub doivent désigner la MÊME date : deux requêtes
   // indépendantes pourraient diverger, et surtout dériveraient au premier changement de
   // filtre d'un seul côté. Aucun composant enfant ne requête la base.
   //
-  // ⚠️ La Story 4.1 ajoute UNE SEULE lecture supplémentaire, et elle est PARALLÉLISÉE :
-  // agenda et partenaires sont indépendants, les enchaîner en deux `await` successifs
-  // ajouterait une latence de base de données à chaque requête pour rien (la page est
-  // `force-dynamic`, donc ce coût est payé à CHAQUE visite, pas une fois au build).
-  const [upcoming, partners] = await Promise.all([
+  // ⚠️ Les lectures sont PARALLÉLISÉES : agenda, partenaires et photos sont
+  // indépendants, les enchaîner en `await` successifs ajouterait autant d'allers-retours
+  // de base de données à chaque requête pour rien (la page est `force-dynamic`, donc ce
+  // coût est payé à CHAQUE visite, pas une fois au build). La Story 4.3 en ajoute une
+  // troisième sans changer le nombre de tours d'horloge.
+  const [upcoming, partners, photos] = await Promise.all([
     getUpcomingEvents(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
+    getPublishedPhotos(HOME_PHOTO_COUNT),
   ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -90,6 +105,13 @@ export default async function Home() {
           orpheline ni de cadre vide (AC6). C'est le composant qui décide, pas cette
           page : la règle appartient au bloc de preuve, pas à l'ordre des blocs. */}
       <ProofBand partners={partners} />
+      {/* La galerie NE se rend PAS `null` quand elle est vide — contrairement à
+          `ProofBand` juste au-dessus, et la différence est assumée : un bloc de PREUVE
+          sans preuve est un aveu, une galerie qui RACONTE peut dire « ça arrive ».
+          `EXPERIENCE.md` É7 et UX-DR20 nomment explicitement ce cas pour la galerie
+          (« placeholders maîtrisés, jamais une grille cassée »). La décision de rendre
+          l'un ou l'autre appartient au composant, pas à l'ordre des blocs. */}
+      <Gallery photos={photos} />
       <DoubleDoor />
     </>
   );
