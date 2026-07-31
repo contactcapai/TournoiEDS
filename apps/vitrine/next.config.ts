@@ -22,18 +22,32 @@ const nextConfig: NextConfig = {
     // s'y fier implicitement.
     qualities: [75],
     // 🔴 LISTE BLANCHE DES CHEMINS LOCAUX OPTIMISABLES. Sans ce bloc, Next accepte
-    // d'optimiser N'IMPORTE QUEL chemin local — y compris une route qu'on n'a pas
-    // pensee comme une source d'images. Ici une seule surface passe par l'optimiseur :
-    // la route de service des medias.
-    // ⚠️ `search: ""` INTERDIT toute chaine de requete, sur recommandation explicite de
-    // la doc : omettre ce champ autorise tous les parametres, ce qui permettrait de
-    // faire calculer autant de rendus distincts qu'on invente de `?v=`.
-    // ⚠️ Le hero (`/photos/...`) et les logos partenaires (`/partenaires/...`) ne sont
-    // PAS listes, et c'est correct : ils sont rendus avec `unoptimized`, donc ils ne
-    // passent pas par l'optimiseur. Retirer `unoptimized` de l'un d'eux SANS l'ajouter
-    // ici le ferait repondre 400 — echec BRUYANT et immediat, ce qui est le bon
-    // comportement pour une liste blanche.
-    localPatterns: [{ pathname: "/medias/**", search: "" }],
+    // d'optimiser N'IMPORTE QUEL chemin local, et `search` non contraint laisse
+    // fabriquer autant de rendus distincts qu'on invente de `?v=` — une amplification
+    // gratuite. `search: ""` interdit toute chaine de requete (recommandation explicite
+    // de la doc Next).
+    //
+    // 🔴 CETTE LISTE EST ETABLIE PAR LA MESURE, JAMAIS PAR UN GREP DE `unoptimized`.
+    // Regression reelle introduite puis corrigee le 2026-07-31, vue par Brice au gate :
+    // la premiere version ne listait que `/medias/**`, au motif — verifie par grep, et
+    // FAUX — que tout le reste passait `unoptimized`. Le logo du header ne le passe pas.
+    // Resultat : `/_next/image?url=/logo-eds-blanc.png` repondait **400** et LE LOGO
+    // AVAIT DISPARU DU HEADER ET DU FOOTER, sur les 5 pages.
+    // ⚠️ Rien ne l'a signale : lint, typecheck, build, `gate`, `gate:lightbox` et
+    // Lighthouse etaient TOUS VERTS — une image cassee n'est ni un debordement, ni un
+    // defaut de contraste, ni un audit d'accessibilite. Seul un oeil l'a vu.
+    //
+    // La liste ci-dessous vient donc du HTML SERVI : extraction de tous les
+    // `_next/image?url=` des 5 pages. C'est ce que verifie desormais `pnpm gate:images`,
+    // qui echoue si UNE seule image servie ne repond pas 200.
+    // ⚠️ Ajouter une image locale SANS `unoptimized` et SANS l'ajouter ici la fera
+    // repondre 400. La porte le dira ; ce commentaire ne suffit pas.
+    localPatterns: [
+      // Logo EDS — header et footer, donc TOUTES les pages (`components/layout/`).
+      { pathname: "/logo-eds-blanc.png", search: "" },
+      // Photos de la galerie, servies par `app/medias/[filename]/route.ts`.
+      { pathname: "/medias/**", search: "" },
+    ],
   },
 };
 
