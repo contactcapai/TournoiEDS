@@ -1,0 +1,119 @@
+/* SolicitationDialog (Story 5.1, ajouté au gate visuel de Brice du 2026-07-31).
+   Tokens-only. Overlay et boîte transposés de `Scrapbook.module.css` (la lightbox de la
+   Story 4.3) — même famille visuelle, mêmes valeurs de fond, pour que le site n'ait pas
+   DEUX traitements de dialogue modal différents. */
+
+/* 🔴 LE DÉCLENCHEUR EST CIBLÉ PAR UN ATTRIBUT `data-`, PAS PAR UNE CLASSE CSS MODULES,
+   et c'est une garde et non une préférence de style. Le repli `<noscript>` doit masquer
+   le bouton par un sélecteur écrit À LA MAIN dans une chaîne. Avec une classe CSS
+   Modules il aurait fallu une règle `.declencheur {}` SANS AUCUNE DÉCLARATION (toute
+   l'apparence vient de la primitive `Button`) — or une règle vide est SUPPRIMÉE à la
+   minification, `styles.declencheur` vaudrait alors `undefined`, et le sélecteur généré
+   deviendrait `.undefined` : le bouton ne serait plus masqué, et un visiteur sans JS
+   verrait un bouton MORT à côté du lien de repli. `[data-solicitation-trigger]` ne
+   dépend ni du hachage ni du minifieur.
+   ⚠️ Même famille que la classe fantôme `undefined` trouvée en Story 2.10 — invisible
+   pour lint, typecheck et build. */
+
+/* Le lien de repli, rendu UNIQUEMENT quand JavaScript est désactivé. Traitement des liens
+   en prose du site : l'affordance passe par le SOULIGNÉ et jamais par la seule couleur
+   (WCAG 1.4.1), patron `.email` de l'ancienne clôture de /partenaires et `.asideLink`
+   de /agenda. */
+.repli {
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.repli:hover {
+  color: var(--gold);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* Fond très opaque : c'est lui qui porte le contraste de tout ce qui est dessus, et il
+     permet de calculer les rapports sans dépendre de la page en dessous. Valeur reprise
+     TELLE QUELLE de la lightbox — les contrastes du formulaire y sont donc les mêmes
+     qu'en page, où le fond est `--navy-deep` (#1b1940 ≈ rgba(20,18,48) à 0,92). */
+  background: rgba(20, 18, 48, 0.92);
+  /* Le formulaire est haut (5 champs + 3 radios + bouton) : sur un écran court, ou en
+     paysage sur mobile, la boîte doit pouvoir défiler PLUTÔT que de rogner le bouton
+     d'envoi hors de portée. Le défilement est porté par l'overlay, qui occupe tout le
+     viewport. */
+  overflow-y: auto;
+}
+
+.boite {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  /* `margin: auto` + `align-items: center` : centré quand ça tient, collé en haut avec
+     ses marges quand ça déborde (sinon le haut de la boîte deviendrait inatteignable au
+     défilement — défaut classique des modales centrées). */
+  margin: auto;
+  padding: 34px;
+  background: var(--navy-deep);
+  border: 1px solid rgba(243, 239, 227, 0.14);
+  border-radius: var(--radius-card-lg);
+}
+
+/* 44×44 : convention interne non négociable (project-context §5), et la même valeur que
+   la fermeture de la lightbox — dont `gate:lightbox` mesure déjà la cible. */
+.fermer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--cream);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.fermer:hover {
+  color: var(--gold);
+}
+
+/* Même échelle que `.title` d'`editorial.module.css` serait trop grande ici (44px dans une
+   boîte de 620px) : on prend l'échelon du dessous, celui de `.subtitle` (24px), qui est
+   aussi celui des titres de colonne du footer. */
+.titre {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  /* Ne pas passer sous la croix de fermeture, qui fait 44px + 12px de décalage. */
+  margin: 0 56px 10px 0;
+}
+
+/* Corps de texte : hérite la taille de `body` (16px), comme le formulaire lui-même —
+   c'est le défaut de typographie corrigé au gate visuel. */
+.chapo {
+  margin: 0 0 var(--block-gap);
+  color: var(--light);
+}
+
+@media (max-width: 880px) {
+  .overlay {
+    padding: 16px;
+  }
+
+  .boite {
+    padding: 24px 20px;
+  }
+}

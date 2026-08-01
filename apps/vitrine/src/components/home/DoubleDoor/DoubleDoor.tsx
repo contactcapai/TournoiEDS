@@ -1,5 +1,6 @@
 import { Button, Eyebrow, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
 import { NEW_TAB_SR, REJOINDRE_URL, isExternalUrl } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
@@ -119,13 +120,12 @@ export function DoubleDoor() {
                 secondaire de la porte partenaires : c'est cette hiérarchie visuelle
                 (or plein vs outline) qui segmente les deux publics — ne pas la
                 « simplifier » en gold.
-                Route INTERNE : ni target, ni rel, ni mention « nouvel onglet ».
-                ✅ /partenaires EXISTE depuis la Story 4.2, et elle porte un moyen de
-                contact (e-mail) en attendant le formulaire de l'Epic 5 : ce CTA a donc
-                enfin une destination utile. Ne pas retomber sur href="#". */}
-            <Button variant="outline" href="/partenaires">
-              Nous contacter
-            </Button>
+                🔴 N'EST PLUS UN LIEN VERS /partenaires (Story 5.1, arbitrage de Brice au
+                gate visuel) : ce CTA porte une intention de CONTACT, or /partenaires est
+                une page de DOCUMENTATION. Il ouvre donc directement le formulaire en
+                modale, sans détour. Le lien « Devenir partenaire » de `ProofBand`, lui,
+                garde sa destination — son intention est de consulter la page. */}
+            <SolicitationDialog variant="outline" label="Nous contacter" />
           </div>
         </div>
       </Wrap>

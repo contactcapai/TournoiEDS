@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Brush, Button, LinkArrow } from "@repo/ui";
+import { Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
+import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -294,9 +295,11 @@ export default function Animations() {
             </p>
           </div>
           <div className={editorial.cta}>
-            <Button variant="gold" href="/partenaires">
-              Nous solliciter
-            </Button>
+            {/* 🔴 Ouvre le formulaire EN MODALE et ne mène plus à /partenaires (Story 5.1,
+                arbitrage de Brice au gate visuel) : ce CTA porte une intention de CONTACT,
+                or /partenaires est une page de DOCUMENTATION — le visiteur y arrivait puis
+                devait encore trouver le formulaire en bas de page. */}
+            <SolicitationDialog variant="gold" label="Nous solliciter" />
           </div>
         </Wrap>
       </section>

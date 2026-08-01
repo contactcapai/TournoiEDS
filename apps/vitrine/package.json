@@ -16,12 +16,14 @@
     "gate:carousel": "node tools/visual-gate/carousel-check.mjs",
     "gate:marquee": "node tools/visual-gate/marquee-check.mjs",
     "gate:lightbox": "node tools/visual-gate/lightbox-check.mjs",
-    "gate:images": "node tools/visual-gate/images-check.mjs"
+    "gate:images": "node tools/visual-gate/images-check.mjs",
+    "gate:solicitation": "node tools/visual-gate/solicitation-check.mjs"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
     "drizzle-orm": "^0.45.0",
     "next": "16.2.9",
+    "nodemailer": "^9.0.3",
     "postgres": "^3.4.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -33,6 +35,7 @@
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^24.12.2",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.4.2",
