@@ -4,6 +4,7 @@ import { EventHub } from "@/components/home/EventHub/EventHub";
 import { Hero } from "@/components/home/Hero/Hero";
 import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
+import { TournamentBridge } from "@/components/home/TournamentBridge/TournamentBridge";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { getUpcomingEvents } from "@/server/db/queries/events";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
@@ -22,9 +23,10 @@ import { getPublishedPhotos } from "@/server/db/queries/photos";
 // ont été corrigés à la source dans le même commit (`pieges/cadrage-perime.md`).
 // Ne pas le réintroduire « pour équilibrer » : ce serait rouvrir la redondance.
 //
-// La galerie scrapbook (4.3) est en place, entre Preuve & réseau et la double porte.
-// Reste à insérer AVANT la double porte : le bloc Tournoi (5.4), qui viendra AVANT
-// Preuve & réseau sans le modifier.
+// ✅ L'ENCHAÎNEMENT EST COMPLET DEPUIS LA STORY 5.4 : la galerie scrapbook (4.3) est
+// entre Preuve & réseau et la double porte, et le bloc Tournoi (5.4) s'est inséré
+// entre la citation et Preuve & réseau, sans modifier ni l'un ni l'autre.
+// Les 10 blocs sont là — aucun bloc ne reste à insérer dans la home.
 //
 // La double porte est le 10ᵉ et DERNIER bloc, juste avant le footer : elle est
 // donc déjà à sa place définitive. Aucun bloc ne s'ajoutera après elle.
@@ -101,6 +103,10 @@ export default async function Home() {
       <EventHub next={next} rest={rest} />
       <ThreeAxes />
       <QuoteBand />
+      {/* Passerelle Tournoi (5.4) — position FIXÉE PAR FR7 : entre la citation et le
+          bloc de preuve. 100 % statique : il ne lit rien, il n'est donc pas dans le
+          `Promise.all` ci-dessus et n'ajoute aucun aller-retour de base à la page. */}
+      <TournamentBridge />
       {/* Se rend `null` si aucun partenaire n'a de logo — pas de tête de section
           orpheline ni de cadre vide (AC6). C'est le composant qui décide, pas cette
           page : la règle appartient au bloc de preuve, pas à l'ordre des blocs. */}

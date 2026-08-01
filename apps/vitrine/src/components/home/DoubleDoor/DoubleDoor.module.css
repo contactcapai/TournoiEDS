@@ -9,11 +9,19 @@
 
 .section {
   /* padding-top VOLONTAIREMENT NUL : la maquette écrit `style="padding-top:0"` sur
-     cette section — la SEULE du document. La double porte CLÔT la page et se
-     rapproche du bloc précédent au lieu de laisser les 180px habituels (90 bas +
-     90 haut). L'écart réel vaut donc 90px, porté par le padding-bas du bloc qui
-     précède. La règle reste juste quand les blocs des Epics 3/4/5 s'insèreront
-     avant. Ne PAS « harmoniser » en `var(--section-y) 0` par symétrie. */
+     cette section (l.426). La double porte CLÔT la page et se rapproche du bloc
+     précédent au lieu de laisser les 180px habituels (90 bas + 90 haut). L'écart réel
+     vaut donc 90px, porté par le padding-bas du bloc qui précède. La règle reste juste
+     quand les blocs des Epics 3/4/5 s'insèrent avant.
+     Ne PAS « harmoniser » en `var(--section-y) 0` par symétrie.
+
+     ⚠️ CORRIGÉ EN STORY 5.4 : ce commentaire affirmait que c'était « la SEULE » section
+     du document à porter ce zéro. C'est FAUX — `#tournoi` (maquette l.340) le porte
+     aussi. Et surtout, les deux zéros n'ont PAS la même raison d'être : celui-ci est
+     structurel (clore la page), celui de `#tournoi` servait à coller le bloc à la
+     section `#animations`, que la Story 4.1 a supprimée de la home — la Story 5.4 ne
+     l'a donc PAS transcrit. Un « la seule » non vérifié est un cadrage périmé en
+     puissance (00 référence/pieges/cadrage-perime.md). */
   padding: 0 0 var(--section-y);
 }
 
