@@ -3,7 +3,7 @@ import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
+import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
 import type { AgendaEvent } from "@/server/db/queries/events";
 import motion from "@/styles/motion.module.css";
 import styles from "./EventHub.module.css";
@@ -33,25 +33,37 @@ export interface EventHubProps {
 
 /** État vide : aucune date à venir. Propre au hub — la page /agenda a le sien. */
 function EmptyState() {
-  // DISCORD_URL vaut encore "#" (finalisé Story 5.5) : `isExternalUrl` le sait, donc
-  // aucune annonce « nouvel onglet » trompeuse et aucun target sur une ancre inerte.
-  // Le jour où la vraie invitation arrive, ce lien devient sortant SANS retoucher ce
-  // fichier — même traitement que le footer et le menu mobile.
-  const discordExternal = isExternalUrl(DISCORD_URL);
+  // Le comportement se dérive de la destination : le jour où la vraie invitation arrive,
+  // ce lien devient sortant SANS retoucher ce fichier — comme le footer et le menu mobile.
+  const discord = classerDestination(DISCORD_URL);
+  const discordExternal = discord === "externe";
+  // 🔴 SANS DESTINATION, LE MOT N'EST PLUS UN LIEN (Story 5.5, dette R2). La phrase,
+  // elle, N'EST PAS reformulée : c'est du contenu ÉDITORIAL, et le choix le moins
+  // destructeur est aussi le plus réversible — le jour où l'invitation Discord existe,
+  // la phrase redevient juste sans qu'on ait touché à un mot.
+  // ⚠️ Point présenté au gate ÉDITORIAL de Brice : une tuile morte ne promet rien, un
+  // MOT mort dans une phrase promet une action impossible. C'est la seule occurrence
+  // de cette famille sur le site (avec l'aside et l'état vide d'`/agenda`).
 
   return (
     <div className={styles.empty}>
       <p className={styles.emptyText}>
         Pas de jeudi calé pour l&apos;instant — on prépare la suite. En attendant, dis
         bonjour sur{" "}
-        <a
-          href={DISCORD_URL}
-          className={styles.emptyLink}
-          {...(discordExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        >
-          Discord
-          {discordExternal ? <span className="sr-only">{NEW_TAB_SR}</span> : null}
-        </a>
+        {discord === "absente" ? (
+          <span className={styles.emptyLink} data-inerte="">
+            Discord
+          </span>
+        ) : (
+          <a
+            href={DISCORD_URL}
+            className={`${styles.emptyLink} ${styles.emptyLinkActif}`}
+            {...(discordExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          >
+            Discord
+            {discordExternal ? <span className="sr-only">{NEW_TAB_SR}</span> : null}
+          </a>
+        )}
         .
       </p>
       <Button variant="gold" href="/agenda">

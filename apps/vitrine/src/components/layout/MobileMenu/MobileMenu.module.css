@@ -46,12 +46,6 @@
   color: var(--gold);
 }
 
-.extIcon {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-
 /* ── Lien Discord (icône) ──────────────────────────────────────────────── */
 .discord {
   display: inline-flex;
@@ -63,7 +57,11 @@
   transition: color 0.2s;
 }
 
-.discord:hover {
+/* 🔴 AFFORDANCE GATÉE — Story 5.5. Ce sélecteur est un sélecteur de CLASSE : il
+   s'appliquerait tel quel au `<span>` rendu quand `DISCORD_URL` n'a pas de destination
+   (dette R29). Un élément inerte qui vire à l'or sous la souris FABRIQUE une affordance
+   — le visiteur croit pouvoir cliquer. `.discordActif` n'est posée que sur un vrai lien. */
+.discordActif:hover {
   color: var(--gold);
 }
 

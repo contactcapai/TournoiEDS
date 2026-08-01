@@ -11,9 +11,23 @@
   letter-spacing: 1px;
   padding: 13px 28px;
   border-radius: var(--radius-button);
-  cursor: pointer;
   border: 2px solid transparent;
   transition: transform 0.15s, box-shadow 0.2s;
+}
+
+/* 🔴 L'AFFORDANCE EST GATÉE — Story 5.5.
+
+   `cursor: pointer` et les `:hover` ci-dessous ne s'appliquent QU'AUX boutons qui ont
+   réellement une destination ou une action. Un CTA rendu `inactive` (destination absente,
+   dette R29) porte `.btn` mais PAS `.btnActif` : il garde son apparence de repos exacte
+   et ne réagit ni à la souris ni au curseur.
+
+   ⚠️ MOTIF, ET IL N'EST PAS COSMÉTIQUE : les sélecteurs de ce fichier sont des sélecteurs
+   de CLASSE, donc ils s'appliqueraient tels quels à un `<span>`. Un élément inerte qui
+   s'illumine au survol FABRIQUE une affordance — le visiteur croit pouvoir cliquer, et
+   c'est précisément l'inertie qu'on vient de poser qui devient un piège. */
+.btnActif {
+  cursor: pointer;
 }
 
 .btn svg {
@@ -27,7 +41,7 @@
   color: var(--ink);
 }
 
-.btnGold:hover {
+.btnActif.btnGold:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 26px rgba(218, 178, 101, 0.32);
 }
@@ -60,7 +74,7 @@
   color: var(--cream);
 }
 
-.btnOut:hover {
+.btnActif.btnOut:hover {
   border-color: var(--gold);
   color: var(--gold);
 }
@@ -71,7 +85,7 @@
     transition: none;
   }
 
-  .btnGold:hover {
+  .btnActif.btnGold:hover {
     transform: none;
     box-shadow: none;
   }

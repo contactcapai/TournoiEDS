@@ -1,7 +1,7 @@
-import { Brush, Button } from "@repo/ui";
+import { Brush, Button, ExternalIcon } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { NEW_TAB_SR, TOURNOI_URL, isExternalUrl } from "@/lib/links";
+import { NEW_TAB_SR, TOURNOI_URL, classerDestination } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./TournamentBridge.module.css";
 
@@ -69,7 +69,7 @@ export function TournamentBridge() {
   // lecteur de `site_setting`) : un `target="_blank"` littéral deviendrait faux le jour
   // où la valeur change, et un placeholder ne doit JAMAIS annoncer « nouvel onglet »
   // (review 1.4 #1 / 1.5 #4).
-  const external = isExternalUrl(TOURNOI_URL);
+  const external = classerDestination(TOURNOI_URL) === "externe";
 
   return (
     // aria-labelledby ↔ id du <h2> de la tête de section (patron acquis review 1.6 F6).
@@ -128,14 +128,29 @@ export function TournamentBridge() {
                   `site_setting`. 3ᵉ consommateur de TOURNOI_URL après SiteHeader
                   (nav « Tournois ») et MobileMenu — le libellé diffère volontairement,
                   EXPERIENCE.md (l.65) fige « Accéder à la plateforme » pour ce bloc.
-                  ⚠️ Pas d'icône VISIBLE de lien sortant : `ExternalIcon` vit enfermé
-                  dans MobileMenu.tsx (client, non exportée) et la recopier en ferait
-                  une 3ᵉ occurrence. Dette R12 → Story 5.5, qui traite les cinq CTA
-                  sortants d'un coup. Le texte lecteur d'écran, lui, est bien rendu. */}
+                  ✅ INDICATION VISIBLE DE LIEN SORTANT (Story 5.5, dette R12 soldée) —
+                  `ExternalIcon` est désormais une primitive `@repo/ui`.
+
+                  🔴 ELLE REMPLACE `arrowIcon`, ELLE NE S'Y AJOUTE PAS, et c'est une
+                  MESURE qui l'a tranché, pas un goût. Les deux icônes côte à côte
+                  élargissaient le CTA de ~27px (`.btn svg` impose 18px + 9px de `gap`),
+                  ce qui suffisait à faire DÉBORDER la grille du bloc tournoi de 4,28px
+                  à 320px — `gate` est passée ROUGE dessus. Sur le fond, la flèche est un
+                  ornement de la MAQUETTE qui ne dit rien de la destination, là où
+                  l'icône sortante est EXIGÉE par `EXPERIENCE.md` l.199 : entre les deux,
+                  celle qui informe l'emporte. La flèche reste rendue si la destination
+                  cessait d'être sortante. ⚠️ Écart assumé à la maquette, à présenter au
+                  gate visuel — même famille que « cash prize » retiré en Story 5.4.
+
+                  ⚠️ C'est aussi cette flèche qui a fait rendre un FAUX NÉGATIF à la
+                  première version de `gate:links`, laquelle cherchait « un svg décoratif
+                  quelconque » et la trouvait — porte VERTE sur un vrai défaut R12. La
+                  porte cible depuis `[data-external-icon]`, porté par la seule
+                  primitive partagée. */}
               <Button
                 variant="gold"
                 href={TOURNOI_URL}
-                icon={arrowIcon}
+                icon={external ? <ExternalIcon /> : arrowIcon}
                 {...(external
                   ? { target: "_blank", rel: "noopener noreferrer" }
                   : {})}

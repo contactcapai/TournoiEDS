@@ -8,7 +8,7 @@ import carousel from "@/components/agenda/PastCarousel/PastCarousel.module.css";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
-import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
+import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
 import { cleanText, truncate } from "@/lib/text";
 import { getPastEvents, getUpcomingEvents, type AgendaEvent } from "@/server/db/queries/events";
 import { getPhotosForEvents, type GalleryPhoto } from "@/server/db/queries/photos";
@@ -111,14 +111,28 @@ const RECAP_MAX = 240;
 const PAST_TITLE_MAX = 80;
 
 /** Lien Discord — même traitement que le footer, le menu mobile et le hub. */
-function DiscordLink({ className }: { className?: string }) {
-  // DISCORD_URL vaut encore "#" (finalisé Story 5.5) : `isExternalUrl` le sait, donc
-  // pas de `target` sur une ancre inerte ni d'annonce « nouvel onglet » trompeuse.
-  const external = isExternalUrl(DISCORD_URL);
+function DiscordLink({ className, classNameActif }: { className?: string; classNameActif?: string }) {
+  const destination = classerDestination(DISCORD_URL);
+  const external = destination === "externe";
+
+    // 🔴 SANS DESTINATION, LE MOT N'EST PLUS UN LIEN (Story 5.5, dette R2). La phrase,
+    // elle, N'EST PAS reformulée : c'est du contenu ÉDITORIAL, et le choix le moins
+    // destructeur est aussi le plus réversible — le jour où l'invitation Discord existe,
+    // la phrase redevient juste sans qu'on ait touché à un mot.
+    // ⚠️ Point présenté au gate ÉDITORIAL de Brice : une tuile morte ne promet rien, un
+    // MOT mort dans une phrase promet une action impossible. C'est la seule occurrence
+    // de cette famille sur le site (avec l'aside et l'état vide d'`/agenda`).
+  if (destination === "absente") {
+    return (
+      <span className={className} data-inerte="">
+        Discord
+      </span>
+    );
+  }
   return (
     <a
       href={DISCORD_URL}
-      className={className}
+      className={`${className ?? ""} ${classNameActif ?? ""}`.trim()}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
     >
       Discord
@@ -286,7 +300,7 @@ export default async function Agenda() {
                   Aucune date calée pour l&apos;instant — on prépare la suite. Les
                   jeudis reprennent vite&nbsp;: le plus simple, en attendant, c&apos;est
                   de passer dire bonjour sur{" "}
-                  <DiscordLink className={styles.emptyLink} />.
+                  <DiscordLink className={styles.emptyLink} classNameActif={styles.emptyLinkActif} />.
                 </p>
               </div>
             )}
@@ -294,7 +308,7 @@ export default async function Agenda() {
             {/* CTA de PAGE, unique — et non un CTA par événement. */}
             <p className={styles.aside}>
               Une question sur un rendez-vous, ou envie de prévenir que vous
-              venez&nbsp;? On répond sur <DiscordLink className={styles.asideLink} />.
+              venez&nbsp;? On répond sur <DiscordLink className={styles.asideLink} classNameActif={styles.asideLinkActif} />.
             </p>
           </div>
         </Wrap>

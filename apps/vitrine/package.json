@@ -17,7 +17,8 @@
     "gate:marquee": "node tools/visual-gate/marquee-check.mjs",
     "gate:lightbox": "node tools/visual-gate/lightbox-check.mjs",
     "gate:images": "node tools/visual-gate/images-check.mjs",
-    "gate:solicitation": "node tools/visual-gate/solicitation-check.mjs"
+    "gate:solicitation": "node tools/visual-gate/solicitation-check.mjs",
+    "gate:links": "node tools/visual-gate/links-check.mjs"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",

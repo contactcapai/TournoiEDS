@@ -1,7 +1,7 @@
-import { Button, Eyebrow, LinkArrow } from "@repo/ui";
+import { Button, Eyebrow, ExternalIcon, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
-import { NEW_TAB_SR, REJOINDRE_URL, isExternalUrl } from "@/lib/links";
+import { NEW_TAB_SR, REJOINDRE_URL, classerDestination } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
 
@@ -23,12 +23,11 @@ import styles from "./DoubleDoor.module.css";
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
 export function DoubleDoor() {
-  // CALCULÉ, jamais présumé. `REJOINDRE_URL` vaut aujourd'hui une URL http réelle
-  // mais PROVISOIRE (finalisée en Story 5.5) : faire dériver target/rel/mention SR
-  // de l'URL rend ce bloc insensible à ce que la 5.5 y mettra. Un placeholder « # »
-  // ne doit JAMAIS annoncer « nouvel onglet » (review 1.4 #1 / 1.5 #4).
-  // Patron identique à MobileMenu.renderCta(), qui pointe la MÊME cible.
-  const rejoindreExternal = isExternalUrl(REJOINDRE_URL);
+  // CALCULÉ, jamais présumé : target/rel/mention SR/icône se dérivent tous de la
+  // destination, donc ce bloc est insensible à ce que le go-live mettra dans
+  // `lib/links.ts`. Patron identique à `MobileMenu.renderCta()`, qui vise la MÊME cible.
+  const rejoindre = classerDestination(REJOINDRE_URL);
+  const rejoindreExternal = rejoindre === "externe";
 
   return (
     // Ni aria-label ni aria-labelledby : ce bloc n'a PAS de titre de section (la
@@ -72,21 +71,30 @@ export function DoubleDoor() {
             {/* Lien SORTANT (1ᵉʳ d'un bloc de contenu de la home — jusqu'ici seuls le
                 header et le footer en portaient). L'URL vient de lib/links.ts, source
                 unique : jamais en dur ici.
-                ⚠️ Pas d'icône visible de lien sortant, contrairement à ce qu'exige
-                EXPERIENCE.md l.186 : `ExternalIcon` vit dans MobileMenu (composant
-                client, non exportée) et la recopier en ferait une 2ᵉ occurrence. Le
-                texte SR, lui, est bien rendu. Dette R12 → Story 5.5, qui traitera tous
-                les CTA sortants d'un coup. */}
-            <Button
-              variant="gold"
-              href={REJOINDRE_URL}
-              {...(rejoindreExternal
-                ? { target: "_blank", rel: "noopener noreferrer" }
-                : {})}
-            >
-              Adhérer via HelloAsso
-              {rejoindreExternal && <span className="sr-only">{NEW_TAB_SR}</span>}
-            </Button>
+                ✅ L'icône visible exigée par EXPERIENCE.md l.199 est enfin possible : la
+                Story 5.5 a sorti `ExternalIcon` de `MobileMenu` pour en faire une
+                primitive `@repo/ui` (dette R12 soldée).
+                🔴 AUJOURD'HUI LA DESTINATION EST ABSENTE (R29, échéance go-live) : ce CTA
+                est donc rendu NON INTERACTIF plutôt que de pointer la page d'accueil
+                générique de HelloAsso — un lien ne peut pas emmener ailleurs qu'où il
+                annonce aller. Arbitrage de Brice du 2026-08-01. */}
+            {rejoindre === "absente" ? (
+              <Button variant="gold" inactive>
+                Adhérer via HelloAsso
+              </Button>
+            ) : (
+              <Button
+                variant="gold"
+                href={REJOINDRE_URL}
+                icon={rejoindreExternal ? <ExternalIcon /> : undefined}
+                {...(rejoindreExternal
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+              >
+                Adhérer via HelloAsso
+                {rejoindreExternal && <span className="sr-only">{NEW_TAB_SR}</span>}
+              </Button>
+            )}
           </div>
         </div>
 

@@ -29,3 +29,8 @@ export type { CrownWatermarkProps } from "./CrownWatermark/CrownWatermark";
 
 export { Axis } from "./Axis/Axis";
 export type { AxisProps } from "./Axis/Axis";
+
+// 11ᵉ primitive — Story 5.5. Consolidation de deux copies (MobileMenu + SiteFooter)
+// et 1ʳᵉ indication de lien sortant atteignable depuis un CTA `Button` (dette R12).
+export { ExternalIcon } from "./ExternalIcon/ExternalIcon";
+export type { ExternalIconProps } from "./ExternalIcon/ExternalIcon";

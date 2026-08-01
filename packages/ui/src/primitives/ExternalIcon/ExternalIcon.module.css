@@ -1,0 +1,17 @@
+/* ExternalIcon — indication visuelle de lien sortant.
+
+   Valeurs REPRISES À L'IDENTIQUE des deux copies consolidées en Story 5.5
+   (`MobileMenu.module.css` l.49 et `SiteFooter.module.css` l.81, rigoureusement
+   identiques). Aucune « amélioration » au passage : c'est précisément ce qui rend
+   l'extraction PROUVABLE INVISIBLE face à la baseline.
+
+   `currentColor` (dans le SVG) : l'icône suit la couleur de son lien — elle n'a donc
+   pas de token propre et n'en veut pas. */
+
+.icon {
+  width: 13px;
+  height: 13px;
+  /* L'icône ne se comprime jamais dans un flex : elle deviendrait illisible avant
+     le label, alors qu'elle est le seul signal VISIBLE que le lien sort du site. */
+  flex-shrink: 0;
+}
