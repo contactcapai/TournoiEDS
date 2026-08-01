@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@repo/ui";
+import { Button, ExternalIcon } from "@repo/ui";
 import {
   DISCORD_URL,
   REJOINDRE_URL,
   NEW_TAB_SR,
-  isExternalUrl,
+  classerDestination,
 } from "@/lib/links";
 import styles from "./MobileMenu.module.css";
 
@@ -25,30 +25,10 @@ export interface NavLink {
 // (2) détection du lien actif (usePathname). Il rend AUSSI la nav desktop pour
 // partager `usePathname`. Le SiteHeader parent reste un Server Component.
 
-// Indication visuelle « lien externe » (décorative → aria-hidden) ; le sens est
-// porté par le <span> SR « (nouvelle fenêtre) ».
-function ExternalIcon() {
-  return (
-    <svg
-      className={styles.extIcon}
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path
-        d="M14 5h5v5M19 5l-9 9M9 6H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 // `NEW_TAB_SR` et `isExternalUrl` sont désormais partagés depuis `@/lib/links`
 // (promus en Story 1.5 pour que header ET footer les consomment — Garde-fou n°3).
+// `ExternalIcon` l'est aussi depuis la Story 5.5 : il vivait ICI en copie locale,
+// à l'identique de celle du footer — les deux sont fondues dans `@repo/ui`.
 
 export function MobileMenu({ links }: { links: NavLink[] }) {
   const [open, setOpen] = useState(false);
@@ -113,7 +93,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
       : styles.navLink;
 
     if (link.external) {
-      const external = isExternalUrl(link.href);
+      const external = classerDestination(link.href) === "externe";
       return (
         <a
           key={link.href}
@@ -146,7 +126,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
 
   // Lien Discord (icône seule → nom accessible explicite + indication SR).
   function renderDiscord(onNavigate?: () => void) {
-    const external = isExternalUrl(DISCORD_URL);
+    const external = classerDestination(DISCORD_URL) === "externe";
     return (
       <a
         href={DISCORD_URL}
@@ -173,7 +153,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
 
   // CTA « Nous rejoindre » (primitive Button gold, sortant sûr).
   function renderCta(onNavigate?: () => void) {
-    const external = isExternalUrl(REJOINDRE_URL);
+    const external = classerDestination(REJOINDRE_URL) === "externe";
     return (
       <Button
         variant="gold"

@@ -3,7 +3,7 @@ import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
+import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
 import type { AgendaEvent } from "@/server/db/queries/events";
 import motion from "@/styles/motion.module.css";
 import styles from "./EventHub.module.css";
@@ -37,7 +37,7 @@ function EmptyState() {
   // aucune annonce « nouvel onglet » trompeuse et aucun target sur une ancre inerte.
   // Le jour où la vraie invitation arrive, ce lien devient sortant SANS retoucher ce
   // fichier — même traitement que le footer et le menu mobile.
-  const discordExternal = isExternalUrl(DISCORD_URL);
+  const discordExternal = classerDestination(DISCORD_URL) === "externe";
 
   return (
     <div className={styles.empty}>

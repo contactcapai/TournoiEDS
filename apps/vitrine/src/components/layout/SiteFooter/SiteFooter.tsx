@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ExternalIcon } from "@repo/ui";
 import {
   TOURNOI_URL,
   REJOINDRE_URL,
@@ -9,7 +10,7 @@ import {
   LINKEDIN_URL,
   CONTACT_EMAIL,
   NEW_TAB_SR,
-  isExternalUrl,
+  classerDestination,
 } from "@/lib/links";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import styles from "./SiteFooter.module.css";
@@ -63,24 +64,10 @@ const LEGAL_LINKS: FooterLink[] = [
   { label: "Confidentialité (RGPD)", href: "#" },
 ];
 
-// Indication visuelle « lien externe » (décorative → aria-hidden ; le sens est
-// porté par le <span> SR « (nouvel onglet) »). Dupliquée sciemment du header
-// (MobileMenu) : la story sanctionne la duplication consciente des icônes pour
-// garder le header strictement iso-comportement (Garde-fou n°3 / Tâche 3).
-function ExternalIcon() {
-  return (
-    <svg className={styles.extIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M14 5h5v5M19 5l-9 9M9 6H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
+// ⚠️ `ExternalIcon` vivait ICI, dupliqué sciemment du header (Story 1.5, Garde-fou n°3).
+// La Story 5.5 fond les deux copies dans `@repo/ui` : elles étaient identiques au tracé
+// ET au CSS, et l'absence d'un composant partagé avait laissé les CTA `Button` sortants
+// sans indication visible pendant quatre stories (dette R12).
 
 // Icônes sociales (toutes décoratives → aria-hidden ; nom porté par aria-label).
 function SocialIcon({ icon }: { icon: (typeof SOCIALS)[number]["icon"] }) {
@@ -135,30 +122,33 @@ function SocialIcon({ icon }: { icon: (typeof SOCIALS)[number]["icon"] }) {
 
 // Rend un lien de colonne selon la nature de sa cible (3 cas, cf. FooterLink).
 function FooterColumnLink({ link }: { link: FooterLink }) {
-  // Cas 1 — vraie URL http(s) : lien sortant sûr + annonce SR (review 1.4).
-  if (isExternalUrl(link.href)) {
-    return (
-      <a href={link.href} target="_blank" rel="noopener noreferrer" className={styles.link}>
-        {link.label}
-        <ExternalIcon />
-        <span className="sr-only">{NEW_TAB_SR}</span>
-      </a>
-    );
+  // Les trois cas viennent désormais du classificateur partagé (Story 5.5) et non
+  // d'une re-dérivation locale : `lib/links.ts` est le SEUL endroit qui décide.
+  switch (classerDestination(link.href)) {
+    // Cas 1 — vraie URL http(s) : lien sortant sûr + annonce SR (review 1.4).
+    case "externe":
+      return (
+        <a href={link.href} target="_blank" rel="noopener noreferrer" className={styles.link}>
+          {link.label}
+          <ExternalIcon />
+          <span className="sr-only">{NEW_TAB_SR}</span>
+        </a>
+      );
+    // Cas 2 — route interne « /… » : navigation client next/link.
+    case "interne":
+      return (
+        <Link href={link.href} className={styles.link}>
+          {link.label}
+        </Link>
+      );
+    // Cas 3 — destination absente : voir plus bas, moitié B.
+    case "absente":
+      return (
+        <a href={link.href} className={styles.link}>
+          {link.label}
+        </a>
+      );
   }
-  // Cas 2 — route interne « /… » : navigation client next/link.
-  if (link.href.startsWith("/")) {
-    return (
-      <Link href={link.href} className={styles.link}>
-        {link.label}
-      </Link>
-    );
-  }
-  // Cas 3 — placeholder « # » : ancre inerte, AUCUN attribut sortant ni annonce.
-  return (
-    <a href={link.href} className={styles.link}>
-      {link.label}
-    </a>
-  );
 }
 
 export function SiteFooter() {
@@ -219,7 +209,7 @@ export function SiteFooter() {
             <h2 className={styles.colTitle}>Suivez-nous</h2>
             <ul className={styles.socials}>
               {SOCIALS.map((social) => {
-                const external = isExternalUrl(social.href);
+                const external = classerDestination(social.href) === "externe";
                 return (
                   <li key={social.name}>
                     <a

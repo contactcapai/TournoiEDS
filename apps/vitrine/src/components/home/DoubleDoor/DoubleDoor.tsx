@@ -1,7 +1,7 @@
 import { Button, Eyebrow, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
-import { NEW_TAB_SR, REJOINDRE_URL, isExternalUrl } from "@/lib/links";
+import { NEW_TAB_SR, REJOINDRE_URL, classerDestination } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
 
@@ -28,7 +28,7 @@ export function DoubleDoor() {
   // de l'URL rend ce bloc insensible à ce que la 5.5 y mettra. Un placeholder « # »
   // ne doit JAMAIS annoncer « nouvel onglet » (review 1.4 #1 / 1.5 #4).
   // Patron identique à MobileMenu.renderCta(), qui pointe la MÊME cible.
-  const rejoindreExternal = isExternalUrl(REJOINDRE_URL);
+  const rejoindreExternal = classerDestination(REJOINDRE_URL) === "externe";
 
   return (
     // Ni aria-label ni aria-labelledby : ce bloc n'a PAS de titre de section (la

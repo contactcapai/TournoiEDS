@@ -78,12 +78,6 @@
   color: var(--light);
 }
 
-.extIcon {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-}
-
 /* ── Colonne Suivez-nous (tuiles sociales + email) ─────────────────────── */
 .socials {
   display: flex;

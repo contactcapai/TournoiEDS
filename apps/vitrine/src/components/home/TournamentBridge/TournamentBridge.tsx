@@ -1,7 +1,7 @@
 import { Brush, Button } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { NEW_TAB_SR, TOURNOI_URL, isExternalUrl } from "@/lib/links";
+import { NEW_TAB_SR, TOURNOI_URL, classerDestination } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./TournamentBridge.module.css";
 
@@ -69,7 +69,7 @@ export function TournamentBridge() {
   // lecteur de `site_setting`) : un `target="_blank"` littéral deviendrait faux le jour
   // où la valeur change, et un placeholder ne doit JAMAIS annoncer « nouvel onglet »
   // (review 1.4 #1 / 1.5 #4).
-  const external = isExternalUrl(TOURNOI_URL);
+  const external = classerDestination(TOURNOI_URL) === "externe";
 
   return (
     // aria-labelledby ↔ id du <h2> de la tête de section (patron acquis review 1.6 F6).

@@ -8,7 +8,7 @@ import carousel from "@/components/agenda/PastCarousel/PastCarousel.module.css";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
-import { DISCORD_URL, NEW_TAB_SR, isExternalUrl } from "@/lib/links";
+import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
 import { cleanText, truncate } from "@/lib/text";
 import { getPastEvents, getUpcomingEvents, type AgendaEvent } from "@/server/db/queries/events";
 import { getPhotosForEvents, type GalleryPhoto } from "@/server/db/queries/photos";
@@ -114,7 +114,7 @@ const PAST_TITLE_MAX = 80;
 function DiscordLink({ className }: { className?: string }) {
   // DISCORD_URL vaut encore "#" (finalisé Story 5.5) : `isExternalUrl` le sait, donc
   // pas de `target` sur une ancre inerte ni d'annonce « nouvel onglet » trompeuse.
-  const external = isExternalUrl(DISCORD_URL);
+  const external = classerDestination(DISCORD_URL) === "externe";
   return (
     <a
       href={DISCORD_URL}
