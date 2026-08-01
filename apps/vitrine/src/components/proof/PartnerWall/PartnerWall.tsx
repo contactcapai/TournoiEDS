@@ -136,6 +136,12 @@ function PartnerCard({
           href={lien}
           target="_blank"
           rel="noopener noreferrer"
+          /* Témoin pour `gate:links` (Story 5.5) : une tuile de mur n'est pas un CTA.
+             Elle est EXEMPTÉE de l'indication visible de lien sortant, et la porte le
+             DÉCLARE au lieu de le taire — l'écart à `EXPERIENCE.md` l.199 est réel, il
+             appartient au gate visuel de Brice parce qu'il touche le rendu d'une story
+             mergée (4.2). Attribut de données et non classe CSS Modules (leçon 2.10). */
+          data-tuile-partenaire=""
         >
           {contenu}
           {/* Phrasé unifié du site (`lib/links.ts`), jamais réécrit sur place. */}

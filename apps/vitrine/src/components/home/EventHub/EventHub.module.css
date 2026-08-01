@@ -78,7 +78,15 @@
   text-decoration-thickness: 1px;
 }
 
-.emptyLink:hover {
+/* 🔴 AFFORDANCE GATÉE — Story 5.5. Ces sélecteurs sont des sélecteurs de CLASSE : ils
+   s'appliquaient tels quels au `<span>` rendu quand `DISCORD_URL` n'a pas de destination
+   (R29), et `gate:links` a MESURÉ le défaut — le mot « Discord » virait à l'or sous la
+   souris alors qu'il ne cliquait plus. `.lienActif` n'est posée que sur un VRAI lien.
+   ⚠️ Le SOULIGNÉ, lui, est conservé sur l'élément inerte : ce fichier déclare que
+   « l'affordance du lien est portée par le souligné, jamais par la seule couleur ». Le
+   retirer serait plus honnête mais modifierait de la PROSE — c'est une décision
+   éditoriale, portée au gate de Brice (question ouverte n°3) et non tranchée ici. */
+.emptyLinkActif:hover {
   color: var(--gold);
 }
 

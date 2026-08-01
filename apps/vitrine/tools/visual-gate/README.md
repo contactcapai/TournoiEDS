@@ -34,7 +34,8 @@ pnpm --filter vitrine start          # dans un autre terminal
 pnpm --filter vitrine gate           # ⇐ sort en code 1 si une garde tombe
 ```
 
-Trois gardes, sur **3 pages × 7 largeurs** :
+Trois gardes, sur **5 pages × 7 largeurs** — soit **105 contrôles** (compte à jour au
+2026-08-01 ; il ne bouge QUE si une page publique est ajoutée à `config.mjs`) :
 
 1. **Débordement horizontal** (dette R14) — **balayage par élément** : chaque boîte
    contre le viewport (décoratifs `aria-hidden` exclus, tolérance 2px).
@@ -48,6 +49,30 @@ Trois gardes, sur **3 pages × 7 largeurs** :
 3. **Classes fantômes** — aucun `class` ne doit contenir le littéral `undefined`.
 
 ⚠️ **À exécuter sur le build de PRODUCTION**, pas sur `next dev`.
+
+## Les portes comportementales
+
+Une porte par surface dont le défaut ne se voit **ni au build, ni à l'œil** :
+
+```bash
+pnpm --filter vitrine gate:carousel      # carrousel des temps forts (3.3)
+pnpm --filter vitrine gate:marquee       # bandeau de logos (4.1)
+pnpm --filter vitrine gate:lightbox      # galerie scrapbook (4.3)
+pnpm --filter vitrine gate:images        # toutes les images servies répondent (4.3)
+pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ écrit en base, et nettoie
+pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
+```
+
+🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
+Le défaut R2 EST un défilement : le lire dans le DOM ne le mesure pas. Elle **clique
+vraiment**, **déplace vraiment le pointeur**, **déplace vraiment le focus**, et compare
+la position de la page avant/après. Six gardes : ① aucune ancre morte (`#content` en
+liste blanche) · ② tout lien sortant est sûr, annoncé **et** visiblement signalé ·
+③ un élément sans destination ne fait pas bouger la page au clic · ④ il n'est pas dans
+le fil de focus (panneau mobile **ouvert** compris) · ⑤ il n'annonce pas « nouvel
+onglet » · ⑥ il ne réagit pas au survol.
+⚠️ Elle **DÉCLARE ses exemptions** en sortie (tuiles du mur partenaires) : une porte
+verte ne doit jamais se lire « tout est couvert ».
 
 ## Les instruments (relevés, pas verdicts)
 
@@ -64,7 +89,12 @@ node tools/visual-gate/shoot.mjs    <baseUrl> captures/    # captures pleine pag
   refactor censé être invisible : en Story 2.10, **0 écart sur 21 combinaisons**.
 - **`shoot.mjs`** — captures pleine page. La géométrie **ne voit pas les couleurs** :
   une perte de `background` seule passerait `compare.mjs`. En Story 2.10, **9 captures
-  identiques bit pour bit** ont prouvé le refactor au sens littéral.
+  identiques bit pour bit** ont prouvé le refactor au sens littéral ; en Story 5.5,
+  **15/15** sur 5 pages.
+  ⚠️ **Ses pages venaient d'une liste EN DUR** jusqu'à la Story 5.5 — l'état du site à la
+  2.10. Il n'avait jamais suivi `/agenda` ni `/partenaires`, donc il prouvait
+  « invisible » sur 3 pages et **rien du tout sur les 2 autres, en silence**. Il lit
+  désormais `config.mjs`, comme toutes les autres portes.
 
 ## 🔴 Avant de croire un « 0 écart »
 
@@ -75,8 +105,19 @@ non testé promu au rang d'autorité**. Celui-ci a été **faux trois fois** ava
 **Deux réflexes :**
 
 ```bash
-pnpm --filter vitrine gate:selftest   # ⇐ les 3 détecteurs voient-ils encore un défaut ?
+pnpm --filter vitrine gate:selftest                     # ⇐ les 3 détecteurs voient-ils encore un défaut ?
+LINKS_DEBRANCHER_PIEGE=1 pnpm --filter vitrine gate:links   # ⇐ contre-épreuve de la porte des liens
 ```
+
+🔴 **Le compte est passé à HUIT au moment de la Story 5.5** (« faux trois fois » ci-dessus
+date de la 2.10). Deux occurrences récentes valent d'être connues, parce que dans les deux
+cas **l'instrument ACCUSAIT LE PRODUIT** : `gate:solicitation` rapportait « Échap ne ferme
+pas la modale » alors qu'aucune touche n'était envoyée (5.1), et la mesure d'apparition de
+la 5.4 rapportait un bloc figé parce qu'elle relevait **en plein vol** sous
+`scroll-behavior: smooth`. La 5.5 en a ajouté deux autres : `gate:links` rapportait
+« le panneau mobile ne s'ouvre pas » **avant l'hydratation de React**, et sa garde
+d'indication visible acceptait **n'importe quel svg décoratif** — donc la flèche de
+maquette du CTA tournoi, ce qui la rendait **verte sur un vrai défaut R12**.
 
 - **`gate:selftest`** confronte les détecteurs à une page synthétique qui porte les trois
   défauts. Il ne dépend d'aucun serveur. **C'est lui qui a démontré, le jour de son
@@ -100,11 +141,16 @@ pnpm --filter vitrine gate:selftest   # ⇐ les 3 détecteurs voient-ils encore 
 
 ## ⚠️ À faire évoluer avec le site
 
-`GATE_PAGES` liste les pages couvertes (défaut : `/`, `/l-asso`, `/animations`).
-**Toute nouvelle page publique doit y être ajoutée** — une page absente de cette liste
-n'est couverte par aucune de ces portes, **en silence**. Les Epics 3 à 5 en ajoutent au
-moins trois (`/agenda`, `/partenaires`, et la passerelle tournoi).
+`PAGES` (dans `config.mjs`, surchargeable par `GATE_PAGES`) liste les pages couvertes.
+Au 2026-08-01 : `/`, `/agenda`, `/partenaires`, `/l-asso`, `/animations` — les 5 pages
+publiques du site. **Toute nouvelle page publique doit y être ajoutée** : une page absente
+n'est couverte par aucune de ces portes, **en silence**.
+
+🔴 **Le témoin de l'ajout est le COMPTE, et il s'inverse d'une story à l'autre** : il doit
+AUGMENTER quand une page est ajoutée (84 → 105 en Story 4.2) et RESTER INCHANGÉ quand la
+story n'en ajoute pas (105 en 4.3, 5.4, 5.5). Le déclarer **avant** de mesurer — un compte
+inchangé après un ajout signale une erreur de configuration, pas un succès.
 
 ```bash
-GATE_PAGES="/,/l-asso,/animations,/agenda" pnpm --filter vitrine gate
+GATE_PAGES="/,/l-asso" pnpm --filter vitrine gate   # sous-ensemble, pour itérer vite
 ```

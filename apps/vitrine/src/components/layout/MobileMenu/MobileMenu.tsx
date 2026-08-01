@@ -126,20 +126,41 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
 
   // Lien Discord (icône seule → nom accessible explicite + indication SR).
   function renderDiscord(onNavigate?: () => void) {
-    const external = classerDestination(DISCORD_URL) === "externe";
+    const destination = classerDestination(DISCORD_URL);
+    const external = destination === "externe";
+
+    // 🔴 SANS DESTINATION, CE N'EST PLUS UN LIEN — Story 5.5 (dette R2). Il rendait
+    // jusqu'ici `<a href="#">` : focalisable au clavier et remontant en haut de page au
+    // clic, sur les CINQ pages et DEUX fois par page (barre desktop + panneau mobile).
+    // Ces deux occurrences n'avaient JAMAIS été comptées par R2 (« 4 tuiles sociales +
+    // 2 liens légaux »), alors qu'elles existent depuis la Story 1.4.
+    //
+    // ⚠️ ET IL PERD SON NOM ACCESSIBLE, DÉLIBÉRÉMENT : un `aria-label` sur un `<span>`
+    // sans `role` est ignoré par la plupart des lecteurs d'écran — le laisser
+    // fabriquerait une promesse muette. L'élément devient de la DÉCORATION, et son
+    // contenu reste `aria-hidden`. C'est cohérent avec l'inertie : il n'annonce rien
+    // parce qu'il ne fait rien.
+    const Balise = destination === "absente" ? "span" : "a";
+    const attributsLien =
+      destination === "absente"
+        ? { "data-inerte": "" }
+        : {
+            href: DISCORD_URL,
+            ...(external ? { target: "_blank", rel: "noopener noreferrer" } : {}),
+            "aria-label": external
+              ? "Discord — rejoindre la communauté (nouvel onglet)"
+              : "Discord — rejoindre la communauté",
+            onClick: onNavigate,
+          };
+
     return (
-      <a
-        href={DISCORD_URL}
-        {...(external
-          ? { target: "_blank", rel: "noopener noreferrer" }
-          : {})}
-        className={styles.discord}
-        aria-label={
-          external
-            ? "Discord — rejoindre la communauté (nouvel onglet)"
-            : "Discord — rejoindre la communauté"
+      <Balise
+        {...attributsLien}
+        className={
+          destination === "absente"
+            ? styles.discord
+            : `${styles.discord} ${styles.discordActif}`
         }
-        onClick={onNavigate}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path
@@ -147,17 +168,35 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
             d="M19.27 5.33A16.5 16.5 0 0 0 15.1 4l-.2.4a13 13 0 0 1 3.7 1.9 13.6 13.6 0 0 0-11.2 0A13 13 0 0 1 11.1 4.4L10.9 4a16.5 16.5 0 0 0-4.17 1.33A17.6 17.6 0 0 0 3.7 18.2a16.7 16.7 0 0 0 5.05 2.55l.4-.66a10.8 10.8 0 0 1-1.7-.82l.42-.32a11.9 11.9 0 0 0 10.26 0l.42.32c-.54.32-1.11.6-1.7.82l.4.66a16.6 16.6 0 0 0 5.05-2.55 17.6 17.6 0 0 0-3.03-12.87ZM9.55 15.5c-.99 0-1.8-.91-1.8-2.02 0-1.12.79-2.03 1.8-2.03 1.02 0 1.83.92 1.81 2.03 0 1.11-.8 2.02-1.81 2.02Zm4.9 0c-.99 0-1.8-.91-1.8-2.02 0-1.12.79-2.03 1.8-2.03 1.02 0 1.83.92 1.81 2.03 0 1.11-.79 2.02-1.81 2.02Z"
           />
         </svg>
-      </a>
+      </Balise>
     );
   }
 
   // CTA « Nous rejoindre » (primitive Button gold, sortant sûr).
   function renderCta(onNavigate?: () => void) {
-    const external = classerDestination(REJOINDRE_URL) === "externe";
+    const destination = classerDestination(REJOINDRE_URL);
+
+    // 🔴 SANS DESTINATION, LE CTA RESTE VISIBLE MAIS NE CLIQUE PLUS — arbitrage de Brice
+    // du 2026-08-01 (Story 5.5). `REJOINDRE_URL` valait la page d'accueil GÉNÉRIQUE de
+    // HelloAsso : une vraie URL https, donc classée sortante, donc ce bouton ouvrait un
+    // nouvel onglet et l'annonçait au lecteur d'écran — vers un site tiers sans rapport
+    // avec l'association. Un placeholder est inerte ; cela était ACTIF ET FAUX.
+    //
+    // ⚠️ ET C'EST LE RAPPEL : rien n'est en ligne, et ce bouton mort est le SEUL signal
+    // visuel qui rappellera la dette R29 au moment du go-live. La dette R15 documente
+    // exactement l'inverse — le hero a cessé d'afficher son placeholder, et plus rien
+    // ne rappelle le travail restant. Le jour où l'URL arrive, UNE ligne de `lib/links.ts`
+    // rallume les quatre rendus de ce CTA, avec icône et annonce.
+    if (destination === "absente") {
+      return <Button variant="gold" inactive>Nous rejoindre</Button>;
+    }
+
+    const external = destination === "externe";
     return (
       <Button
         variant="gold"
         href={REJOINDRE_URL}
+        icon={external ? <ExternalIcon /> : undefined}
         {...(external
           ? { target: "_blank", rel: "noopener noreferrer" }
           : {})}

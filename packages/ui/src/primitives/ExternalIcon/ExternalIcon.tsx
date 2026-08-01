@@ -33,6 +33,15 @@ export function ExternalIcon({ className }: ExternalIconProps) {
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
+      /* 🔴 TÉMOIN STABLE POUR LA PORTE `gate:links`, et il a été payé : sans lui, la
+         garde « indication visible » cherchait « un svg décoratif quelconque » et le
+         CTA « Accéder à la plateforme » la satisfaisait avec la FLÈCHE décorative de
+         la maquette (Story 5.4). La porte était donc VERTE sur un défaut R12 réel —
+         un faux négatif, le pire mode de défaillance d'une porte.
+         ⚠️ Un attribut de données et NON une classe CSS Modules : une classe est
+         hachée à la compilation et une règle vide disparaît à la minification
+         (leçons 2.10 et 5.1). */
+      data-external-icon=""
     >
       <path
         d="M14 5h5v5M19 5l-9 9M9 6H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3"

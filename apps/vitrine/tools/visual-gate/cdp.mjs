@@ -215,6 +215,28 @@ export async function launchChrome(port = 9222) {
       // mesurerait systématiquement un cran en retard.
       await new Promise((r) => setTimeout(r, 60));
     },
+    /**
+     * Déplace VRAIMENT le pointeur (Story 5.5).
+     *
+     * 🔴 Même motif que `envoyerTouche` : un `dispatchEvent(new MouseEvent('mouseover'))`
+     * est `isTrusted: false`. Les gestionnaires JS s'exécutent, mais l'état `:hover` du
+     * moteur de rendu **ne bascule pas** — une porte qui mesurerait une affordance de
+     * survol avec un événement fabriqué lirait le style de repos et conclurait
+     * « aucun survol » quoi qu'il arrive. Elle serait verte sur un élément inerte qui
+     * s'illumine à la souris, c'est-à-dire sur le défaut exact qu'elle surveille.
+     *
+     * Les coordonnées sont en pixels CSS, relatives au VIEWPORT (pas au document) :
+     * l'appelant fait défiler jusqu'à l'élément avant d'appeler.
+     */
+    async bougerSouris(x, y) {
+      await send(
+        "Input.dispatchMouseEvent",
+        { type: "mouseMoved", x, y, button: "none", buttons: 0 },
+        sessionId,
+      );
+      // Laisse la transition CSS (0,2s sur `.link`/`.social`) se poser avant relevé.
+      await new Promise((r) => setTimeout(r, 300));
+    },
     async eval(expression, awaitPromise = false) {
       const r = await send(
         "Runtime.evaluate",

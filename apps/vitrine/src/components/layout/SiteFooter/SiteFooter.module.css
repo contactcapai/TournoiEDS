@@ -74,7 +74,11 @@
   transition: color 0.2s;
 }
 
-.link:hover {
+/* 🔴 AFFORDANCE GATÉE — Story 5.5. Sélecteur de CLASSE : il s'appliquerait tel quel
+   au `<span>` rendu quand la destination est absente. Un élément inerte qui s'éclaircit
+   sous la souris FABRIQUE une affordance — on croit pouvoir cliquer, et l'inertie qu'on
+   vient de poser devient un piège. `.linkActif` n'est posée que sur un VRAI lien. */
+.linkActif:hover {
   color: var(--light);
 }
 
@@ -101,7 +105,10 @@
     color 0.2s;
 }
 
-.social:hover {
+/* 🔴 AFFORDANCE GATÉE — Story 5.5 (même motif que `.linkActif`). Les QUATRE tuiles
+   sociales sont aujourd'hui sans destination (R29) : elles rendent un `<span>`, et ce
+   sélecteur de classe les aurait fait virer au fond or sous la souris. */
+.socialActif:hover {
   background: var(--gold);
   color: var(--ink);
 }

@@ -10,6 +10,7 @@ import {
   LINKEDIN_URL,
   CONTACT_EMAIL,
   NEW_TAB_SR,
+  DESTINATION_ABSENTE,
   classerDestination,
 } from "@/lib/links";
 import { Wrap } from "@/components/common/Wrap/Wrap";
@@ -26,7 +27,7 @@ import styles from "./SiteFooter.module.css";
 // Lien de colonne (donnée statique RSC). `href` détermine le rendu :
 //   - http(s)  → lien sortant sûr (nouvel onglet + icône + annonce SR)
 //   - "/…"     → route interne (next/link)
-//   - "#"      → placeholder inerte documenté (ni onglet ni annonce — review 1.4 #1)
+//   - ""       → AUCUNE destination : rendu NON INTERACTIF (ni lien, ni focus, ni annonce)
 interface FooterLink {
   label: string;
   href: string;
@@ -48,7 +49,12 @@ const PARTICIPER_LINKS: FooterLink[] = [
 ];
 
 // Réseaux sociaux : icône (aria-hidden) + nom accessible via aria-label.
-// `href` "#" tant que Story 5.5 n'a pas fourni l'URL → tuile inerte (pas d'onglet).
+// ⚠️ Les QUATRE destinations sont ABSENTES (dette R29, échéance go-live) : les tuiles
+// sont donc rendues NON INTERACTIVES. Le jour où les comptes existent, il suffit de
+// renseigner `lib/links.ts` — rien à changer ici.
+// 🔴 Le commentaire d'origine annonçait « tuile inerte (pas d'onglet) » alors que la
+// tuile rendait `<a href="#">`, donc un lien focalisable qui remontait en haut de page.
+// Il décrivait le défaut R2 comme si c'était une garde : un avertissement faux est CRU.
 const SOCIALS: { name: string; href: string; icon: "discord" | "instagram" | "x" | "linkedin" }[] = [
   { name: "Discord", href: DISCORD_URL, icon: "discord" },
   { name: "Instagram", href: INSTAGRAM_URL, icon: "instagram" },
@@ -59,9 +65,11 @@ const SOCIALS: { name: string; href: string; icon: "discord" | "instagram" | "x"
 // Bandeau bas : pages légales non encore rédigées (Garde-fou n°6) → placeholders
 // "#" inertes (PAS de route, PAS de nouvel onglet).
 const LEGAL_LINKS: FooterLink[] = [
-  // TODO : pages légales à rédiger (hors périmètre Story 1.5 — RGPD bloquant).
-  { label: "Mentions légales", href: "#" },
-  { label: "Confidentialité (RGPD)", href: "#" },
+  // TODO : pages légales à rédiger (hors périmètre — RGPD bloquant). Elles ne sont PAS
+  // couvertes par R29 (qui ne porte que les 5 destinations externes) : ce sont des
+  // pages internes qui restent à écrire.
+  { label: "Mentions légales", href: DESTINATION_ABSENTE },
+  { label: "Confidentialité (RGPD)", href: DESTINATION_ABSENTE },
 ];
 
 // ⚠️ `ExternalIcon` vivait ICI, dupliqué sciemment du header (Story 1.5, Garde-fou n°3).
@@ -128,7 +136,12 @@ function FooterColumnLink({ link }: { link: FooterLink }) {
     // Cas 1 — vraie URL http(s) : lien sortant sûr + annonce SR (review 1.4).
     case "externe":
       return (
-        <a href={link.href} target="_blank" rel="noopener noreferrer" className={styles.link}>
+        <a
+          href={link.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${styles.link} ${styles.linkActif}`}
+        >
           {link.label}
           <ExternalIcon />
           <span className="sr-only">{NEW_TAB_SR}</span>
@@ -137,16 +150,25 @@ function FooterColumnLink({ link }: { link: FooterLink }) {
     // Cas 2 — route interne « /… » : navigation client next/link.
     case "interne":
       return (
-        <Link href={link.href} className={styles.link}>
+        <Link href={link.href} className={`${styles.link} ${styles.linkActif}`}>
           {link.label}
         </Link>
       );
-    // Cas 3 — destination absente : voir plus bas, moitié B.
+    // Cas 3 — AUCUNE destination ⇒ AUCUN lien (Story 5.5, dette R2).
+    //
+    // 🔴 Il rendait `<a href="#">` : un lien ACTIF, focalisable, qui REMONTE EN HAUT DE
+    // PAGE au clic — mesuré par `gate:links` sur les 5 pages (« Mentions légales »,
+    // 2327px → 0px). Le commentaire de `SOCIALS` l'appelait pourtant « tuile inerte » :
+    // l'avertissement décrivait le défaut comme une garde, ce qui est pire qu'absent.
+    //
+    // Doctrine `PartnerWall` (Story 4.2) : ni `<a>` sans href, ni `role="link"` — pas
+    // interactif du tout. Le libellé reste VISIBLE : les pages légales existeront, et
+    // les faire disparaître aujourd'hui masquerait qu'elles restent à écrire.
     case "absente":
       return (
-        <a href={link.href} className={styles.link}>
+        <span className={styles.link} data-inerte="">
           {link.label}
-        </a>
+        </span>
       );
   }
 }
@@ -209,13 +231,30 @@ export function SiteFooter() {
             <h2 className={styles.colTitle}>Suivez-nous</h2>
             <ul className={styles.socials}>
               {SOCIALS.map((social) => {
-                const external = classerDestination(social.href) === "externe";
+                const destination = classerDestination(social.href);
+
+                // 🔴 AUCUNE destination ⇒ la tuile n'est plus un lien (Story 5.5, R2).
+                // ⚠️ Et elle PERD son nom accessible, délibérément : un `aria-label` sur
+                // un `<span>` sans `role` est ignoré par la plupart des lecteurs d'écran,
+                // donc le garder fabriquerait une promesse muette. La tuile devient de la
+                // DÉCORATION — elle n'annonce rien parce qu'elle ne fait rien.
+                if (destination === "absente") {
+                  return (
+                    <li key={social.name}>
+                      <span className={styles.social} data-inerte="" aria-hidden="true">
+                        <SocialIcon icon={social.icon} />
+                      </span>
+                    </li>
+                  );
+                }
+
+                const external = destination === "externe";
                 return (
                   <li key={social.name}>
                     <a
                       href={social.href}
                       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                      className={styles.social}
+                      className={`${styles.social} ${styles.socialActif}`}
                       aria-label={external ? `${social.name}${NEW_TAB_SR}` : social.name}
                     >
                       <SocialIcon icon={social.icon} />
