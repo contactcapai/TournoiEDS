@@ -29,6 +29,13 @@
       "when": 1785488573321,
       "tag": "0003_black_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785510672197,
+      "tag": "0004_solicitation",
+      "breakpoints": true
     }
   ]
 }

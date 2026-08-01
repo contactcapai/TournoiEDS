@@ -1,0 +1,100 @@
+/* SolicitationForm (Story 5.1) — 1ᵉʳ formulaire du site, aucun patron existant à suivre.
+   Tokens-only : aucune couleur/police/rayon de charte en dur.
+
+   🔴 LE TEXTE DU FORMULAIRE EST DU CORPS DE TEXTE, PAS DU CHAPÔ — défaut trouvé au gate
+   visuel de Brice (2026-07-31) et MESURÉ : la 1ʳᵉ version posait `--fs-lead` (20px) sur
+   les libellés, les champs, les radios et la confirmation, alors que le corps de texte du
+   site est à 16px (`body` ne déclare AUCUN `font-size`, donc défaut navigateur — voir
+   `globals.css`). Tout le bloc était donc 25 % trop gros et se lisait comme un chapô posé
+   au milieu d'une page. `--fs-lead` est la taille du CHAPÔ de `SectionHead`, jamais celle
+   d'un libellé de champ.
+   ⇒ Les libellés HÉRITENT (aucun `font-size`, aucun `font-family` : `body` les pose déjà).
+   ⇒ Les contrôles de formulaire, eux, doivent l'exiger explicitement : `<input>`,
+     `<textarea>` et `<legend>` ne suivent PAS la police héritée (feuille de style UA), d'où
+     `font: inherit` — qui reprend famille, taille ET interlignage d'un seul coup.
+   ⚠️ 16px sur les champs de saisie est AUSSI une garde mobile : sous 16px, iOS Safari
+   zoome automatiquement au focus, ce qui déplace la mise en page sous le doigt.
+
+   ⚠️ Aucune couleur « erreur » n'existe dans la charte EDS (§2 du project-context : navy,
+   surface, ink, gold, grey, light, cream — pas de rouge). Choix assumé, À CONFIRMER AU GATE
+   VISUEL : `--gold` en gras (Roboto, graisse réelle — R11) pour le texte d'erreur, jamais
+   SEULE indication (le message est aussi lié par `aria-describedby` et annoncé par les
+   lecteurs d'écran — WCAG 1.4.1). */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 560px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* `<label>` hérite déjà tout de `body` — seul `<legend>` a besoin d'être ramené dans le
+   rang (la feuille UA lui pose sa propre police et son propre corps). */
+.field legend {
+  font: inherit;
+  padding: 0;
+}
+
+/* `font: inherit` et non `font-family`+`font-size` : les contrôles de formulaire ont leur
+   propre police UA, et `inherit` reprend famille + taille + interlignage en une règle. */
+.field input[type="text"],
+.field input[type="email"],
+.field textarea {
+  font: inherit;
+  color: var(--light);
+  background: var(--navy-deep);
+  border: 1px solid var(--grey);
+  border-radius: var(--radius-button);
+  padding: 12px 14px;
+  min-height: 44px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Cible tactile ≥ 44×44 (convention non négociable, project-context §5). */
+  min-height: 44px;
+}
+
+.consentLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.fieldError,
+.formError {
+  font-size: var(--fs-nav);
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0;
+}
+
+.confirmation {
+  margin: 0;
+}
+
+/* Honeypot — jamais display:none (certains bots l'ignorent), jamais en position tab
+   (tabIndex={-1} côté composant). Hors-écran plutôt que opacity:0/visibility:hidden pour
+   ne laisser aucune ambiguïté avec un champ réellement masqué temporairement. */
+.honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

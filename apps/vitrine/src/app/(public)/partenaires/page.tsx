@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
+import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { PartnerWall } from "@/components/proof/PartnerWall/PartnerWall";
-import { CONTACT_EMAIL } from "@/lib/links";
 import { PARTNER_CATEGORIES } from "@/lib/schemas/partner";
 import { getPublishedPartners } from "@/server/db/queries/partners";
 import type { PartnerCategory } from "@/server/db/schema";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
-import styles from "./page.module.css";
 
 // Page « Partenaires » (Story 4.2) — TROISIÈME page dédiée du site, et celle qui ferme
 // le DERNIER 404 interne (header, footer, double porte, /animations, /l-asso et le
@@ -203,24 +202,23 @@ export default async function Partenaires() {
         </Wrap>
       </div>
 
-      {/* ③ Clôture — le MOYEN DE CONTACT.
+      {/* ③ Clôture — l'ACCÈS au formulaire de sollicitation (Story 5.1).
 
-          🔴 CE BLOC EST UN REPLI, ET LA STORY 5.2 DOIT LE REMPLACER, PAS S'AJOUTER À CÔTÉ.
           `FR31` définit cette page comme « Partenaires / Nous solliciter … et accès au
-          FORMULAIRE », lequel arrive en Epic 5. Or SIX surfaces renvoient déjà ici avec
-          une intention de contact (header, footer, double porte « Nous contacter »,
-          /animations « Nous solliciter », /l-asso, bandeau « Devenir partenaire ») :
-          livrer la page sans aucun moyen de contact referait le défaut soldé en Story 3.3
-          (un CTA « participer » qui n'avait pas de destination). Arbitrage de Brice du
-          2026-07-31. Dette R28 → Story 5.2.
+          FORMULAIRE » — et c'est bien un ACCÈS qui est livré ici, pas le formulaire lui-même.
+
+          🔴 LE FORMULAIRE N'EST PLUS INLINE, ET C'EST UN ARBITRAGE DE BRICE AU GATE VISUEL
+          (2026-07-31) : posé en pied de page, il n'avait pas de cohérence à cet endroit —
+          une page qui DOCUMENTE le réseau de l'asso se terminait par un long formulaire.
+          Il vit désormais dans une MODALE (`SolicitationDialog`), ouverte d'ici comme
+          depuis la double porte de la home et le CTA d'`/animations`.
+          ⚠️ La dette R28 reste soldée : le repli `mailto:` de la Story 4.2 n'est pas
+          revenu en page. Il ne subsiste que dans le `<noscript>` du dialogue, donc JAMAIS
+          rendu en même temps que le bouton — c'est l'un OU l'autre, pas un doublon.
 
           ⚠️ AUCUNE PROMESSE DE DÉLAI (« on vous répond sous 48 h ») : c'est une
-          [ASSUMPTION] d'EXPERIENCE.md attachée au formulaire, non figée (Q7, canal de
-          réception non tranché). Même garde qu'en 2.7.
-
-          ⚠️ PAS de `Button` or « Nous contacter » : on est déjà ARRIVÉ ici en cliquant
-          « Nous contacter ». Un bouton de plus rouvrirait la redondance de porte pro que
-          la Story 4.1 vient précisément de supprimer sur la home.
+          [ASSUMPTION] d'EXPERIENCE.md non figée, et Q7 (tranchée le 2026-07-31) exclut tout
+          accusé de réception par e-mail au demandeur — voir `SolicitationForm`.
 
           ⚠️ DERNIÈRE section avant le footer : cas critique de la plage d'animation (un
           bloc qui n'atteint jamais la fin de sa plage resterait invisible pour toujours).
@@ -233,23 +231,12 @@ export default async function Partenaires() {
           <h2 id="solliciter-title" className={editorial.title}>
             Nous <Brush>solliciter</Brush>
           </h2>
-          <div className={editorial.prose}>
-            <p>
-              Un partenariat, un coup de main sur un événement, une animation pour votre
-              structure : décrivez-nous votre projet, même s&apos;il est encore flou.
-            </p>
-            <p>
-              L&apos;équipe est bénévole et répond par mail —{" "}
-              {/* L'affordance du lien est portée par le SOULIGNÉ, jamais par la seule
-                  couleur (WCAG 1.4.1) : patron des liens en prose de /agenda.
-                  ⚠️ Un `mailto:` N'EST PAS « sortant » (`isExternalUrl` le sait) : ni
-                  `target`, ni `rel`, ni annonce « nouvel onglet ». Patron SiteFooter
-                  l.237-240. */}
-              <a href={`mailto:${CONTACT_EMAIL}`} className={styles.email}>
-                {CONTACT_EMAIL}
-              </a>
-              .
-            </p>
+          <p className={editorial.prose}>
+            Un partenariat, un coup de main sur un événement, une animation pour votre
+            structure : décrivez-nous votre projet, même s&apos;il est encore flou.
+          </p>
+          <div className={editorial.cta}>
+            <SolicitationDialog variant="gold" label="Nous écrire" />
           </div>
           {/* Le volet « offre d'animations » de FR31, satisfait par un RENVOI et non par
               une recopie de la page Animations (NFR1). Route interne → ni target, ni

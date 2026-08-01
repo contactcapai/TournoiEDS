@@ -2,7 +2,7 @@
 //
 // 🔴 UNE TABLE PAR STORY, JAMAIS D'ANTICIPATION (règle posée en Story 1.7 et maintenue).
 // Une table sans consommateur est une migration qu'il faudra défaire. À venir, chacune
-// avec sa story : `photo` (4.3), `solicitation` (5.1), `member` / `workshop` (Epic 6).
+// avec sa story : `member` / `workshop` (Epic 6).
 // ⚠️ La table `achievement` annoncée ici jusqu'à la Story 4.1 N'EXISTERA PAS : la
 // restructuration du 2026-07-30 l'a fondue dans `partner` (catégorie `participation`).
 //
@@ -40,6 +40,7 @@ import { PARTNER_CATEGORIES } from "../../lib/schemas/partner";
 // la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
 // navigateur. Une seule liste pour Zod, la base et la table de `Content-Type`.
 import { EXTENSIONS } from "../../lib/schemas/photo";
+import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
 
 /**
  * Nature d'un événement. Identifiants techniques en anglais, comme les tables ; les
@@ -416,6 +417,81 @@ export const photo = pgTable(
   ],
 );
 
+/**
+ * Nature d'une sollicitation (FR32, Story 5.1).
+ *
+ * Les valeurs viennent de `src/lib/schemas/solicitation.ts` — même sens de dépendance que
+ * `eventType`/`partnerCategory` (le module Zod, bundlé côté client, ne doit jamais importer
+ * Drizzle).
+ */
+export const solicitationType = pgEnum("solicitation_type", SOLICITATION_TYPES);
+
+/**
+ * Demande envoyée par un partenaire / une collectivité / une structure sociale via le
+ * formulaire de `/partenaires` (FR32, FR36, Story 5.1).
+ *
+ * 🔴 PREMIÈRE TABLE ÉCRITE PAR UNE REQUÊTE PUBLIQUE NON AUTHENTIFIÉE, ET PREMIÈRE DONNÉE
+ * PERSONNELLE DU PROJET (RGPD, NFR5). Les deux CHECK non-blancs (`name`, `email`, `message`)
+ * suivent la doctrine `event_has_venue`/`partner_*_not_blank` : la base est le garde-fou qu'on
+ * ne peut pas contourner par un `UPDATE`/restauration/migration direct, Zod celui qui donne un
+ * message utilisable au visiteur (`lib/schemas/solicitation.ts`).
+ *
+ * 🔴 `CHECK (consent_given = true)` EST LA GARDE RGPD LA PLUS IMPORTANTE DE CE FICHIER : sans
+ * elle, une ligne sans consentement pourrait exister par un chemin qui contourne Zod
+ * (restauration de sauvegarde, script de migration, `UPDATE` direct) — exactement le scénario
+ * qui a fait passer `UPDATE partner SET logo=''` en revue de la Story 4.1, mais ici sur une
+ * donnée personnelle plutôt qu'éditoriale. ⚠️ Conséquence : `default(false)` est de fait
+ * INATTEIGNABLE (tout `INSERT` sans `true` explicite échoue au `CHECK`) — voulu, pas un bug.
+ */
+export const solicitation = pgTable(
+  "solicitation",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** « Nom ou structure » (UX-DR14) — un seul champ, pas deux : la source le décrit ainsi. */
+    name: text().notNull(),
+    /** Email du demandeur, pour pouvoir lui répondre. Jamais notifié automatiquement (Q7). */
+    email: text().notNull(),
+    requestType: solicitationType().notNull(),
+    message: text().notNull(),
+    /** `true` requis pour exister en base — voir le `CHECK` ci-dessous. */
+    consentGiven: boolean().notNull().default(false),
+    /**
+     * 🔴 Colonne posée AVANT son écran (Story 6.11, qui marquera « traité »), même précédent
+     * que `partner.sortOrder` (posé en 4.1, saisi en 6.5) : évite une 2ᵉ migration sur une
+     * table déjà peuplée de données personnelles.
+     */
+    isProcessed: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    // 🔴 Bornées EN PLUS du non-blanc, trouvé en revue (Blind Hunter + Edge Case Hunter) :
+    // `message` portait déjà les deux gardes (non-blanc ET borné), mais `name`/`email`
+    // n'avaient que la 1ʳᵉ — la même doctrine que les commentaires ci-dessus invoquent
+    // (« la base est le garde-fou qu'on ne peut pas contourner ») s'appliquait donc à
+    // moitié. Mêmes valeurs que les bornes Zod (120 / 254 — RFC 5321 §4.5.3.1.3).
+    check(
+      "solicitation_name_valide",
+      sql`length(btrim(${table.name})) > 0 and length(${table.name}) <= 120`,
+    ),
+    check(
+      "solicitation_email_valide",
+      sql`length(btrim(${table.email})) > 0 and position('@' in ${table.email}) > 0 and length(${table.email}) <= 254`,
+    ),
+    check(
+      "solicitation_message_valide",
+      sql`length(btrim(${table.message})) > 0 and length(${table.message}) <= 5000`,
+    ),
+    check("solicitation_consent_given", sql`${table.consentGiven} = true`),
+    // Sert la future liste antéchronologique de la Story 6.11 : colonnes dans l'ordre où la
+    // requête s'en servira (filtre puis tri), patron `partner_published_category_order_idx`.
+    index("solicitation_processed_created_at_idx").on(table.isProcessed, table.createdAt),
+  ],
+);
+
 // Relations déclarées ici pour que les stories de lecture puissent écrire
 // `db.query.event.findMany({ with: { bar: true } })` sans retoucher ce fichier.
 export const barRelations = relations(bar, ({ many }) => ({
@@ -445,3 +521,6 @@ export type NewPartner = typeof partner.$inferInsert;
 export type PartnerCategory = (typeof partnerCategory.enumValues)[number];
 export type Photo = typeof photo.$inferSelect;
 export type NewPhoto = typeof photo.$inferInsert;
+export type Solicitation = typeof solicitation.$inferSelect;
+export type NewSolicitation = typeof solicitation.$inferInsert;
+export type SolicitationType = (typeof solicitationType.enumValues)[number];

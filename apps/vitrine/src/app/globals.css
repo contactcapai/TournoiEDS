@@ -123,8 +123,11 @@ a {
 /* Anneau de focus visible GLOBAL (UX-DR23 / Garde-fou n°8) — couvre liens,
    boutons et la primitive Button (rendue <a>/<button>) sans toucher @repo/ui.
    `:where()` ⇒ spécificité nulle, surchargable par un composant si besoin.
-   Jamais `outline:none` sans remplacement. */
-:where(a, button):focus-visible {
+   Jamais `outline:none` sans remplacement.
+   ⚠️ `input`/`textarea`/`select` AJOUTÉS en Story 5.1 (1ᵉʳ formulaire du site, dont les
+   champs n'étaient couverts par aucun sélecteur) — partagé plutôt que redéclaré localement,
+   car les formulaires de l'Epic 6 en ont exactement le même besoin. */
+:where(a, button, input, textarea, select):focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
   /* Pas de border-radius : l'outline suit déjà le rayon de l'élément dans les
