@@ -1,0 +1,235 @@
+/* Bloc « passerelle Tournoi » de l'accueil (Story 5.4) — transcription de
+   docs/refonte-2026/maquette/index.html (section TOURNOI, markup l.339-366 ; CSS
+   `.tournoi` / `.t-l` / `.t-r` / `.board` l.142-151, `section` l.89, `@media` l.196).
+
+   Tokens-only. EXCEPTIONS documentées sur place :
+     - les 2 arrêts du linear-gradient et les rgba() de filets/overlays (aucun token
+       ne décrit un dégradé ni un overlay — tolérance posée en 1.4/1.5, puis 2.1, 2.4
+       et 2.5) ;
+     - les px structurels fidèles à la maquette (48, 34, 18, 16, 15.5, 14.5, 12, 10, 6). */
+
+.section {
+  /* 🔴 PADDING-TOP PLEIN, ET C'EST UN ÉCART DÉLIBÉRÉ À LA MAQUETTE.
+     La maquette écrit `<section id="tournoi" style="padding-top:0">` (l.340) — mais la
+     RAISON de ce zéro n'existe plus : il servait à coller ce bloc à la section
+     `#animations` qui le précédait (maquette l.326-337), et la Story 4.1 a SUPPRIMÉ ce
+     bloc de la home (AC7, redondance de CTA mesurée, décision définitive).
+     Sur la home d'aujourd'hui, ce bloc suit `QuoteBand` — une bande pleine largeur sur
+     photo. Transcrire le zéro littéralement collerait le cadre à la photo.
+     ⚠️ Ne pas « re-transcrire » ce zéro au motif que la maquette l'écrit : c'est la
+     seule ligne de la section qu'il ne faut PAS reprendre. */
+  padding: var(--section-y) 0;
+}
+
+/* Cadre 2 colonnes (`.tournoi`). `overflow: hidden` est ce qui fait que les deux fonds
+   (navy à gauche, dégradé à droite) s'arrêtent net sur le rayon du cadre. */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: var(--radius-card-lg); /* 14px */
+  overflow: hidden;
+  /* Filet crème (#f3efe3) à 12 % — overlay documenté (aucun token ne décrit un filet). */
+  border: 1px solid rgba(243, 239, 227, 0.12);
+}
+
+/* Colonne gauche (`.t-l`). `--navy` : DESIGN.md réserve ce fond aux blocs RELEVÉS du
+   long-scroll ; ici il n'habille qu'une moitié du cadre, l'autre portant le dégradé. */
+.pitch {
+  background: var(--navy);
+  /* 48px : respiration interne de la colonne (maquette). */
+  padding: 48px;
+}
+
+.blockTitle {
+  font-family: var(--font-display);
+  /* 44px = var(--fs-block-heading) EXACTEMENT (DESIGN.md : « titres de bloc (band,
+     door, tournoi, axe) — varient 34-44px », le token est la borne haute de la
+     famille). Ce titre-ci EST à la borne : on consomme donc le token, contrairement
+     à `DoubleDoor.title` qui écrit 38px en littéral parce qu'il s'en écarte. */
+  font-size: var(--fs-block-heading);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  /* 16px : espacement titre → paragraphe (maquette `.t-l h3`). */
+  margin-bottom: 16px;
+  /* ⚠️ PAS de `font-weight` : la Story 2.10 l'a posé UNE SEULE FOIS pour tout le site,
+     sur h1…h6 dans globals.css (dette R11). Le redéclarer ici en ferait une seconde
+     source de vérité pour la même valeur. */
+}
+
+/* Les deux lignes du titre. `display: block` reproduit le <br> de la maquette sans
+   empêcher le retour à la ligne NATUREL à l'intérieur d'une ligne : à 320px, le
+   conteneur ne fait que ~172px et « ESPORT DES SACRES » doit pouvoir se replier. */
+.titleLine {
+  display: block;
+}
+
+.lead {
+  color: var(--light);
+  /* 15.5px : taille de corps de la colonne (maquette). Aucun token (l'échelle
+     s'arrête au lead à 20px). */
+  font-size: 15.5px;
+  /* 26px : espacement paragraphe → CTA (maquette). */
+  margin-bottom: 26px;
+}
+
+/* Colonne droite (`.t-r`). Les 2 hex du dégradé NE SONT PAS des couleurs de charte :
+   ce sont les arrêts propres à la maquette (voisins de --navy-deep / --ink sans les
+   égaler). Même traitement que les 4 arrêts de DoubleDoor et le #211d4c de la bande
+   Animations (2.4) : ne pas les recopier ailleurs, ne pas les prendre pour des tokens.
+   `align-items: center` centre le panneau verticalement en face du pitch. */
+.boardCol {
+  background: linear-gradient(160deg, #211d4c, #141230);
+  /* 34px : respiration interne de la colonne (maquette). */
+  padding: 34px;
+  display: flex;
+  align-items: center;
+}
+
+/* Panneau du classement (`.board`). Le `<figure>` porte AUSSI le reset de marge : le
+   reset global de globals.css remet à zéro margin/padding, mais on ne s'appuie pas
+   dessus implicitement pour un élément qui en porte une par défaut dans l'UA. */
+.board {
+  width: 100%;
+  margin: 0;
+  /* Voile noir à 25 % : c'est lui qui assombrit le panneau sous le dégradé, et il
+     ENTRE dans le calcul de contraste des lignes (voir le bloc 🔬 en fin de fichier). */
+  background: rgba(0, 0, 0, 0.25);
+  /* Filet or (#dab265) à 25 % — overlay documenté. Il ne porte AUCUN texte. */
+  border: 1px solid rgba(218, 178, 101, 0.25);
+  border-radius: var(--radius-tile); /* 10px */
+  /* 18px : respiration interne du panneau (maquette). */
+  padding: 18px;
+}
+
+/* 🔴 MENTION D'APERÇU — AJOUT DÉLIBÉRÉ, ABSENT DE LA MAQUETTE (arbitrage Brice
+   2026-08-01). Elle n'est pas décorative : c'est elle qui rend le classement fictif
+   publiable. Elle est le PREMIER enfant du <figure> pour être lue avant les lignes.
+   `--light` et non `--grey` : voir le bloc 🔬 en fin de fichier — `--grey` échoue sous
+   le fondu de motion.reveal. */
+.boardCaption {
+  font-size: var(--fs-eyebrow); /* 13px */
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--light);
+  /* 12px : dégagement mention → première ligne. Aucune valeur canonique à transcrire
+     (la maquette n'a pas cette mention) ; 12px est le rythme court déjà employé par
+     `DoubleDoor.title` (margin-bottom: 12px). */
+  margin-bottom: 12px;
+}
+
+.rows {
+  /* `list-style: none` fait perdre à WebKit la sémantique de liste : le `role="list"`
+     explicite du TSX la restaure. Les deux vont ensemble — ne pas retirer l'un. */
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  /* 10px/12px : respiration d'une ligne (maquette). */
+  padding: 10px 12px;
+  /* 6px : rayon d'une ligne. Aucun token ne le décrit (--radius-card vaut 8px,
+     --radius-img-inner 2px) → littéral fidèle à la maquette. */
+  border-radius: 6px;
+  /* 14.5px : taille d'une ligne (maquette). Aucun token. */
+  font-size: 14.5px;
+  color: var(--light);
+  /* Sans lui, un pseudo long (« Ptit Nours ») ne pourrait pas se replier à 320px et
+     déborderait — rogné EN SILENCE par `overflow-x: clip` (dette R14). */
+  overflow-wrap: anywhere;
+}
+
+/* Ligne gagnante (`.r.win`). Le surlignage or à 16 % est celui de la maquette.
+   🔴 `--gold-soft` ET NON `--gold` : voir le bloc 🔬 ci-dessous — `--gold` sur ce
+   surlignage TOMBE À 4,31:1 sous le fondu de motion.reveal (seuil 4,5). Reste
+   « surlignée or », ce que DESIGN.md l.252 exige littéralement. */
+.rowWin {
+  background: rgba(218, 178, 101, 0.16);
+  color: var(--gold-soft);
+  font-weight: 700;
+}
+
+/* Le libellé « rang + pseudo » (maquette : `.board .r span:first-child`). Le `gap`
+   sépare le numéro fantôme du pseudo. */
+.player {
+  display: flex;
+  gap: 10px;
+}
+
+/* Numéro de rang VISIBLE mais `aria-hidden` côté TSX (patron du numéro fantôme
+   d'`Axis`, Story 1.3) : l'ordre est déjà porté par la sémantique de la <ol>. */
+.rank {
+  /* Le « 4 · » ne doit jamais se replier entre le chiffre et le point médian. */
+  white-space: nowrap;
+}
+
+/* Passage en 1 colonne — c'est la @media de la maquette (l.196 : `.hero-grid,.tournoi,
+   .doors{grid-template-columns:1fr}`). 880px EN LITTÉRAL : une custom property n'est
+   pas lisible dans une @media (--bp-mobile est purement documentaire). */
+@media (max-width: 880px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Aucune propriété `animation-*` dans ce fichier : l'apparition au scroll passe par la
+   classe partagée `motion.reveal` (Story 2.8), composée en markup dans le TSX ⇒ aucun
+   conflit de cascade possible avec le motif (l'ordre du CSS compilé est instable chez
+   Turbopack — dette R9). Les transitions de survol appartiennent à `Button`, avec leur
+   neutralisation sous `prefers-reduced-motion`. */
+
+/* ═══════════════════ 🔬 CONTRASTES MESURÉS DE CE BLOC ════════════════════════
+
+   Garde-fou A de la story : CALCULÉ avant d'écrire, puis MESURÉ sur le rendu servi
+   (39 relevés, couleurs et tailles lues dans `getComputedStyle`, fonds compositités en
+   remontant la chaîne d'ancêtres jusqu'au premier fond opaque).
+   Règle du projet (motion.module.css) : on mesure les combinaisons PRÉSENTES DANS CE
+   BLOC, jamais la palette entière — un calcul à périmètre trop large avait sorti un
+   plancher faux (0,985) en Story 2.8.
+
+   Fonds effectifs relevés :
+     colonne gauche ....... `--navy`      rgb(41,38,91)
+     panneau du board ..... rgb(25,22,57) à l'arrêt CLAIR du dégradé (cas le plus
+                            tendu) · rgb(15,14,36) à l'arrêt foncé
+     ligne gagnante ....... rgb(56,47,64) (or 16 % sur le panneau, arrêt clair)
+     page ................. `--navy-deep` rgb(27,25,64)
+
+   HORS du bloc animé (opacité 1) — porté par SectionHead :
+     eyebrow      --gold  sur --navy-deep →  8,36:1  (seuil 4,5)                ✅
+     titre h2     --cream sur --navy-deep → 14,50:1  (seuil 3,0 — 66px)         ✅
+     chapô        --grey  sur --navy-deep →  5,56:1  (seuil 4,5)                ✅
+
+   DANS le bloc animé (opacité effective 0,75 — état `from` de motion.reveal) :
+     titre h3     --cream sur --navy      → plein 12,00:1 · fondu 7,50:1 (s.3,0) ✅
+     pitch        --light sur --navy      → plein 12,06:1 · fondu 7,55:1 (s.4,5) ✅
+     CTA          --ink   sur --gold      → plein  9,09:1 · fondu 5,59:1 (s.4,5) ✅
+     mention      --light sur le panneau  → plein 15,15:1 · fondu 8,92:1 (s.4,5) ✅
+     lignes 2-5   --light sur le panneau  → plein 15,15:1 · fondu 8,92:1 (s.4,5) ✅
+     ligne 1      --gold-soft sur or 16 % → plein  7,99:1 · fondu 5,27:1 (s.4,5) ✅
+
+   🔴 DEUX COULEURS DE LA MAQUETTE ONT ÉTÉ DÉPLACÉES, ET LES DEUX ÉCHECS SONT MESURÉS.
+   Contre-épreuve : les couleurs d'origine réinjectées dans la page rendue donnent
+     ① ligne gagnante `--gold`  → 6,41:1 au plein mais **4,33:1 sous le fondu**  ❌
+     ② 5ᵉ ligne       `--grey`  → 5,77:1 au plein mais **3,82:1 sous le fondu**  ❌
+   ① est remplacé par `--gold-soft` (5,27:1). ② par `--light` : aucun token ne se situe
+   entre `--grey` et `--light`, et une `opacity` de ligne serait PIRE (elle se
+   MULTIPLIE avec celle du fondu). L'effet « et les autres » de la 5ᵉ ligne est donc
+   porté par son CONTENU (« joueur », un pseudo générique) et non par une couleur qui
+   tombe sous le seuil. Les deux écarts sont présentés au gate visuel.
+
+   ⚠️ L'arrêt FONCÉ du dégradé, lui, laisse passer `--gold` (4,71:1). C'est précisément
+   pourquoi la mesure porte sur les DEUX arrêts et retient le pire : une mesure prise au
+   milieu du panneau aurait déclaré le bloc conforme.
+
+   🔴 POURQUOI ① N'EST PAS UN DÉFAUT LOCAL. Laisser `--gold` ici ferait passer le
+   PLANCHER D'OPACITÉ de `motion.reveal` de **0,747** (imposé par ProofBand, marge
+   0,003) à **≈0,78** — donc AU-DESSUS du 0,75 en vigueur. Ce n'est plus ce bloc qui
+   serait non conforme : c'est `motion.module.css` qui deviendrait FAUX pour tout le
+   site, en silence, avec CI verte et Lighthouse 100/100.
+   ⇒ On corrige le BLOC, jamais le plancher. Et ne pas « éclaircir » le voile noir du
+   panneau ni le dégradé de la colonne : un fond plus clair remonterait le plancher.
+
+   Les overlays (filet or 25 %, filet crème 12 %) ne portent AUCUN texte : ils ne
+   peuvent pas changer un rapport de contraste de texte. */
