@@ -1,0 +1,98 @@
+/* Écran de connexion du back-office (Story 6.1). Tokens uniquement.
+   Aucun chrome d'administration ici : la page vit hors du groupe `(protege)`. */
+
+.ecran {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px var(--wrap-pad);
+  background: var(--navy-deep);
+  font-family: var(--font-body);
+}
+
+.carte {
+  width: 100%;
+  max-width: 460px;
+  padding: 40px 36px;
+  border: 1px solid rgba(218, 178, 101, 0.3); /* --gold à 30 %, filet sans token */
+  border-radius: var(--radius-card-lg);
+  background: var(--navy);
+  text-align: center;
+}
+
+.logo {
+  height: auto;
+  margin: 0 auto;
+}
+
+.titre {
+  margin-top: 18px;
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--gold);
+}
+
+.chapo {
+  margin-top: 8px;
+  line-height: var(--lh-body);
+  /* --light et non --grey : le plancher de contraste de --grey sur --navy a déjà été payé
+     deux fois (Stories 3.2 et 3.3). On ne le rouvre pas pour un écran de connexion. */
+  color: var(--light);
+}
+
+.erreur {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border: 1px solid rgba(218, 178, 101, 0.5);
+  border-left-width: 3px;
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  color: var(--light);
+  font-size: 15px;
+  line-height: var(--lh-body);
+  text-align: left;
+}
+
+.bouton {
+  width: 100%;
+  min-height: 48px; /* ≥ 44×44 (project-context.md §5) */
+  margin-top: 26px;
+  padding: 0 22px;
+  border: none;
+  border-radius: var(--radius-button);
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.bouton:hover {
+  background: var(--gold-soft);
+}
+
+.aide {
+  margin-top: 22px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bouton {
+    transition: none;
+  }
+}
+
+@media (max-width: 880px) {
+  .carte {
+    padding: 32px 22px;
+  }
+}

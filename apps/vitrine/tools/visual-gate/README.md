@@ -61,6 +61,7 @@ pnpm --filter vitrine gate:lightbox      # galerie scrapbook (4.3)
 pnpm --filter vitrine gate:images        # toutes les images servies répondent (4.3)
 pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ écrit en base, et nettoie
 pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
+pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
 ```
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
@@ -107,6 +108,7 @@ non testé promu au rang d'autorité**. Celui-ci a été **faux trois fois** ava
 ```bash
 pnpm --filter vitrine gate:selftest                     # ⇐ les 3 détecteurs voient-ils encore un défaut ?
 LINKS_DEBRANCHER_PIEGE=1 pnpm --filter vitrine gate:links   # ⇐ contre-épreuve de la porte des liens
+ADMIN_AUTOTEST=1 pnpm --filter vitrine gate:admin           # ⇐ contre-épreuve de la porte du back-office
 ```
 
 🔴 **Le compte est passé à HUIT au moment de la Story 5.5** (« faux trois fois » ci-dessus
@@ -154,3 +156,50 @@ inchangé après un ajout signale une erreur de configuration, pas un succès.
 ```bash
 GATE_PAGES="/,/l-asso" pnpm --filter vitrine gate   # sous-ensemble, pour itérer vite
 ```
+
+---
+
+## `gate:admin` — la frontière de sécurité du back-office (Story 6.1)
+
+**Onzième instrument.** Elle répond à une question qu'aucune autre porte ne pose : *une
+route d'administration est-elle réellement fermée à quelqu'un qui n'est pas connecté ?*
+
+🔴 **Elle parle HTTP nu, sans aucun cookie** — et c'est ce qui la distingue. `gate` et
+`gate:links` pilotent un navigateur, donc un contexte qui *pourrait* porter une session et
+rendre la mesure fausse sans le dire. Ici, aucune session n'est possible : pas de faux vert.
+
+Sept gardes : ① les routes `/admin/*` redirigent vers le login · ② la garde couvre le
+**sous-arbre** et non une liste de routes connues (une route inexistante est éprouvée
+exprès) · ③ **aucun contenu d'administration dans le corps servi** · ④ un cookie de session
+**forgé** est refusé — la garde valide la session, elle ne teste pas la présence d'un cookie
+· ⑤ `/admin/login` répond 200 (sinon le back-office est murré par une boucle de
+redirection) · ⑥ `/api/auth/*` n'est pas avalée par le matcher (sinon le flux OAuth ne peut
+pas revenir) · ⑦ les 5 pages publiques et `/medias/[filename]` répondent 200 **sans cookie**
+(non-régression FR28).
+
+### Ce qu'elle a trouvé, et que rien d'autre n'a vu
+
+**① `/api/auth/csrf` répondait 500.** L'adaptateur Drizzle est construit paresseusement
+(le `db` du projet est un Proxy, et le build doit rester sûr sans `DATABASE_URL`). La
+première version de ce Proxy n'implémentait que le piège `get` — or Auth.js vérifie la
+complétude de l'adaptateur par un test d'**appartenance** (`"createUser" in adapter`), qui
+déclenche le piège `has`. Résultat : `MissingAdapterMethods`, tout le flux OAuth mort.
+**Lint, typecheck, `next build` et les six autres gardes étaient verts.**
+
+**② Une garde de `layout` n'arrête pas le rendu de la `page` enfant.** Mesuré en
+débranchant volontairement le matcher : la réponse était un `307 → /admin/login` en bonne et
+due forme, **et son corps portait le tableau de bord entier** sérialisé en charge RSC. Next
+rend l'arbre de segments en parallèle. ⇒ chaque page d'administration porte désormais sa
+propre garde, et la garde ③ de cette porte existe pour ça.
+
+### Contre-épreuve
+
+`ADMIN_AUTOTEST=1` présente à la porte une route qu'on **sait ouverte** (`/admin/login`)
+comme si elle devait être protégée : si les gardes sont réelles, elles échouent. La preuve
+plus forte reste manuelle et a été faite à la livraison — débrancher le matcher **et** la
+garde de page, puis constater que la porte voit la fuite.
+
+⚠️ **Deux exemptions, imprimées à chaque exécution** : le chemin **authentifié** (il exige un
+aller-retour Discord avec un humain devant l'écran de consentement) et l'**apparence** du
+shell (gate visuel de Brice — la passe 1 ne s'outille pas). Une porte verte ne veut donc pas
+dire « tout est couvert ».

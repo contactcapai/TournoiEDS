@@ -1,0 +1,96 @@
+/* Tableau de bord du back-office (Story 6.1). Tokens uniquement. */
+
+.titre {
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--light);
+}
+
+.chapo {
+  margin-top: 12px;
+  max-width: 64ch;
+  font-size: var(--fs-lead);
+  line-height: var(--lh-body);
+  /* --light et non --grey : --grey sur --navy-deep tombe à 3,72:1 sous fondu (mesuré en
+     Story 3.3). Aucun fondu ici, mais on ne rouvre pas un plancher déjà payé deux fois. */
+  color: var(--light);
+}
+
+/* ── État vide (registre de sections encore vide) ───────────────────────────── */
+
+.vide {
+  margin-top: 40px;
+  padding: 32px;
+  border: 1px dashed rgba(146, 147, 173, 0.45); /* --grey à 45 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  max-width: 72ch;
+}
+
+.videTitre {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.videTexte {
+  margin-top: 10px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ── Grille des sections (vide en 6.1, alimentée par 6.3 → 6.13) ────────────── */
+
+.grille {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  list-style: none;
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 44px;
+  padding: 22px;
+  border: 1px solid rgba(218, 178, 101, 0.3); /* --gold à 30 % */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--light);
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.carte:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+
+.carteTitre {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.carteTexte {
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carte {
+    transition: none;
+  }
+
+  .carte:hover {
+    transform: none;
+  }
+}

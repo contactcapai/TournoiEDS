@@ -1,0 +1,136 @@
+/* Chrome du back-office (Story 6.1).
+   Tokens uniquement — aucun hex de charte en dur (project-context.md §5).
+   Le back-office est DESKTOP (NFR4), mais il ne doit pas être CASSÉ en dessous de
+   880px : ⚠️ `globals.css` pose `overflow-x: clip` sur toutes les routes, donc un
+   débordement ici serait rogné EN SILENCE, et `gate` ne couvre pas /admin. */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 var(--wrap-pad);
+  min-height: var(--head-height);
+  background: var(--navy);
+  border-bottom: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, pas de token de filet */
+  /* `wrap` plutôt qu'un `overflow: hidden` : sous 880px les trois blocs passent à la
+     ligne au lieu de déborder. C'est la parade au `clip` rappelé en tête de fichier. */
+  flex-wrap: wrap;
+}
+
+.identite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  /* Le fichier est carré ; `height: auto` évite toute déformation si la source change. */
+  height: auto;
+}
+
+.marque {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.nav {
+  /* Pousse le bloc « compte » à droite sans marge auto sur chaque enfant. */
+  margin-right: auto;
+}
+
+.navListe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  list-style: none;
+}
+
+.navLien {
+  display: inline-flex;
+  align-items: center;
+  /* Cible tactile ≥ 44×44 (project-context.md §5, dette R10 déjà payée en 2.10). */
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--light);
+  text-decoration: none;
+}
+
+.navLien:hover {
+  color: var(--gold);
+}
+
+.compte {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* Quand `.nav` est absent (registre vide, Story 6.1), c'est ce bloc qui doit être
+     poussé à droite — sinon il se collerait au logo. */
+  margin-left: auto;
+}
+
+.nom {
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.deconnexion {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.deconnexion:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.contenu {
+  flex: 1;
+  width: 100%;
+  max-width: var(--wrap-max);
+  margin: 0 auto;
+  padding: 48px var(--wrap-pad) 72px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deconnexion {
+    transition: none;
+  }
+}
+
+/* 880px en LITTÉRAL : `--bp-mobile` est documentaire, une custom property n'est pas
+   lisible dans une media query (project-context.md §5). */
+@media (max-width: 880px) {
+  .head {
+    gap: 16px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .contenu {
+    padding-top: 32px;
+  }
+}
