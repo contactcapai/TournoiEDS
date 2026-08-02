@@ -18,12 +18,15 @@
     "gate:lightbox": "node tools/visual-gate/lightbox-check.mjs",
     "gate:images": "node tools/visual-gate/images-check.mjs",
     "gate:solicitation": "node tools/visual-gate/solicitation-check.mjs",
-    "gate:links": "node tools/visual-gate/links-check.mjs"
+    "gate:links": "node tools/visual-gate/links-check.mjs",
+    "gate:admin": "node tools/visual-gate/admin-check.mjs"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "1.11.3",
     "@repo/ui": "workspace:*",
     "drizzle-orm": "^0.45.0",
     "next": "16.2.9",
+    "next-auth": "5.0.0-beta.32",
     "nodemailer": "^9.0.3",
     "postgres": "^3.4.0",
     "react": "^19.2.4",

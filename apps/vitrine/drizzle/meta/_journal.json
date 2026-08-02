@@ -36,6 +36,13 @@
       "when": 1785510672197,
       "tag": "0004_solicitation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785665342523,
+      "tag": "0005_lucky_hemingway",
+      "breakpoints": true
     }
   ]
 }

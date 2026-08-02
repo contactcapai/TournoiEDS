@@ -31,3 +31,24 @@ function createDb() {
 export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
   get: (_t, prop) => (g._db ??= createDb())[prop as keyof PostgresJsDatabase<typeof schema>],
 });
+
+/**
+ * L'instance Drizzle RÉELLE, construite au premier appel (Story 6.1).
+ *
+ * 🔴 À N'UTILISER QUE PAR LES APPELANTS QUI FONT DE L'INTROSPECTION DE TYPE. Pour lire ou
+ * écrire, passer par `db` ci-dessus : le Proxy est ce qui garde le build sûr sans
+ * `DATABASE_URL`, et l'appel direct à cette fonction OUVRE la connexion.
+ *
+ * Le besoin est né d'un défaut MESURÉ au build de la Story 6.1 :
+ *   `Unsupported database type (object) in Auth.js Drizzle adapter.`
+ * `DrizzleAdapter()` choisit son dialecte par `is(db, PgDatabase)` (drizzle-orm), qui
+ * remonte la chaîne de prototypes pour y chercher un `entityKind`. Notre Proxy est bâti sur
+ * un objet vide : sa chaîne de prototypes est celle d'`Object`, donc la détection échoue et
+ * l'adaptateur lève — **à l'import**, ce qui faisait échouer `next build` à la collecte des
+ * pages. Faire répondre le Proxy à `getPrototypeOf` aurait « marché » mais aurait construit
+ * la connexion à l'import, c'est-à-dire exactement ce que le Garde-fou n°2 existe pour
+ * empêcher : le build aurait alors exigé `DATABASE_URL`, et la CI tourne sans secret.
+ */
+export function dbReel(): PostgresJsDatabase<typeof schema> {
+  return (g._db ??= createDb());
+}

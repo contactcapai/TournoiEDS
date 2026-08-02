@@ -214,6 +214,8 @@ Aucune de ces briques n'est verrouillante : chacune est remplaçable sans rééc
 
 ---
 
+---
+
 ## 6. En cas de problème
 
 1. `docker compose ... ps` — repérer le service `unhealthy` / arrêté.
@@ -221,3 +223,73 @@ Aucune de ces briques n'est verrouillante : chacune est remplaçable sans rééc
 3. Problème de certificat HTTPS → README §Debug Let's Encrypt.
 4. Données corrompues / mauvaise migration → **restaurer la dernière sauvegarde** (§3 + README §Restore).
 5. Référence complète : [`README.md`](../README.md) (§Deploy, §Runbook).
+
+---
+
+## 7. Back-office : accès et compte administrateur (Story 6.1)
+
+Le back-office vit sous `https://esportdessacres.fr/admin`. Le site public, lui, reste
+accessible à tout le monde **sans aucune connexion** — c'est une règle du projet (FR28), pas un
+réglage.
+
+### Qui peut entrer
+
+Une seule personne à la fois, identifiée par son **identifiant numérique Discord**, listé dans
+la variable `AUTH_ADMIN_DISCORD_IDS` (plusieurs identifiants possibles, séparés par des virgules).
+
+🔴 **Une liste vide ou absente refuse TOUT LE MONDE.** C'est volontaire. Si l'absence ouvrait
+l'accès, le back-office serait ouvert à n'importe quel compte Discord dans exactement les
+situations où personne ne regarde (serveur neuf, variable oubliée). Un back-office injoignable
+est un incident **visible** ; ouvert, il est **silencieux**.
+
+### Ajouter ou retirer un administrateur
+
+1. Récupérer son identifiant : Discord → Paramètres → Avancé → **Mode développeur**, puis clic
+   droit sur le profil → « Copier l'identifiant » (un nombre de 17 à 20 chiffres).
+2. L'ajouter (ou le retirer) dans `AUTH_ADMIN_DISCORD_IDS`, séparé par une virgule.
+3. Redémarrer le conteneur de la vitrine.
+
+⚠️ **Jamais un pseudo, jamais une adresse e-mail** : les deux se changent en un clic depuis
+Discord, l'identifiant non.
+
+✅ **Le retrait prend effet à la requête suivante**, même si la personne a une session ouverte —
+mesuré. Pas besoin d'attendre une expiration ni de vider une table.
+
+### L'application Discord
+
+Créée sur <https://discord.com/developers/applications>. Onglet **OAuth2** :
+
+- `AUTH_DISCORD_ID` = Client ID · `AUTH_DISCORD_SECRET` = Client Secret (**ne s'affiche
+  qu'une fois** ; le régénérer invalide le précédent).
+- Section **Redirects** — les URLs doivent être déclarées **à l'identique** :
+  `https://esportdessacres.fr/api/auth/callback/discord` (+ les variantes locales en dev).
+  ⚠️ Le bouton **« Save Changes »** est distinct de « Add Redirect ». Un oubli produit
+  `invalid_redirect_uri` **au retour** du flux, donc après le clic « Autoriser ».
+
+### `AUTH_SECRET`
+
+Clé de signature des sessions, générée par `openssl rand -base64 32`. **La changer déconnecte
+tout le monde** (les sessions en cours deviennent invalides). Elle est sauvegardée avec le reste
+de l'environnement, jamais commitée.
+
+### 🔴 Dépendance en préversion — à connaître avant toute mise à jour
+
+`next-auth` est épinglé à **`5.0.0-beta.32`, sans accent circonflexe**, volontairement.
+
+- `next-auth@latest` est la **version 4**, conçue pour une autre architecture de Next : un
+  `pnpm add next-auth` installerait la **mauvaise** bibliothèque, et l'erreur n'apparaîtrait que
+  plusieurs fichiers plus loin.
+- Une montée de `beta.32` vers une beta suivante **peut être cassante**. C'est une opération à
+  mesurer (relancer `pnpm --filter vitrine gate:admin` et refaire une connexion réelle), jamais
+  un `pnpm update` de routine.
+
+### Vérifier que l'accès est bien fermé
+
+```bash
+pnpm --filter vitrine gate:admin
+```
+
+Interroge le site **sans aucun cookie** et vérifie que `/admin` est fermé, que la page de
+connexion reste joignable, que le flux OAuth n'est pas bloqué, et que les pages publiques
+répondent toujours sans session. ⚠️ Elle **déclare ses exemptions** en sortie : une porte verte
+ne veut pas dire « tout est couvert ».

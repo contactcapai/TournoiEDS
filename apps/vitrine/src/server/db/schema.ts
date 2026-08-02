@@ -28,6 +28,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -492,6 +493,122 @@ export const solicitation = pgTable(
   ],
 );
 
+// ════════════════════════════════════════════════════════════════════════════════
+// AUTHENTIFICATION BACK-OFFICE — Auth.js v5 + adaptateur Drizzle (Story 6.1)
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 CES TROIS TABLES SONT ÉCRITES ICI ET PAS LAISSÉES À L'ADAPTATEUR — DÉFAUT MESURÉ.
+// `@auth/drizzle-adapter` sait construire des tables par défaut (`defineTables`, dans
+// `lib/pg.js`). Les utiliser serait un piège silencieux à deux détentes :
+//   ① ses colonnes portent des noms EXPLICITES en camelCase (`text("emailVerified")`,
+//      `text("userId")`, `text("sessionToken")`) — un nom explicite bat toujours le
+//      `casing: "snake_case"` posé en Story 1.7, donc la base mélangerait deux
+//      conventions ;
+//   ② surtout : `drizzle-kit generate` NE LIT QUE CE FICHIER. Des tables nées à
+//      l'intérieur de l'adaptateur n'auraient AUCUNE migration, et l'échec
+//      n'apparaîtrait qu'au PREMIER LOGIN (`relation "user" does not exist`) —
+//      invisible pour le typecheck, le build et la CI.
+// Elles sont donc déclarées ici et passées EXPLICITEMENT :
+//   `DrizzleAdapter(db, { usersTable: user, accountsTable: account, sessionsTable: session })`
+//
+// 🔴 LES CLÉS TS NE SONT PAS LIBRES — ELLES SONT LE CONTRAT D'AUTH.JS, PAS NOTRE STYLE.
+// Mesuré dans `lib/pg.js` : `linkAccount` fait `insert(accountsTable).values(data)` où
+// `data` est l'objet `AdapterAccount` d'Auth.js, dont les clés suivent la spec OAuth —
+// donc `refresh_token`, `access_token`, `expires_at`, `token_type`, `id_token`,
+// `session_state` en SNAKE, et `userId` / `providerAccountId` / `sessionToken` en CAMEL.
+// ⚠️ « Harmoniser » `refresh_token` en `refreshToken` par souci de cohérence casserait
+// l'écriture À L'EXÉCUTION et NON À LA COMPILATION : l'insertion se fait dans du JS déjà
+// compilé, à l'intérieur du paquet, hors de portée de notre typecheck.
+// Le `casing: "snake_case"` fait le reste : côté BASE, toutes les colonnes sont bien en
+// snake_case (`user_id`, `provider_account_id`, `session_token`) — la convention du
+// projet est tenue là où elle se voit.
+//
+// ⚠️ TROIS TABLES, PAS CINQ. `verificationToken` (providers e-mail / magic link) et
+// `authenticator` (WebAuthn / passkeys) sont OPTIONNELLES dans le type
+// `DefaultPostgresSchema` et n'ont AUCUN consommateur ici — règle de tête de fichier.
+// Limite déclarée : ajouter un provider e-mail plus tard exigera `verificationToken`
+// ET sa migration.
+//
+// ⚠️ Aucun `CHECK` de non-blanc ici, contrairement à `partner`/`photo`/`solicitation`.
+// Ce n'est pas un oubli : ces tables ne sont JAMAIS écrites par une saisie humaine ni
+// rendues au public — elles sont écrites par l'adaptateur à partir de la réponse de
+// Discord. Le garde-fou de cette surface est l'ALLOWLIST (`server/auth/config.ts`), qui
+// refuse AVANT toute écriture.
+
+/**
+ * Compte administrateur. Une seule ligne en pratique (rôle admin unique, FR27), mais la
+ * table reste générique : c'est le contrat d'Auth.js, et l'unicité est portée par
+ * l'allowlist, pas par le schéma.
+ *
+ * ⚠️ `email` est NULLABLE : le scope `email` de Discord peut être refusé par
+ * l'utilisateur, et un compte Discord sans e-mail vérifié n'en renvoie pas. Le rendre
+ * `notNull` ferait échouer la création d'utilisateur au premier login — après le
+ * consentement, donc au pire endroit.
+ */
+export const user = pgTable("user", {
+  id: uuid().primaryKey().defaultRandom(),
+  name: text(),
+  email: text().unique(),
+  emailVerified: timestamp({ withTimezone: true }),
+  image: text(),
+});
+
+/**
+ * Lien entre un `user` local et un compte du fournisseur OAuth (ici Discord, et lui seul).
+ *
+ * 🔴 `providerAccountId` PORTE L'IDENTIFIANT NUMÉRIQUE DISCORD — c'est la valeur sur
+ * laquelle l'allowlist se prononce. Jamais le pseudo (il se change en un clic), jamais
+ * l'e-mail (il se change aussi).
+ *
+ * Clé primaire COMPOSITE `(provider, providerAccountId)` : c'est le contrat d'Auth.js —
+ * un même compte Discord ne peut pas être lié deux fois.
+ */
+export const account = pgTable(
+  "account",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: text().notNull(),
+    provider: text().notNull(),
+    providerAccountId: text().notNull(),
+    // ⚠️ Clés en snake_case IMPOSÉES par la spec OAuth — voir le bloc ci-dessus.
+    refresh_token: text(),
+    access_token: text(),
+    expires_at: integer(),
+    token_type: text(),
+    scope: text(),
+    id_token: text(),
+    session_state: text(),
+  },
+  (table) => [
+    // Forme TABLEAU, comme le reste du fichier. L'adaptateur utilise en interne
+    // l'ancienne forme objet (`() => ({ compositePk: ... })`), dépréciée en Drizzle 0.45
+    // — ne pas la recopier depuis sa source.
+    primaryKey({ columns: [table.provider, table.providerAccountId] }),
+  ],
+);
+
+/**
+ * Session en base (et non JWT), conformément à `architecture.md` : « les tables de session
+ * vivent dans la base `vitrine` via l'adaptateur Drizzle — une seule source de vérité,
+ * sauvegardée par `backup-vitrine.sh` ».
+ *
+ * Conséquence voulue : une déconnexion SUPPRIME la ligne, donc la session est réellement
+ * révoquée côté serveur. Un JWT, lui, resterait valable jusqu'à son expiration.
+ *
+ * ⚠️ `sessionToken` est un `text` et NON un `uuid` : c'est un jeton opaque généré par
+ * Auth.js, dont le format ne nous appartient pas. Le type de l'adaptateur l'interdit
+ * d'ailleurs explicitement en `PgUUID`.
+ */
+export const session = pgTable("session", {
+  sessionToken: text().primaryKey(),
+  userId: uuid()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  expires: timestamp({ withTimezone: true }).notNull(),
+});
+
 // Relations déclarées ici pour que les stories de lecture puissent écrire
 // `db.query.event.findMany({ with: { bar: true } })` sans retoucher ce fichier.
 export const barRelations = relations(bar, ({ many }) => ({
@@ -524,3 +641,7 @@ export type NewPhoto = typeof photo.$inferInsert;
 export type Solicitation = typeof solicitation.$inferSelect;
 export type NewSolicitation = typeof solicitation.$inferInsert;
 export type SolicitationType = (typeof solicitationType.enumValues)[number];
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Account = typeof account.$inferSelect;
+export type Session = typeof session.$inferSelect;
