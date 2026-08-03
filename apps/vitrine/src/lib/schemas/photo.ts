@@ -113,6 +113,18 @@ const filename = trimmedText.refine(
  * n'aurait **aucun endroit** où l'exiger, et la garde retomberait sur chaque appelant du
  * rendu — c'est-à-dire nulle part.
  */
+/**
+ * 🔴 BORNES EXPORTÉES POUR LE FORMULAIRE (Story 6.4) — JAMAIS RECOPIÉES EN LITTÉRAL.
+ *
+ * Le compteur de `ChampTexte` et les aides de saisie doivent afficher EXACTEMENT la borne
+ * que le serveur applique. Un littéral recopié dans le composant diverge au premier
+ * changement, et la divergence se manifeste par un compteur qui dit « 300 / 300 » sur une
+ * valeur que le serveur refuse — un faux négatif qu'aucune porte ne verrait.
+ * Même sens de dépendance que `TITRE_MAX` / `RECAP_MAX` de `event.ts` (6.3).
+ */
+export const ALT_MIN = 10;
+export const ALT_MAX = 300;
+
 const ALT_MESSAGE =
   "Décrivez ce que montre la photo, pour les personnes qui ne la voient pas " +
   "(ex. « Une dizaine de joueurs attablés devant deux écrans, dans un bar »). " +
@@ -138,13 +150,17 @@ const ALT_MESSAGE =
  * différentes — c'est le patron R26, qui reprochait justement à la 3.3 de n'avoir borné
  * qu'au rendu (« un bénévole peut écrire un texte dont la fin ne sera jamais lue »).
  */
-const CAPTION_MAX = 60;
+export const CAPTION_MAX = 60;
 
 export const photoInputSchema = z.object({
   filename,
   alt: trimmedText
-    .min(10, ALT_MESSAGE)
-    .max(300)
+    .min(ALT_MIN, ALT_MESSAGE)
+    // ⚠️ Ce plafond est DOUBLÉ EN BASE depuis la Story 6.4 (`CHECK photo_alt_valide`,
+    // migration `0008`) : jusque-là il ne vivait qu'ici, donc uniquement au point de saisie.
+    // Un `UPDATE` direct, une restauration ou un script de migration ne passent par AUCUN
+    // schéma Zod — c'est l'asymétrie que `caption` n'avait déjà plus depuis la 4.3.
+    .max(ALT_MAX, `La description ne doit pas dépasser ${ALT_MAX} caractères.`)
     .refine((value) => !visiblementVide(value), { message: ALT_MESSAGE }),
   /** Légende manuscrite (Caveat). Facultative : une photo peut parler d'elle-même. */
   caption: trimmedText

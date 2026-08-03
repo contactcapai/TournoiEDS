@@ -413,11 +413,12 @@ await sql.end();
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-exemptions.add(
-  "🔴 LE RENDU « DÉJÀ PASSÉ » N'EST PAS PRÉVISUALISÉ (dette R34 → Story 6.4). `PastEvent` vit " +
-    "dans le fichier de page de /agenda et consomme une classe lue par `gate:carousel` : " +
-    "l'extraire remettrait le rendu d'une story MERGÉE sous porte à l'intérieur d'une autre.",
-);
+// ✅ L'EXEMPTION R34 A ÉTÉ RETIRÉE PAR LA STORY 6.4, DANS LE MÊME COMMIT QUE LE CORRECTIF.
+// Elle disait : « le rendu Déjà passé n'est pas prévisualisé ». Il l'est désormais
+// (`PastEvent` extrait, consommé par /agenda ET par l'écran d'aperçu). Laisser l'exemption
+// survivre au défaut serait la leçon R33 ② payée une seconde fois — une porte qui déclare
+// ne pas couvrir ce qu'elle couvre est aussi trompeuse qu'une porte muette.
+// ⚠️ Le compte d'exemptions de cette porte BAISSE donc de 1 : 4 → 3. C'est un témoin.
 exemptions.add(
   "Le chemin AUTHENTIFIÉ (créer, éditer, publier, supprimer une fois connecté) — il exige un " +
     "aller-retour Discord avec un humain. Aucune porte ne le remplacera.",

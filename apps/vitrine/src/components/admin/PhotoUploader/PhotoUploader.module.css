@@ -1,0 +1,107 @@
+/* Ce qui est PROPRE au téléversement (Story 6.4) — le reste vient de
+   `styles/admin-form.module.css`, le vocabulaire de formulaire du back-office.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5).
+
+   ⚠️ Ce fichier ne redéclare RIEN de `admin-form.module.css` : ni champ, ni label, ni
+   erreur. Un composant qui recopierait le vocabulaire partagé le ferait diverger au premier
+   changement — c'est ce que l'extraction de la 6.3 existait pour éviter. */
+
+/* Le champ fichier natif. On ne le remplace PAS par un faux bouton : le contrôle natif
+   porte l'accessibilité clavier, l'annonce du lecteur d'écran et le glisser-déposer du
+   système — trois choses qu'un `<div>` stylé redemanderait de réécrire, moins bien. */
+.fichier {
+  width: 100%;
+  min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
+  padding: 10px 12px;
+  border: 1px dashed rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: var(--lh-body);
+}
+
+.fichier:focus-visible {
+  border-color: var(--gold);
+}
+
+/* ───────── Le lot et son avancement ─────────
+   Il ne disparaît jamais en cours d'envoi : c'est le seul endroit qui dise ce qui est
+   passé, ce qui a été refusé, et ce qui reste. */
+.lot {
+  padding: 16px 18px;
+  border: 1px solid rgba(146, 147, 173, 0.35);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.lotTitre {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.lotListe {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.lotLigne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.2);
+  font-size: 15px;
+  color: var(--light);
+}
+
+.lotLigne:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.lotNom {
+  /* Un nom de fichier venu du poste du bénévole peut être très long et sans espace :
+     `overflow-x: clip` le rognerait EN SILENCE, et `gate` ne couvre pas /admin. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.lotTaille {
+  color: var(--grey);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lotStatut {
+  margin-left: auto;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* Le message d'un fichier refusé prend toute la largeur : c'est une phrase à lire, pas une
+   étiquette. `--light` et non `--grey` — un refus doit se lire aussi bien que le reste. */
+.lotMessage {
+  flex: 1 0 100%;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* 880px en LITTÉRAL : le back-office est desktop, mais il ne doit pas être CASSÉ en
+   dessous — `globals.css` pose `overflow-x: clip` sur toutes les routes. */
+@media (max-width: 880px) {
+  .lotStatut {
+    margin-left: 0;
+  }
+}

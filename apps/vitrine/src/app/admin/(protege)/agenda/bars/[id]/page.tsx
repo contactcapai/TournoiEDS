@@ -6,7 +6,7 @@ import { z } from "zod";
 import { BarForm } from "@/components/admin/BarForm/BarForm";
 import { lireAdmin } from "@/server/auth/guard";
 import { getBarById } from "@/server/db/queries/events";
-import styles from "../../agenda.module.css";
+import styles from "@/styles/admin-page.module.css";
 
 // Édition d'un bar du roulement (Story 6.3).
 //

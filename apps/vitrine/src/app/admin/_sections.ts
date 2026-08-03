@@ -40,7 +40,12 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les jeudis, les temps forts et les bars du roulement. Voir le rendu avant de publier.",
   },
-  // Story 6.4  → { href: "/admin/galerie",       libelle: "Galerie",       description: "…" }
+  {
+    href: "/admin/galerie",
+    libelle: "Galerie",
+    description:
+      "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
+  },
   // Story 6.5  → { href: "/admin/partenaires",   libelle: "Partenaires",   description: "…" }
   // Story 6.9  → { href: "/admin/ateliers",      libelle: "Ateliers",      description: "…" }
   // Story 6.10 → { href: "/admin/membres",       libelle: "Membres",       description: "…" }

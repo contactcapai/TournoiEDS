@@ -63,6 +63,7 @@ pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ 
 pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
 pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
 pnpm --filter vitrine gate:agenda        # surface de saisie « agenda » (6.3) — ⚠️ écrit en base, en transaction ANNULÉE
+pnpm --filter vitrine gate:galerie       # surface « galerie » (6.4) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
 ```
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
@@ -111,6 +112,7 @@ pnpm --filter vitrine gate:selftest                     # ⇐ les 3 détecteurs 
 LINKS_DEBRANCHER_PIEGE=1 pnpm --filter vitrine gate:links   # ⇐ contre-épreuve de la porte des liens
 ADMIN_AUTOTEST=1 pnpm --filter vitrine gate:admin           # ⇐ contre-épreuve de la porte du back-office
 AGENDA_AUTOTEST=1 pnpm --filter vitrine gate:agenda         # ⇐ contre-épreuve de la porte de saisie
+GALERIE_AUTOTEST=1 pnpm --filter vitrine gate:galerie       # ⇐ contre-épreuve de la porte de galerie
 ```
 
 🔴 **Le compte est passé à HUIT au moment de la Story 5.5** (« faux trois fois » ci-dessus
@@ -218,7 +220,8 @@ parce que les deux risques ne se mesurent pas au même endroit :
 | **A** | ce que le serveur **sert à un inconnu** | HTTP nu, **sans aucun cookie** — 6 routes d'agenda, aucun marqueur d'administration dans le corps, et **aucun événement non publié** dans le HTML des 5 pages publiques |
 | **B** | ce que la **base refuse** et ce que les **contrats** garantissent | écritures qui doivent **ÉCHOUER** contre le Postgres de dev, plus `eventInputSchema` et `date-paris.ts` exercés directement |
 
-🔴 **Écrite en TypeScript et exécutée par `tsx`, contrairement aux onze autres.** Ce n'est
+🔴 **Écrite en TypeScript et exécutée par `tsx`** — comme `gate:galerie` depuis la 6.4, et
+contrairement aux onze portes écrites en `.mjs`. Ce n'est
 pas une coquetterie : la moitié B doit exercer **les vrais modules**. Une porte qui
 réimplémenterait leurs règles en JS validerait sa propre copie et resterait verte le jour
 où le produit divergerait — c'est exactement `pieges/garde-nominale.md`.
@@ -254,6 +257,68 @@ ouverte donnée pour protégée, une écriture valide donnée pour devant échou
 aller-retour de date comparé à une valeur fausse, une heure pathologique donnée pour
 normale. Si la porte reste verte, elle ne mesure rien.
 
-⚠️ **Quatre exemptions, imprimées à chaque exécution** — dont la plus importante : le rendu
-**« déjà passé »** n'est pas prévisualisé (dette **R34** → Story 6.4). Une porte verte ne
-veut donc pas dire « tout est couvert ».
+⚠️ **Trois exemptions, imprimées à chaque exécution** (elles étaient quatre : celle du rendu
+**« déjà passé »** est partie avec la dette **R34**, soldée par la Story 6.4, **dans le même
+commit que le correctif** — leçon R33 ②). Une porte verte ne veut donc pas dire « tout est
+couvert ».
+
+---
+
+## `gate:galerie` — la surface « galerie » (Story 6.4)
+
+**Treizième instrument**, et le premier qui garde une surface qui **écrit sur un disque**.
+Toutes les autres portes mesurent une réponse ou une valeur ; celle-ci mesure en plus un
+**effet de bord sur le système de fichiers**.
+
+```bash
+pnpm --filter vitrine gate:galerie
+```
+
+Deux moitiés, parce que les deux risques ne se mesurent pas au même endroit :
+
+- **A — HTTP nu, sans aucun cookie** : les quatre routes de galerie redirigent, et le HTML
+  **servi** ne contient aucun marqueur d'administration ;
+- **B — écritures qui doivent ÉCHOUER**, contre la base **et le volume réels** : SVG,
+  fichier au contenu illisible, format hors liste, `alt` invisible / trop court / trop long,
+  légende de 61 caractères, noms interdits par le `CHECK` (dont `axjpg`, le piège
+  d'échappement à deux étages).
+
+🔴 **LA GARDE PROPRE À CETTE PORTE EST LE DÉCOMPTE DES FICHIERS DU VOLUME.** « Une écriture
+refusée ne laisse aucun octet » ne se lit dans **aucune** réponse HTTP : il faut compter les
+fichiers avant, et recompter après. La porte écrit aussi une image nominale (pour prouver
+qu'elle n'est pas verte en refusant tout), vérifie que le nom généré satisfait la liste
+blanche, puis **nettoie derrière elle et le vérifie**.
+
+⚠️ Elle s'exécute avec **`--conditions=react-server`**, et sans ce drapeau elle **ne démarre
+pas** : `src/server/medias/` commence par `import "server-only"`, un paquet qui **lève** hors
+du graphe serveur de React. L'issue facile aurait été de recopier la logique d'`ecrireMedia`
+dans la porte — elle aurait alors validé **sa propre copie** (`pieges/garde-nominale.md`).
+
+### Trois défauts d'INSTRUMENT trouvés en la prouvant rouge
+
+1. **`MEDIA_DIR` n'était pas dans l'environnement de la porte** (elle n'est pas Next, personne
+   n'y charge `.env.local`) ⇒ `ecrireMedia` refusait **tout**, y compris le cas nominal ;
+2. **la garde « brouillon non servi » était un FAUX VERT** : la seule photo non publiée de la
+   base de dev n'a **pas de fichier** sur le volume, donc le 404 obtenu ne prouvait rien du
+   filtre `is_published`. La porte **pose le fichier témoin** avant de mesurer, et le retire ;
+3. 🔴 **la garde de la route média d'admin ACCUSAIT LE PRODUIT** — 3ᵉ occurrence de cette
+   famille sur le projet. Elle exigeait un `404` et rapportait « un octet d'image a été servi
+   sans session » sur un **307**. Faux deux fois : le proxy redirige **avant** que la route ne
+   s'exécute, et une redirection vers la connexion est un refus correct. La garde porte
+   désormais sur ce qui compte — **qu'aucun octet d'image ne sorte** — et accepte les deux refus.
+
+### Contre-épreuve
+
+`GALERIE_AUTOTEST=1` présente à chaque garde un cas qu'elle doit voir : une route ouverte
+donnée pour protégée, un AVIF valide donné pour devant échouer, une ligne valide donnée pour
+devant être refusée par la base, une description correcte donnée pour invisible.
+
+🔴 **Et elle a été prouvée ROUGE sur un défaut RÉEL, pas seulement en autotest** : en
+débranchant la vérification de contenu d'`ecrireMedia`, le **SVG est accepté et stocké en
+`.png`** (XSS stocké servi depuis notre origine) et le GIF passe. Vérification remise, porte
+verte, volume rendu à son compte initial.
+
+⚠️ **Six exemptions déclarées en sortie**, dont deux qui méritent d'être connues : cette porte
+ne peut pas voir qu'un `alt` est **PERTINENT** (Lighthouse non plus — il ne voit qu'un `alt`
+NON VIDE), ni que la **même image** a été téléversée deux fois (`filename` est unique, le
+CONTENU ne l'est pas).

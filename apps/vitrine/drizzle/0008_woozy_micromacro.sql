@@ -1,0 +1,2 @@
+ALTER TABLE "photo" DROP CONSTRAINT "photo_alt_not_blank";--> statement-breakpoint
+ALTER TABLE "photo" ADD CONSTRAINT "photo_alt_valide" CHECK (length(btrim("photo"."alt")) > 0 and length("photo"."alt") <= 300);

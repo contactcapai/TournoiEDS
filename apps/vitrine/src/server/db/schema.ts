@@ -521,11 +521,41 @@ export const photo = pgTable(
       "photo_filename_safe",
       sql`${table.filename} ~ ${sql.raw(`'^[a-z0-9][a-z0-9._-]*\\.(${EXTENSIONS.join("|")})$'`)} and ${table.filename} !~ '\\.\\.'`,
     ),
-    // `alt` est `notNull`, mais `'' IS NOT NULL` est VRAI en SQL : sans ce CHECK, un
-    // `UPDATE photo SET alt = ''` produirait une image sans texte alternatif, c'est-à-dire
-    // exactement ce que la colonne existe pour empêcher. Même défaut que celui trouvé sur
-    // `partner.logo` à la revue de la 4.1.
-    check("photo_alt_not_blank", sql`length(btrim(${table.alt})) > 0`),
+    /**
+     * 🔴 NON VIDE **ET BORNÉE** — LE PLAFOND EST AJOUTÉ PAR LA STORY 6.4 (migration `0008`).
+     *
+     * `alt` est `notNull`, mais `'' IS NOT NULL` est VRAI en SQL : sans la moitié « non
+     * vide », un `UPDATE photo SET alt = ''` produirait une image sans texte alternatif,
+     * c'est-à-dire exactement ce que la colonne existe pour empêcher (même défaut que
+     * celui trouvé sur `partner.logo` à la revue de la 4.1).
+     *
+     * 🔴 LA MOITIÉ MANQUANTE ÉTAIT LE PLAFOND, ET L'ASYMÉTRIE ÉTAIT MESURABLE : `caption`
+     * est bornée des DEUX côtés depuis la 4.3 (`.max(60)` en Zod **et**
+     * `photo_caption_valide`), tandis qu'`alt` l'était à 300 dans Zod et **nulle part en
+     * base**. C'est très exactement ce que la Story 6.3 a corrigé sur `event` et `bar`
+     * (migration `0006`, neuf contraintes de la forme
+     * `length(btrim(x)) > 0 and length(x) <= N`), et pour le motif écrit trois fois dans
+     * ce fichier : *la base est le garde-fou qu'on ne peut pas contourner ; Zod est celui
+     * qui parle au bénévole*. Un `UPDATE` direct, une restauration ou un script de
+     * migration ne passent par AUCUN schéma Zod — et la 6.4 est précisément la story qui
+     * fait entrer de la donnée de bénévole dans cette colonne.
+     *
+     * ⚠️ MÊME FORME QUE LES NEUF DE LA `0006`, pas une dixième inventée ici. Le nom change
+     * (`photo_alt_not_blank` → `photo_alt_valide`) parce que la contrainte ne dit plus la
+     * même chose ; le traducteur d'erreurs de `server/actions/galerie.ts` porte donc le
+     * NOUVEAU nom, sinon le bénévole retombe sur un message qui ne nomme aucun champ
+     * (défaut trouvé en revue de la 6.3, où huit contraintes sur dix y tombaient).
+     *
+     * ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : `btrim` ne retire pas U+200B (leçon de la 6.3), donc
+     * un `alt` fait de caractères invisibles franchit ce `CHECK`. Zod le refuse
+     * (`visiblementVide`), et **les neuf contraintes de la `0006` ont exactement la même
+     * limite**. À rouvrir pour TOUTES les tables ensemble, jamais pour une seule — une
+     * dixième forme de contrainte ici ferait diverger la doctrine sans fermer le trou.
+     */
+    check(
+      "photo_alt_valide",
+      sql`length(btrim(${table.alt})) > 0 and length(${table.alt}) <= 300`,
+    ),
     /**
      * 🔴 NON VIDE **ET BORNÉE**, ET LA BORNE EST UNE DETTE DÉJÀ PAYÉE (R24).
      *

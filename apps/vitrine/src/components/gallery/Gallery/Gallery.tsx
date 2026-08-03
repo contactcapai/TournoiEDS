@@ -32,9 +32,15 @@ import styles from "./Gallery.module.css";
 export interface GalleryProps {
   /** Photos publiées, déjà triées par la requête. Peut être vide (état É7). */
   photos: GalleryPhoto[];
+  /**
+   * Racine de service des images, transmise telle quelle à `Scrapbook` (Story 6.4).
+   * ⚠️ Ce composant ne l'INTERPRÈTE pas : il la fait suivre. La décision — et la raison —
+   * vivent dans `Scrapbook`, qui est le seul à construire une URL d'image.
+   */
+  prefixeMedia?: string;
 }
 
-export function Gallery({ photos }: GalleryProps) {
+export function Gallery({ photos, prefixeMedia }: GalleryProps) {
   return (
     // aria-labelledby ↔ id du <h2> (patron acquis review 1.6 F6).
     <section className={styles.section} aria-labelledby="gallery-title">
@@ -62,7 +68,7 @@ export function Gallery({ photos }: GalleryProps) {
             du cadre, texte du placeholder) sont calculées sous fondu — voir la fin de
             Gallery.module.css. */}
         <div className={motion.reveal}>
-          <Scrapbook photos={photos} />
+          <Scrapbook photos={photos} prefixeMedia={prefixeMedia} />
         </div>
       </Wrap>
     </section>

@@ -61,9 +61,25 @@ const TAILLE_VIGNETTE = "398px";
 /** La lightbox affiche l'image en `contain` : elle a besoin de la plus grande variante. */
 const TAILLE_LIGHTBOX = "(max-width: 880px) 92vw, 80vw";
 
+/**
+ * 🔴 D'OÙ VIENNENT LES IMAGES — PROP AJOUTÉE PAR LA STORY 6.4, ET ELLE A UN 2ᵉ CONSOMMATEUR.
+ *
+ * La route publique `/medias/[filename]` filtre sur `is_published` et rend **404** sinon,
+ * volontairement (l'absence et le refus doivent être indiscernables). L'écran d'aperçu du
+ * back-office, lui, existe précisément pour regarder les photos **avant** de les publier :
+ * sans cette prop, il afficherait des cadres cassés exactement sur celles qu'on veut voir.
+ *
+ * ⚠️ CE N'EST PAS UNE PROP « AU CAS OÙ » : elle est payée par `/admin/galerie/apercu`, qui
+ * passe `/admin/medias` (route distincte, gardée par `lireAdmin()`, servie en `no-store`).
+ * Le défaut reste la route publique, donc la home ne change pas d'un caractère.
+ */
+const PREFIXE_MEDIA_PUBLIC = "/medias";
+
 export interface ScrapbookProps {
   /** Photos publiées, déjà triées par la requête. Peut être vide — voir l'état É7. */
   photos: GalleryPhoto[];
+  /** Racine de service des images. Voir `PREFIXE_MEDIA_PUBLIC`. */
+  prefixeMedia?: string;
 }
 
 /**
@@ -73,7 +89,7 @@ export interface ScrapbookProps {
  */
 const PLACEHOLDERS = ["Game in Reims", "Soirée jeudi", "Tournoi", "L'équipe"] as const;
 
-export function Scrapbook({ photos }: ScrapbookProps) {
+export function Scrapbook({ photos, prefixeMedia = PREFIXE_MEDIA_PUBLIC }: ScrapbookProps) {
   // `null` = fermée. Sinon : index de la photo affichée.
   const [ouverte, setOuverte] = useState<number | null>(null);
   const declencheurs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -238,7 +254,7 @@ export function Scrapbook({ photos }: ScrapbookProps) {
             >
               <PhotoFrame caption={photo.caption ?? undefined}>
                 <Image
-                  src={`/medias/${photo.filename}`}
+                  src={`${prefixeMedia}/${photo.filename}`}
                   alt=""
                   fill
                   sizes={TAILLE_VIGNETTE}
@@ -277,7 +293,7 @@ export function Scrapbook({ photos }: ScrapbookProps) {
 
             <div className={styles.media}>
               <Image
-                src={`/medias/${active.filename}`}
+                src={`${prefixeMedia}/${active.filename}`}
                 alt={active.alt}
                 fill
                 sizes={TAILLE_LIGHTBOX}

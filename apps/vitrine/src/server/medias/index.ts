@@ -3,15 +3,17 @@
 // atteint depuis un composant client. Un chemin système dans un bundle navigateur serait
 // une fuite d'information à lui seul.
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync } from "node:fs";
-import { stat } from "node:fs/promises";
+import { stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import sharp from "sharp";
 
 import { EXTENSIONS } from "../../lib/schemas/photo";
 
 /**
- * Accès en lecture au volume Docker des médias (Story 4.3, AR-DB3).
+ * Accès en lecture ET EN ÉCRITURE au volume Docker des médias (Stories 4.3 puis 6.4).
  *
  * 🔴 CE MODULE EST LA SEULE PORTE ENTRE UNE VALEUR DE BASE ET LE SYSTÈME DE FICHIERS.
  * Il n'y en a pas d'autre, et il ne doit pas y en avoir : tout code qui construirait
@@ -178,4 +180,253 @@ export async function ouvrirMedia(nomValideEnBase: string): Promise<MediaTrouve 
   // attendu par la `Response` de Next.
   const flux = Readable.toWeb(createReadStream(chemin)) as ReadableStream<Uint8Array>;
   return { flux, typeMime, taille: infos.size };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// ÉCRITURE (Story 6.4) — LA PREMIÈRE DU PROJET
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 LA STORY 4.3 N'AVAIT TRAITÉ QUE LA MOITIÉ « LECTURE » DE LA GARDE ANTI-TRAVERSÉE
+// (`/medias/[filename]` ne concatène jamais un paramètre d'URL à un chemin). L'autre
+// moitié est ici, et elle tient en une phrase : **le nom du fichier stocké est GÉNÉRÉ PAR
+// LE SERVEUR**, jamais celui fourni par le navigateur.
+//
+// ⚠️ ET IL SE JETTE, IL NE SE « NETTOIE » PAS. Nettoyer un nom d'origine, c'est écrire une
+// liste noire déguisée : il faudrait penser à `..`, aux séparateurs des deux familles d'OS,
+// aux formes Unicode composées, à `%2e%2e`, aux noms réservés de Windows (`CON`, `NUL`)…
+// La liste BLANCHE, elle, est déjà écrite deux fois (`photoInputSchema.filename` et le
+// `CHECK photo_filename_safe`), et un UUID v4 la satisfait par construction :
+//   ① hexadécimal minuscule ⇒ premier caractère ∈ [a-z0-9] ✓
+//   ② corps ⊂ [a-z0-9._-] (chiffres, lettres a-f, tirets) ✓
+//   ③ aucun `..` ✓
+// Il n'y a donc rien à inventer : `randomUUID()` + l'extension déduite du CONTENU.
+
+/**
+ * 🔴 CE QUE `sharp` REND VRAIMENT — MESURÉ LE 2026-08-03, ET LE CADRAGE ÉTAIT FAUX.
+ *
+ * La story annonçait « sharp rend `jpeg`, `png`, `webp`, `avif` ». **Faux pour l'AVIF** :
+ * mesuré sur le fichier réel du volume (`soiree-bar-eds-01.avif`) ET sur un AVIF produit
+ * par sharp lui-même, `metadata().format` vaut **`"heif"`**, avec `compression: "av1"`.
+ * La documentation de `sharp` le dit d'ailleurs en toutes lettres sur `compression` :
+ * *« The encoder used to compress an HEIF file, `av1` (AVIF) or `hevc` (HEIC) »*.
+ *
+ * ⚠️ Écrite telle que le cadrage la décrivait, cette table aurait **refusé tout AVIF** —
+ * c'est-à-dire le format de la seule photo du projet, celui que la Story 4.3 a retenu. Et
+ * rien ne l'aurait signalé : la table serait restée complète sur ses clés, donc verte au
+ * typecheck.
+ *
+ * 🔴 CONSÉQUENCE SYMÉTRIQUE, ET C'EST ELLE QUI COMPTE POUR LA SÉCURITÉ : `"heif"` désigne
+ * AUSSI le HEIC des iPhone, que **les navigateurs ne savent pas afficher**. Accepter
+ * `format === "heif"` sans regarder `compression` stockerait un HEIC sous une extension
+ * `.avif`, servi en `image/avif` : un cadre cassé, indébuggable depuis l'écran. Le
+ * discriminant est donc `compression`, et il a été éprouvé — un AVIF dont on trafique la
+ * marque de conteneur en `heic` ressort bien avec `compression: "hevc"`.
+ */
+const FORMATS_ACCEPTES = ["jpeg", "png", "webp", "avif"] as const;
+type FormatAccepte = (typeof FORMATS_ACCEPTES)[number];
+
+/**
+ * `format sharp → extension stockée`. **L'identité n'est PAS la règle** : sharp dit
+ * `jpeg`, la liste blanche dit `jpg`.
+ *
+ * ⚠️ DEUX EXHAUSTIVITÉS, ET ELLES SONT TENUES PAR LE TYPE, pas par la relecture :
+ *   · la CLÉ est `FormatAccepte` ⇒ ajouter un format accepté sans lui donner d'extension
+ *     fait échouer le typecheck ;
+ *   · la VALEUR est `(typeof EXTENSIONS)[number]` ⇒ on ne peut pas produire une extension
+ *     que le `CHECK` et la table MIME refuseraient ensuite.
+ * Même motif que `TYPES_MIME` ci-dessus et que le `Record<PartnerCategory, string>` de la 4.2.
+ */
+const EXTENSION_PAR_FORMAT: Record<FormatAccepte, (typeof EXTENSIONS)[number]> = {
+  jpeg: "jpg",
+  png: "png",
+  webp: "webp",
+  avif: "avif",
+};
+
+/**
+ * 🔴 PLAFOND DE PIXELS — LA BORNE DE TAILLE DE FICHIER NE PROTÈGE PAS DE ÇA.
+ *
+ * Défaut trouvé en revue. Le formulaire borne le POIDS (10 Mo), pas les DIMENSIONS — or un
+ * PNG compresse un aplat de couleur à presque rien : un fichier de quelques centaines de
+ * kilo-octets peut annoncer 30 000 × 30 000. `sharp().metadata()` lit l'en-tête **sans
+ * décoder les pixels**, donc il l'accepterait, et l'image serait écrite telle quelle
+ * (aucun redimensionnement à l'entrée — arbitrage Q2, assumé).
+ *
+ * ⚠️ LE DÉFAUT NE SE VERRAIT QU'APRÈS COUP, ET AILLEURS : c'est `next/image` qui décode
+ * réellement, à la première vignette. Il heurterait sa limite de pixels et rendrait un
+ * **cadre cassé** sur une photo que le formulaire venait pourtant d'accepter — sans qu'aucun
+ * message ne relie l'échec à sa cause. Refuser à l'ENTRÉE est le seul endroit où l'on peut
+ * encore expliquer.
+ *
+ * 100 mégapixels : très au-delà de tout appareil réel (un capteur 50 Mpx fait 8000 × 6000,
+ * soit 48 Mpx), donc R15 — qui attend des originaux HAUTE DÉFINITION — n'est pas gênée ; et
+ * bien en deçà de la limite de décodage de sharp (~268 Mpx), donc la garde tire AVANT elle.
+ */
+const PIXELS_MAX = 100_000_000;
+
+/** Pourquoi une écriture a été refusée. Les MESSAGES vivent dans la Server Action. */
+export type EchecMedia =
+  /** `sharp` n'a pas su lire le contenu : ce n'est pas une image, quel que soit son nom. */
+  | { motif: "illisible" }
+  /** SVG : refus EXPLICITE et nommé — voir ci-dessous. */
+  | { motif: "svg" }
+  /** Image lisible, mais d'un format hors liste (gif, tiff, heic…). */
+  | { motif: "format"; format: string }
+  /** Dimensions déclarées hors de tout usage réel — voir `PIXELS_MAX`. */
+  | { motif: "dimensions"; largeur: number; hauteur: number }
+  /** `MEDIA_DIR` absente, ou désignant un répertoire qui n'existe pas. */
+  | { motif: "volume" }
+  /** L'écriture elle-même a échoué (droits, disque plein, collision de nom). */
+  | { motif: "ecriture" };
+
+export type EcritureMedia = { ok: true; filename: string } | { ok: false; echec: EchecMedia };
+
+/**
+ * Écrit une image sur le volume, sous un nom **généré par le serveur**.
+ *
+ * 🔴 ON VALIDE AVANT D'ÉCRIRE, ET L'ORDRE EST LA GARDE. Le défaut le plus facile à
+ * commettre est l'inverse (« j'ai le flux, je le pose, je valide ensuite ») : il laisserait
+ * sur le volume des fichiers qu'AUCUNE ligne ne référence, donc qu'aucun écran ne peut
+ * supprimer — invisibles, et croissants. `gate:galerie` compte les fichiers du volume avant
+ * et après chaque refus, précisément pour que cette phrase reste vraie.
+ *
+ * 🔴 LE TYPE VIENT DU CONTENU, JAMAIS DU NOM NI DU `Content-Type` ANNONCÉ. Un fichier
+ * `photo.png` contenant du texte est refusé ; un exécutable renommé `.jpg` aussi.
+ *
+ * 🔴 LE SVG EST REFUSÉ **EXPLICITEMENT**, ET CE N'EST PAS UN EFFET DE BORD. `sharp` SAIT
+ * lire le SVG (mesuré : `format: "svg"`, dimensions rendues). Un refus qu'on déduirait d'un
+ * échec de `sharp` ne refuserait donc RIEN. Or un SVG servi depuis notre propre origine
+ * exécute son `<script>` dans le contexte du site : XSS stocké, livré par ce formulaire à un
+ * bénévole qui téléverserait un fichier reçu par mail.
+ *
+ * ⚠️ AUCUN REDIMENSIONNEMENT NI RECOMPRESSION ICI — l'original est conservé tel quel
+ * (arbitrage Q2). `next/image` fabrique les variantes au service, et la dette **R15** attend
+ * des sources plus GRANDES, pas plus petites : réduire à l'entrée la rendrait insoluble.
+ * La normalisation appartient à la Story 6.5, et pour une autre raison (uniformiser un
+ * bandeau de logos).
+ */
+export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
+  // ── ① Le contenu décide, et lui seul ───────────────────────────────────────────────
+  let metadonnees;
+  try {
+    metadonnees = await sharp(contenu).metadata();
+  } catch {
+    // « Input buffer contains unsupported image format », « Input Buffer is empty »… :
+    // dans tous les cas, ce n'est pas une image.
+    return { ok: false, echec: { motif: "illisible" } };
+  }
+
+  if (metadonnees.format === "svg") return { ok: false, echec: { motif: "svg" } };
+
+  const format = normaliserFormat(metadonnees.format, metadonnees.compression);
+  if (format === null) {
+    return { ok: false, echec: { motif: "format", format: metadonnees.format ?? "inconnu" } };
+  }
+
+  // Voir `PIXELS_MAX` : le poids du fichier ne borne PAS les dimensions, et c'est
+  // `next/image` — ailleurs, plus tard — qui paierait la note en cadre cassé.
+  // ⚠️ Des dimensions absentes des métadonnées sont traitées comme un contenu illisible :
+  // une image dont on ne sait pas la taille est une image qu'on ne sait pas servir.
+  const largeur = metadonnees.width;
+  const hauteur = metadonnees.height;
+  if (typeof largeur !== "number" || typeof hauteur !== "number") {
+    return { ok: false, echec: { motif: "illisible" } };
+  }
+  if (largeur * hauteur > PIXELS_MAX) {
+    return { ok: false, echec: { motif: "dimensions", largeur, hauteur } };
+  }
+
+  // ── ② Le volume doit EXISTER, et on ne le crée jamais ──────────────────────────────
+  // 🔴 AUCUNE CRÉATION AUTOMATIQUE (`mkdir -p`), ET C'EST DÉLIBÉRÉ. Un `MEDIA_DIR` mal
+  // orthographié qui se créerait tout seul produirait le mode de défaillance « tout
+  // réussit, rien ne fonctionne » : les téléversements sembleraient marcher, et les photos
+  // seraient écrites à côté du volume Docker sauvegardé. C'est très exactement R21 (la base
+  // `vitrine` créée à la main) et le montage Docker corrigé par la 4.3.
+  let base: string;
+  try {
+    base = racine();
+  } catch {
+    return { ok: false, echec: { motif: "volume" } };
+  }
+  if (!existsSync(base)) return { ok: false, echec: { motif: "volume" } };
+
+  // ── ③ Le nom vient du serveur ──────────────────────────────────────────────────────
+  const filename = `${randomUUID()}.${EXTENSION_PAR_FORMAT[format]}`;
+  const chemin = path.resolve(base, filename);
+  // Défense en profondeur, au même titre que dans `ouvrirMedia` : le nom est fabriqué ici,
+  // donc cette garde ne peut pas tirer aujourd'hui. Elle tiendra le jour où quelqu'un
+  // changera la fabrique.
+  if (!chemin.startsWith(base + path.sep)) return { ok: false, echec: { motif: "ecriture" } };
+
+  try {
+    // ⚠️ `wx` : ÉCHOUE si le fichier existe déjà, au lieu d'écraser en silence. Une
+    // collision d'UUID v4 est hors d'atteinte en pratique, mais « écraser une photo
+    // existante » n'est pas un mode de défaillance qu'on veut rendre possible du tout —
+    // l'autre ligne `photo` continuerait de pointer sur un fichier qui n'est plus le sien.
+    await writeFile(chemin, contenu, { flag: "wx" });
+  } catch (erreur) {
+    console.error("[medias] Échec de l'écriture du média :", erreur);
+    return { ok: false, echec: { motif: "ecriture" } };
+  }
+
+  return { ok: true, filename };
+}
+
+/**
+ * Ramène le `format` de sharp à l'un des formats acceptés, ou `null`.
+ *
+ * ⚠️ `heif` est le SEUL cas où `format` ne suffit pas : il couvre AVIF (`av1`) et HEIC
+ * (`hevc`). Voir le commentaire de `FORMATS_ACCEPTES` — c'est un fait mesuré, pas une
+ * précaution.
+ */
+function normaliserFormat(
+  format: string | undefined,
+  compression: string | undefined,
+): FormatAccepte | null {
+  if (format === "heif") return compression === "av1" ? "avif" : null;
+  return (FORMATS_ACCEPTES as readonly string[]).includes(format ?? "")
+    ? (format as FormatAccepte)
+    : null;
+}
+
+/**
+ * Supprime un média du volume. **Ne jette jamais.**
+ *
+ * 🔴 L'ORDRE D'APPEL EST UNE DÉCISION DE L'APPELANT, ET ELLE EST ÉCRITE DANS
+ * `server/actions/galerie.ts` : la LIGNE d'abord, le FICHIER ensuite. Si la seconde étape
+ * échoue, il reste un octet orphelin sur le volume — invisible du public. L'ordre inverse
+ * laisserait une ligne pointant sur rien, c'est-à-dire un cadre cassé sur la page d'accueil.
+ * On préfère perdre l'octet.
+ *
+ * @param nomValideEnBase nom **relu en base**, comme pour `ouvrirMedia`. Les mêmes gardes
+ *   sont rejouées ici (basename, préfixe résolu) : ce module reste la seule porte vers le
+ *   système de fichiers, et il ne fait pas confiance à ses appelants.
+ * @returns `true` si le fichier n'est plus là (supprimé, ou déjà absent — le résultat
+ *   voulu est atteint dans les deux cas), `false` si la suppression a échoué.
+ */
+export async function supprimerMedia(nomValideEnBase: string): Promise<boolean> {
+  const nom = path.basename(nomValideEnBase);
+  if (nom !== nomValideEnBase) return false;
+
+  let base: string;
+  try {
+    base = racine();
+  } catch {
+    return false;
+  }
+
+  const chemin = path.resolve(base, nom);
+  if (!chemin.startsWith(base + path.sep)) return false;
+
+  try {
+    await unlink(chemin);
+    return true;
+  } catch (erreur) {
+    // ENOENT : le fichier n'existe déjà plus. La base et le volume peuvent diverger
+    // (restauration partielle, sauvegarde base sans médias) — c'est le cas que
+    // `ouvrirMedia` documente déjà. L'objectif « ce fichier n'est plus servi » est atteint.
+    if ((erreur as NodeJS.ErrnoException).code === "ENOENT") return true;
+    console.error("[medias] Échec de la suppression du média :", erreur);
+    return false;
+  }
 }

@@ -11,7 +11,7 @@ import {
   getUpcomingEventsForAdmin,
   type AgendaEvent,
 } from "@/server/db/queries/events";
-import styles from "./agenda.module.css";
+import styles from "@/styles/admin-page.module.css";
 
 // Liste de l'agenda du back-office (Story 6.3) — Server Component pur.
 //
