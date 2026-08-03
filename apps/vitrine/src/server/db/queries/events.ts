@@ -69,6 +69,113 @@ export async function getPastEvents(limit: number) {
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LECTURES DU BACK-OFFICE (Story 6.3)
+
+   🔴 ELLES VIVENT ICI, DANS LA MÊME FAMILLE QUE LES LECTURES PUBLIQUES, ET C'EST
+   VOLONTAIRE. `architecture.md` l.508 pose une famille de requêtes PAR DOMAINE, pas
+   par public. Un `queries/admin-events.ts` parallèle serait une seconde définition de
+   « un événement » : au premier changement de schéma, les deux divergeraient.
+
+   ⚠️ LA DIFFÉRENCE EST UNE SEULE LIGNE, ET C'EST TOUTE LA FRONTIÈRE : les lectures
+   publiques filtrent sur `is_published`, celles-ci **ne filtrent pas**. Ne JAMAIS
+   relâcher le filtre des deux fonctions ci-dessus « pour réutiliser » — ce serait une
+   fuite de données non publiées sur `/` et `/agenda`, et aucune porte visuelle ne la
+   verrait (une page qui affiche un événement de plus n'a pas l'air cassée).
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Événements À VENIR pour le back-office — publiés **et non publiés**.
+ *
+ * Bornes EXPLICITES, comme les lectures publiques : une page dont le temps de rendu
+ * dépend du volume saisi est un défaut qui n'apparaîtrait qu'une fois la base remplie par
+ * les bénévoles, c'est-à-dire en production.
+ */
+export async function getUpcomingEventsForAdmin(limit: number) {
+  return db.query.event.findMany({
+    where: (table, { gt }) => gt(table.startsAt, new Date()),
+    orderBy: (table, { asc }) => asc(table.startsAt),
+    with: { bar: true },
+    limit,
+  });
+}
+
+/** Événements PASSÉS pour le back-office — publiés **et non publiés**, du plus récent. */
+export async function getPastEventsForAdmin(limit: number) {
+  return db.query.event.findMany({
+    where: (table, { lte }) => lte(table.startsAt, new Date()),
+    orderBy: (table, { desc }) => desc(table.startsAt),
+    with: { bar: true },
+    limit,
+  });
+}
+
+/**
+ * Un événement par son identifiant, publié ou non.
+ *
+ * ⚠️ L'appelant doit avoir **validé l'identifiant** avant : un `id` malformé remis à une
+ * colonne `uuid` fait lever Postgres (`invalid input syntax for type uuid`) → erreur 500
+ * là où la réponse juste est un 404. La validation vit dans la page, au bord.
+ */
+export async function getEventById(id: string) {
+  const ligne = await db.query.event.findFirst({
+    where: (table, { eq }) => eq(table.id, id),
+    with: { bar: true },
+  });
+  if (!ligne) return undefined;
+
+  /**
+   * 🔴 « PASSÉ » EST CALCULÉ ICI, PAS DANS LE RENDU, ET CE N'EST PAS UN DÉTAIL DE STYLE.
+   * Lire l'horloge pendant le rendu d'un composant est une impureté (`react-hooks/purity`
+   * la refuse) : deux rendus du même arbre pourraient répondre différemment. La couche
+   * données est déjà l'endroit où le projet lit l'heure — `getUpcomingEvents` et
+   * `getPastEvents` le font toutes les deux — et c'est ce qui garantit qu'« à venir » et
+   * « passé » ont ici EXACTEMENT le même sens qu'elles : `lte` d'un côté, `gt` de l'autre,
+   * donc un événement pile à `now()` appartient à « passé », comme côté public.
+   */
+  return { ...ligne, estPasse: ligne.startsAt <= new Date() };
+}
+
+/** Tous les bars du roulement, par ordre alphabétique — la liste tient sur un écran. */
+export async function getBars() {
+  return db.query.bar.findMany({
+    orderBy: (table, { asc }) => asc(table.name),
+  });
+}
+
+/** Un bar par son identifiant. Même avertissement que `getEventById` sur l'`id`. */
+export async function getBarById(id: string) {
+  return db.query.bar.findFirst({
+    where: (table, { eq }) => eq(table.id, id),
+  });
+}
+
+/**
+ * Événements qui EMPÊCHENT la suppression d'un bar (Story 6.3, AC3).
+ *
+ * 🔴 CE COMPTE EXISTE POUR TRADUIRE UN ÉCHEC, PAS POUR L'ÉVITER. `event.barId` est
+ * `ON DELETE SET NULL` — jamais `CASCADE`, pour que perdre un partenariat n'efface pas
+ * l'historique des jeudis. Mais le passage à `NULL` ré-évalue `event_has_venue` : un
+ * événement rattaché à ce bar et **sans lieu libre** viole alors la contrainte, et
+ * Postgres refuse la suppression. C'est le bon signal — mais son message brut
+ * (`violates check constraint "event_has_venue"`) est illisible pour un bénévole.
+ *
+ * On compte donc AVANT de tenter, pour pouvoir dire **combien** et **quoi faire**.
+ * ⚠️ Ce compte ne remplace pas la contrainte : entre le compte et la suppression, rien ne
+ * garantit que la base n'a pas changé. L'échec reste attrapé et traduit côté action.
+ */
+export async function countEventsBlockingBarDeletion(barId: string) {
+  const lignes = await db.query.event.findMany({
+    columns: { id: true },
+    where: (table, { and, eq, isNull, or, sql }) =>
+      and(
+        eq(table.barId, barId),
+        or(isNull(table.venueName), sql`length(btrim(${table.venueName})) = 0`),
+      ),
+  });
+  return lignes.length;
+}
+
 /**
  * Type d'une ligne d'agenda, DÉRIVÉ de la requête et non réécrit à la main : ajouter
  * une relation ou une colonne au schéma met ce type à jour tout seul. Une interface

@@ -40,9 +40,25 @@ export function cleanText(value: string | null | undefined): string | null {
  */
 export function truncate(value: string | null | undefined, max: number): string | null {
   const clean = cleanText(value);
-  if (!clean || clean.length <= max) return clean;
+  if (!clean) return null;
 
-  const coupe = clean.slice(0, max);
+  /**
+   * 🔴 DÉCOUPE PAR POINTS DE CODE, PAS PAR UNITÉS UTF-16 — CORRIGÉ LE 2026-08-03.
+   *
+   * `slice()` compte en unités UTF-16 : couper au milieu d'une paire de substitution
+   * produit un demi-caractère orphelin, rendu comme un glyphe cassé. Mesuré :
+   *   `truncate("AAAAAAAAAA🎮BBB…", 11)` → `"AAAAAAAAAA\ud83c…"`
+   *
+   * ⚠️ Le défaut est ANTÉRIEUR à la Story 6.3 — mais c'est elle qui le rend atteignable :
+   * elle est la première surface où un bénévole tape librement un titre et un compte-rendu,
+   * emoji compris. Trouvé en revue (Edge Case Hunter), et retenu pour cette raison exacte.
+   * ⚠️ Le repli sur la frontière de mot travaille ensuite sur la chaîne DÉJÀ recoupée : il
+   * ne peut donc pas réintroduire une coupure au milieu d'un caractère.
+   */
+  const points = Array.from(clean);
+  if (points.length <= max) return clean;
+
+  const coupe = points.slice(0, max).join("");
   const dernierEspace = coupe.lastIndexOf(" ");
   const base = dernierEspace > max * 0.6 ? coupe.slice(0, dernierEspace) : coupe;
   // On retire la ponctuation de fin avant l'ellipse : « …, … » ou « ..… » sont des

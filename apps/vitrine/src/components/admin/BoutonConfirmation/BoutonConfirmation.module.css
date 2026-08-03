@@ -1,0 +1,79 @@
+/* Confirmation en deux temps d'une action destructrice (Story 6.3).
+   Tokens uniquement — la palette EDS n'a pas de rouge, et en inventer un serait un hex de
+   charte en dur. Le caractère destructeur est donc porté par les MOTS et par la
+   confirmation, jamais par la seule couleur. */
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.declencheur,
+.confirmer,
+.annuler {
+  min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.declencheur,
+.annuler {
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  color: var(--grey);
+}
+
+.declencheur:hover,
+.annuler:hover {
+  border-color: var(--light);
+  color: var(--light);
+}
+
+.confirmer {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+
+.confirmer:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.question {
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.precision {
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.reponses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.erreur {
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .declencheur,
+  .confirmer,
+  .annuler {
+    transition: none;
+  }
+}

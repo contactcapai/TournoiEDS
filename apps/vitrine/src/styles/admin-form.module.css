@@ -1,0 +1,141 @@
+/* Vocabulaire de FORMULAIRE du back-office (Story 6.3).
+   Tokens uniquement — aucun hex de charte en dur (project-context.md §5).
+
+   🔴 EXTRAIT AU 2ᵉ CONSOMMATEUR, PAS « AU CAS OÙ ». `EventForm` et `BarForm` naissent
+   dans la même story et partagent exactement ces règles : les compter, c'est deux.
+   Précédent direct : `editorial.module.css`, extrait en Story 2.10 quand `/l-asso` et
+   `/animations` en furent les deux consommateurs. La leçon de R9 n'est pas « ne jamais
+   dupliquer », c'est « toujours COMPTER ».
+
+   ⚠️ C'est un vocabulaire de MISE EN PAGE, pas un framework de formulaire. Aucun
+   comportement ici. La Story 6.4 le consomme ou l'étend ; elle ne le contourne pas. */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 62ch;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Un `<fieldset>` porte une bordure et un padding par la feuille UA : le reset global
+     ne les retire pas (il ne touche que margin/padding). Neutralisés ici pour que
+     `.champ` se comporte pareil sur un `<div>` et sur un `<fieldset>`. */
+  border: 0;
+  min-width: 0;
+}
+
+.label,
+.legend {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.saisie,
+.zone {
+  width: 100%;
+  min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
+  padding: 10px 12px;
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: var(--lh-body);
+}
+
+.zone {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.saisie:focus-visible,
+.zone:focus-visible {
+  border-color: var(--gold);
+}
+
+.saisie[aria-invalid="true"],
+.zone[aria-invalid="true"] {
+  border-color: var(--gold);
+  border-width: 2px;
+}
+
+/* Ligne sous le champ : aide à gauche, compteur à droite. */
+.sousChamp {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--light);
+}
+
+.compteur {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ⚠️ `--gold` et non un rouge : la palette EDS n'a pas de rouge, et en inventer un
+   serait un hex de charte en dur. La couleur ne porte donc PAS seule l'information —
+   le message est explicite, `aria-invalid` et `aria-describedby` la portent aussi. */
+.erreur {
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--gold);
+}
+
+/* Avertissement NON BLOQUANT (heure pathologique, dette R23) — il dit ce qui sera
+   enregistré, il n'empêche rien. Volontairement distinct d'une erreur. */
+.avertissement {
+  padding: 12px 14px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.confirmation {
+  padding: 14px 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.choixLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 16px;
+  color: var(--light);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--gold);
+}

@@ -1,0 +1,10 @@
+ALTER TABLE "bar" ADD CONSTRAINT "bar_name_valide" CHECK (length(btrim("bar"."name")) > 0 and length("bar"."name") <= 120);--> statement-breakpoint
+ALTER TABLE "bar" ADD CONSTRAINT "bar_address_valide" CHECK (length(btrim("bar"."address")) > 0 and length("bar"."address") <= 200);--> statement-breakpoint
+ALTER TABLE "bar" ADD CONSTRAINT "bar_district_valide" CHECK (length(btrim("bar"."district")) > 0 and length("bar"."district") <= 120);--> statement-breakpoint
+ALTER TABLE "bar" ADD CONSTRAINT "bar_city_valide" CHECK (length(btrim("bar"."city")) > 0 and length("bar"."city") <= 80);--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_title_valide" CHECK (length(btrim("event"."title")) > 0 and length("event"."title") <= 80);--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_games_valide" CHECK ("event"."games" is null or (length(btrim("event"."games")) > 0 and length("event"."games") <= 120));--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_description_valide" CHECK ("event"."description" is null or (length(btrim("event"."description")) > 0 and length("event"."description") <= 600));--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_recap_valide" CHECK ("event"."recap" is null or (length(btrim("event"."recap")) > 0 and length("event"."recap") <= 240));--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_venue_name_valide" CHECK ("event"."venue_name" is null or (length(btrim("event"."venue_name")) > 0 and length("event"."venue_name") <= 120));--> statement-breakpoint
+ALTER TABLE "event" ADD CONSTRAINT "event_venue_address_valide" CHECK ("event"."venue_address" is null or (length(btrim("event"."venue_address")) > 0 and length("event"."venue_address") <= 200));

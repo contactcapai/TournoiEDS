@@ -246,3 +246,140 @@ export function formatTime(instant: Date): string {
   const { hour, minute } = parisParts(instant);
   return `${hour}h${pad2(minute)}`;
 }
+
+/* ───────────────────────────────────────────────────────────────────────────────
+   SAISIE — PONT ENTRE `<input type="datetime-local">` ET L'INSTANT (Story 6.3)
+
+   🔴 CES DEUX FONCTIONS SONT LE SEUL PONT AUTORISÉ, ET LE PIÈGE EST BIDIRECTIONNEL.
+
+   ① À L'ÉCRITURE. Le champ HTML natif rend `"2026-08-06T19:00"` — **sans fuseau, par
+      spécification**. C'est exactement la forme que `eventInputSchema` REFUSE (garde
+      écrite en Story 3.1 pour cette story) : `new Date("2026-08-06T19:00")` s'interprète
+      dans le fuseau du **process**, juste par coïncidence sur un poste à Paris, faux de
+      deux heures dans le conteneur de production qui tourne en UTC.
+
+   ② À LA LECTURE, ET C'EST LA MOITIÉ QUE PERSONNE N'ANTICIPE. Pour pré-remplir le champ
+      à l'édition, le geste réflexe est `instant.toISOString().slice(0, 16)`. Il affiche
+      **l'heure UTC** : un jeudi 19h00 s'ouvrirait à **17:00** en production, et le
+      bénévole « corrigerait » une heure qui était juste. Le symptôme n'apparaît JAMAIS
+      en local (poste à Paris) et serait imputé à un bug de saisie, pas de fuseau.
+
+   ⚠️ Aucun composant, aucune page, aucune Server Action ne convertit lui-même. Ici, et
+   nulle part ailleurs — c'est la règle de tête de ce fichier.
+   ─────────────────────────────────────────────────────────────────────────────── */
+
+/** Forme exacte produite par `<input type="datetime-local">` : `AAAA-MM-JJTHH:MM`. */
+const FORMAT_SAISIE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/**
+ * Instant correspondant à la valeur d'un `<input type="datetime-local">`, lue comme une
+ * **heure murale de Paris**.
+ *
+ * Rend `null` sur une valeur malformée plutôt que `Invalid Date` : un appelant qui
+ * oublierait de tester une date invalide propagerait un `NaN` jusqu'en base, alors qu'un
+ * `null` casse à l'endroit du défaut.
+ */
+export function parisWallClockFromInput(valeur: string): Date | null {
+  const match = FORMAT_SAISIE.exec(valeur.trim());
+  if (!match) return null;
+
+  const annee = Number(match[1]);
+  const mois = Number(match[2]);
+  const jour = Number(match[3]);
+  const heure = Number(match[4]);
+  const minute = Number(match[5]);
+
+  // 🔴 LES BORNES SONT VÉRIFIÉES ICI, PARCE QUE `parisWallClock` NORMALISE EN SILENCE.
+  // Trouvé en revue (Edge Case Hunter) et MESURÉ : la regex ci-dessus ne compte que des
+  // CHIFFRES, et `Date.UTC` traite tout débordement comme un report de calendrier — c'est
+  // d'ailleurs une propriété VOULUE de `parisWallClock` (`nextThursdays` s'en sert pour
+  // ajouter des jours sans arithmétique de calendrier), donc on ne la corrige surtout pas
+  // là-bas. Sans la garde ci-dessous :
+  //   "2026-13-32T25:99" → 2027-02-02 02:39  (accepté, sans la moindre erreur)
+  //   "2026-00-15T19:00" → 2025-12-15 19:00  (silencieux : mois 00 = décembre précédent)
+  if (mois < 1 || mois > 12 || jour < 1 || jour > 31 || heure > 23 || minute > 59) return null;
+
+  const instant = parisWallClock(annee, mois, jour, heure, minute);
+  if (Number.isNaN(instant.getTime())) return null;
+
+  // 🔴 ET LE CALENDRIER EST RELU, parce que les bornes ne suffisent pas : "2026-02-29"
+  // a un mois et un jour parfaitement valides pris séparément, mais cette date N'EXISTE
+  // PAS (2026 n'est pas bissextile) — mesuré, elle glissait au 1ᵉʳ mars **sans que
+  // `diagnostiquerHeureMurale` ne dise rien**, puisqu'il ne compare qu'heure et minute.
+  //
+  // ⚠️ ON NE RELIT QUE L'ANNÉE, LE MOIS ET LE JOUR — jamais l'heure. Les deux heures
+  // pathologiques du changement d'heure DÉPLACENT légitimement l'heure murale (c'est tout
+  // le sujet de R23) et elles ne franchissent jamais minuit : la bascule a lieu à 02h00
+  // locales. Relire l'heure ici ferait donc rejeter, comme « date invalide », précisément
+  // le cas que le diagnostic doit ANNONCER.
+  const relu = parisParts(instant);
+  if (relu.year !== annee || relu.month !== mois || relu.day !== jour) return null;
+
+  return instant;
+}
+
+/**
+ * Valeur de `<input type="datetime-local">` correspondant à un instant, en **heure murale
+ * de Paris**.
+ *
+ * ⚠️ Passe par `parisParts` et JAMAIS par `toISOString()` — voir ② en tête de section.
+ */
+export function toInputValue(instant: Date): string {
+  const { year, month, day, hour, minute } = parisParts(instant);
+  return `${year}-${pad2(month)}-${pad2(day)}T${pad2(hour)}:${pad2(minute)}`;
+}
+
+/**
+ * Diagnostic d'une heure murale saisie — **dette R23**, relevée à la revue de la Story 3.1
+ * et laissée ouverte jusqu'ici parce qu'aucun écran ne permettait encore de saisir une
+ * heure libre.
+ *
+ * 🔴 ON AVERTIT, ON NE CORRIGE PAS. `parisWallClock` n'est pas modifiée : la corriger
+ * *« rendrait un instant que personne n'a demandé »* (voir son propre commentaire). Le
+ * bénévole voit ce qui sera enregistré, et décide.
+ *
+ * Les deux cas sont DÉTECTÉS PAR ALLER-RETOUR, jamais par une table de dates de bascule
+ * codée en dur — c'est la base de fuseaux du système qui sait quand la bascule a lieu :
+ *   - **inexistante** (fin mars) : l'heure relue diffère de l'heure demandée ;
+ *   - **ambiguë** (fin octobre) : l'instant d'une heure PLUS TÔT porte la même heure
+ *     murale, donc la même heure murale désigne deux instants. `parisWallClock` retient
+ *     toujours le **second** (heure d'hiver).
+ */
+export type DiagnosticHeure =
+  | { cas: "ok" }
+  | { cas: "inexistante" | "ambigue"; message: string };
+
+const UNE_HEURE_MS = 3_600_000;
+
+export function diagnostiquerHeureMurale(valeur: string): DiagnosticHeure {
+  const instant = parisWallClockFromInput(valeur);
+  if (instant === null) return { cas: "ok" }; // une valeur malformée est l'affaire de Zod.
+
+  const demande = FORMAT_SAISIE.exec(valeur.trim());
+  if (!demande) return { cas: "ok" };
+
+  const relu = parisParts(instant);
+  const heureDemandee = `${demande[4]}:${demande[5]}`;
+  const heureRelue = `${pad2(relu.hour)}:${pad2(relu.minute)}`;
+
+  if (heureRelue !== heureDemandee) {
+    return {
+      cas: "inexistante",
+      message:
+        `Cette heure n'existe pas : le ${formatLongDate(instant)}, l'horloge avance d'une heure ` +
+        `dans la nuit. L'événement sera enregistré à ${formatTime(instant)}.`,
+    };
+  }
+
+  const uneHeureAvant = parisParts(new Date(instant.getTime() - UNE_HEURE_MS));
+  if (uneHeureAvant.hour === relu.hour && uneHeureAvant.minute === relu.minute) {
+    return {
+      cas: "ambigue",
+      message:
+        `Cette heure existe deux fois le ${formatLongDate(instant)} : l'horloge recule d'une heure ` +
+        `dans la nuit. C'est la seconde (heure d'hiver) qui sera enregistrée.`,
+    };
+  }
+
+  return { cas: "ok" };
+}
