@@ -1,0 +1,142 @@
+/* Vocabulaire des écrans d'agenda du back-office (Story 6.3).
+   Partagé par la liste et la page des bars — deux consommateurs, donc extrait (R9 :
+   « toujours COMPTER »). Tokens uniquement, aucun hex de charte en dur. */
+
+.titre {
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--light);
+}
+
+.chapo {
+  margin-top: 12px;
+  max-width: 64ch;
+  font-size: var(--fs-lead);
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.barreActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  color: var(--gold);
+}
+
+.section {
+  margin-top: 48px;
+}
+
+.sectionTitre {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.liste {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.ligneCorps {
+  flex: 1 1 320px;
+  min-width: 0; /* sans ça, un titre long refuse de se réduire et déborde la ligne */
+}
+
+.ligneDate {
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.ligneTitre {
+  margin-top: 4px;
+  font-size: 18px;
+  line-height: var(--lh-body);
+  color: var(--light);
+  /* Une saisie est bornée à 80 caractères, mais une ligne écrite avant la borne (ou par
+     du SQL direct) ne doit pas casser la mise en page — `overflow-x: clip` la rognerait
+     EN SILENCE, et `gate` ne couvre pas /admin. */
+  overflow-wrap: anywhere;
+}
+
+.ligneLieu {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+  overflow-wrap: anywhere;
+}
+
+.etat {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.etatPublie {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+
+.etatBrouillon {
+  border: 1px dashed rgba(146, 147, 173, 0.6);
+  color: var(--grey);
+}
+
+.ligneActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.vide {
+  margin-top: 18px;
+  padding: 24px;
+  border: 1px dashed rgba(146, 147, 173, 0.45);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  max-width: 72ch;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* 880px en LITTÉRAL (project-context.md §5) : le back-office est desktop, mais il ne doit
+   pas être CASSÉ en dessous — `globals.css` pose `overflow-x: clip` sur toutes les routes,
+   donc un débordement y serait rogné sans le moindre témoin. */
+@media (max-width: 880px) {
+  .ligneActions {
+    margin-left: 0;
+  }
+}

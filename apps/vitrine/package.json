@@ -19,7 +19,8 @@
     "gate:images": "node tools/visual-gate/images-check.mjs",
     "gate:solicitation": "node tools/visual-gate/solicitation-check.mjs",
     "gate:links": "node tools/visual-gate/links-check.mjs",
-    "gate:admin": "node tools/visual-gate/admin-check.mjs"
+    "gate:admin": "node tools/visual-gate/admin-check.mjs",
+    "gate:agenda": "tsx tools/visual-gate/agenda-check.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",

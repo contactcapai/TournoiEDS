@@ -1,0 +1,38 @@
+/* Scène de prévisualisation (Story 6.3). Tokens uniquement.
+
+   ⚠️ `.plateau` porte `--navy`, le fond de la section « À venir » de `/agenda`
+   (`app/(public)/agenda/page.module.css` l.22-25). Ce n'est PAS un choix décoratif : le
+   contraste d'un texte dépend de son fond EFFECTIF, et prévisualiser sur un autre fond
+   montrerait un rendu qui n'existe nulle part. Leçon de la Story 4.2 — un fond effectif
+   n'est pas un token. Si le fond de la section publique change, changer celui-ci. */
+
+.scene {
+  margin-top: 48px;
+}
+
+.sceneTitre {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.plateau {
+  margin-top: 18px;
+  padding: 32px var(--wrap-pad);
+  border: 1px dashed rgba(218, 178, 101, 0.35); /* --gold à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--navy);
+}
+
+/* Borne déclarée à l'écran : ce que l'aperçu NE montre pas (dette R34 → Story 6.4). */
+.borne {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  line-height: var(--lh-body);
+  color: var(--light);
+}

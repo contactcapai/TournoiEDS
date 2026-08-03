@@ -34,7 +34,19 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { EVENT_TYPES } from "../../lib/schemas/event";
+import {
+  BAR_ADRESSE_MAX,
+  BAR_NOM_MAX,
+  BAR_QUARTIER_MAX,
+  BAR_VILLE_MAX,
+  DESCRIPTION_MAX,
+  EVENT_TYPES,
+  JEUX_MAX,
+  LIEU_ADRESSE_MAX,
+  LIEU_NOM_MAX,
+  RECAP_MAX,
+  TITRE_MAX,
+} from "../../lib/schemas/event";
 import { PARTNER_CATEGORIES } from "../../lib/schemas/partner";
 // Même sens de dépendance que les deux listes d'enum ci-dessus : la liste des extensions
 // autorisées vit dans le module Zod (bundlé côté client en Epic 6), et le schéma Drizzle
@@ -61,19 +73,63 @@ export const eventType = pgEnum("event_type", EVENT_TYPES);
  * pas de champ « nom provisoire » non plus : un bar dont l'accord n'est pas encore signé
  * se seede avec `name = 'Bar partenaire #2'` (UX-DR11) — c'est de la donnée, pas un état.
  */
-export const bar = pgTable("bar", {
-  id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull(),
-  address: text().notNull(),
-  /** Quartier rémois, affiché à côté du nom sur la carte du hub (UX-DR10). */
-  district: text().notNull(),
-  city: text().notNull().default("Reims"),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+export const bar = pgTable(
+  "bar",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull(),
+    address: text().notNull(),
+    /** Quartier rémois, affiché à côté du nom sur la carte du hub (UX-DR10). */
+    district: text().notNull(),
+    city: text().notNull().default("Reims"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * 🔴 GARDES AU NIVEAU DES DONNÉES — POSÉES PAR LA STORY 6.3, EN MÊME TEMPS QUE
+     * L'ÉCRAN QUI ÉCRIT CETTE TABLE.
+     *
+     * Cette table n'en portait AUCUNE jusqu'au 2026-08-03, alors que `partner`, `photo`
+     * et `solicitation` en portent trois à quatre chacune. Ce n'était pas un oubli de
+     * doctrine mais une conséquence de la règle de tête de fichier : `bar` n'avait pas
+     * encore de surface de saisie. Elle en a une maintenant.
+     *
+     * `notNull` ne suffit pas : `'' IS NOT NULL` est **vrai** en SQL, donc un
+     * `UPDATE bar SET name = ''` produirait un bar sans nom — rendu en toutes lettres sur
+     * la carte du hub et sur `/agenda`. Zod ne protège rien ici : il n'est appelé ni par
+     * un `UPDATE` direct, ni par une restauration de sauvegarde, ni par une migration.
+     *
+     * ⚠️ LES BORNES VIENNENT DE `lib/schemas/event.ts`, PAS DE LITTÉRAUX RECOPIÉS — la
+     * base et Zod expriment ici la MÊME règle en deux langages, et les faire diverger
+     * remonterait au bénévole une erreur brute du driver là où Zod avait un message.
+     * 🔴 `sql.raw()` EST OBLIGATOIRE POUR CES NOMBRES : dans un gabarit `sql``, une valeur
+     * interpolée devient un PARAMÈTRE LIÉ, et la contrainte sortirait dans le `.sql` sous
+     * la forme `length(...) <= $1` — un DDL versionné **invalide**, puisque personne n'est
+     * là pour lier `$1`. Défaut mesuré à la génération en Story 4.3 ; ni le typecheck ni
+     * le build ne le voient, le seul témoin est le SQL généré.
+     */
+    check(
+      "bar_name_valide",
+      sql`length(btrim(${table.name})) > 0 and length(${table.name}) <= ${sql.raw(String(BAR_NOM_MAX))}`,
+    ),
+    check(
+      "bar_address_valide",
+      sql`length(btrim(${table.address})) > 0 and length(${table.address}) <= ${sql.raw(String(BAR_ADRESSE_MAX))}`,
+    ),
+    check(
+      "bar_district_valide",
+      sql`length(btrim(${table.district})) > 0 and length(${table.district}) <= ${sql.raw(String(BAR_QUARTIER_MAX))}`,
+    ),
+    check(
+      "bar_city_valide",
+      sql`length(btrim(${table.city})) > 0 and length(${table.city}) <= ${sql.raw(String(BAR_VILLE_MAX))}`,
+    ),
+  ],
+);
 
 /**
  * Jeudi récurrent ou temps fort.
@@ -130,9 +186,93 @@ export const event = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    /**
+     * 🔴 CORRIGÉE LE 2026-08-03 (Story 6.3) — ELLE NE TENAIT PAS, ET C'EST MESURÉ.
+     *
+     * Version d'origine (Story 3.1) :
+     *   `bar_id is not null or length(btrim(venue_name)) > 0`
+     *
+     * Avec `bar_id` ET `venue_name` tous deux `NULL` — c'est-à-dire le cas EXACT que cette
+     * contrainte existe pour interdire — elle s'évaluait à :
+     *   `FALSE  OR  NULL`  →  **NULL**
+     * et **un `CHECK` qui vaut `NULL` PASSE** (logique ternaire SQL : il n'échoue que sur
+     * `FALSE`). Mesuré le 2026-08-03 par la porte `gate:agenda` :
+     *   `INSERT INTO event (title, starts_at) VALUES ('…', now())`  →  **accepté**.
+     *
+     * ⚠️ Ce que ça voulait dire concrètement : depuis la Story 3.1, la garde décrite
+     * ci-dessous comme empêchant « le rendu public d'afficher un événement dont on ne sait
+     * pas dire où il est » ne l'empêchait PAS. Zod l'attrapait (`.refine()`), donc aucune
+     * saisie ne pouvait produire ce cas — mais Zod est justement ce que la doctrine de ce
+     * fichier dit de NE PAS considérer comme le garde-fou : un `UPDATE` direct, une
+     * restauration de sauvegarde ou une migration de données passaient au travers.
+     * `coalesce(…, 0)` referme le trou : `FALSE OR FALSE` → `FALSE` → refus.
+     *
+     * 🔴 LEÇON TRANSPOSABLE À TOUTE CONTRAINTE FUTURE : dès qu'un `CHECK` combine DEUX
+     * colonnes NULLABLES, il faut le rendre explicitement null-safe. Les autres contraintes
+     * du fichier n'ont pas ce défaut, et pour deux raisons distinctes — soit leur colonne
+     * est `notNull` (`title`, `alt`, `name`…), soit elles portent une branche `is null`
+     * explicite (`partner_logo_not_blank`, `photo_caption_valide`). Vérifié une par une.
+     *
+     * Le rendu, lui, traite déjà les deux branches sans rien supposer (`cleanText`, ligne
+     * masquée quand aucun lieu n'est nommable) : c'est ce qui a fait que ce défaut n'a
+     * jamais rien cassé à l'écran, et donc que rien ne l'a signalé pendant trois epics.
+     */
     check(
       "event_has_venue",
-      sql`${table.barId} is not null or length(btrim(${table.venueName})) > 0`,
+      sql`${table.barId} is not null or coalesce(length(btrim(${table.venueName})), 0) > 0`,
+    ),
+    /**
+     * 🔴 GARDES DE TEXTE — POSÉES PAR LA STORY 6.3, avec l'écran qui écrit cette table.
+     *
+     * Jusqu'au 2026-08-03 `event` ne portait QUE `event_has_venue` : le lieu était le seul
+     * champ dont l'absence était impensable, parce qu'il était le seul dont l'absence
+     * cassait le rendu. Les autres n'avaient pas de saisie humaine — ils l'ont maintenant.
+     *
+     * Même partage que partout ailleurs dans ce fichier : **la base est le garde-fou qu'on
+     * ne peut pas contourner** (`UPDATE` direct, restauration, migration de données),
+     * **Zod est celui qui parle au bénévole** (`lib/schemas/event.ts`, d'où viennent ces
+     * bornes — jamais recopiées ici, voir le bloc de `bar` pour le pourquoi du `sql.raw()`).
+     *
+     * ⚠️ `event_venue_name_valide` NE FAIT PAS DOUBLON avec `event_has_venue` : celle-ci
+     * autorise un `venue_name` **absent** quand un `bar_id` est présent, mais rien
+     * n'empêchait alors d'y mettre `'   '`. Les deux contraintes ferment des portes
+     * différentes.
+     * ⚠️ `btrim` ne retire que les blancs ASCII : le caractère de largeur nulle est traité
+     * côté Zod, au point de saisie, avec un message humain. Partage assumé, identique à
+     * celui de `partner`.
+     *
+     * 🔴 CETTE PHRASE ÉTAIT FAUSSE JUSQU'AU 2026-08-03, ET C'EST LA REVUE QUI L'A DIT.
+     * `partner.ts` et `photo.ts` consommaient bien `visiblementVide`, mais **`event.ts` ne
+     * l'a jamais fait** : un `venue_name` composé uniquement de caractères invisibles
+     * passait le `.refine()` de Zod **et** ce `CHECK` (`btrim` ne les retire pas), donc un
+     * événement sans bar et sans lieu lisible était créable et publiable. Le commentaire
+     * décrivait une garde qui n'existait pas — exactement ce que
+     * `pieges/avertissement-commentaire.md` recense. `event.ts` porte désormais la garde,
+     * et la phrase ci-dessus est vraie.
+     */
+    check(
+      "event_title_valide",
+      sql`length(btrim(${table.title})) > 0 and length(${table.title}) <= ${sql.raw(String(TITRE_MAX))}`,
+    ),
+    check(
+      "event_games_valide",
+      sql`${table.games} is null or (length(btrim(${table.games})) > 0 and length(${table.games}) <= ${sql.raw(String(JEUX_MAX))})`,
+    ),
+    check(
+      "event_description_valide",
+      sql`${table.description} is null or (length(btrim(${table.description})) > 0 and length(${table.description}) <= ${sql.raw(String(DESCRIPTION_MAX))})`,
+    ),
+    check(
+      "event_recap_valide",
+      sql`${table.recap} is null or (length(btrim(${table.recap})) > 0 and length(${table.recap}) <= ${sql.raw(String(RECAP_MAX))})`,
+    ),
+    check(
+      "event_venue_name_valide",
+      sql`${table.venueName} is null or (length(btrim(${table.venueName})) > 0 and length(${table.venueName}) <= ${sql.raw(String(LIEU_NOM_MAX))})`,
+    ),
+    check(
+      "event_venue_address_valide",
+      sql`${table.venueAddress} is null or (length(btrim(${table.venueAddress})) > 0 and length(${table.venueAddress}) <= ${sql.raw(String(LIEU_ADRESSE_MAX))})`,
     ),
     // Sert la requête « prochaine date à venir » de la 3.2 et les listes de la 3.3 :
     // toutes filtrent sur `is_published` puis ordonnent par `starts_at`.

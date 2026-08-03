@@ -17,6 +17,8 @@
  */
 import { z } from "zod";
 
+import { visiblementVide } from "./texte";
+
 /**
  * Valeurs de l'enum `event_type`, **définies ici une seule fois**.
  *
@@ -29,11 +31,81 @@ export const EVENT_TYPES = ["thursday", "special"] as const;
 
 const trimmedText = z.string().trim();
 
-/** Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`. */
-const optionalText = trimmedText
-  .transform((value) => (value.length === 0 ? null : value))
-  .nullable()
-  .default(null);
+/**
+ * 🔴 UN TEXTE FAIT DE CARACTÈRES INVISIBLES N'EST PAS UN TEXTE — AJOUTÉ APRÈS LA REVUE
+ * DE LA STORY 6.3, ET C'ÉTAIT UN TROU RÉEL.
+ *
+ * `partner.ts` (4.1) et `photo.ts` (4.3) consomment `visiblementVide` depuis
+ * `lib/schemas/texte.ts` ; **`event.ts` ne l'a jamais fait**, alors que le commentaire de
+ * `event_venue_name_valide` dans `schema.ts` AFFIRMAIT que le cas était « traité côté Zod,
+ * au point de saisie, identique à celui de `partner` ». Il ne l'était pas. Mesuré :
+ *   `"".trim().length === 3`  ⇒  un titre de trois caractères
+ *   invisibles passait `.min(3)`, et un `venueName` invisible n'était **pas** ramené à `null`.
+ *
+ * ⚠️ Les caractères sont écrits en ÉCHAPPEMENT ci-dessus, jamais en littéral — les coller
+ * dans un commentaire rend celui-ci impossible à relire, et `no-irregular-whitespace` les
+ * refuse. (Payé à l'écriture de ce bloc, exactement le piège qu'il décrit.)
+ *
+ * Conséquence la plus grave, et c'est l'invariant central du modèle : `.refine()` voyait un
+ * `venueName` « renseigné », et `btrim()` côté base ne retire que l'espace ASCII — donc un
+ * événement **sans bar et sans lieu lisible** était créable ET publiable. C'est exactement
+ * ce que `event_has_venue` existe pour interdire (NFR8).
+ *
+ * ⚠️ La valeur n'est jamais NETTOYÉE, seulement jugée vide ou non : ZWJ et ZWNJ portent du
+ * sens dans plusieurs écritures et dans les séquences d'emoji (voir `texte.ts`).
+ */
+const texteVisible = (message: string) =>
+  trimmedText.refine((value) => !visiblementVide(value), message);
+
+/**
+ * 🔴 BORNES DE SAISIE — dette **R26**, soldée par la Story 6.3.
+ *
+ * Elles vivent ici, en un seul endroit, parce que **la base les redouble** (`CHECK` de
+ * `schema.ts`) et que les deux valeurs doivent rester égales : les faire diverger
+ * remonterait au bénévole une erreur brute du driver là où Zod avait un message.
+ *
+ * 🔴 ET ELLES SONT PLUS STRICTES QUE LES BORNES DE RENDU, PAS L'INVERSE. C'était le
+ * défaut mesuré au cadrage de la 6.3 : `title` était borné à **120** ici alors que
+ * `/agenda` tronque à **80** à l'affichage — un titre de 100 caractères passait la
+ * validation puis se faisait couper, sans que personne ne le sache. Depuis, `TITRE_MAX`
+ * et `RECAP_MAX` valent exactement les bornes de troncature de
+ * `app/(public)/agenda/page.tsx` (`PAST_TITLE_MAX`, `RECAP_MAX`).
+ *
+ * ⚠️ Conséquence voulue : `truncate()` au rendu ne se déclenche **plus jamais** sur de la
+ * donnée saisie. Il reste en place comme **filet** contre une écriture SQL directe, une
+ * restauration de sauvegarde ou une migration de données — jamais retiré.
+ * ⚠️ Si l'une de ces valeurs change, changer AUSSI le `CHECK` correspondant **et** la
+ * borne de troncature du rendu. Les trois expriment la même règle.
+ */
+export const TITRE_MAX = 80;
+export const RECAP_MAX = 240;
+export const DESCRIPTION_MAX = 600;
+export const JEUX_MAX = 120;
+export const LIEU_NOM_MAX = 120;
+export const LIEU_ADRESSE_MAX = 200;
+export const BAR_NOM_MAX = 120;
+export const BAR_ADRESSE_MAX = 200;
+export const BAR_QUARTIER_MAX = 120;
+export const BAR_VILLE_MAX = 80;
+
+/**
+ * Champ optionnel BORNÉ : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`.
+ *
+ * ⚠️ Le `.max()` s'applique AVANT la transformation en `null` : le message porte donc sur
+ * ce que la personne a réellement tapé, et non sur une valeur déjà normalisée.
+ * ⚠️ Le message dit le NOMBRE et le CHAMP — « Trop long » n'aide personne à corriger.
+ */
+function texteOptionnel(max: number, libelle: string) {
+  return trimmedText
+    .max(max, `${libelle} ne doit pas dépasser ${max} caractères.`)
+    // ⚠️ `visiblementVide` est traité comme VIDE, pas comme une erreur : un champ facultatif
+    // rempli par un copier-coller qui n'a laissé que des caractères invisibles doit se
+    // comporter comme un champ qu'on n'a pas rempli. C'est ce qui permet au `.refine()` du
+    // lieu de dire « indiquez un bar ou un lieu » plutôt que « caractères invisibles ».
+    .transform((value) => (value.length === 0 || visiblementVide(value) ? null : value))
+    .nullable()
+    .default(null);
+}
 
 /**
  * Identifiant optionnel. La chaîne vide est traitée comme « non renseigné » **avant** la
@@ -101,16 +173,18 @@ const startsAtSchema = z
 export const eventInputSchema = z
   .object({
     type: z.enum(EVENT_TYPES).default("thursday"),
-    title: trimmedText.min(3, "Le titre doit faire au moins 3 caractères.").max(120),
+    title: texteVisible("Le titre doit contenir des caractères visibles.")
+      .min(3, "Le titre doit faire au moins 3 caractères.")
+      .max(TITRE_MAX, `Le titre ne doit pas dépasser ${TITRE_MAX} caractères.`),
     /** Référence à un bar du roulement. `null` pour un temps fort hors bar. */
     barId: optionalUuid,
     /** Lieu libre, quand l'événement ne se tient pas dans un bar du roulement. */
-    venueName: optionalText,
-    venueAddress: optionalText,
+    venueName: texteOptionnel(LIEU_NOM_MAX, "Le nom du lieu"),
+    venueAddress: texteOptionnel(LIEU_ADRESSE_MAX, "L'adresse du lieu"),
     startsAt: startsAtSchema,
-    games: optionalText,
-    description: optionalText,
-    recap: optionalText,
+    games: texteOptionnel(JEUX_MAX, "La liste des jeux"),
+    description: texteOptionnel(DESCRIPTION_MAX, "La description"),
+    recap: texteOptionnel(RECAP_MAX, "Le compte-rendu"),
     isPublished: z.boolean().default(false),
   })
   .refine((value) => value.barId !== null || value.venueName !== null, {
@@ -123,10 +197,19 @@ export const eventInputSchema = z
 export type EventInput = z.infer<typeof eventInputSchema>;
 
 export const barInputSchema = z.object({
-  name: trimmedText.min(2, "Le nom doit faire au moins 2 caractères.").max(120),
-  address: trimmedText.min(5, "Adresse trop courte."),
-  district: trimmedText.min(2, "Quartier requis."),
-  city: trimmedText.min(2).default("Reims"),
+  name: texteVisible("Le nom doit contenir des caractères visibles.")
+    .min(2, "Le nom doit faire au moins 2 caractères.")
+    .max(BAR_NOM_MAX, `Le nom ne doit pas dépasser ${BAR_NOM_MAX} caractères.`),
+  address: texteVisible("L'adresse doit contenir des caractères visibles.")
+    .min(5, "Adresse trop courte.")
+    .max(BAR_ADRESSE_MAX, `L'adresse ne doit pas dépasser ${BAR_ADRESSE_MAX} caractères.`),
+  district: texteVisible("Le quartier doit contenir des caractères visibles.")
+    .min(2, "Quartier requis.")
+    .max(BAR_QUARTIER_MAX, `Le quartier ne doit pas dépasser ${BAR_QUARTIER_MAX} caractères.`),
+  city: texteVisible("La ville doit contenir des caractères visibles.")
+    .min(2, "Ville requise.")
+    .max(BAR_VILLE_MAX, `La ville ne doit pas dépasser ${BAR_VILLE_MAX} caractères.`)
+    .default("Reims"),
 });
 
 export type BarInput = z.infer<typeof barInputSchema>;

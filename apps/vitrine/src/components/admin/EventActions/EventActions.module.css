@@ -1,0 +1,61 @@
+/* Actions d'une ligne d'agenda (Story 6.3). Tokens uniquement.
+
+   🔴 La bascule de publication est PLEINE quand l'événement est publié et CREUSE sinon :
+   l'état se lit sans lire le libellé. C'est le seul endroit du back-office où un état
+   binaire doit se voir d'un coup d'œil sur une liste. */
+
+.bloc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.bascule,
+.basculePubliee {
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.bascule {
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: var(--gold);
+}
+
+.bascule:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.basculePubliee {
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.basculePubliee:hover {
+  background: transparent;
+  color: var(--gold);
+}
+
+.erreur {
+  flex-basis: 100%;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bascule,
+  .basculePubliee {
+    transition: none;
+  }
+}

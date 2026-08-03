@@ -62,6 +62,7 @@ pnpm --filter vitrine gate:images        # toutes les images servies répondent 
 pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ écrit en base, et nettoie
 pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
 pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
+pnpm --filter vitrine gate:agenda        # surface de saisie « agenda » (6.3) — ⚠️ écrit en base, en transaction ANNULÉE
 ```
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
@@ -109,6 +110,7 @@ non testé promu au rang d'autorité**. Celui-ci a été **faux trois fois** ava
 pnpm --filter vitrine gate:selftest                     # ⇐ les 3 détecteurs voient-ils encore un défaut ?
 LINKS_DEBRANCHER_PIEGE=1 pnpm --filter vitrine gate:links   # ⇐ contre-épreuve de la porte des liens
 ADMIN_AUTOTEST=1 pnpm --filter vitrine gate:admin           # ⇐ contre-épreuve de la porte du back-office
+AGENDA_AUTOTEST=1 pnpm --filter vitrine gate:agenda         # ⇐ contre-épreuve de la porte de saisie
 ```
 
 🔴 **Le compte est passé à HUIT au moment de la Story 5.5** (« faux trois fois » ci-dessus
@@ -203,3 +205,55 @@ garde de page, puis constater que la porte voit la fuite.
 aller-retour Discord avec un humain devant l'écran de consentement) et l'**apparence** du
 shell (gate visuel de Brice — la passe 1 ne s'outille pas). Une porte verte ne veut donc pas
 dire « tout est couvert ».
+
+---
+
+## `gate:agenda` — la surface de saisie « agenda » (Story 6.3)
+
+**Douzième instrument**, et le premier qui garde une surface d'**écriture**. Deux moitiés,
+parce que les deux risques ne se mesurent pas au même endroit :
+
+| Moitié | Ce qu'elle interroge | Comment |
+|---|---|---|
+| **A** | ce que le serveur **sert à un inconnu** | HTTP nu, **sans aucun cookie** — 6 routes d'agenda, aucun marqueur d'administration dans le corps, et **aucun événement non publié** dans le HTML des 5 pages publiques |
+| **B** | ce que la **base refuse** et ce que les **contrats** garantissent | écritures qui doivent **ÉCHOUER** contre le Postgres de dev, plus `eventInputSchema` et `date-paris.ts` exercés directement |
+
+🔴 **Écrite en TypeScript et exécutée par `tsx`, contrairement aux onze autres.** Ce n'est
+pas une coquetterie : la moitié B doit exercer **les vrais modules**. Une porte qui
+réimplémenterait leurs règles en JS validerait sa propre copie et resterait verte le jour
+où le produit divergerait — c'est exactement `pieges/garde-nominale.md`.
+
+🔴 **Elle procède par `INSERT`, jamais par `UPDATE`.** Un `UPDATE` sur une table vide
+affecte zéro ligne, ne déclenche aucun `CHECK`, et rendrait un **vert qui ne mesure rien**.
+Chaque écriture vit dans une transaction **`ROLLBACK`** : rien n'est laissé derrière.
+
+### Ce qu'elle a trouvé, et que rien d'autre n'a vu
+
+🔴 **`event_has_venue` NE TENAIT PAS DEPUIS LA STORY 3.1.** Écrite
+`bar_id is not null or length(btrim(venue_name)) > 0`, elle s'évaluait à `FALSE OR NULL`
+→ **`NULL`** quand les deux colonnes étaient nulles — c'est-à-dire dans le cas **exact**
+qu'elle existait pour interdire. Or **un `CHECK` qui vaut `NULL` PASSE** (logique ternaire
+SQL : il n'échoue que sur `FALSE`). Mesuré :
+`INSERT INTO event (title, starts_at) VALUES ('…', now())` était **accepté**.
+
+Trois epics, sept portes vertes, et personne ne l'a vu — parce que Zod l'attrapait au
+point de saisie et que le rendu masque proprement une ligne sans lieu. C'est précisément
+ce que la doctrine de `schema.ts` dit de ne **pas** supposer : un `UPDATE` direct, une
+restauration de sauvegarde ou une migration de données ne passent par aucun Zod.
+Corrigé par `coalesce(…, 0)` (migration `0007`) et **re-mesuré**.
+
+⇒ **Réflexe transposable : tout `CHECK` qui combine deux colonnes NULLABLES doit être rendu
+explicitement null-safe.** Les autres contraintes du schéma ont été vérifiées une par une —
+elles n'ont pas ce défaut, soit parce que leur colonne est `notNull`, soit parce qu'elles
+portent une branche `is null` explicite.
+
+### Contre-épreuve
+
+`AGENDA_AUTOTEST=1` présente **à chaque garde** un cas qu'elle doit voir : une route
+ouverte donnée pour protégée, une écriture valide donnée pour devant échouer, un
+aller-retour de date comparé à une valeur fausse, une heure pathologique donnée pour
+normale. Si la porte reste verte, elle ne mesure rien.
+
+⚠️ **Quatre exemptions, imprimées à chaque exécution** — dont la plus importante : le rendu
+**« déjà passé »** n'est pas prévisualisé (dette **R34** → Story 6.4). Une porte verte ne
+veut donc pas dire « tout est couvert ».

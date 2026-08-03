@@ -34,7 +34,12 @@ export type SectionAdmin = {
 };
 
 export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
-  // Story 6.3  → { href: "/admin/agenda",        libelle: "Agenda",        description: "…" }
+  {
+    href: "/admin/agenda",
+    libelle: "Agenda",
+    description:
+      "Les jeudis, les temps forts et les bars du roulement. Voir le rendu avant de publier.",
+  },
   // Story 6.4  → { href: "/admin/galerie",       libelle: "Galerie",       description: "…" }
   // Story 6.5  → { href: "/admin/partenaires",   libelle: "Partenaires",   description: "…" }
   // Story 6.9  → { href: "/admin/ateliers",      libelle: "Ateliers",      description: "…" }
