@@ -1,8 +1,18 @@
-/* Actions d'une ligne d'agenda (Story 6.3). Tokens uniquement.
+/* Vocabulaire des ACTIONS D'UNE LIGNE de liste du back-office. Tokens uniquement.
 
-   🔴 La bascule de publication est PLEINE quand l'événement est publié et CREUSE sinon :
+   🔴 NÉ `EventActions.module.css` EN STORY 6.3, EXTRAIT EN 6.4 SUR UN COMPTE : `PhotoActions`
+   repayait **4 règles sur 4** à l'identique (`.bloc`, la bascule et son état publié,
+   `.erreur`, la neutralisation de transition sous `prefers-reduced-motion`). Un fichier dont
+   la totalité du contenu sert deux composants n'appartient plus à l'un des deux.
+   ⚠️ Le retrofit d'`EventActions` est dans le MÊME commit — une extraction qui laisse la
+   copie d'origine en place n'en est pas une (leçon 2.7).
+
+   🔴 La bascule de publication est PLEINE quand la ligne est publiée et CREUSE sinon :
    l'état se lit sans lire le libellé. C'est le seul endroit du back-office où un état
-   binaire doit se voir d'un coup d'œil sur une liste. */
+   binaire doit se voir d'un coup d'œil sur une liste.
+
+   ⚠️ Ce qui est propre à un écran reste chez lui : les commandes d'ORDRE de la galerie
+   (`.rang`, `.deplacer`) vivent dans `PhotoActions.module.css`, l'agenda n'en a pas. */
 
 .bloc {
   display: flex;

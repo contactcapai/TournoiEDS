@@ -1,0 +1,85 @@
+/* Ce qui est PROPRE aux écrans de GALERIE (Story 6.4) : la vignette d'une ligne et le
+   marquage des photos qui entrent dans les 8 de l'accueil.
+   Le vocabulaire de page (titre, chapô, liste, ligne, état, vide) vient de
+   `styles/admin-page.module.css`, extrait au 2ᵉ consommateur dans cette même story.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5). */
+
+/* La vignette de la ligne. Largeur FIXE et `aspect-ratio` : la place est réservée avant que
+   l'image n'arrive, donc la liste ne saute pas au chargement (même raison que le cadre
+   `PhotoFrame` du rendu public — NFR2, zéro CLS). */
+.vignette {
+  position: relative;
+  flex: 0 0 auto;
+  width: 120px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  background: var(--navy-deep);
+}
+
+.vignetteImage {
+  object-fit: cover;
+}
+
+/* Le nom de fichier généré par le serveur. Petit et en gris : il n'a d'intérêt que pour
+   identifier un fichier au moment de le supprimer — jamais pour être lu. */
+.fichier {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--grey);
+  font-variant-numeric: tabular-nums;
+  /* Un UUID ne contient pas d'espace : sans ça, il déborde la colonne et
+     `overflow-x: clip` le rogne EN SILENCE (dette R14, et `gate` ne couvre pas /admin). */
+  overflow-wrap: anywhere;
+}
+
+/* ───────── « Entre dans les 8 de l'accueil » ─────────
+   🔴 CE MARQUEUR EST LE LIVRABLE DE L'AC6, PAS UNE DÉCORATION. La home ne montre que les
+   8 PREMIÈRES photos publiées : l'ordre n'est donc pas un tri décoratif, c'est un FILTRE
+   qui décide de ce qui est visible sur la page la plus vue du site. Sans témoin, réordonner
+   ressemble à un rangement sans conséquence. */
+.accueil {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--cream);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* Mention de contexte : ce qu'un écran montre ou ne montre pas. Même registre que la
+   `.mention` de l'aperçu d'agenda — dire une borne coûte une phrase, la taire coûte un
+   ticket. */
+.mention {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* Le plateau de prévisualisation : fond `--navy-deep`, celui du `body` sur lequel la
+   galerie de l'accueil est réellement posée.
+   ⚠️ Ce n'est PAS décoratif — le contraste d'un texte dépend de son fond EFFECTIF, et
+   prévisualiser sur un autre fond montrerait un rendu qui n'existe nulle part (leçon 4.2,
+   reprise de l'aperçu d'agenda). Si le fond de la section publique change, changer celui-ci. */
+.plateau {
+  margin-top: 18px;
+  border: 1px dashed rgba(218, 178, 101, 0.35); /* --gold à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--navy-deep);
+}
+
+@media (max-width: 880px) {
+  .vignette {
+    width: 96px;
+  }
+}

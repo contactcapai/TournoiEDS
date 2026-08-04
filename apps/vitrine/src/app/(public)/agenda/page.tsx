@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import { Brush, Button, PhotoFrame, Tag } from "@repo/ui";
+import { Brush, Button } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
-import carousel from "@/components/agenda/PastCarousel/PastCarousel.module.css";
+import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
-import { cleanText, truncate } from "@/lib/text";
-import { getPastEvents, getUpcomingEvents, type AgendaEvent } from "@/server/db/queries/events";
-import { getPhotosForEvents, type GalleryPhoto } from "@/server/db/queries/photos";
+import { getPastEvents, getUpcomingEvents } from "@/server/db/queries/events";
+import { getPhotosForEvents } from "@/server/db/queries/photos";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
@@ -93,22 +90,8 @@ export const dynamic = "force-dynamic";
 const UPCOMING_LIMIT = 50;
 const PAST_LIMIT = 4;
 
-/**
- * 🔴 BORNES DE LONGUEUR DES VIGNETTES — elles servent la HAUTEUR, pas l'esthétique.
- *
- * Les vignettes du carrousel s'étirent à la hauteur de la plus haute. Sans borne, **un
- * seul** compte-rendu bavard imposerait sa hauteur aux quatre et laisserait les trois
- * autres aux trois quarts vides — et le bloc changerait de taille à chaque défilement.
- *
- * 240 caractères ≈ 4 lignes à la largeur de lecture retenue (62ch). Les comptes-rendus
- * semés font 150 à 180 caractères : la troncature ne se déclenche donc PAS sur les
- * données actuelles — elle est éprouvée par injection, jamais par le seed (leçon de la
- * garde de longueur, déjà payée dans cette story).
- * 80 caractères pour le titre : deux lignes au plus, il ne doit pas concurrencer le
- * compte-rendu.
- */
-const RECAP_MAX = 240;
-const PAST_TITLE_MAX = 80;
+/* ⚠️ `RECAP_MAX` et `PAST_TITLE_MAX` ONT SUIVI `PastEvent` dans son composant (Story 6.4,
+   dette R34) : ce sont ses bornes de rendu, elles n'ont jamais concerné cette page. */
 
 /** Lien Discord — même traitement que le footer, le menu mobile et le hub. */
 function DiscordLink({ className, classNameActif }: { className?: string; classNameActif?: string }) {
@@ -138,85 +121,6 @@ function DiscordLink({ className, classNameActif }: { className?: string; classN
       Discord
       {external ? <span className="sr-only">{NEW_TAB_SR}</span> : null}
     </a>
-  );
-}
-
-/**
- * Bloc d'un événement déjà passé (FR5).
- *
- * Vit ICI et non dans `components/agenda/` : un seul consommateur, donc pas
- * d'extraction — même règle que celle qui a fait attendre la carte et la liste
- * jusqu'à leur 2ᵉ surface. Précédent direct : les pages 2.6 et 2.7 composent leurs
- * blocs dans leur propre fichier.
- */
-function PastEvent({ event, photo }: { event: AgendaEvent; photo?: GalleryPhoto }) {
-  const recap = truncate(event.recap, RECAP_MAX);
-  const titre = truncate(event.title, PAST_TITLE_MAX);
-  const place = event.bar
-    ? `${event.bar.name} — ${event.bar.district}, ${event.bar.city}`
-    : (cleanText(event.venueName) ?? cleanText(event.venueAddress));
-  const isHighlight = event.type === "special";
-
-  return (
-    // `carousel.vignette` porte la largeur fixe et l'accrochage (`scroll-snap-align`) :
-    // ce sont des propriétés de la PISTE, pas du contenu. `styles.past` habille le bloc
-    // lui-même. Deux fichiers, deux responsabilités — et aucune des deux classes ne
-    // redéclare ce que l'autre pose.
-    <li className={`${carousel.vignette} ${styles.past}`}>
-      <div className={styles.pastBody}>
-        <p className={styles.pastDate}>
-          {formatLongDate(event.startsAt)} · {formatTime(event.startsAt)}
-        </p>
-        {/* <h3> : sous le <h2> de la section, lui-même sous le <h1> de la page. */}
-        <h3 className={styles.pastTitle}>{titre}</h3>
-        {place ? <p className={styles.pastPlace}>{place}</p> : null}
-        {/* Un passé SANS compte-rendu reste affiché — il prouve l'activité — mais
-            sans bloc vide (NFR8). C'est le cas de tous les événements tant que
-            l'équipe n'a pas de back-office pour les écrire (Story 6.3). */}
-        {recap ? <p className={styles.pastRecap}>{recap}</p> : null}
-        <div className={styles.pastTag}>
-          <Tag variant={isHighlight ? "highlight" : "default"}>
-            {isHighlight ? "Temps fort" : "Hebdo"}
-          </Tag>
-        </div>
-      </div>
-
-      {/* ✅ EMPLACEMENT DE GALERIE — LES VRAIES PHOTOS SONT BRANCHÉES (Story 4.3,
-          dette R25 soldée). `photo` vaut `undefined` quand l'événement n'a aucune photo
-          publiée : on retombe alors sur le placeholder que `PhotoFrame` rend DÉJÀ sans
-          enfant (cadre « tirage » + icône + « Photo à venir »).
-          🔴 C'EST LE CAS MAJORITAIRE AUJOURD'HUI — une seule photo est en base, donc
-          une vignette sur quatre porte une image et trois montrent le placeholder. Ce
-          n'est pas un état dégradé à corriger : c'est ce que le gate visuel doit voir.
-          Le zéro CLS (NFR2) est inchangé et vient du même endroit qu'avant :
-          l'`aspect-ratio: 4/3` du cadre réserve la place dans les deux cas. */}
-      <div className={styles.pastMedia}>
-        {/* 🔴 LA LÉGENDE N'EST PAS LE TITRE DE L'ÉVÉNEMENT, et c'est un correctif
-            mesuré : la porte outillée a fait déborder `/agenda` de 33px à 320px quand
-            un titre long y a été injecté (le `figcaption` de PhotoFrame est rendu en
-            Caveat et ne se coupe pas). Deux raisons de ne pas s'en tenir à un
-            garde-fou CSS :
-              - EXPERIENCE.md (É7) demande une « légende du CONTEXTE » — ses exemples
-                sont « Game in Reims », « Soirée jeudi » —, pas le titre complet ;
-              - une légende manuscrite longue est illisible par nature.
-            Le libellé est donc BORNÉ PAR CONSTRUCTION : deux valeurs possibles, jamais
-            de la donnée libre. */}
-        <PhotoFrame rotation={-2} caption={isHighlight ? "Temps fort" : "Soirée jeudi"}>
-          {photo ? (
-            /* `sizes` tient compte du RECADRAGE `cover` du cadre, comme dans le
-               scrapbook : la vignette du carrousel fait au plus 100 % de sa piste, et
-               une source plus large que 4/3 doit fournir davantage de pixels que la
-               largeur affichée. Le raisonnement complet est dans `Scrapbook.tsx`.
-               ⚠️ `alt=""` : la légende du cadre et le titre de l'événement décrivent
-               déjà le bloc, et l'image y est ILLUSTRATIVE. Un `alt` répétant le
-               contexte ferait dire deux fois la même chose au lecteur d'écran. La
-               description complète de la photo, elle, est portée par la galerie de la
-               home, où l'image EST le contenu. */
-            <Image src={`/medias/${photo.filename}`} alt="" fill sizes="398px" loading="lazy" />
-          ) : null}
-        </PhotoFrame>
-      </div>
-    </li>
   );
 }
 

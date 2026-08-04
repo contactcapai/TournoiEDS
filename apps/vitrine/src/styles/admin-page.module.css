@@ -1,6 +1,21 @@
-/* Vocabulaire des écrans d'agenda du back-office (Story 6.3).
-   Partagé par la liste et la page des bars — deux consommateurs, donc extrait (R9 :
-   « toujours COMPTER »). Tokens uniquement, aucun hex de charte en dur. */
+/* Vocabulaire de PAGE du back-office — titre, chapô, barre d'actions, liste, ligne, état.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5).
+
+   🔴 NÉ `agenda.module.css` EN STORY 6.3, DEVENU `admin-page.module.css` EN 6.4 — ET LE
+   DÉPLACEMENT VIENT D'UN COMPTE, PAS D'UNE INTUITION. La leçon de R9 n'est pas « ne jamais
+   dupliquer », c'est « toujours COMPTER » : les écrans de galerie repayaient **17 règles sur
+   17** à l'identique. Un fichier dont la totalité du contenu sert deux domaines n'est pas le
+   fichier d'un domaine — c'est un vocabulaire partagé qui portait le mauvais nom.
+   Précédent direct : `editorial.module.css`, extrait en 2.10 quand `/l-asso` et `/animations`
+   en furent les deux consommateurs ; et `admin-form.module.css`, extrait en 6.3.
+
+   ⚠️ LE RETROFIT DE L'AGENDA EST DANS LE MÊME COMMIT (ses six écrans importent ce fichier).
+   Une extraction qui laisse la copie d'origine en place n'est pas une extraction : c'est une
+   copie de plus (leçon 2.7).
+
+   ⚠️ C'est un vocabulaire de MISE EN PAGE, pas un framework d'écran. Aucun comportement ici,
+   et rien de spécifique à un domaine : ce qui n'est vrai que pour la galerie vit dans
+   `galerie.module.css`, ce qui n'est vrai que pour l'agenda vit dans sa page. */
 
 .titre {
   font-family: var(--font-display);
@@ -79,9 +94,10 @@
   font-size: 18px;
   line-height: var(--lh-body);
   color: var(--light);
-  /* Une saisie est bornée à 80 caractères, mais une ligne écrite avant la borne (ou par
-     du SQL direct) ne doit pas casser la mise en page — `overflow-x: clip` la rognerait
-     EN SILENCE, et `gate` ne couvre pas /admin. */
+  /* Les saisies sont bornées (80 pour un titre d'événement, 300 pour une description de
+     photo), mais une ligne écrite avant la borne — ou par du SQL direct — ne doit pas
+     casser la mise en page : `overflow-x: clip` la rognerait EN SILENCE, et `gate` ne
+     couvre pas /admin. */
   overflow-wrap: anywhere;
 }
 

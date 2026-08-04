@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
 import { definirPublicationEvenement, supprimerEvenement } from "@/server/actions/agenda";
-import styles from "./EventActions.module.css";
+import styles from "@/styles/admin-actions.module.css";
 
 /**
  * Actions d'une ligne de la liste d'agenda : publier / dépublier, et supprimer (Story 6.3).

@@ -47,7 +47,51 @@ const nextConfig: NextConfig = {
       { pathname: "/logo-eds-blanc.png", search: "" },
       // Photos de la galerie, servies par `app/medias/[filename]/route.ts`.
       { pathname: "/medias/**", search: "" },
+      // 🔴 PAS D'ENTRÉE POUR `/admin/medias/**`, ET C'EST UN FAIT MESURÉ AU GATE VISUEL
+      // DE LA STORY 6.4 — la première version en posait une, et elle ne servait RIEN.
+      // Les deux `400` de l'optimiseur ne disent pas la même chose :
+      //   · chemin hors liste  → « "url" parameter is not allowed »   (le motif refuse)
+      //   · /admin/medias/…    → « The requested resource isn't a valid image. »
+      // Le motif était donc accepté ; ce qui échouait, c'est la RÉCUPÉRATION. L'optimiseur
+      // requête **depuis le serveur, sans cookie de session** : il reçoit le `307 →
+      // /admin/login` de la garde. ⇒ Une ressource protégée par une session ne peut PAS
+      // transiter par `/_next/image`, quelle que soit cette liste.
+      // ⇒ Les écrans d'administration servent donc leurs images en `unoptimized`, et cette
+      // entrée a été RETIRÉE : une autorisation que plus rien ne consomme est une « porte
+      // sans pièce », le défaut que `_sections.ts` documente pour l'avoir vu deux fois.
+      // ⚠️ Et le retrait est une GARDE, pas un ménage : il empêche qu'une variante optimisée
+      // d'un BROUILLON soit un jour écrite dans `.next/cache/images`.
+      // `gate:galerie` vérifie que ce chemin reste refusé par l'optimiseur.
     ],
+  },
+  experimental: {
+    serverActions: {
+      /**
+       * 🔴 FIXÉ EXPLICITEMENT, PARCE QUE LE DÉFAUT EST 1 Mo ET QU'IL NE PARLE PAS.
+       *
+       * Mesuré dans `node_modules/next/dist/server/app-render/action-handler.js`
+       * (l.575-590, Next 16.2.9) : `defaultBodySizeLimit = '1 MB'`, appliqué par un
+       * `Transform` posé sur le FLUX DE REQUÊTE, qui lève un `ApiError(413)` **avant que le
+       * corps de la Server Action ne s'exécute** — donc avant `requireAdmin()`, avant Zod, et
+       * avant tout message écrit par nous.
+       *
+       * ⚠️ CONSÉQUENCE CONCRÈTE SI ON LAISSE LE DÉFAUT : une photo de téléphone fait 3 à
+       * 6 Mo. Le `catch` du formulaire (patron 6.3) afficherait *« Une erreur réseau est
+       * survenue »* sur le geste NOMINAL de la Story 6.4 — un diagnostic faux, sur la seule
+       * chose que l'écran existe pour rendre possible.
+       *
+       * 🔴 12 Mo ICI, 10 Mo CÔTÉ CLIENT (`PhotoUploader`), ET L'ÉCART EST LA GARDE. Le
+       * multipart transporte plus que l'octet du fichier (frontières, en-têtes, encodage
+       * des autres champs) : sans marge, un fichier de 10,0 Mo accepté par le client
+       * repartirait en 413 côté serveur, c'est-à-dire exactement le défaut qu'on cherche à
+       * éviter. La borne serveur doit rester STRICTEMENT SUPÉRIEURE à la borne client.
+       *
+       * ⚠️ Les deux bornes sont volontairement hautes : la dette **R15** attend des
+       * originaux HAUTE DÉFINITION, et cette story conserve l'original tel quel (arbitrage
+       * Q2). Les baisser reviendrait à rendre R15 insoluble.
+       */
+      bodySizeLimit: "12mb",
+    },
   },
 };
 

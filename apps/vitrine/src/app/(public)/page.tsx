@@ -6,6 +6,7 @@ import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 import { TournamentBridge } from "@/components/home/TournamentBridge/TournamentBridge";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
+import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { getUpcomingEvents } from "@/server/db/queries/events";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
 import { getPublishedPhotos } from "@/server/db/queries/photos";
@@ -69,14 +70,15 @@ export const dynamic = "force-dynamic";
 const HOME_EVENT_COUNT = 5;
 
 /**
- * La home donne un APERÇU, pas l'exhaustivité (EXPERIENCE.md l.119) — même règle que pour
- * l'agenda ci-dessus. UX-DR13 dit « 5 à 10 photos suffisent pour démarrer » : 8 est le
- * milieu de cette fourchette et tient sur deux rangées de quatre en desktop.
- * ⚠️ Cette borne s'applique DÉJÀ alors qu'une seule photo est en base : elle existe pour
- * que la galerie ne se mette pas à grossir sans limite au fil des téléversements du
- * back-office (Story 6.4), pas pour un besoin d'aujourd'hui.
+ * ⚠️ `HOME_PHOTO_COUNT` A QUITTÉ CE FICHIER (Story 6.4) : il vit dans `lib/galerie.ts`.
+ * Il est né ici, seul consommateur, puis la 6.4 lui en a donné deux autres — l'écran de
+ * galerie du back-office, qui marque les photos entrant réellement dans les 8, et son
+ * aperçu, qui borne sa prévisualisation exactement comme cette page. Trois consommateurs, et
+ * surtout une divergence qui serait SILENCIEUSE : le back-office dirait « sur l'accueil » à
+ * propos d'une photo qui n'y serait pas.
+ * Ce que le commentaire d'origine annonçait est arrivé : la borne existe pour que la galerie
+ * ne grossisse pas sans limite au fil des téléversements du back-office.
  */
-const HOME_PHOTO_COUNT = 8;
 
 export default async function Home() {
   // 🔴 LES LECTURES VIVENT ICI ET SE DISTRIBUENT EN PROPS (AC1 de la 3.2). Le macaron

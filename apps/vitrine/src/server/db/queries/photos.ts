@@ -3,8 +3,9 @@
 // doit jamais être atteint depuis un composant client. ⚠️ `Lightbox` EST un composant
 // client — elle reçoit ses photos en props depuis la page, elle n'importe rien d'ici.
 import "server-only";
-import { inArray } from "drizzle-orm";
+import { inArray, max } from "drizzle-orm";
 import { db } from "../client";
+import { photo } from "../schema";
 
 /**
  * Lectures de la galerie (Story 4.3).
@@ -91,4 +92,84 @@ export async function getPhotosForEvents(eventIds: string[]) {
     if (!parEvenement.has(eventId)) parEvenement.set(eventId, photo);
   }
   return parEvenement;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LECTURES D'ADMINISTRATION (Story 6.4) — BROUILLONS INCLUS
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 CES TROIS LECTURES REMONTENT DES LIGNES NON PUBLIÉES. Elles ne doivent être appelées
+// que depuis une surface gardée (`lireAdmin()` en première instruction de la page,
+// `requireAdmin()` en première ligne de l'action). Le nommage `...ForAdmin` reprend celui
+// de `queries/events.ts`, posé par la 6.3, pour que la relecture d'un appel le rappelle.
+
+/**
+ * Toutes les photos, publiées ET brouillons, dans l'ordre d'affichage.
+ *
+ * ⚠️ MÊME ORDRE TOTAL QUE LA HOME (`sort_order` puis `id`) — et ce n'est pas une
+ * coquetterie : l'écran d'administration EXISTE pour décider de cet ordre. S'il en montrait
+ * un autre, réordonner serait un geste à l'aveugle.
+ *
+ * `columns` explicites, comme partout : le rendu d'admin consomme davantage de colonnes que
+ * le rendu public (l'état de publication et l'ordre sont précisément ce qu'on vient régler).
+ *
+ * @param limit borne EXPLICITE — jamais de lecture non bornée : une page dont le temps de
+ *   rendu dépend du volume téléversé est un défaut qui n'apparaîtrait qu'en production.
+ */
+export async function getPhotosForAdmin(limit: number) {
+  return db.query.photo.findMany({
+    columns: {
+      id: true,
+      filename: true,
+      alt: true,
+      caption: true,
+      eventId: true,
+      sortOrder: true,
+      isPublished: true,
+    },
+    with: {
+      // Le titre de l'événement rattaché : l'écran doit dire À QUOI la photo est rattachée,
+      // pas afficher un UUID. Une seule requête — la relation est déjà déclarée (`schema.ts`).
+      event: { columns: { id: true, title: true, startsAt: true } },
+    },
+    orderBy: (table, { asc }) => [asc(table.sortOrder), asc(table.id)],
+    limit,
+  });
+}
+
+/** Une photo telle que la voit le back-office. DÉRIVÉE de la requête, jamais réécrite. */
+export type AdminPhoto = Awaited<ReturnType<typeof getPhotosForAdmin>>[number];
+
+/** Une photo par son identifiant, brouillon compris (écran d'édition). */
+export async function getPhotoByIdForAdmin(id: string) {
+  return db.query.photo.findFirst({
+    columns: {
+      id: true,
+      filename: true,
+      alt: true,
+      caption: true,
+      eventId: true,
+      sortOrder: true,
+      isPublished: true,
+    },
+    where: (table, { eq }) => eq(table.id, id),
+  });
+}
+
+/**
+ * Le plus grand `sort_order` existant, ou `null` si la table est vide.
+ *
+ * 🔴 SANS ÇA, `sortOrder` RESTERAIT À SON DÉFAUT `0` POUR TOUTES LES PHOTOS, ET LE
+ * DÉPARTAGE SE FERAIT SUR UN **UUID ALÉATOIRE** (second terme de l'ordre total). « Organiser
+ * la galerie » (FR21) n'aurait alors aucune prise sur les 8 photos que montre la home — la
+ * borne la plus visible du site. La création calcule donc `max + 1`, explicitement.
+ *
+ * ⚠️ Ce n'est PAS une réservation atomique : deux téléversements simultanés peuvent lire le
+ * même maximum et obtenir le même rang. C'est sans conséquence — l'ordre reste TOTAL grâce
+ * au second terme, et l'écran de réordonnancement renumérote tout le monde. Un compteur en
+ * base pour un back-office à un utilisateur serait un coût sans gain.
+ */
+export async function getMaxSortOrder(): Promise<number | null> {
+  const [ligne] = await db.select({ maximum: max(photo.sortOrder) }).from(photo);
+  return ligne?.maximum ?? null;
 }

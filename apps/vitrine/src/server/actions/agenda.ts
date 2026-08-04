@@ -1,7 +1,6 @@
 "use server";
 
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 import { diagnostiquerHeureMurale, parisWallClockFromInput } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
@@ -9,6 +8,12 @@ import { requireAdmin } from "../auth/guard";
 import { countEventsBlockingBarDeletion } from "../db/queries/events";
 import { db } from "../db/client";
 import { bar, event } from "../db/schema";
+import {
+  erreursParChamp,
+  identifiant,
+  messageErreurBase as traduireErreurBase,
+  type ResultatAction,
+} from "./_commun";
 
 /**
  * Server Actions de l'agenda du back-office (Story 6.3, FR20, AR-API1, AR-DB4).
@@ -39,12 +44,13 @@ import { bar, event } from "../db/schema";
  * protègent une surface PUBLIQUE non authentifiée ; derrière `requireAdmin()` ils n'ont
  * aucun sens, et les poser « par symétrie » ferait croire à une garde là où il n'y aurait
  * qu'un décor.
+ *
+ * ⚠️ `ResultatAction`, `identifiant`, `erreursParChamp` ET LE TRADUCTEUR D'ERREURS ONT
+ * QUITTÉ CE FICHIER (Story 6.4) : la galerie les repayait à l'identique, donc deux
+ * consommateurs, donc extraction vers `_commun.ts` — et le retrofit se fait dans le MÊME
+ * commit, sinon l'extraction ajoute une copie au lieu d'en retirer une (leçon 2.7).
+ * La table `CHAMP_PAR_CONTRAINTE`, elle, RESTE ici : elle est propre à ce domaine.
  */
-
-/** Retour discriminé commun à toutes les actions d'administration (AR-API1). */
-export type ResultatAction<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
 /** Ce que l'écran reçoit après un enregistrement réussi. */
 export type EvenementEnregistre = {
@@ -76,64 +82,25 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
 };
 
 /**
- * Traduit une erreur Postgres en phrase utilisable par un bénévole.
+ * Cas dont le message ne se déduit PAS du nom d'un champ.
  *
- * 🔴 SANS CETTE TRADUCTION, LA GARDE LA PLUS SOIGNÉE DU PROJET REND
- * `violates check constraint "event_title_valide"` À QUELQU'UN QUI VEUT JUSTE ANNONCER
- * UNE SOIRÉE. Les `CHECK` sont le garde-fou qu'on ne peut pas contourner ; ils ne sont
- * pas censés parler, et Zod devrait les avoir devancés. Si l'un d'eux tire quand même,
- * c'est soit un chemin qui contourne Zod, soit une divergence entre les deux — les deux
- * méritent une trace, d'où le `console.error` de l'appelant.
+ * `event_has_venue` porte une règle qui met deux colonnes en relation : dire « la base
+ * refuse le nom du lieu » serait faux la moitié du temps (le bénévole peut aussi bien
+ * choisir un bar).
  */
+const CAS_PARTICULIERS: Record<string, string> = {
+  event_has_venue:
+    "Indiquez un bar du roulement ou le nom d'un lieu : un événement doit avoir un lieu.",
+};
+
+/** Traducteur partagé (`_commun.ts`), appliqué à la table de CE domaine. */
 function messageErreurBase(erreur: unknown): string {
-  const details = erreur as { code?: string; constraint_name?: string; constraint?: string };
-  // ⚠️ `constraint_name` d'abord, et ce n'est pas au hasard : le projet parle à Postgres par
-  // **postgres.js**, qui remplit `constraint_name` (MESURÉ le 2026-08-03 — `constraint` y est
-  // `undefined`). Le repli existe pour ne pas dépendre de ce détail si le driver changeait.
-  const contrainte = details.constraint_name ?? details.constraint ?? "";
-
-  if (details.code === "23503") {
-    return "Le bar choisi n'existe plus. Rechargez la page et choisissez-en un autre.";
-  }
-
-  if (details.code === "22P02") {
-    return "Cet identifiant n'est pas valide. Rechargez la page.";
-  }
-
-  if (details.code === "23514") {
-    if (contrainte === "event_has_venue") {
-      return "Indiquez un bar du roulement ou le nom d'un lieu : un événement doit avoir un lieu.";
-    }
-    const champ = CHAMP_PAR_CONTRAINTE[contrainte];
-    if (champ) {
-      return `La base refuse ${champ} : il est vide ou trop long. Reprenez ce champ dans le formulaire.`;
-    }
-    return "Une des valeurs saisies est refusée par la base (texte vide ou trop long). Reprenez le formulaire.";
-  }
-
-  return "Une erreur est survenue à l'enregistrement, merci de réessayer.";
-}
-
-/**
- * Identifiant attendu par une action de mise à jour ou de suppression.
- *
- * ⚠️ Les pages valident déjà l'`id` de route avant d'atteindre la base, mais une Server
- * Action n'est **pas** une page : elle est atteignable par un POST direct. Sans cette
- * garde, un identifiant malformé y lève le `22P02` brut de Postgres — derrière
- * `requireAdmin()`, donc sans risque, mais incohérent avec la doctrine du fichier.
- */
-const identifiant = z.uuid();
-
-/** Première erreur par champ, dans la forme attendue par les formulaires. */
-function erreursParChamp(
-  issues: readonly { path: PropertyKey[]; message: string }[],
-): Record<string, string> {
-  const erreurs: Record<string, string> = {};
-  for (const issue of issues) {
-    const clef = issue.path[0];
-    if (typeof clef === "string" && !(clef in erreurs)) erreurs[clef] = issue.message;
-  }
-  return erreurs;
+  const message = traduireErreurBase(erreur, CHAMP_PAR_CONTRAINTE, CAS_PARTICULIERS);
+  // ⚠️ Le message générique de `23503` parle d'« élément » (il sert deux domaines) ; ici
+  // la seule clé étrangère est le bar, et le nommer évite de faire chercher.
+  return (erreur as { code?: string }).code === "23503"
+    ? "Le bar choisi n'existe plus. Rechargez la page et choisissez-en un autre."
+    : message;
 }
 
 /**

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { EventForm } from "@/components/admin/EventForm/EventForm";
 import { lireAdmin } from "@/server/auth/guard";
 import { getBars } from "@/server/db/queries/events";
-import styles from "../agenda.module.css";
+import styles from "@/styles/admin-page.module.css";
 
 // Création d'un événement (Story 6.3).
 //
