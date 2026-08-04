@@ -47,16 +47,21 @@ const nextConfig: NextConfig = {
       { pathname: "/logo-eds-blanc.png", search: "" },
       // Photos de la galerie, servies par `app/medias/[filename]/route.ts`.
       { pathname: "/medias/**", search: "" },
-      // 🔴 AJOUTÉE PAR LA STORY 6.4 — les BROUILLONS du back-office, servis par
-      // `app/admin/medias/[filename]/route.ts` (gardée par `lireAdmin()`, en `no-store`).
-      // Sans cette entrée, les vignettes de l'écran de galerie et l'aperçu des brouillons
-      // répondraient **400** : c'est exactement la régression de la Story 4.3, qui a fait
-      // disparaître le logo EDS du header et du footer des 5 pages avec lint, typecheck,
-      // build, `gate`, `gate:lightbox` et Lighthouse TOUS VERTS. `pnpm gate:images` est le
-      // témoin, et il a été rejoué.
-      // ⚠️ Cette liste n'ouvre AUCUN accès : elle autorise l'optimiseur à traiter ce
-      // chemin, elle ne contourne pas la garde de la route (qui reste seule à décider).
-      { pathname: "/admin/medias/**", search: "" },
+      // 🔴 PAS D'ENTRÉE POUR `/admin/medias/**`, ET C'EST UN FAIT MESURÉ AU GATE VISUEL
+      // DE LA STORY 6.4 — la première version en posait une, et elle ne servait RIEN.
+      // Les deux `400` de l'optimiseur ne disent pas la même chose :
+      //   · chemin hors liste  → « "url" parameter is not allowed »   (le motif refuse)
+      //   · /admin/medias/…    → « The requested resource isn't a valid image. »
+      // Le motif était donc accepté ; ce qui échouait, c'est la RÉCUPÉRATION. L'optimiseur
+      // requête **depuis le serveur, sans cookie de session** : il reçoit le `307 →
+      // /admin/login` de la garde. ⇒ Une ressource protégée par une session ne peut PAS
+      // transiter par `/_next/image`, quelle que soit cette liste.
+      // ⇒ Les écrans d'administration servent donc leurs images en `unoptimized`, et cette
+      // entrée a été RETIRÉE : une autorisation que plus rien ne consomme est une « porte
+      // sans pièce », le défaut que `_sections.ts` documente pour l'avoir vu deux fois.
+      // ⚠️ Et le retrait est une GARDE, pas un ménage : il empêche qu'une variante optimisée
+      // d'un BROUILLON soit un jour écrite dans `.next/cache/images`.
+      // `gate:galerie` vérifie que ce chemin reste refusé par l'optimiseur.
     ],
   },
   experimental: {

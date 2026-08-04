@@ -28,8 +28,11 @@ import propre from "../galerie.module.css";
 // 🔴 ET LES IMAGES VIENNENT DE `/admin/medias`, PAS DE `/medias`. La route publique filtre
 // sur `is_published` et rend 404 sinon, volontairement : un aperçu naïf afficherait des
 // CADRES CASSÉS exactement sur les photos qu'on veut regarder avant de publier. C'est la
-// prop `prefixeMedia` de `Scrapbook`, et elle a ce seul consommateur — ce qui est
+// prop `sourceAdmin` de `Scrapbook`, et elle a ce seul consommateur — ce qui est
 // précisément pourquoi elle existe.
+// ⚠️ Elle emporte AUSSI le fait que ces images ne passent PAS par `/_next/image` : un
+// optimiseur requête depuis le serveur, sans cookie, donc ne peut pas lire une route gardée
+// (mesuré au gate visuel de la 6.4 — aucune vignette ne s'affichait).
 //
 // ⚠️ Le fond du plateau est `--navy-deep`, celui du `body` sur lequel la galerie de l'accueil
 // est réellement posée. Ce n'est pas décoratif : le contraste d'un texte dépend de son fond
@@ -145,7 +148,7 @@ export default async function ApercuGaleriePage() {
       ) : null}
 
       <div className={propre.plateau}>
-        <Gallery photos={apercu} prefixeMedia="/admin/medias" />
+        <Gallery photos={apercu} sourceAdmin />
       </div>
     </>
   );

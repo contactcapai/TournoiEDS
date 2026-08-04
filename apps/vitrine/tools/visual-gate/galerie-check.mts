@@ -135,6 +135,53 @@ for (const route of ROUTES_EPROUVEES) {
   }
 }
 
+// ── ⑭  LES MÉDIAS D'ADMIN NE TRANSITENT JAMAIS PAR L'OPTIMISEUR D'IMAGES ────────────
+//
+// 🔴 GARDE NÉE DU GATE VISUEL DE BRICE : **aucune vignette d'administration ne s'affichait**,
+// et rien d'autre ne l'avait vu — ni lint, ni typecheck, ni build, ni les 12 autres portes,
+// ni Lighthouse (qui n'audite que les 5 pages PUBLIQUES). Même famille que la régression du
+// logo EDS en 4.3 : une image cassée n'est ni un débordement, ni un défaut de contraste.
+//
+// MESURE QUI A TRANCHÉ — les deux `400` de l'optimiseur ne disent pas la même chose :
+//   · chemin hors `localPatterns` → « "url" parameter is not allowed »
+//   · /admin/medias/…             → « The requested resource isn't a valid image. »
+// Le motif était donc ACCEPTÉ ; ce qui échouait, c'est la récupération. L'optimiseur requête
+// **depuis le serveur, sans cookie de session** ⇒ il reçoit le `307` de la garde.
+//
+// ⇒ Le contrat, désormais : `/admin/medias/**` est **hors** de `localPatterns`, les écrans
+// d'admin servent en `unoptimized`, et l'optimiseur doit REFUSER ce chemin **au motif du
+// MOTIF** — c'est ce que cette garde vérifie. Elle empêche deux régressions d'un coup :
+// remettre l'entrée (qui ne marcherait pas et rendrait à nouveau des cadres cassés), et
+// laisser une variante optimisée d'un BROUILLON s'écrire dans `.next/cache/images`.
+{
+  const cible = encodeURIComponent("/admin/medias/quelconque.avif");
+  // En autotest on interroge un chemin PUBLIC, qui lui doit être autorisé : si la garde
+  // reste verte, c'est qu'elle ne lit pas vraiment le motif de refus.
+  const url = AUTOTEST
+    ? `/_next/image?url=${encodeURIComponent("/medias/quelconque.avif")}&w=256&q=75`
+    : `/_next/image?url=${cible}&w=256&q=75`;
+
+  const r = await demander(url);
+  const refuseParLeMotif = r.statut === 400 && r.corps.includes("is not allowed");
+
+  if (!refuseParLeMotif) {
+    ko(
+      "⑭ médias d'admin non optimisables",
+      "/_next/image?url=/admin/medias/…",
+      `statut ${r.statut}, corps « ${r.corps.slice(0, 60)} » — attendu un refus PAR LE MOTIF ` +
+        "(« url parameter is not allowed »). Un autre message signifie que le chemin est de " +
+        "nouveau dans `localPatterns` : les vignettes d'admin rendront des cadres cassés, et " +
+        "un brouillon pourra atterrir dans le cache d'images.",
+    );
+  } else {
+    ok(
+      "⑭ médias d'admin non optimisables",
+      "/_next/image?url=/admin/medias/…",
+      "400 « url parameter is not allowed » — hors localPatterns, comme voulu",
+    );
+  }
+}
+
 // ══════════════════════════════════════════════════════════════════════════════════════
 // BASE ET VOLUME DE DÉVELOPPEMENT
 // ══════════════════════════════════════════════════════════════════════════════════════

@@ -61,6 +61,13 @@ function LignePhoto({
           ⚠️ `/admin/medias/**` est déclaré dans `next.config.ts` → `images.localPatterns`.
           Sans cette déclaration, `next/image` répondrait **400** — c'est la régression qui a
           fait disparaître le logo EDS des 5 pages en 4.3, avec sept portes vertes. */}
+      {/* 🔴 `unoptimized` — MESURÉ AU GATE VISUEL, ET SANS LUI AUCUNE VIGNETTE NE S'AFFICHE.
+      L'optimiseur `/_next/image` fait sa requête **depuis le serveur, sans cookie de
+      session** : il reçoit le `307 → /admin/login` de la garde, pas une image, et rend
+      `400 The requested resource isn't a valid image`. Une ressource protégée par une
+      session ne peut donc PAS transiter par lui, par construction.
+      ⚠️ Et c'est aussi ce qu'on veut : une variante optimisée serait écrite dans
+      `.next/cache/images`, ce qui y déposerait un BROUILLON. */}
       <div className={propre.vignette}>
         <Image
           src={`/admin/medias/${photo.filename}`}
@@ -70,6 +77,7 @@ function LignePhoto({
           fill
           sizes="120px"
           className={propre.vignetteImage}
+          unoptimized
         />
       </div>
 

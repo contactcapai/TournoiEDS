@@ -70,16 +70,43 @@ const TAILLE_LIGHTBOX = "(max-width: 880px) 92vw, 80vw";
  * sans cette prop, il afficherait des cadres cassés exactement sur celles qu'on veut voir.
  *
  * ⚠️ CE N'EST PAS UNE PROP « AU CAS OÙ » : elle est payée par `/admin/galerie/apercu`, qui
- * passe `/admin/medias` (route distincte, gardée par `lireAdmin()`, servie en `no-store`).
+ * lit la route `/admin/medias` (distincte, gardée par `lireAdmin()`, servie en `no-store`).
  * Le défaut reste la route publique, donc la home ne change pas d'un caractère.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 UN SEUL BOOLÉEN, ET NON UN PRÉFIXE LIBRE — PARCE QUE DEUX FAITS VOYAGENT ENSEMBLE
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * La première version prenait un `prefixeMedia?: string`. Elle était **cassée**, et c'est le
+ * gate visuel de Brice qui l'a vu : **aucune vignette d'administration ne s'affichait**.
+ *
+ * MESURÉ, et les deux `400` de l'optimiseur ne disent pas la même chose :
+ *   · chemin hors `localPatterns` → *« "url" parameter is not allowed »* ;
+ *   · `/admin/medias/…`          → *« The requested resource isn't a valid image. »*
+ * Le motif était donc bien accepté. Ce qui échoue, c'est la récupération : **l'optimiseur
+ * d'images de Next fait sa requête DEPUIS LE SERVEUR, sans le cookie de session**. Il reçoit
+ * le `307 → /admin/login` de la garde, pas une image. ⇒ **Aucune ressource protégée par une
+ * session ne peut, par construction, passer par `/_next/image`.**
+ *
+ * ⚠️ ET C'EST TANT MIEUX POUR UNE AUTRE RAISON : une variante optimisée serait écrite dans le
+ * cache d'images de Next (`.next/cache/images`). Optimiser un BROUILLON y déposerait une photo
+ * que personne n'a décidé de rendre publique.
+ *
+ * ⇒ `sourceAdmin` porte donc les **deux** conséquences à la fois — d'où vient l'image ET le
+ * fait qu'elle ne doit pas être optimisée. Un préfixe libre + un `unoptimized` séparé
+ * laisserait poser l'un sans l'autre, c'est-à-dire re-fabriquer exactement ce défaut.
  */
-const PREFIXE_MEDIA_PUBLIC = "/medias";
+const PREFIXE_PUBLIC = "/medias";
+const PREFIXE_ADMIN = "/admin/medias";
 
 export interface ScrapbookProps {
   /** Photos publiées, déjà triées par la requête. Peut être vide — voir l'état É7. */
   photos: GalleryPhoto[];
-  /** Racine de service des images. Voir `PREFIXE_MEDIA_PUBLIC`. */
-  prefixeMedia?: string;
+  /**
+   * Rendu dans le back-office : les images viennent de `/admin/medias` (brouillons compris)
+   * et **ne passent pas par l'optimiseur**. Voir le bloc ci-dessus — les deux vont ensemble.
+   */
+  sourceAdmin?: boolean;
 }
 
 /**
@@ -89,7 +116,9 @@ export interface ScrapbookProps {
  */
 const PLACEHOLDERS = ["Game in Reims", "Soirée jeudi", "Tournoi", "L'équipe"] as const;
 
-export function Scrapbook({ photos, prefixeMedia = PREFIXE_MEDIA_PUBLIC }: ScrapbookProps) {
+export function Scrapbook({ photos, sourceAdmin = false }: ScrapbookProps) {
+  // Les deux faits sont dérivés du MÊME booléen : impossible de poser l'un sans l'autre.
+  const prefixeMedia = sourceAdmin ? PREFIXE_ADMIN : PREFIXE_PUBLIC;
   // `null` = fermée. Sinon : index de la photo affichée.
   const [ouverte, setOuverte] = useState<number | null>(null);
   const declencheurs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -259,6 +288,7 @@ export function Scrapbook({ photos, prefixeMedia = PREFIXE_MEDIA_PUBLIC }: Scrap
                   fill
                   sizes={TAILLE_VIGNETTE}
                   loading="lazy"
+                  unoptimized={sourceAdmin}
                 />
               </PhotoFrame>
             </button>
@@ -299,6 +329,7 @@ export function Scrapbook({ photos, prefixeMedia = PREFIXE_MEDIA_PUBLIC }: Scrap
                 sizes={TAILLE_LIGHTBOX}
                 className={styles.image}
                 priority
+                unoptimized={sourceAdmin}
               />
             </div>
 

@@ -116,6 +116,13 @@ export default async function ModifierPhotoPage({
             ⚠️ On la montre PARCE QUE la description est ce qu'on vient corriger : écrire un
             texte alternatif sans voir l'image est le meilleur moyen d'écrire une légende à
             la place. */}
+        {/* 🔴 `unoptimized` — MESURÉ AU GATE VISUEL, ET SANS LUI AUCUNE VIGNETTE NE S'AFFICHE.
+        L'optimiseur `/_next/image` fait sa requête **depuis le serveur, sans cookie de
+        session** : il reçoit le `307 → /admin/login` de la garde, pas une image, et rend
+        `400 The requested resource isn't a valid image`. Une ressource protégée par une
+        session ne peut donc PAS transiter par lui, par construction.
+        ⚠️ Et c'est aussi ce qu'on veut : une variante optimisée serait écrite dans
+        `.next/cache/images`, ce qui y déposerait un BROUILLON. */}
         <div className={propre.vignette}>
           <Image
             src={`/admin/medias/${photo.filename}`}
@@ -123,6 +130,7 @@ export default async function ModifierPhotoPage({
             fill
             sizes="120px"
             className={propre.vignetteImage}
+            unoptimized
           />
         </div>
         <p className={propre.fichier}>{photo.filename}</p>

@@ -33,14 +33,16 @@ export interface GalleryProps {
   /** Photos publiées, déjà triées par la requête. Peut être vide (état É7). */
   photos: GalleryPhoto[];
   /**
-   * Racine de service des images, transmise telle quelle à `Scrapbook` (Story 6.4).
-   * ⚠️ Ce composant ne l'INTERPRÈTE pas : il la fait suivre. La décision — et la raison —
-   * vivent dans `Scrapbook`, qui est le seul à construire une URL d'image.
+   * Rendu dans le back-office (Story 6.4) : images servies par `/admin/medias`, brouillons
+   * compris, et **jamais optimisées**.
+   * ⚠️ Ce composant ne l'INTERPRÈTE pas : il la fait suivre. La décision — et la raison
+   * MESURÉE (l'optimiseur de Next requête sans cookie de session) — vivent dans `Scrapbook`,
+   * seul à construire une URL d'image.
    */
-  prefixeMedia?: string;
+  sourceAdmin?: boolean;
 }
 
-export function Gallery({ photos, prefixeMedia }: GalleryProps) {
+export function Gallery({ photos, sourceAdmin }: GalleryProps) {
   return (
     // aria-labelledby ↔ id du <h2> (patron acquis review 1.6 F6).
     <section className={styles.section} aria-labelledby="gallery-title">
@@ -68,7 +70,7 @@ export function Gallery({ photos, prefixeMedia }: GalleryProps) {
             du cadre, texte du placeholder) sont calculées sous fondu — voir la fin de
             Gallery.module.css. */}
         <div className={motion.reveal}>
-          <Scrapbook photos={photos} prefixeMedia={prefixeMedia} />
+          <Scrapbook photos={photos} sourceAdmin={sourceAdmin} />
         </div>
       </Wrap>
     </section>
