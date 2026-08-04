@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
+
+import { sourceLogo } from "@/lib/logos";
 import styles from "./PartnerMarquee.module.css";
 
 // Bandeau de logos partenaires (Story 4.1) — home uniquement.
@@ -57,6 +59,18 @@ export interface PartnerMarqueeProps {
   tiles: PartnerMarqueeTile[];
   /** Nom accessible de la liste de logos. */
   label: string;
+  /**
+   * 🔴 RENDU DANS LE BACK-OFFICE (Story 6.5) — LES DEUX FAITS VOYAGENT ENSEMBLE.
+   *
+   * Les logos viennent de `/admin/medias/logos/` (partenaires non publiés compris) **et** ne
+   * passent pas par l'optimiseur. Un préfixe libre + un `unoptimized` séparé laisserait poser
+   * l'un sans l'autre — c'est-à-dire refabriquer le défaut de la 6.4, où AUCUNE vignette ne
+   * s'affichait parce que `/_next/image` requête depuis le serveur, sans cookie de session.
+   * Le raisonnement complet vit dans `lib/logos.ts`.
+   *
+   * ⚠️ Défaut `false` : la home ne change pas d'un caractère.
+   */
+  sourceAdmin?: boolean;
 }
 
 /**
@@ -73,7 +87,7 @@ export interface PartnerMarqueeProps {
  */
 const VITESSE_PX_PAR_S = 40;
 
-export function PartnerMarquee({ tiles, label }: PartnerMarqueeProps) {
+export function PartnerMarquee({ tiles, label, sourceAdmin = false }: PartnerMarqueeProps) {
   const cadre = useRef<HTMLDivElement>(null);
   const piste = useRef<HTMLUListElement>(null);
   /**
@@ -205,7 +219,7 @@ export function PartnerMarquee({ tiles, label }: PartnerMarqueeProps) {
           de son ancêtre positionné). Raisonnement complet dans le .module.css. */}
       <span className={styles.zone}>
         <Image
-          src={tile.logo}
+          src={sourceLogo(tile.logo, sourceAdmin)}
           // Le nom du partenaire est le texte alternatif utile (EXPERIENCE.md l.181) :
           // un logo dit QUI soutient l'asso, pas à quoi il ressemble. Pas de « logo de »
           // en préfixe — un lecteur d'écran annonce déjà « image ».
@@ -224,13 +238,21 @@ export function PartnerMarquee({ tiles, label }: PartnerMarqueeProps) {
           // fixe, cf. CSS) : `sizes` est donc constant, pas responsive.
           sizes="160px"
           loading="lazy"
-          // ⚠️ `unoptimized` — et le motif écrit dans la dette R15 (« sharp est absent
-          // du workspace ») est FAUX : mesuré le 2026-07-30, sharp est PRÉSENT et NON
-          // DÉCLARÉ (hissé à la racine du monorepo par une dépendance de transit). Il
-          // est conservé ici pour une raison de PÉRIMÈTRE : lever cette dette appartient
-          // à la Story 4.3, qui devra d'abord DÉCLARER sharp dans
-          // apps/vitrine/package.json — s'appuyer sur un paquet hissé casse en silence
-          // au premier `pnpm install` qui bouge l'arbre.
+          // 🔴 `unoptimized`, ET LE MOTIF A CHANGÉ À LA STORY 6.5 — L'ANCIEN ÉTAIT PÉRIMÉ.
+          // Il disait « sharp est présent et NON DÉCLARÉ, lever la dette appartient à la
+          // 4.3 » : `apps/vitrine/package.json` porte `"sharp": "^0.34.5"` depuis cette
+          // story-là, et R15 déclare ce volet CLOS. Deux raisons ACTUELLES, et elles
+          // tiennent toutes les deux :
+          //   ① les logos téléversés sont DÉJÀ normalisés à la taille canonique par le
+          //      serveur (96 px de haut, `server/medias/normaliserLogo`) : il n'y a plus
+          //      rien à optimiser, et `/_next/image` ne ferait que re-encoder un fichier
+          //      déjà minimal ;
+          //   ② en `sourceAdmin`, l'image vient d'une route GARDÉE — et l'optimiseur
+          //      requête depuis le serveur, SANS cookie de session : il reçoit le `307`
+          //      de la garde, pas une image (mesuré au gate visuel de la 6.4).
+          // ⚠️ Corollaire : aucune entrée `/medias/logos/**` ni `/admin/medias/**` dans
+          // `images.localPatterns` — une autorisation que rien ne consomme est une
+          // « porte sans pièce ».
           unoptimized
         />
       </span>

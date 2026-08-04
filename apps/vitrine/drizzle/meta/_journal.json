@@ -64,6 +64,13 @@
       "when": 1785777219416,
       "tag": "0008_woozy_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785823805899,
+      "tag": "0009_warm_gunslinger",
+      "breakpoints": true
     }
   ]
 }

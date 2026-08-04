@@ -31,9 +31,15 @@ export interface ProofBandProps {
    * Peut être vide — voir la garde ci-dessous.
    */
   partners: PartnerTile[];
+  /**
+   * Rendu dans le back-office (Story 6.5) : les logos viennent de `/admin/medias/logos/`
+   * (brouillons compris) **et** ne passent pas par l'optimiseur. Les deux vont ensemble —
+   * voir `lib/logos.ts`. Simple relais vers `PartnerMarquee` ; la home ne change pas.
+   */
+  sourceAdmin?: boolean;
 }
 
-export function ProofBand({ partners }: ProofBandProps) {
+export function ProofBand({ partners, sourceAdmin }: ProofBandProps) {
   // 🔴 AUCUNE PREUVE ⇒ AUCUN BLOC. Pas de tête de section orpheline, pas de cadre vide,
   // pas de « prochainement ». Un bloc de preuve sans preuve n'est pas un état vide
   // chaleureux (le patron UX-DR20 de l'agenda) : c'est un aveu. La différence avec le
@@ -82,7 +88,11 @@ export function ProofBand({ partners }: ProofBandProps) {
             ⚠️ Ne pas « simplifier » en remontant cette classe sur la <section> : c'est
             exactement le même montage qu'`EventHub` (l.84-95), et pour la même raison. */}
         <div className={motion.reveal}>
-          <PartnerMarquee tiles={tuiles} label="Nos partenaires et soutiens" />
+          <PartnerMarquee
+            tiles={tuiles}
+            label="Nos partenaires et soutiens"
+            sourceAdmin={sourceAdmin}
+          />
 
           {/* Un `LinkArrow` et NON un `Button` : la home comptait déjà deux CTA vers
               /partenaires, et cette story vient d'en SUPPRIMER un pour redondance (le

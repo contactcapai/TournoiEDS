@@ -21,7 +21,8 @@
     "gate:links": "node tools/visual-gate/links-check.mjs",
     "gate:admin": "node tools/visual-gate/admin-check.mjs",
     "gate:agenda": "tsx tools/visual-gate/agenda-check.mts",
-    "gate:galerie": "tsx --conditions=react-server tools/visual-gate/galerie-check.mts"
+    "gate:galerie": "tsx --conditions=react-server tools/visual-gate/galerie-check.mts",
+    "gate:partenaires": "tsx --conditions=react-server tools/visual-gate/partenaires-check.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",

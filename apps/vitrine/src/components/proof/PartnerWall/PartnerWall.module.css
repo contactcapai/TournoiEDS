@@ -152,11 +152,35 @@
   cursor: pointer;
 }
 
-.tuile:hover {
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   🔴 LE SURVOL EST GATÉ SUR `.cliquable` — DETTE **R33 ①**, CORRIGÉE PAR LA STORY 6.5
+   ══════════════════════════════════════════════════════════════════════════════════════
+
+   Ces deux règles étaient écrites `.tuile:hover`, donc elles s'appliquaient AUSSI aux tuiles
+   qui ne sont pas des liens. Un filet qui vire à l'or et un nom qui passe à pleine présence
+   sont des affordances : sur une tuile inerte, elles **promettent une action impossible** —
+   exactement l'incohérence que l'AC4 de la Story 5.5 a corrigée partout ailleurs sur le site.
+
+   ⚠️ **L'ÉNONCÉ DE LA DETTE ÉTAIT FAUX, ET C'EST LA PARTIE INTÉRESSANTE.** R33 ① décrivait
+   « les 11 tuiles NON cliquables ». Mesuré au cadrage de la 6.5 : les 11 entrées portent un
+   `link` `https://` absolu depuis le commit `64aad1a` (Story 4.2 elle-même), donc
+   `isExternalUrl()` est vrai pour toutes, donc **les 11 SONT cliquables** et le survol doré
+   était correct sur les onze. Le défaut de conception, lui, était bien réel — simplement
+   **inobservable**, faute de tuile inerte.
+
+   🔴 ET C'EST CE BACK-OFFICE QUI LE REND ATTEIGNABLE : le premier bénévole qui saisira un
+   partenaire sans URL (le cas nominal — une association locale n'a pas toujours de site)
+   obtiendra une tuile qui s'allume au survol et ne clique pas. La corriger AVANT que le cas
+   existe est la seule fenêtre où elle ne coûte rien.
+
+   ⚠️ `gate:marquee` LIT la classe `.tuile` du BANDEAU (`PartnerMarquee.module.css` l.138-143),
+   pas celle de ce fichier. Le changement ne la concerne donc pas — ce qui a été vérifié en la
+   rejouant, pas supposé. */
+.cliquable:hover {
   border-color: var(--gold);
 }
 
-.tuile:hover .nom {
+.cliquable:hover .nom {
   color: var(--cream);
 }
 
@@ -189,6 +213,32 @@
   margin-top: 10px;
   font-size: 13px;
   color: var(--light);
+  /* 🔴 AJOUTÉ PAR LA STORY 6.5 — DÉFAUT TROUVÉ EN REVUE (Blind Hunter), PUIS MESURÉ.
+     `.nom` portait déjà cette garde depuis la 4.2 ; `.description` non, alors que c'est
+     ELLE qui reçoit du texte libre saisi par un bénévole depuis le back-office.
+
+     🔬 MESURÉ sur le rendu, avec une description de 200 caractères SANS espace (une URL
+     collée, un identifiant) — aux trois largeurs 320 / 880 / 1440 :
+       · largeur de l'item ........ 210px  (inchangée)
+       · largeur de la description  210px
+       · **scrollWidth ............ 1210px**  ⇒ 1000px de texte HORS de sa boîte
+     `overflow-x: clip` (globals.css) le rogne alors EN SILENCE : ni scrollbar, ni
+     avertissement. C'est la dette **R14** dans son cas d'école.
+
+     ⚠️ ET LA MÉCANIQUE INVOQUÉE PAR LE RAPPORT ÉTAIT FAUSSE, C'EST POURQUOI ON A MESURÉ :
+     il annonçait un item qui s'étirerait au-delà de 210px et casserait l'alignement de la
+     rangée (via `min-width: auto` du modèle flex). Il n'en est rien — `max-width: 210px`
+     tient l'item, la grille reste intacte, et la boîte ne sort jamais du viewport. C'est
+     précisément pour ça que `pnpm gate` reste VERT sur ce défaut, et il a raison : il
+     compare les boîtes au VIEWPORT, et cette boîte fait bien 210px.
+     ⇒ La conséquence réelle n'est pas une grille cassée, c'est une **description illisible,
+     tronquée sans ellipse**. Le défaut est réel, son mode ne l'était pas.
+
+     ⚠️ La borne de 200 caractères (`DESCRIPTION_MAX`) ne ferme PAS ce cas : elle protège le
+     CONTENU (un pavé ne rentre pas dans une tuile), pas la MISE EN PAGE d'une chaîne courte
+     mais insécable. Les deux gardes sont nécessaires — même partage que `caption` en 4.3
+     (dette R24 : « le CSS protège la mise en page, la borne protège le contenu »). */
+  overflow-wrap: anywhere;
 }
 
 /* ════════════════════ 🔢 DUPLICATION COMPTÉE, PAS EXTRAITE ═══════════════════
@@ -208,6 +258,16 @@
       l'intérieur d'une story au risque différent (précédent 2.7 → 2.10) ;
    ③ règle du projet : on extrait ce qui est PAYÉ DEUX FOIS (METHODE.md §5), et la leçon
       de la dette R9 est « toujours COMPTER », pas « ne jamais dupliquer ».
-   ⇒ 2 copies, comptées et routées : dette **R27 → Story 6.5**, qui rendra une
-   prévisualisation de tuile au back-office et sera donc le 3ᵉ consommateur. Si elle n'en
-   a finalement pas besoin, la ligne se ferme comme ACCEPTÉE, pas comme oubliée. */
+   ⇒ 2 copies, comptées et routées : dette **R27 → Story 6.5**.
+
+   ✅ **R27 EST FERMÉE COMME ACCEPTÉE LE 2026-08-04, ET C'EST L'ISSUE QUE CETTE LIGNE AVAIT
+   PRÉVUE** (« si elle n'en a finalement pas besoin, la ligne se ferme comme ACCEPTÉE, pas
+   comme oubliée »). Son routage pariait que la 6.5 serait le **3ᵉ consommateur** de cette
+   géométrie. **Elle ne l'est pas** : son écran d'aperçu monte les composants publics RÉELS
+   (`ProofBand`/`PartnerMarquee` et `PartnerWall`), exactement comme la 6.4 a monté `Gallery`
+   et la 6.3 `PastEvent`. Ce n'est donc pas une 3ᵉ COPIE, c'est un 3ᵉ APPELANT des mêmes
+   fichiers — et les trois raisons de ne pas extraire, ci-dessus, tiennent toutes les trois.
+   ⚠️ La vignette d'inventaire de l'écran de liste (`partenaires.module.css`) n'en est pas une
+   non plus : elle emprunte au rendu la HAUTEUR et le FOND (pour qu'un logo blanc soit
+   visible), et aucune des six déclarations recensées ci-dessus.
+   ⇒ Le compte reste à **2**. La ligne se rouvrira si un 3ᵉ consommateur réel apparaît. */

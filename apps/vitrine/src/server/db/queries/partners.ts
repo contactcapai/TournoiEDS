@@ -131,3 +131,78 @@ export async function getPublishedPartners() {
  * le composant à la traiter — 7 des 11 entrées d'aujourd'hui passent par là.
  */
 export type PartnerEntry = Awaited<ReturnType<typeof getPublishedPartners>>[number];
+
+/**
+ * TOUS les partenaires, **brouillons compris** — pour le back-office (Story 6.5).
+ *
+ * 🔴 UNE TROISIÈME REQUÊTE, ET NON `getPublishedPartners()` RÉUTILISÉE : son filtre
+ * `is_published` est **exactement ce que cet écran ne veut pas**. Un back-office qui ne
+ * montrerait que le publié rendrait invisible ce qu'on vient d'y créer — la même erreur que
+ * la première version de l'aperçu de la galerie, où un `LIMIT` en SQL omettait des photos
+ * réellement en ligne (défaut trouvé en revue de la 6.4).
+ *
+ * 🔴 **MÊME ORDRE TOTAL QUE LES DEUX REQUÊTES PUBLIQUES** (`category, sort_order, name, id`),
+ * et ce n'est pas de la symétrie décorative : l'écran d'administration affiche des flèches
+ * « monter / descendre » dont l'effet n'a de sens que si sa liste est dans le MÊME ordre que
+ * celle du visiteur. Un ordre différent ferait monter une ligne à l'écran et bouger une autre
+ * sur le site.
+ *
+ * ⚠️ `category` D'ABORD — c'est ce qui rend l'ordre manuel **propre à une catégorie**. Un
+ * sponsor ne peut pas passer devant un partenaire, quel que soit son `sort_order` : l'enum
+ * tranche avant. `reordonnerPartenaires` renumérote donc UNE catégorie, et l'écran groupe.
+ *
+ * ⚠️ **Borne EXPLICITE**, jamais de lecture non bornée : une page dont le temps de rendu
+ * dépend du nombre d'entrées est un défaut qui n'apparaîtrait qu'une fois la base remplie par
+ * les bénévoles — c'est-à-dire en production, chez quelqu'un d'autre. 200 est très au-delà du
+ * réseau d'une association (11 aujourd'hui) tout en restant borné.
+ *
+ * `columns` explicites, et ils diffèrent des deux autres : `isPublished` et `sortOrder` sont
+ * ici **nécessaires** (l'écran les affiche et les modifie), là où le rendu public ne les
+ * consomme pas.
+ */
+export async function getPartnersForAdmin(limite: number) {
+  return db.query.partner.findMany({
+    columns: {
+      id: true,
+      name: true,
+      logo: true,
+      description: true,
+      link: true,
+      category: true,
+      sortOrder: true,
+      isPublished: true,
+    },
+    orderBy: (table, { asc }) => [
+      asc(table.category),
+      asc(table.sortOrder),
+      asc(table.name),
+      asc(table.id),
+    ],
+    limit: limite,
+  });
+}
+
+/** Une ligne de l'écran d'administration, DÉRIVÉE de la requête. */
+export type AdminPartner = Awaited<ReturnType<typeof getPartnersForAdmin>>[number];
+
+/**
+ * Un partenaire par son identifiant, brouillon compris — écran de modification (6.5).
+ *
+ * ⚠️ `columns` explicites ici aussi : `createdAt`/`updatedAt` ne sont pas remontés, le
+ * formulaire ne les consomme pas et le type dérivé ne doit pas laisser croire qu'ils sont là.
+ */
+export async function getPartnerByIdForAdmin(id: string) {
+  return db.query.partner.findFirst({
+    columns: {
+      id: true,
+      name: true,
+      logo: true,
+      description: true,
+      link: true,
+      category: true,
+      sortOrder: true,
+      isPublished: true,
+    },
+    where: (table, { eq }) => eq(table.id, id),
+  });
+}

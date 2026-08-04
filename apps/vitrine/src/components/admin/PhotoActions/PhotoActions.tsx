@@ -10,7 +10,6 @@ import {
   supprimerPhoto,
 } from "@/server/actions/galerie";
 import styles from "@/styles/admin-actions.module.css";
-import propre from "./PhotoActions.module.css";
 
 /**
  * Actions d'une ligne de la galerie : monter / descendre, publier / dépublier, supprimer
@@ -94,7 +93,7 @@ export function PhotoActions({
 
   return (
     <div className={styles.bloc}>
-      <div className={propre.rang}>
+      <div className={styles.rang}>
         {/* ⚠️ MASQUÉS AUX EXTRÉMITÉS, PAS LAISSÉS INERTES. Deux flèches qui ne mènent nulle
             part sont exactement le défaut que `gate:carousel` a trouvé en Story 3.3 (« deux
             flèches MORTES à une seule vignette »). Une galerie d'une seule photo n'affiche
@@ -102,7 +101,7 @@ export function PhotoActions({
         {!premier ? (
           <button
             type="button"
-            className={propre.deplacer}
+            className={styles.deplacer}
             onClick={() => deplacer(-1)}
             disabled={enTransition}
           >
@@ -113,7 +112,7 @@ export function PhotoActions({
         {!dernier ? (
           <button
             type="button"
-            className={propre.deplacer}
+            className={styles.deplacer}
             onClick={() => deplacer(1)}
             disabled={enTransition}
           >

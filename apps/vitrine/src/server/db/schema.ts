@@ -31,6 +31,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -47,7 +48,20 @@ import {
   RECAP_MAX,
   TITRE_MAX,
 } from "../../lib/schemas/event";
-import { PARTNER_CATEGORIES } from "../../lib/schemas/partner";
+// ⚠️ ALIAS OBLIGATOIRES : `event.ts` exporte DÉJÀ un `DESCRIPTION_MAX` (celui d'un événement),
+// importé quelques lignes plus haut. Deux domaines, deux bornes, un seul fichier qui les voit :
+// les importer nus ferait une collision de nom que TypeScript refuserait — et les fusionner en
+// une constante « commune » serait pire, puisqu'ajuster la borne d'un événement changerait
+// alors celle d'un partenaire. Chaque domaine garde SA borne ; c'est ici, et ici seulement,
+// qu'elles se croisent.
+import {
+  DESCRIPTION_MAX as PARTNER_DESCRIPTION_MAX,
+  LINK_MAX as PARTNER_LINK_MAX,
+  LOGO_MAX as PARTNER_LOGO_MAX,
+  NAME_MAX as PARTNER_NAME_MAX,
+  PARTNER_CATEGORIES,
+} from "../../lib/schemas/partner";
+import { LOGO_EXTENSION, PREFIXE_LOGO } from "../../lib/logos";
 // Même sens de dépendance que les deux listes d'enum ci-dessus : la liste des extensions
 // autorisées vit dans le module Zod (bundlé côté client en Epic 6), et le schéma Drizzle
 // la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
@@ -303,12 +317,21 @@ export const partnerCategory = pgEnum("partner_category", PARTNER_CATEGORIES);
  * nominal — et c'est ce qui a permis de livrer le bandeau sans attendre les 7 fichiers
  * manquants.
  *
- * ⚠️ `logo` PORTE UN CHEMIN, ET C'EST PROVISOIRE PAR CONSTRUCTION (garde-fou E de la 4.1).
- * Aujourd'hui : `/partenaires/<slug>.webp`, servi depuis `apps/vitrine/public/`. Demain
- * (Story 6.5), l'upload écrira dans le volume Docker des médias posé par la Story 4.3.
- * **Ce qui changera alors est la VALEUR écrite, pas la colonne** — aucune migration à
- * prévoir de ce fait. Ne pas contraindre le format ici : ce serait à rouvrir à ce
- * moment-là. Ne jamais y stocker de chemin système absolu.
+ * ⚠️ `logo` PORTE UN CHEMIN, ET **DEUX FORMES COEXISTENT DEPUIS LA STORY 6.5** :
+ *   · `/partenaires/<slug>.webp` — les 4 logos semés par la 4.1, servis en statique depuis
+ *     `apps/vitrine/public/`, **versionnés dans git**, donc NON supprimables par le
+ *     back-office ;
+ *   · `/medias/logos/<uuid>.webp` — les logos téléversés, sur le volume Docker.
+ * La distinction est écrite **une seule fois**, dans `src/lib/logos.ts` : trois appelants en
+ * dépendent, dont deux qui DÉTRUISENT un fichier.
+ *
+ * 🔴 ET LE FORMAT EST DÉSORMAIS CONTRAINT. Ce commentaire disait « ne pas contraindre le
+ * format ici : ce serait à rouvrir au moment où la Story 6.5 écrira dans cette colonne ».
+ * **Nous y sommes**, et c'était le moment prévu : cette valeur cesse d'être un chemin relu
+ * par un humain dans un seed pour devenir celle à partir de laquelle un **chemin disque** est
+ * construit. Voir `partner_logo_valide` plus bas et `LOGO_MOTIF` dans `lib/schemas/partner.ts`.
+ * ⚠️ **Ce qui a changé est bien la VALEUR écrite, pas la colonne** : la migration `0009`
+ * n'ajoute aucune colonne, seulement des contraintes. Ne jamais y stocker de chemin absolu.
  *
  * ⚠️ Aucune colonne de DIMENSIONS, et c'est délibéré : le rendu impose la hauteur par la
  * TUILE (`object-fit: contain`), il n'a donc jamais besoin de connaître la taille du
@@ -325,8 +348,12 @@ export const partner = pgTable(
     /** Une ligne de contexte (« Présents depuis 2023 »). Rendue sur /partenaires (4.2). */
     description: text(),
     /**
-     * Site du partenaire. `null` pour les 11 entrées d'aujourd'hui : aucune source du
-     * projet ne porte d'URL, et en inventer une serait pire que de ne pas en avoir.
+     * Site du partenaire.
+     * ⚠️ CORRIGÉ LE 2026-08-04 (Story 6.5) : ce commentaire disait « `null` pour les 11
+     * entrées d'aujourd'hui ». MESURÉ en base : **les 11 portent un lien**, semé par le
+     * commit `64aad1a` de la Story 4.2 — des placeholders `exemple-*.fr`, un domaine qui ne
+     * résout pas, précisément pour qu'ils ne soient pas pris pour de vraies URL. Ils sont à
+     * remplacer par l'équipe via le back-office (Story 6.5).
      * ⚠️ Le schéma Zod exige une URL `http(s)` ABSOLUE — une valeur relative casserait
      * `isExternalUrl()` et ferait annoncer « nouvel onglet » à tort.
      */
@@ -371,15 +398,80 @@ export const partner = pgTable(
      * le cas subtil est traité par `visiblementVide()` côté Zod, au point de saisie, avec
      * un message humain ; la base tient le plancher qu'on ne peut pas contourner.
      */
-    check("partner_name_not_blank", sql`length(btrim(${table.name})) > 0`),
+    /**
+     * 🔴 LES BORNES SONT AJOUTÉES PAR LA STORY 6.5 (migration `0009`), ET LES TROIS
+     * CONTRAINTES SONT RENOMMÉES `*_valide` — même geste que la `0006` sur `event`/`bar` et
+     * la `0008` sur `photo.alt`. Mesuré au cadrage : cette table ne portait AUCUNE borne de
+     * longueur, ni ici ni dans Zod (`name.max(120)` était la seule).
+     *
+     * ⚠️ LE RENOMMAGE N'EST PAS COSMÉTIQUE : `CHAMP_PAR_CONTRAINTE` (dans
+     * `server/actions/partenaires.ts`) traduit un nom de contrainte en nom de champ lisible.
+     * Garder `*_not_blank` alors que la contrainte s'appelle désormais `*_valide` ferait
+     * retomber le bénévole sur un message générique qui ne nomme aucun champ — c'est
+     * exactement le défaut trouvé en revue de la 6.3, où huit contraintes sur dix y tombaient.
+     *
+     * ⚠️ Les bornes viennent de `lib/schemas/partner.ts`, jamais d'un littéral recopié : la
+     * base et Zod expriment la MÊME règle.
+     *
+     * ⚠️ `btrim` ne retire que les blancs ASCII : ces contraintes attrapent `''` et `'   '`,
+     * pas un caractère de largeur nulle. C'est voulu et c'est le bon partage — le cas subtil
+     * est traité par `visiblementVide()` côté Zod, au point de saisie, avec un message humain ;
+     * la base tient le plancher qu'on ne peut pas contourner.
+     */
     check(
-      "partner_logo_not_blank",
-      sql`${table.logo} is null or length(btrim(${table.logo})) > 0`,
+      "partner_name_valide",
+      sql`length(btrim(${table.name})) > 0 and length(${table.name}) <= ${sql.raw(String(PARTNER_NAME_MAX))}`,
     ),
     check(
-      "partner_link_not_blank",
-      sql`${table.link} is null or length(btrim(${table.link})) > 0`,
+      "partner_description_valide",
+      sql`${table.description} is null or (length(btrim(${table.description})) > 0 and length(${table.description}) <= ${sql.raw(String(PARTNER_DESCRIPTION_MAX))})`,
     ),
+    check(
+      "partner_link_valide",
+      sql`${table.link} is null or (length(btrim(${table.link})) > 0 and length(${table.link}) <= ${sql.raw(String(PARTNER_LINK_MAX))})`,
+    ),
+    /**
+     * 🔴 LA SEULE CONTRAINTE DE CETTE TABLE DONT L'ENJEU N'EST PAS UN RENDU CASSÉ.
+     *
+     * ⚠️ Le commentaire de `logo` ci-dessus annonçait, depuis la Story 4.1, qu'on ne
+     * contraindrait pas la forme « avant que la Story 6.5 n'écrive dans cette colonne ».
+     * **Nous y sommes** : cette valeur cesse d'être un chemin relu par un humain dans un seed
+     * pour devenir celle à partir de laquelle un **chemin disque** est construit.
+     *
+     * Liste blanche, jamais liste noire — doctrine `photo_filename_safe` (4.3), reprise mot
+     * pour mot, avec deux préfixes autorisés et **une seule extension** (`.webp` : la
+     * normalisation de cette story ré-encode tout, et les 4 fichiers semés le sont déjà).
+     *
+     * 🔴 `sql.raw()` ET NON UNE INTERPOLATION NUE — défaut mesuré à la génération en 4.3.
+     * Dans un gabarit `sql``, une valeur interpolée devient un PARAMÈTRE LIÉ : la contrainte
+     * sortirait dans le `.sql` sous la forme `CHECK (… ~ $1)`, une migration **invalide** —
+     * un DDL versionné n'a personne pour lier `$1`. Ni le typecheck ni le build ne le
+     * verraient ; le seul témoin est le SQL généré, qu'il faut donc LIRE.
+     *
+     * 🔴 `\\.` ET NON `\.` — piège d'échappement à deux étages, et il est SILENCIEUX. Dans un
+     * littéral de gabarit JS, `\.` est un échappement non reconnu et s'évalue en `.` : la
+     * chaîne remise à Postgres porterait un point « n'importe quel caractère », et
+     * `/partenaires/axwebp` passerait. D'où l'exigence d'ÉPROUVER ce `CHECK` par des écritures
+     * qui doivent ÉCHOUER.
+     */
+    check(
+      "partner_logo_valide",
+      sql`${table.logo} is null or (length(${table.logo}) <= ${sql.raw(String(PARTNER_LOGO_MAX))} and ${table.logo} ~ ${sql.raw(`'^(${PREFIXE_LOGO}|/partenaires/)[a-z0-9][a-z0-9._-]*\\.${LOGO_EXTENSION}$'`)} and ${table.logo} !~ '\\.\\.')`,
+    ),
+    /**
+     * 🔴 UNICITÉ DU LOGO — ELLE PROTÈGE LA **SUPPRESSION**, PAS L'AFFICHAGE.
+     *
+     * Sans elle, deux partenaires peuvent référencer le même fichier du volume. Supprimer le
+     * premier détruirait alors le logo du second, qui afficherait un cadre vide sur la home
+     * sans que rien ne relie l'effet à sa cause. Le back-office de cette story ne peut pas
+     * produire ce cas (chaque téléversement génère son propre UUID) — mais une restauration
+     * partielle ou un `UPDATE` direct, si.
+     *
+     * ⚠️ Postgres autorise **plusieurs `NULL`** dans un index unique : les 7 entrées sans logo
+     * d'aujourd'hui ne se gênent pas, et une 8ᵉ ne les gênera pas non plus. C'est ce qui rend
+     * cette contrainte posable sur une colonne nullable sans rien casser.
+     */
+    uniqueIndex("partner_logo_unique").on(table.logo),
     // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : elle filtre sur `is_published`,
     // puis ordonne par `category`, puis par `sort_order` (`queries/partners.ts`).
     // ⚠️ `logo IS NOT NULL`, second terme du filtre, n'est PAS dans l'index : un index
@@ -805,7 +897,17 @@ export type NewEvent = typeof event.$inferInsert;
 export type EventType = (typeof eventType.enumValues)[number];
 export type Partner = typeof partner.$inferSelect;
 export type NewPartner = typeof partner.$inferInsert;
-export type PartnerCategory = (typeof partnerCategory.enumValues)[number];
+/**
+ * 🔴 RÉ-EXPORT, PAS UNE SECONDE DÉFINITION (Story 6.5).
+ *
+ * Il valait `(typeof partnerCategory.enumValues)[number]` — provablement identique, puisque
+ * l'enum est construit depuis `PARTNER_CATEGORIES`. Mais deux définitions du même type sont
+ * deux endroits où quelqu'un peut en modifier une seule, et la 6.5 a besoin de ce type dans un
+ * **formulaire client** : l'importer depuis ici y ferait entrer Drizzle. Le type naît donc là
+ * où naissent les valeurs (`lib/schemas/partner.ts`) ; ce ré-export garde intacts les
+ * importateurs existants (`/partenaires/page.tsx`).
+ */
+export type { PartnerCategory } from "../../lib/schemas/partner";
 export type Photo = typeof photo.$inferSelect;
 export type NewPhoto = typeof photo.$inferInsert;
 export type Solicitation = typeof solicitation.$inferSelect;

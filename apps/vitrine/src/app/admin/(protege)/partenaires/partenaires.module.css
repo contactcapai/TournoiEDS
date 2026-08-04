@@ -1,0 +1,134 @@
+/* Ce qui est PROPRE aux écrans de PARTENAIRES (Story 6.5) : la vignette de logo, le
+   marquage « dans le bandeau de l'accueil », les titres de catégorie et le plateau d'aperçu.
+   Le vocabulaire de page (titre, chapô, liste, ligne, état, vide) vient de
+   `styles/admin-page.module.css`. Tokens uniquement (project-context.md §5). */
+
+/* ───────── La vignette de logo ─────────
+   🔴 ELLE REPRODUIT LA TUILE PUBLIQUE, ET C'EST DÉLIBÉRÉ : fond `--navy`, hauteur 76px,
+   `object-fit: contain`. Un logo blanc sur fond clair est INVISIBLE — le seed le documente
+   (« il a fallu les composer sur --navy pour les identifier »). Une vignette sur fond clair
+   ferait donc croire à un fichier vide exactement sur les logos les plus courants.
+   ⚠️ Ce n'est PAS une 3ᵉ copie de la géométrie de tuile (dette R27) : ni la base 150, ni le
+   plafond 210, ni le rayon, ni les filets de `.logo-tile` ne sont repris. C'est une vignette
+   d'inventaire qui emprunte deux valeurs au rendu — la hauteur et le fond — pour que ce
+   qu'on voit ici ressemble à ce que verra le visiteur. L'aperçu réel, lui, monte les
+   composants publics (voir `apercu/page.tsx`). */
+.vignette {
+  position: relative;
+  flex: 0 0 auto;
+  width: 150px;
+  height: 76px;
+  border-radius: var(--radius-tile);
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  background: var(--navy);
+}
+
+.vignetteZone {
+  position: absolute;
+  inset: 10px;
+}
+
+.vignetteImage {
+  object-fit: contain;
+}
+
+/* L'absence de logo n'est pas un vide : c'est un état, et il se lit. */
+.sansLogo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Le chemin du fichier. Petit et en gris : il n'a d'intérêt que pour identifier un fichier,
+   jamais pour être lu. */
+.fichier {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--grey);
+  font-variant-numeric: tabular-nums;
+  /* Un UUID ne contient pas d'espace : sans ça, il déborde la colonne et `overflow-x: clip`
+     le rogne EN SILENCE (dette R14, et `gate` ne couvre pas /admin). */
+  overflow-wrap: anywhere;
+}
+
+/* ───────── « Dans le bandeau de l'accueil » ─────────
+   🔴 CE MARQUEUR EST UN LIVRABLE (AC7), PAS UNE DÉCORATION. Le bandeau de la home ne montre
+   que les entrées PUBLIÉES QUI ONT UN LOGO : sans témoin, retirer un logo ressemble à un
+   détail de fiche, alors que c'est une disparition de la page la plus vue du site. */
+.accueil {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--cream);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* Le titre d'une catégorie dans la liste. Il n'est pas décoratif : c'est lui qui rend
+   visible que l'ordre manuel s'applique DANS une catégorie et pas entre elles. */
+.categorie {
+  margin-top: 34px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+
+.categorie:first-of-type {
+  margin-top: 0;
+}
+
+.categorieVide {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Mention de contexte : ce qu'un écran montre, ou ce qu'un geste décide ailleurs. Même
+   registre que la `.mention` des écrans de galerie — dire une borne coûte une phrase, la
+   taire coûte un ticket. */
+.mention {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── Les plateaux de prévisualisation ─────────
+   ⚠️ DEUX FONDS DIFFÉRENTS, ET CE N'EST PAS DÉCORATIF. Le contraste d'un texte dépend de son
+   fond EFFECTIF (leçon 4.2 : « un fond effectif n'est pas un token »). Le bandeau de la home
+   est posé sur `--navy-deep`, les murs de /partenaires sur `--navy` : prévisualiser les deux
+   sur un même fond montrerait un rendu qui n'existe nulle part. */
+.plateau {
+  margin-top: 18px;
+  border: 1px dashed rgba(218, 178, 101, 0.35); /* --gold à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+}
+
+.plateauHome {
+  background: var(--navy-deep);
+}
+
+.plateauMurs {
+  background: var(--navy);
+}
+
+@media (max-width: 880px) {
+  .vignette {
+    width: 120px;
+  }
+}

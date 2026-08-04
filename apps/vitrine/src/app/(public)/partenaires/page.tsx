@@ -27,9 +27,14 @@ import motion from "@/styles/motion.module.css";
 //                                            de la restructuration du 2026-07-30).
 //
 // 🔴 L'ÉTAT RÉEL DE LA DONNÉE A PILOTÉ LA CONCEPTION, ET IL FAUT LE SAVOIR EN RELISANT.
-// Sur les 11 partenaires en base : 4 ont un logo, 2 une description, 0 un lien. La
-// « dégradation » n'est donc pas un cas limite à traiter en marge, c'est le cas NOMINAL.
-// Une page conçue pour la donnée pleine rendrait aujourd'hui 7 cadres vides et 0 lien.
+// ⚠️ CHIFFRES CORRIGÉS LE 2026-08-04 (Story 6.5) : ce commentaire disait « 4 ont un logo,
+// 2 une description, 0 un lien ». C'était vrai à l'écriture de cette page et FAUX quelques
+// heures plus tard — le commit `64aad1a` de cette même Story 4.2 a semé un lien et une
+// description sur les onze. MESURÉ en base le 2026-08-04 : **11 entrées, 4 avec logo,
+// 11 avec lien, 11 avec description**.
+// La « dégradation » reste le cas NOMINAL pour le LOGO (7 sur 11 n'en ont pas), et le
+// redevient pour le lien dès qu'un bénévole saisit un partenaire sans URL (Story 6.5).
+// Une page conçue pour la donnée pleine rendrait 7 cadres vides.
 //
 // ⚠️ Registre : VOUVOIEMENT de bout en bout, comme /animations. C'est une page pro — le
 // tutoiement joueurs vit sur le Hero, la double porte et la clôture de /l-asso.

@@ -46,7 +46,12 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
   },
-  // Story 6.5  → { href: "/admin/partenaires",   libelle: "Partenaires",   description: "…" }
+  {
+    href: "/admin/partenaires",
+    libelle: "Partenaires",
+    description:
+      "Sponsors, partenaires, soutiens et participations : logos, ordre, publication. Voir le rendu avant de publier.",
+  },
   // Story 6.9  → { href: "/admin/ateliers",      libelle: "Ateliers",      description: "…" }
   // Story 6.10 → { href: "/admin/membres",       libelle: "Membres",       description: "…" }
   // Story 6.11 → { href: "/admin/sollicitations", libelle: "Sollicitations", description: "…" }

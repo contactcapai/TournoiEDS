@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { NEW_TAB_SR, isExternalUrl } from "@/lib/links";
+import { sourceLogo } from "@/lib/logos";
 import type { PartnerEntry } from "@/server/db/queries/partners";
 import editorial from "@/styles/editorial.module.css";
 import styles from "./PartnerWall.module.css";
@@ -31,9 +32,22 @@ export interface PartnerWallProps {
   entries: PartnerEntry[];
   /** Variante `.inst` de la maquette (filet or léger) — réservée aux soutiens. */
   institutionnel?: boolean;
+  /**
+   * Rendu dans le back-office (Story 6.5) : les logos viennent de `/admin/medias/logos/`
+   * (partenaires non publiés compris) **et** ne passent pas par l'optimiseur. Un seul
+   * booléen porte les deux faits — voir `lib/logos.ts`. Défaut `false` : la page publique
+   * ne change pas d'un caractère.
+   */
+  sourceAdmin?: boolean;
 }
 
-export function PartnerWall({ label, titleId, entries, institutionnel }: PartnerWallProps) {
+export function PartnerWall({
+  label,
+  titleId,
+  entries,
+  institutionnel,
+  sourceAdmin,
+}: PartnerWallProps) {
   return (
     <section className={styles.wall} aria-labelledby={titleId}>
       {/* `editorial.subtitle` et non `editorial.title` : ces quatre libellés sont
@@ -53,7 +67,12 @@ export function PartnerWall({ label, titleId, entries, institutionnel }: Partner
           dans le CSS — globals.css n'en pose pas pour <ul> (vérifié en 4.1). */}
       <ul className={styles.grille}>
         {entries.map((entry) => (
-          <PartnerCard key={entry.id} entry={entry} institutionnel={institutionnel} />
+          <PartnerCard
+            key={entry.id}
+            entry={entry}
+            institutionnel={institutionnel}
+            sourceAdmin={sourceAdmin}
+          />
         ))}
       </ul>
     </section>
@@ -64,16 +83,28 @@ export function PartnerWall({ label, titleId, entries, institutionnel }: Partner
  * Une entrée : la tuile (logo OU nom), puis la description si elle existe.
  *
  * 🔴 LES TROIS BRANCHES DE CE COMPOSANT SONT LE CAS NOMINAL, PAS DES CAS LIMITES.
- * Sur les 11 entrées en base au 2026-07-31 : **4 ont un logo**, **2 une description**,
- * **0 un lien**. Une conception qui traiterait la donnée pleine puis « dégraderait »
- * rendrait aujourd'hui 7 cadres vides et 0 lien.
+ *
+ * ⚠️ **CHIFFRES CORRIGÉS LE 2026-08-04 (Story 6.5) — LES PRÉCÉDENTS ÉTAIENT PÉRIMÉS.**
+ * Ce commentaire disait « 4 ont un logo, **2 une description, 0 un lien** ». C'était vrai
+ * quand ce fichier a été écrit, et **faux quelques heures plus tard** : le commit `64aad1a`
+ * de la Story 4.2 elle-même a semé un lien `exemple-*.fr` et une description sur **les
+ * onze**. État MESURÉ en base le 2026-08-04 : **11 entrées, 4 avec logo, 11 avec lien, 11
+ * avec description**.
+ * ⇒ La branche « pas de logo » reste le cas majoritaire (7 sur 11) et reste le cas nominal.
+ * La branche « pas de lien », elle, n'est plus atteignable par la donnée semée — mais elle
+ * le redevient dès que le back-office (6.5) laisse saisir un partenaire sans URL, ce qui est
+ * fréquent pour une association locale. Ne pas la retirer.
+ * ⚠️ Un chiffre daté dans un commentaire est une dette : le re-mesurer avant de s'y fier
+ * (`pieges/cadrage-perime.md`).
  */
 function PartnerCard({
   entry,
   institutionnel,
+  sourceAdmin,
 }: {
   entry: PartnerEntry;
   institutionnel?: boolean;
+  sourceAdmin?: boolean;
 }) {
   // 🔴 ON PASSE PAR `isExternalUrl()`, PAS PAR LA SEULE PRÉSENCE DE `link`.
   // Le schéma Zod (`lib/schemas/partner.ts`) garantit une URL http(s) absolue AU POINT
@@ -98,7 +129,7 @@ function PartnerCard({
       // de son ancêtre positionné). Raisonnement complet dans PartnerMarquee.module.css.
       <span className={styles.zone}>
         <Image
-          src={entry.logo}
+          src={sourceLogo(entry.logo, sourceAdmin)}
           // Le nom du partenaire est le texte alternatif utile (EXPERIENCE.md l.194) :
           // un logo dit QUI soutient l'asso, pas à quoi il ressemble. Sur les 4 entrées
           // à logo, c'est le SEUL endroit où le nom existe — la tuile porte le logo OU
@@ -114,10 +145,21 @@ function PartnerCard({
           // La tuile va de 150px (base) à 210px (plafond) : `sizes` prend la borne haute.
           sizes="210px"
           loading="lazy"
-          // ⚠️ `unoptimized` — même raison de PÉRIMÈTRE qu'en 4.1, pas le motif écrit
-          // dans la dette R15 (« sharp absent »), qui est FAUX : sharp est présent et
-          // NON DÉCLARÉ. Lever cette dette appartient à la Story 4.3, qui devra
-          // d'abord DÉCLARER sharp dans apps/vitrine/package.json.
+          // 🔴 `unoptimized`, ET LE MOTIF A CHANGÉ À LA STORY 6.5 — L'ANCIEN ÉTAIT PÉRIMÉ.
+          // Il disait « sharp est présent et NON DÉCLARÉ, lever la dette appartient à la
+          // 4.3 » : `apps/vitrine/package.json` porte `"sharp": "^0.34.5"` depuis cette
+          // story-là, et R15 déclare ce volet CLOS. Deux raisons ACTUELLES, et elles
+          // tiennent toutes les deux :
+          //   ① les logos téléversés sont DÉJÀ normalisés à la taille canonique par le
+          //      serveur (96 px de haut, `server/medias/normaliserLogo`) : il n'y a plus
+          //      rien à optimiser, et `/_next/image` ne ferait que re-encoder un fichier
+          //      déjà minimal ;
+          //   ② en `sourceAdmin`, l'image vient d'une route GARDÉE — et l'optimiseur
+          //      requête depuis le serveur, SANS cookie de session : il reçoit le `307`
+          //      de la garde, pas une image (mesuré au gate visuel de la 6.4).
+          // ⚠️ Corollaire : aucune entrée `/medias/logos/**` ni `/admin/medias/**` dans
+          // `images.localPatterns` — une autorisation que rien ne consomme est une
+          // « porte sans pièce ».
           unoptimized
         />
       </span>
