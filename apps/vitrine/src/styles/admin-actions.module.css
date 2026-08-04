@@ -69,3 +69,54 @@
     transition: none;
   }
 }
+
+/* ═════════ Les commandes d'ordre « monter / descendre » (déplacées ici par la 6.5) ═════
+   🔴 2ᵉ CONSOMMATEUR, ET C'EST LE **CSS** QUI JUSTIFIE L'EXTRACTION, PAS LE JSX. Ces règles
+   vivaient dans `PhotoActions.module.css` (6.4) ; `PartenaireActions` (6.5) les repaie à
+   l'identique. Deux copies dans deux `*.module.css` divergeraient EN SILENCE : un diff ne
+   rapproche pas deux fichiers, `gate` ne couvre pas /admin, et Lighthouse n'audite que les
+   pages publiques. Même argument que `.fichier` dans `admin-form.module.css`.
+   ⚠️ Ce qui reste PROPRE à chaque écran, ce sont les LISTES d'identifiants renumérotées :
+   la galerie renumérote toute la table, les partenaires une CATÉGORIE. Ça, c'est du
+   comportement, et ça ne s'extrait pas. */
+.rang {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Cible ≥ 44×44 (project-context.md §5) : une flèche de 20px serait inatteignable au doigt,
+   et le back-office reste consultable sur un écran de portable. */
+.deplacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.deplacer:hover {
+  border-color: var(--gold);
+  background: var(--surface);
+}
+
+/* ⚠️ `disabled` ne sert QUE pendant l'aller-retour d'une renumérotation — jamais pour
+   signifier « première ligne » : aux extrémités, la commande n'est pas rendue du tout.
+   Deux flèches mortes sont exactement le défaut trouvé par `gate:carousel` en Story 3.3. */
+.deplacer:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deplacer {
+    transition: none;
+  }
+}

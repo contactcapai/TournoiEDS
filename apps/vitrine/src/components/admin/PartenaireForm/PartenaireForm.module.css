@@ -1,0 +1,25 @@
+/* Ce qui est PROPRE au formulaire de partenaire (Story 6.5) — le reste vient de
+   `styles/admin-form.module.css`, le vocabulaire de formulaire du back-office.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5).
+
+   ⚠️ Ce fichier ne redéclare RIEN du vocabulaire partagé : ni champ, ni label, ni erreur. */
+
+/* ───────── Le rappel FR33 ─────────
+   🔴 CE BLOC EST UN LIVRABLE, PAS UNE DÉCORATION. `seed.ts` disait déjà que la garde
+   « seuls les faits acquis » devrait être rappelée AU POINT DE SAISIE dès qu'un back-office
+   existerait — « un commentaire dans un fichier que le bénévole ne lira jamais ne protège
+   rien ». C'est ce bloc.
+
+   Filet OR et non gris : il doit se distinguer d'une aide de champ ordinaire, parce qu'il ne
+   dit pas comment remplir mais ce qu'on n'a pas le droit d'affirmer. `--light` et jamais
+   `--grey` sur `--surface` (doctrine editorial.module.css l.115-119). */
+.regle {
+  padding: 14px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}

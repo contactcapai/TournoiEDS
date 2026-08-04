@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@repo/ui";
 
+import { ChampFichier } from "@/components/admin/ChampFichier/ChampFichier";
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import { ALT_MAX, ALT_MIN, CAPTION_MAX, photoInputSchema } from "@/lib/schemas/photo";
 import { televerserPhoto } from "@/server/actions/galerie";
@@ -256,44 +257,34 @@ export function PhotoUploader({ evenements }: PhotoUploaderProps) {
   return (
     <div className={styles.form}>
       {/* ── Le champ fichier ─────────────────────────────────────────────────────────
-          🔴 IL VIT ICI ET NON DANS `ChampTexte`, ET C'EST UN REFUS ASSUMÉ. `ChampTexte`
-          accepte `type?: "text" | "datetime-local"` ; le champ fichier a **un seul
-          consommateur** dans tout le projet. L'y ajouter maintenant referait le défaut que
-          le commentaire de `SectionHead` interdit nommément (« API MINIMALE … Ne pas
-          ajouter de 3ᵉ prop au cas où »). Il s'extraira quand la Story 6.5 (logos) en fera
-          le 2ᵉ consommateur — pas avant. */}
-      <div className={styles.champ}>
-        <label className={styles.label} htmlFor="photo-fichiers">
-          Photos à téléverser
-        </label>
-        <input
-          id="photo-fichiers"
-          className={propre.fichier}
-          type="file"
-          multiple
-          // ⚠️ `accept` est un CONFORT DE SÉLECTION, jamais une garde : il filtre la boîte
-          // de dialogue du système et rien d'autre. Le vrai contrôle est côté serveur, sur
-          // le CONTENU (`sharp`), et il refuse un exécutable renommé `.jpg`.
-          accept="image/jpeg,image/png,image/webp,image/avif"
-          /* 🔴 LE SEUL `disabled` DE CET ÉCRAN, ET IL N'EST PAS UNE ENTORSE AU PATRON 5.1
-             (« jamais de bouton grisé pendant une latence ») — DÉFAUT RÉEL TROUVÉ EN REVUE.
-             Changer la sélection PENDANT l'envoi remplace `lot` par un nouveau tableau,
-             alors que la boucle en cours itère sur l'ancien : ses `setLot` ne retrouvent
-             plus aucune correspondance, **l'avancement se fige à l'écran pendant que les
-             écritures continuent en base et sur le disque**. Le patron 5.1 interdit de griser
-             une ACTION qu'on peut refaire ; il ne demande pas de laisser ouvrir une course
-             qui rend le travail en cours invisible. */
-          disabled={enCours}
-          onChange={(evenement) => choisir(evenement.target.files)}
-        />
-        <p className={styles.sousChamp}>
-          <span>
+          ✅ EXTRAIT PAR LA STORY 6.5, QUI EN EST LE 2ᵉ CONSOMMATEUR — comme annoncé ici, et
+          après comptage. Ce qui a tranché n'est pas le JSX (8 lignes) mais le **style** du
+          contrôle natif, dont deux copies auraient divergé en silence. Le raisonnement
+          complet vit dans `components/admin/ChampFichier/ChampFichier.tsx`.
+          ⚠️ `multiple` et `disabled` sont les DEUX props que ce consommateur-ci paie ; le
+          champ de logo n'en utilise aucune. Aucune 3ᵉ prop « au cas où ». */}
+      <ChampFichier
+        id="photo-fichiers"
+        label="Photos à téléverser"
+        accept="image/jpeg,image/png,image/webp,image/avif"
+        multiple
+        /* 🔴 LE SEUL `disabled` DE CET ÉCRAN, ET IL N'EST PAS UNE ENTORSE AU PATRON 5.1
+           (« jamais de bouton grisé pendant une latence ») — DÉFAUT RÉEL TROUVÉ EN REVUE.
+           Changer la sélection PENDANT l'envoi remplace `lot` par un nouveau tableau, alors
+           que la boucle en cours itère sur l'ancien : ses `setLot` ne retrouvent plus aucune
+           correspondance, **l'avancement se fige à l'écran pendant que les écritures
+           continuent en base et sur le disque**. Le patron 5.1 interdit de griser une ACTION
+           qu'on peut refaire ; il ne demande pas de laisser ouvrir une course invisible. */
+        disabled={enCours}
+        onChange={choisir}
+        aide={
+          <>
             JPEG, PNG, WebP ou AVIF, {formaterTaille(TAILLE_MAX_OCTETS)} maximum par photo.
             Les fichiers <strong>.svg</strong> ne sont pas acceptés. Vous pouvez en
             sélectionner plusieurs d&rsquo;un coup.
-          </span>
-        </p>
-      </div>
+          </>
+        }
+      />
 
       {/* ── La description et la légende, avec leur distinction ÉCRITE ───────────────
           🔴 `alt` N'EST PAS LA LÉGENDE, et c'est ici — au point de saisie — que la

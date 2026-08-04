@@ -6,25 +6,11 @@
    erreur. Un composant qui recopierait le vocabulaire partagé le ferait diverger au premier
    changement — c'est ce que l'extraction de la 6.3 existait pour éviter. */
 
-/* Le champ fichier natif. On ne le remplace PAS par un faux bouton : le contrôle natif
-   porte l'accessibilité clavier, l'annonce du lecteur d'écran et le glisser-déposer du
-   système — trois choses qu'un `<div>` stylé redemanderait de réécrire, moins bien. */
-.fichier {
-  width: 100%;
-  min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
-  padding: 10px 12px;
-  border: 1px dashed rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
-  border-radius: var(--radius-button);
-  background: var(--navy-deep);
-  color: var(--light);
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: var(--lh-body);
-}
-
-.fichier:focus-visible {
-  border-color: var(--gold);
-}
+/* ⚠️ `.fichier` A DÉMÉNAGÉ vers `styles/admin-form.module.css` (Story 6.5), avec l'ossature
+   du champ, dans `components/admin/ChampFichier/`. La Story 6.5 en est le 2ᵉ consommateur —
+   et c'est le STYLE, pas les 8 lignes de JSX, dont la duplication aurait divergé EN SILENCE
+   (un diff ne rapproche pas deux fichiers, `gate` ne couvre pas /admin, Lighthouse n'audite
+   que les pages publiques). Le raisonnement complet vit sur le composant. */
 
 /* ───────── Le lot et son avancement ─────────
    Il ne disparaît jamais en cours d'envoi : c'est le seul endroit qui dise ce qui est

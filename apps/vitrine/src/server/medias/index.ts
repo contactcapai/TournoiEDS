@@ -4,12 +4,13 @@
 // une fuite d'information à lui seul.
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { createReadStream, existsSync } from "node:fs";
-import { stat, unlink, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { open, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import sharp from "sharp";
 
+import { LOGO_EXTENSION, LOGO_HAUTEUR, LOGO_LARGEUR_MAX } from "../../lib/logos";
 import { EXTENSIONS } from "../../lib/schemas/photo";
 
 /**
@@ -162,23 +163,62 @@ export async function ouvrirMedia(nomValideEnBase: string): Promise<MediaTrouve 
   // nommé `mediasX` passerait le test de préfixe de `medias`.
   if (!chemin.startsWith(base + path.sep)) return null;
 
-  let infos;
+  // ══════════════════════════════════════════════════════════════════════════════════
+  // 🔴 ON OUVRE D'ABORD, ON INTERROGE ENSUITE — DETTE **R36**, TRANCHÉE PAR LA MESURE
+  // ══════════════════════════════════════════════════════════════════════════════════
+  //
+  // La version précédente faisait `stat(chemin)` puis `createReadStream(chemin)` : deux
+  // résolutions successives du MÊME chemin, donc une fenêtre entre les deux. R36 (revue de
+  // la 6.4) soupçonnait une réponse tronquée si un administrateur supprimait le fichier
+  // pendant qu'un visiteur le télécharge. **Le rapport disait lui-même que c'était une
+  // hypothèse non éprouvée** — elle a donc été MESURÉE avant d'être corrigée, sur les deux
+  // plateformes (Windows en dev, **Linux comme en production**) :
+  //
+  //   · suppression PENDANT la lecture du flux ⇒ lecture **COMPLÈTE**, aucune erreur, sur
+  //     les deux plateformes. C'est structurel : sous POSIX le fichier survit à son
+  //     `unlink` tant qu'un descripteur le tient, et Node ouvre avec `FILE_SHARE_DELETE`
+  //     sous Windows. ⇒ **La course décrite par R36 ne se reproduit pas.**
+  //   · suppression ENTRE le `stat()` et l'ouverture ⇒ `ENOENT`, **avant le moindre octet**.
+  //     Mais les en-têtes `200` + `Content-Length` sont déjà partis : le client reçoit donc
+  //     un corps plus court que promis. Fenêtre de quelques microsecondes, une image, aucun
+  //     enjeu de sécurité — mais **réel**, et c'est la seule chose que la mesure a trouvée.
+  //
+  // ⇒ Le correctif ne coûte rien et ferme la fenêtre par construction : on ouvre le
+  // descripteur, on interroge `fstat` **depuis lui**, et le flux naît **du même
+  // descripteur**. Il n'y a plus deux résolutions de chemin, donc plus de fenêtre du tout.
+  // Mesuré aussi : le flux **referme** le descripteur en fin de lecture (pas de fuite).
+  let fh;
   try {
-    infos = await stat(chemin);
+    fh = await open(chemin, "r");
   } catch {
     // ENOENT, EACCES, ELOOP… : dans tous les cas le média n'est pas servable.
     return null;
   }
-  // Un lien symbolique vers l'extérieur du volume : `stat` suit les liens, donc un lien
-  // pointant sur `/etc/passwd` renverrait bien un fichier régulier. Le nom, lui, ne peut
-  // pas contenir de séparateur — le lien devrait donc avoir été créé DANS le volume, ce
-  // qui suppose déjà un accès au conteneur. Garde conservée pour ce qu'elle coûte.
-  if (!infos.isFile()) return null;
 
-  // `createReadStream` et non `readFile` : une photo haute définition ne doit pas être
-  // chargée entièrement en mémoire à chaque requête. `Readable.toWeb` donne le flux
-  // attendu par la `Response` de Next.
-  const flux = Readable.toWeb(createReadStream(chemin)) as ReadableStream<Uint8Array>;
+  let infos;
+  try {
+    infos = await fh.stat();
+  } catch {
+    await fh.close();
+    return null;
+  }
+
+  // Un lien symbolique vers l'extérieur du volume : `open`/`fstat` suivent les liens, donc
+  // un lien pointant sur `/etc/passwd` renverrait bien un fichier régulier. Le nom, lui, ne
+  // peut pas contenir de séparateur — le lien devrait donc avoir été créé DANS le volume,
+  // ce qui suppose déjà un accès au conteneur. Garde conservée pour ce qu'elle coûte.
+  // 🔴 ET LE DESCRIPTEUR SE FERME SUR CE CHEMIN DE REFUS : un `return null` nu ici
+  // transformerait le correctif de R36 en FUITE DE DESCRIPTEURS, c'est-à-dire un défaut
+  // pire que celui qu'on vient de fermer.
+  if (!infos.isFile()) {
+    await fh.close();
+    return null;
+  }
+
+  // Flux et non `readFile` : une photo haute définition ne doit pas être chargée entièrement
+  // en mémoire à chaque requête. `Readable.toWeb` donne le flux attendu par la `Response` de
+  // Next, et `fh.createReadStream()` referme le descripteur en fin de lecture.
+  const flux = Readable.toWeb(fh.createReadStream()) as ReadableStream<Uint8Array>;
   return { flux, typeMime, taille: infos.size };
 }
 
@@ -306,7 +346,67 @@ export type EcritureMedia = { ok: true; filename: string } | { ok: false; echec:
  * bandeau de logos).
  */
 export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
-  // ── ① Le contenu décide, et lui seul ───────────────────────────────────────────────
+  const analyse = await analyserImage(contenu, PIXELS_MAX);
+  if (!analyse.ok) return { ok: false, echec: analyse.echec };
+
+  const volume = resoudreVolume();
+  if (!volume.ok) return { ok: false, echec: volume.echec };
+
+  // 🔴 L'ORIGINAL EST ÉCRIT TEL QUEL — voir le bloc de doc ci-dessus (arbitrage Q2 de la
+  // 6.4). C'est la SEULE différence de fond avec `normaliserLogo`, et elle est délibérée :
+  // R15 attend des sources plus GRANDES, pas plus petites.
+  return poserFichier(contenu, EXTENSION_PAR_FORMAT[analyse.image.format], volume.base);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔢 FACTEURS COMMUNS — EXTRAITS AU 2ᵉ CONSOMMATEUR, ET LE COMPTE EST ÉCRIT (Story 6.5)
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// La leçon de R9 est « toujours COMPTER », pas « ne jamais dupliquer ». Compte réel entre
+// `ecrireMedia` (6.4) et `normaliserLogo` (6.5) :
+//
+//   ① lecture des métadonnées + « ce n'est pas une image »          → identique  2/2
+//   ② refus EXPLICITE du SVG                                        → identique  2/2
+//   ③ liste blanche de format (et le cas `heif`/`compression`)      → identique  2/2
+//   ④ dimensions absentes ⇒ illisible, puis plafond de pixels       → identique  2/2 *
+//   ⑤ résolution du volume + existence, sans jamais le créer        → identique  2/2
+//   ⑥ nom généré, garde de préfixe, écriture en `wx`                → identique  2/2
+//   ⑦ ce qui est écrit, et sous quelle extension                    → DIFFÈRE    0/2
+//
+//   * le PLAFOND diffère (100 Mpx pour une photo, 40 pour un logo), pas la règle : il est
+//     donc devenu un paramètre, pas une seconde copie du test.
+//
+// ⇒ Six étapes sur sept sont payées deux fois à l'identique. C'est le seuil de la doctrine,
+// et l'extraction est faite ici plutôt que dans un module « utilitaire » : ces fonctions
+// n'ont de sens que pour ce module, qui reste **la seule porte entre une valeur de base et
+// le système de fichiers**.
+//
+// ⚠️ `ecrireMedia` est sous porte (`gate:galerie`). Ce remaniement ne change AUCUN de ses
+// comportements observables — même ordre de refus, mêmes motifs, même nom généré. La porte
+// est rejouée pour le prouver, pas pour le supposer.
+
+type ImageAnalysee = { format: FormatAccepte; largeur: number; hauteur: number };
+
+/**
+ * Le CONTENU décide, et lui seul. Ne touche jamais au disque.
+ *
+ * 🔴 LE TYPE VIENT DU CONTENU, JAMAIS DU NOM NI DU `Content-Type` ANNONCÉ. Un fichier
+ * `photo.png` contenant du texte est refusé ; un exécutable renommé `.jpg` aussi.
+ *
+ * 🔴 LE SVG EST REFUSÉ **EXPLICITEMENT**, ET CE N'EST PAS UN EFFET DE BORD. `sharp` SAIT
+ * lire le SVG (mesuré : `format: "svg"`, dimensions rendues). Un refus qu'on déduirait d'un
+ * échec de `sharp` ne refuserait donc RIEN. Or un SVG servi depuis notre propre origine
+ * exécute son `<script>` dans le contexte du site : XSS stocké.
+ * ⚠️ Story 6.5 : c'est le refus que les LOGOS vont rencontrer le plus souvent — un kit de
+ * marque envoyé par un sponsor est presque toujours un SVG. Le refus ne change pas ; le
+ * MESSAGE, lui, doit proposer une sortie (voir `actions/partenaires.ts`).
+ *
+ * @param pixelsMax plafond propre à l'appelant — voir `PIXELS_MAX` et `PIXELS_MAX_LOGO`.
+ */
+async function analyserImage(
+  contenu: Buffer,
+  pixelsMax: number,
+): Promise<{ ok: true; image: ImageAnalysee } | { ok: false; echec: EchecMedia }> {
   let metadonnees;
   try {
     metadonnees = await sharp(contenu).metadata();
@@ -323,8 +423,7 @@ export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
     return { ok: false, echec: { motif: "format", format: metadonnees.format ?? "inconnu" } };
   }
 
-  // Voir `PIXELS_MAX` : le poids du fichier ne borne PAS les dimensions, et c'est
-  // `next/image` — ailleurs, plus tard — qui paierait la note en cadre cassé.
+  // Voir `PIXELS_MAX` : le poids du fichier ne borne PAS les dimensions.
   // ⚠️ Des dimensions absentes des métadonnées sont traitées comme un contenu illisible :
   // une image dont on ne sait pas la taille est une image qu'on ne sait pas servir.
   const largeur = metadonnees.width;
@@ -332,16 +431,23 @@ export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
   if (typeof largeur !== "number" || typeof hauteur !== "number") {
     return { ok: false, echec: { motif: "illisible" } };
   }
-  if (largeur * hauteur > PIXELS_MAX) {
+  if (largeur * hauteur > pixelsMax) {
     return { ok: false, echec: { motif: "dimensions", largeur, hauteur } };
   }
 
-  // ── ② Le volume doit EXISTER, et on ne le crée jamais ──────────────────────────────
-  // 🔴 AUCUNE CRÉATION AUTOMATIQUE (`mkdir -p`), ET C'EST DÉLIBÉRÉ. Un `MEDIA_DIR` mal
-  // orthographié qui se créerait tout seul produirait le mode de défaillance « tout
-  // réussit, rien ne fonctionne » : les téléversements sembleraient marcher, et les photos
-  // seraient écrites à côté du volume Docker sauvegardé. C'est très exactement R21 (la base
-  // `vitrine` créée à la main) et le montage Docker corrigé par la 4.3.
+  return { ok: true, image: { format, largeur, hauteur } };
+}
+
+/**
+ * Le volume doit EXISTER, et on ne le crée jamais.
+ *
+ * 🔴 AUCUNE CRÉATION AUTOMATIQUE (`mkdir -p`), ET C'EST DÉLIBÉRÉ. Un `MEDIA_DIR` mal
+ * orthographié qui se créerait tout seul produirait le mode de défaillance « tout réussit,
+ * rien ne fonctionne » : les téléversements sembleraient marcher, et les fichiers seraient
+ * écrits à côté du volume Docker sauvegardé. C'est très exactement R21 (la base `vitrine`
+ * créée à la main) et le montage Docker corrigé par la 4.3.
+ */
+function resoudreVolume(): { ok: true; base: string } | { ok: false; echec: EchecMedia } {
   let base: string;
   try {
     base = racine();
@@ -349,9 +455,21 @@ export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
     return { ok: false, echec: { motif: "volume" } };
   }
   if (!existsSync(base)) return { ok: false, echec: { motif: "volume" } };
+  return { ok: true, base };
+}
 
-  // ── ③ Le nom vient du serveur ──────────────────────────────────────────────────────
-  const filename = `${randomUUID()}.${EXTENSION_PAR_FORMAT[format]}`;
+/**
+ * Pose un fichier sous un nom **généré par le serveur**.
+ *
+ * 🔴 LE NOM SE JETTE, IL NE SE « NETTOIE » PAS — raisonnement complet en tête de cette
+ * section. `randomUUID()` satisfait la liste blanche par construction.
+ */
+async function poserFichier(
+  contenu: Buffer,
+  extension: string,
+  base: string,
+): Promise<EcritureMedia> {
+  const filename = `${randomUUID()}.${extension}`;
   const chemin = path.resolve(base, filename);
   // Défense en profondeur, au même titre que dans `ouvrirMedia` : le nom est fabriqué ici,
   // donc cette garde ne peut pas tirer aujourd'hui. Elle tiendra le jour où quelqu'un
@@ -360,9 +478,9 @@ export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
 
   try {
     // ⚠️ `wx` : ÉCHOUE si le fichier existe déjà, au lieu d'écraser en silence. Une
-    // collision d'UUID v4 est hors d'atteinte en pratique, mais « écraser une photo
-    // existante » n'est pas un mode de défaillance qu'on veut rendre possible du tout —
-    // l'autre ligne `photo` continuerait de pointer sur un fichier qui n'est plus le sien.
+    // collision d'UUID v4 est hors d'atteinte en pratique, mais « écraser un fichier
+    // existant » n'est pas un mode de défaillance qu'on veut rendre possible du tout —
+    // l'autre ligne continuerait de pointer sur un fichier qui n'est plus le sien.
     await writeFile(chemin, contenu, { flag: "wx" });
   } catch (erreur) {
     console.error("[medias] Échec de l'écriture du média :", erreur);
@@ -370,6 +488,177 @@ export async function ecrireMedia(contenu: Buffer): Promise<EcritureMedia> {
   }
 
   return { ok: true, filename };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// NORMALISATION DES LOGOS (Story 6.5) — LA PREMIÈRE ÉCRITURE QUI **TRANSFORME**
+// ══════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * 🔴 PLAFOND DE PIXELS PROPRE AUX LOGOS, ET IL EST PLUS BAS QUE CELUI DES PHOTOS.
+ *
+ * `PIXELS_MAX` (100 Mpx) protège d'un fichier **anormal** — il est calibré pour ne gêner
+ * aucun appareil photo réel, parce que la galerie conserve l'original et que R15 attend des
+ * sources haute définition.
+ *
+ * Ici le raisonnement s'inverse pour deux raisons :
+ *   ① un logo n'est jamais une image d'appareil photo. 40 Mpx, c'est déjà 6300 × 6300 —
+ *      très au-delà de tout kit de marque ;
+ *   ② 🔴 ET SURTOUT : cette fonction **DÉCODE RÉELLEMENT** les pixels (`resize`), là où
+ *      `ecrireMedia` se contente de lire un en-tête. Un PNG de 100 Mpx, c'est ~400 Mo en
+ *      RGBA dans le processus, pour produire une vignette de 96 px de haut. Le plafond
+ *      n'est donc plus seulement une garde de cohérence, c'est une garde de MÉMOIRE.
+ */
+const PIXELS_MAX_LOGO = 40_000_000;
+
+export type NormalisationLogo =
+  | {
+      ok: true;
+      filename: string;
+      /** Dimensions du fichier RÉELLEMENT écrit. */
+      largeur: number;
+      hauteur: number;
+      /**
+       * 🔴 La source était plus PETITE que la hauteur canonique, donc elle n'a **pas** été
+       * agrandie et la tuile ne sera pas uniforme.
+       *
+       * ⚠️ CE N'EST PAS UN ÉCHEC, C'EST UN FAIT À DIRE. Agrandir un logo de 40 px à 96 ne
+       * fabriquerait aucun détail : le rendu serait visiblement mou et le bénévole ne
+       * saurait pas pourquoi. Doctrine de la dette **R23**, appliquée telle quelle :
+       * **avertir, jamais corriger dans le dos**. L'écran affiche cette information ; c'est
+       * la seule chose que ce booléen existe pour rendre possible.
+       */
+      plusPetitQueLaBoite: boolean;
+      /**
+       * 🔴 LE FICHIER PRODUIT EST UN **FILET** — DÉFAUT TROUVÉ EN REVUE (Edge Case Hunter),
+       * PUIS MESURÉ, ET IL EST PLUS LARGE QUE CE QUE LE RAPPORT DÉCRIVAIT.
+       *
+       * Le rapport signalait le cas MIROIR de la bannière : `96 × 4000 → 2 × 96`, un trait de
+       * 2 pixels de large, sans aucun avertissement. Vrai. Mais la mesure a montré que **le
+       * cas dont cette story est la plus fière produit exactement le même défaut** :
+       *
+       *   source 4000 × 96 → fichier 380 × 9  → rendu dans la tuile ≈ 190 × 4,5 px
+       *   source 96 × 4000 → fichier 2 × 96   → rendu dans la tuile ≈ 1,2 × 56 px
+       *   source 331 × 96  → fichier 331 × 96 → rendu ≈ 190 × 55 px   (logo réel, sain)
+       *
+       * Borner la LARGEUR empêchait le fichier de rester énorme ; ça n'a jamais empêché un
+       * **rendu illisible**. Et `plusPetitQueLaBoite` ne pouvait pas le voir : il ne compare
+       * que la HAUTEUR de la source à la hauteur canonique.
+       *
+       * 🔴 LE TEST PORTE SUR LE FICHIER PRODUIT, PAS SUR LA GÉOMÉTRIE DE LA TUILE — et c'est
+       * délibéré. Écrire ici la boîte utile du rendu (190 × 56, dérivée du `max-width: 210px`
+       * et du `height: 76px` moins l'`inset` de 10px) en ferait une **TROISIÈME copie** de la
+       * géométrie que la dette **R27** compte à deux, et que cette même story vient de fermer
+       * comme acceptée. La plus petite dimension du fichier normalisé suffit : elle est une
+       * propriété de la boîte canonique, pas du rendu.
+       */
+      filet: boolean;
+    }
+  | { ok: false; echec: EchecMedia };
+
+/**
+ * Plancher de lisibilité, sur la plus petite dimension du fichier PRODUIT.
+ *
+ * 24 px, soit un quart de `LOGO_HAUTEUR` : en dessous, le logo occupe moins d'un quart de la
+ * hauteur de la tuile, ce qui n'est plus une marque mais un trait. Valeurs mesurées :
+ *   380 × 9 → 9 ⚠️ · 2 × 96 → 2 ⚠️ · 138 × 40 → 40 ✅ · 331 × 96 → 96 ✅ · 96 × 96 → 96 ✅
+ *
+ * ⚠️ ON AVERTIT, ON NE REFUSE PAS — doctrine **R23**, la même que `plusPetitQueLaBoite` :
+ * refuser bloquerait un logo légitime quoique bizarre, et un bénévole n'aurait aucun moyen de
+ * comprendre pourquoi. Les deux avertissements sont **distincts** et portent deux faits
+ * différents (« trop petit » vs « trop étiré ») : ils ne se fondent pas en un seul booléen.
+ */
+const FILET_PLANCHER_PX = 24;
+
+/**
+ * Normalise un logo dans la **boîte canonique** et l'écrit sur le volume.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 `fit: "inside"` + LES **DEUX** DIMENSIONS BORNÉES — LA SECONDE EST CELLE QU'ON OUBLIE
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * MESURÉ avec la version réellement installée (`sharp@0.34.5`) :
+ *
+ *     4000 × 96   →  resize({ height: 96, fit: "inside" })          →  4000 × 96  ⚠️
+ *     4000 × 96   →  resize({ width: 380, height: 96, ... })        →   380 × 9   ✅
+ *     1000 × 1000 →  resize({ width: 380, height: 96, ... })        →    96 × 96  ✅
+ *      331 × 96   →  resize({ width: 380, height: 96, ... })        →   331 × 96  ✅ (no-op)
+ *      138 × 40   →  resize({ ..., withoutEnlargement: true })      →   138 × 40  ✅ (non agrandi)
+ *
+ * Une contrainte qui ne porte que sur la hauteur laisse donc passer une bannière **intacte**,
+ * avec son poids d'origine, pour un rendu de 4,5 px de haut dans la tuile. ⚠️ Et **aucune
+ * porte de ce projet ne le verrait** — ni `gate` (`overflow-x: clip` rogne en silence), ni
+ * Lighthouse, ni le contraste. Seul un œil, une fois en production.
+ *
+ * 🔴 `fit: "inside"` GARANTIT LE RAPPORT D'ASPECT — c'est l'exigence littérale de l'AC :
+ * *« sans jamais être déformé »*. `cover` recadrerait, `fill` étirerait : les deux
+ * mutileraient une marque tierce. La garde de RENDU (tuile à hauteur fixe +
+ * `object-fit: contain`, garde-fou H de la 4.1) reste en place — les deux ne protègent pas
+ * au même endroit, et cette story n'en remplace aucune.
+ *
+ * 🔴 SORTIE **WEBP**, TRANSPARENCE CONSERVÉE. Les quatre logos réels du projet portent tous
+ * un canal alpha, et deux d'entre eux sont BLANCS : un aplat opaque les rendrait invisibles
+ * sur `--navy`. C'est le défaut que le seed documente déjà (« les deux logos blancs sont
+ * invisibles sur fond clair »), et il serait ici irréversible — le fichier d'origine n'est
+ * pas conservé.
+ */
+export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo> {
+  // ── ① Le contenu décide, avec le plafond des logos ─────────────────────────────────
+  const analyse = await analyserImage(contenu, PIXELS_MAX_LOGO);
+  if (!analyse.ok) return { ok: false, echec: analyse.echec };
+
+  // ── ② Le volume doit exister AVANT qu'on dépense un décodage ───────────────────────
+  // L'ordre compte : ré-encoder puis découvrir que `MEDIA_DIR` est absente, c'est payer un
+  // décodage pour rien — et surtout, c'est un refus qui arriverait APRÈS une transformation,
+  // donc plus tard qu'il ne pouvait.
+  const volume = resoudreVolume();
+  if (!volume.ok) return { ok: false, echec: volume.echec };
+
+  // ── ③ La transformation ────────────────────────────────────────────────────────────
+  let normalise: Buffer;
+  let sortie: { width: number; height: number };
+  try {
+    const resultat = await sharp(contenu)
+      .resize({
+        width: LOGO_LARGEUR_MAX,
+        height: LOGO_HAUTEUR,
+        fit: "inside",
+        // 🔴 ON N'AGRANDIT JAMAIS — voir `plusPetitQueLaBoite`.
+        withoutEnlargement: true,
+      })
+      // `alphaQuality` par défaut (100) : le canal alpha n'est pas dégradé. C'est lui qui
+      // porte la découpe du logo, pas un détail de compression.
+      .webp({ quality: 82 })
+      .toBuffer({ resolveWithObject: true });
+    normalise = resultat.data;
+    sortie = { width: resultat.info.width, height: resultat.info.height };
+  } catch (erreur) {
+    // Le contenu a franchi `analyserImage` (donc `sharp` sait le lire), mais le décodage
+    // complet peut encore échouer : fichier tronqué dont l'en-tête est intact, mémoire
+    // insuffisante… Le message rendu au bénévole reste celui de l'écriture — de son point
+    // de vue, rien n'a été conservé, et il peut réessayer.
+    console.error("[medias] Échec de la normalisation du logo :", erreur);
+    return { ok: false, echec: { motif: "ecriture" } };
+  }
+
+  // ── ④ Le nom vient du serveur, l'extension est TOUJOURS webp ───────────────────────
+  const ecriture = await poserFichier(normalise, LOGO_EXTENSION, volume.base);
+  if (!ecriture.ok) return { ok: false, echec: ecriture.echec };
+
+  return {
+    ok: true,
+    filename: ecriture.filename,
+    largeur: sortie.width,
+    hauteur: sortie.height,
+    // Comparaison sur la HAUTEUR seule : c'est elle qui fait l'alignement du bandeau. Une
+    // source large mais assez haute n'a rien d'anormal — c'est le cas de trois des quatre
+    // logos réels.
+    plusPetitQueLaBoite: analyse.image.hauteur < LOGO_HAUTEUR,
+    // Voir `FILET_PLANCHER_PX` : le test porte sur le fichier PRODUIT, jamais sur la source.
+    // Une source 4000 × 96 est parfaitement saine en soi ; c'est ce qu'elle DEVIENT dans la
+    // boîte canonique qui est illisible.
+    filet: Math.min(sortie.width, sortie.height) < FILET_PLANCHER_PX,
+  };
 }
 
 /**

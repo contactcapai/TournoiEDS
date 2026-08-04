@@ -270,9 +270,12 @@ const PHOTOS = [
  * le Département de la Marne, la Région Grand Est, le Grand Reims et les villes
  * avoisinantes sont des cibles de démarchage, PAS des soutiens. Les ajouter ici les
  * afficherait comme acquis (FR33) — ne pas le faire, même « en attendant ».
- * ⚠️ Cette garde vit ici aujourd'hui parce que ce script est le seul point d'écriture.
- * Avec le back-office (Story 6.5) elle devra AUSSI être rappelée au point de SAISIE : un
- * commentaire dans un fichier que le bénévole ne lira jamais ne protège rien.
+ * ✅ **FAIT (Story 6.5)** : cette garde est désormais rappelée AU POINT DE SAISIE, dans
+ * `components/admin/PartenaireForm/` — une aide par catégorie qui nomme les trois cas réels
+ * (Département de la Marne, Région Grand Est, Grand Reims) plus un rappel permanent. Elle
+ * reste ici parce que le seed écrit encore, mais elle ne repose plus sur un commentaire que
+ * le bénévole ne lira jamais. ⚠️ Elle est **non bloquante** des deux côtés : on ne peut pas
+ * prouver qu'un soutien est acquis, on peut poser la question au bon moment.
  *
  * `logo` : seuls les 4 SPONSORS en ont un — ce sont les 4 fichiers que porte déjà le
  * carrousel du tournoi, copiés (jamais déplacés) dans `public/partenaires/`.

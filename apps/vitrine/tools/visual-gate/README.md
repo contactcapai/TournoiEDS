@@ -322,3 +322,56 @@ verte, volume rendu à son compte initial.
 ne peut pas voir qu'un `alt` est **PERTINENT** (Lighthouse non plus — il ne voit qu'un `alt`
 NON VIDE), ni que la **même image** a été téléversée deux fois (`filename` est unique, le
 CONTENU ne l'est pas).
+
+---
+
+## `gate:partenaires` — la surface « partenaires » (Story 6.5)
+
+**Quatorzième instrument**, et le premier qui garde une écriture qui **TRANSFORME** le
+fichier. `gate:galerie` mesure qu'un fichier accepté est bien arrivé ; la galerie conserve
+l'original. Ici le serveur le **réécrit** (redimensionnement dans la boîte canonique,
+ré-encodage en WebP) : mesurer l'arrivée ne suffit plus, il faut mesurer **ce qu'il est
+devenu**.
+
+```bash
+pnpm --filter vitrine gate:partenaires
+PARTENAIRES_AUTOTEST=1 pnpm --filter vitrine gate:partenaires   # contre-épreuve
+```
+
+Deux moitiés, comme `gate:agenda` et `gate:galerie` :
+
+| | Ce qu'elle mesure |
+|---|---|
+| **A** — HTTP nu, **sans aucun cookie** | 4 routes d'administration gardées et sans fuite · la route de logos d'admin qui ne sert jamais d'image · 6 traversées (`..`, `%00`, séparateurs Windows) qui rendent 404 et **jamais 500** · l'optimiseur qui refuse `/admin/medias/logos/**` **par le motif** · aucun partenaire non publié dans le HTML de `/` ni de `/partenaires` |
+| **B** — la base, le volume et les contrats | 10 écritures SQL qui doivent **ÉCHOUER** (les 5 contraintes de la `0009`) · 7 valeurs que Zod doit refuser + 2 qu'il doit accepter · les deux sens du préfixe de `lib/logos.ts` · le **normaliseur `sharp` exercé lui-même** sur 5 cas · 3 refus qui ne doivent laisser **aucun octet** · le **cycle de vie d'un fichier** (+1 à l'écriture, +1 −1 au remplacement, −1 au retrait) · le **ménage**, qui est une garde |
+
+### Ce qu'elle a trouvé, et que rien d'autre n'a vu
+
+🔴 **`resize({ height })` NE BORNE PAS LA LARGEUR.** Mesuré : une bannière **4000 × 96 ressort
+4000 × 96**, avec son poids d'origine, pour un rendu de **4,5 px de haut** dans la tuile. Ni
+`gate` (`overflow-x: clip` rogne en silence), ni Lighthouse, ni le contraste ne le verraient.
+C'est le défaut sur lequel cette porte a été **prouvée rouge** avant d'être livrée.
+
+### Deux défauts d'INSTRUMENT trouvés en la prouvant
+
+1. **Elle ne rendait aucun verdict — elle se bloquait.** Les cas SQL utilisaient la connexion
+   externe **à l'intérieur** de `sql.begin(…)`, sur un pool `max: 1` : la transaction tenait la
+   seule connexion, l'`insert` en attendait une autre. Interblocage. Chaque cas reçoit
+   désormais `tx` en paramètre.
+2. **Elle polluait le volume qu'elle mesurait.** `sharp(<chemin>)` garde un handle ouvert : le
+   `unlink` du ménage échouait ensuite avec `EBUSY` sous Windows, et la porte laissait **3
+   fichiers** derrière elle — en restant **verte**. Elle lit désormais un Buffer, et le ménage
+   est devenu la **garde ⑬** : elle échoue si le volume ne revient pas à son compte de départ.
+   ⚠️ C'est la 11ᵉ occurrence de `pieges/instrument-non-valide.md` sur ce projet.
+
+### Contre-épreuve
+
+`PARTENAIRES_AUTOTEST=1` présente à chaque garde un cas qu'elle **doit** voir (une route
+ouverte là où elle attend une route gardée, une écriture valide là où elle attend un refus,
+une image déjà conforme là où elle attend une transformation). **32 gardes** ont vu leur cas —
+l'instrument mesure quelque chose.
+
+⚠️ **Six exemptions déclarées en sortie**, dont deux qui méritent d'être connues : cette porte
+ne peut pas voir qu'une **catégorie est juste au sens FR33** (ranger sous « soutien » une
+collectivité qu'on espère seulement convaincre passe toutes les gardes techniques), ni qu'un
+**logo est lisible sur `--navy`** — un logo blanc sur fond blanc aussi.

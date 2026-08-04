@@ -139,3 +139,30 @@
   min-height: 44px;
   color: var(--gold);
 }
+
+/* ═══════════════════ Le champ fichier natif (déplacé ici par la Story 6.5) ═══════════
+   🔴 IL VIVAIT DANS `PhotoUploader.module.css`, ET C'EST SON DÉPLACEMENT QUI A JUSTIFIÉ
+   L'EXTRACTION DE `ChampFichier` — pas les 8 lignes de JSX. Deux copies de ce style dans
+   deux `*.module.css` divergeraient EN SILENCE : un diff ne rapproche pas deux fichiers,
+   `gate` ne couvre pas `/admin`, et Lighthouse n'audite que les pages publiques. Le
+   raisonnement complet vit dans `components/admin/ChampFichier/ChampFichier.tsx`.
+
+   On ne remplace PAS le contrôle natif par un faux bouton : il porte l'accessibilité
+   clavier, l'annonce du lecteur d'écran et le glisser-déposer du système — trois choses
+   qu'un `<div>` stylé redemanderait de réécrire, moins bien. */
+.fichier {
+  width: 100%;
+  min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
+  padding: 10px 12px;
+  border: 1px dashed rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: var(--lh-body);
+}
+
+.fichier:focus-visible {
+  border-color: var(--gold);
+}

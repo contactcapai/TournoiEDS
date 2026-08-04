@@ -155,10 +155,19 @@ try {
           // encore de logo) : `EXPERIENCE.md` l.199 nomme bien « logos partenaires »
           // parmi les liens qui doivent porter une indication visible, donc l'écart est
           // RÉEL. Mais il n'est pas dans le périmètre de la dette R12 (qui vise les CTA)
-          // et le corriger changerait le rendu d'une story MERGÉE (4.2) : c'est une
-          // décision d'apparence, donc une décision de Brice au gate visuel.
-          // ⚠️ Une porte qui tairait cet écart se lirait « tout est couvert ». Elle le
-          // NOMME, et la story porte la question ouverte correspondante.
+          // et le corriger changerait le rendu d'une story MERGÉE (4.2).
+          //
+          // ✅ **ARBITRÉ PAR BRICE AU GATE VISUEL DE LA STORY 6.5, LE 2026-08-04 : PAS
+          // D'INDICATION DE LIEN SORTANT SUR CES TUILES.** La question n'est donc plus
+          // ouverte — l'écart est ASSUMÉ, et la dette **R33 ②** est fermée comme ACCEPTÉE.
+          // ⚠️ Cette exemption RESTE, et c'est le point : elle ne signale plus une décision
+          // en attente, elle documente une décision PRISE. La retirer ferait disparaître
+          // l'écart du champ de vision — or il subsiste, et la porte est le seul endroit
+          // qui le rappelle à chaque exécution.
+          // ⚠️ Son COMPTE, lui, bouge : une tuile passe de « libellé texte » à « image »
+          // dès qu'un logo est téléversé pour ce partenaire, et sort donc de cette liste.
+          // 7 au 2026-08-04. Un compte qui ne bouge pas après un téléversement est un
+          // défaut, pas un succès.
           if (s.estTuile) {
             exemptions.add(`tuile de mur partenaires « ${s.nom.replace(/ \(nouvel onglet\)$/, "")} »`);
           } else {

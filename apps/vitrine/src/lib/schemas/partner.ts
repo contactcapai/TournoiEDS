@@ -12,7 +12,80 @@
  */
 import { z } from "zod";
 
+import { LOGO_EXTENSION, PREFIXE_LOGO } from "../logos";
 import { visiblementVide } from "./texte";
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 BORNES DE LONGUEUR — AJOUTÉES PAR LA STORY 6.5 (migration `0009`), ET LE TROU ÉTAIT RÉEL
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Mesuré au cadrage : cette table ne portait **aucune borne de longueur**, ni en base
+ * (3 `CHECK … not_blank`, rien d'autre) ni ici (`name.max(120)` était le seul). C'est
+ * l'asymétrie exacte que la migration `0006` a corrigée sur `event`/`bar` (Story 6.3) et la
+ * `0008` sur `photo.alt` (Story 6.4) — elle n'avait simplement jamais été appliquée ici.
+ *
+ * 🔴 ET `description` ÉTAIT LE CAS DANGEREUX DES QUATRE, parce qu'elle est **rendue** :
+ * `PartnerWall.module.css` la pose sous la tuile en 13 px, **sans troncature, sans clamp de
+ * lignes et sans `overflow-wrap`** (seul `.nom` en porte un). Une description de 3 000
+ * caractères saisie de bonne foi étirerait sa colonne du mur et casserait l'alignement de la
+ * rangée — sur une page publique, et sans qu'aucune porte ne le dise.
+ *
+ * 🔴 CES CONSTANTES SONT IMPORTÉES PAR `server/db/schema.ts` POUR CONSTRUIRE SES `CHECK`.
+ * La base et Zod expriment donc **la même règle**, jamais deux littéraux recopiés qui
+ * divergeraient au premier ajustement (patron posé par `lib/schemas/event.ts` en 6.3).
+ *
+ * ⚠️ **Mesuré AVANT la migration** sur les 11 lignes existantes : `name` 19, `description`
+ * 144, `link` 33, `logo` 37. Aucune ne viole ces bornes — la `0009` ne pouvait pas échouer.
+ */
+
+/** Le nom sert d'`alt` au logo dans le bandeau : c'est le seul texte qu'un lecteur d'écran aura. */
+export const NAME_MAX = 120;
+
+/**
+ * Une LIGNE de contexte (« Présents depuis 2023 »), pas un paragraphe.
+ * La plus longue en base fait 144 caractères ; 200 laisse de la marge sans autoriser un pavé
+ * qui déferait la grille du mur.
+ */
+export const DESCRIPTION_MAX = 200;
+
+/** Une URL de site de partenaire. 300 est très au-delà de tout cas réel (le plus long : 33). */
+export const LINK_MAX = 300;
+
+/** Un chemin, pas une URL : `/medias/logos/<uuid>.webp` fait 55 caractères. */
+export const LOGO_MAX = 200;
+
+/**
+ * 🔴 FORME DU CHEMIN DE LOGO — LISTE BLANCHE, JAMAIS LISTE NOIRE.
+ *
+ * ⚠️ Le commentaire de `logo` dans `schema.ts` disait, depuis la Story 4.1 : *« volontairement
+ * PERMISSIF sur la forme … contraindre le format ici obligerait à rouvrir ce fichier au moment
+ * où la Story 6.5 écrira dans cette colonne »*. **Nous y sommes**, et c'est le moment prévu :
+ * cette colonne cesse d'être remplie par un seed relu par un humain pour devenir la valeur à
+ * partir de laquelle un **chemin disque** est construit.
+ *
+ * Deux préfixes, et deux seulement :
+ *   · `/partenaires/…`  — les 4 logos semés, servis en statique depuis `public/` ;
+ *   · `/medias/logos/…` — les logos téléversés, sur le volume Docker.
+ *
+ * Le corps reprend mot pour mot la doctrine de `photo_filename_safe` (Story 4.3) :
+ *   ① `^[a-z0-9]` — premier caractère alphanumérique : interdit `.cache`, `-flag`, `..` ;
+ *   ② `[a-z0-9._-]*` — corps sans `/`, sans `\`, sans `%`, sans `:` ;
+ *   ③ extension **`.webp` et elle seule**, en minuscules — la normalisation de cette story
+ *      ré-encode tout en WebP, et les 4 fichiers semés le sont déjà. Une liste plus large
+ *      autoriserait une forme que rien ne produit.
+ *
+ * ⚠️ Le `.includes("..")` est REDONDANT avec ① — il reste parce que la sûreté de cette valeur
+ * ne doit pas dépendre d'un raisonnement à deux détentes qu'il faudra retenir dans six mois.
+ * Même arbitrage que `photo_filename_safe`, mot pour mot.
+ */
+const LOGO_MOTIF = new RegExp(
+  `^(${PREFIXE_LOGO}|/partenaires/)[a-z0-9][a-z0-9._-]*\\.${LOGO_EXTENSION}$`,
+);
+
+const LOGO_MESSAGE =
+  "Chemin de logo invalide. Un logo est soit un fichier téléversé depuis cet écran, " +
+  "soit l'un des logos livrés avec le site — il ne se saisit pas à la main.";
 
 /**
  * Valeurs de l'enum `partner_category`, **définies ici une seule fois**.
@@ -31,6 +104,18 @@ import { visiblementVide } from "./texte";
  */
 export const PARTNER_CATEGORIES = ["sponsor", "partenaire", "soutien", "participation"] as const;
 
+/**
+ * Le type des quatre catégories, **dérivé de la liste ci-dessus**.
+ *
+ * ⚠️ `server/db/schema.ts` le RÉ-EXPORTE plutôt que de le redéfinir depuis son `pgEnum` : les
+ * deux seraient provablement identiques (l'enum est construit à partir de cette liste), mais
+ * deux définitions du même type sont deux endroits où quelqu'un peut en modifier une seule.
+ * Le type naît donc **là où naissent les valeurs**, et il est importable par le formulaire
+ * CLIENT du back-office (Story 6.5) — ce qu'un type venu de `schema.ts` ne serait pas sans
+ * faire entrer Drizzle dans le bundle du navigateur.
+ */
+export type PartnerCategory = (typeof PARTNER_CATEGORIES)[number];
+
 const trimmedText = z.string().trim();
 
 /**
@@ -48,11 +133,28 @@ const trimmedText = z.string().trim();
  * home — une requête vers la page courante à la place d'un logo.
  */
 
-/** Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`. */
-const optionalText = trimmedText
-  .transform((value) => (visiblementVide(value) ? null : value))
-  .nullable()
-  .default(null);
+/**
+ * Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`.
+ *
+ * 🔴 FABRIQUE ET NON CONSTANTE DEPUIS LA STORY 6.5 : la borne ne peut PAS s'ajouter après coup
+ * par un `.max()`. Le `.transform()` a déjà changé le type en `string | null`, sur lequel
+ * `.max()` n'existe pas — et l'y forcer par un `.pipe()` rendrait un message illisible. La
+ * borne entre donc dans la fabrique, avec le nom du champ dans son message : un bénévole doit
+ * lire « la description », pas « string ».
+ *
+ * ⚠️ La longueur est comptée APRÈS `.trim()` (c'est ce que `trimmedText` produit), donc
+ * exactement comme le compteur de `ChampTexte`, qui compte `valeur.trim().length`. Les deux
+ * doivent dire la même chose, sinon le compteur crie à tort — et un compteur qui crie à tort
+ * est un compteur qu'on cesse de lire (défaut trouvé en revue de la 6.3).
+ */
+const texteOptionnel = (max: number, libelle: string) =>
+  trimmedText
+    .transform((value) => (visiblementVide(value) ? null : value))
+    .nullable()
+    .default(null)
+    .refine((value) => value === null || value.length <= max, {
+      message: `${libelle} ne peut pas dépasser ${max} caractères.`,
+    });
 
 /**
  * URL de partenaire.
@@ -76,6 +178,12 @@ const optionalHttpUrl = trimmedText
   .transform((value) => (visiblementVide(value) ? null : value))
   .nullable()
   .default(null)
+  // Borne AVANT la validation de forme : « trop longue » est un diagnostic plus utile que
+  // « adresse invalide » sur une URL de 4 000 caractères, qui l'est aussi mais pour une
+  // raison qu'on ne lui reproche pas.
+  .refine((value) => value === null || value.length <= LINK_MAX, {
+    message: `L'adresse du site ne peut pas dépasser ${LINK_MAX} caractères.`,
+  })
   .refine(
     (value) => {
       if (value === null) return true;
@@ -94,9 +202,12 @@ const optionalHttpUrl = trimmedText
       //   « https:/exemple.fr »   (un seul slash)
       // Le navigateur, lui, y navigue bien comme à une URL absolue. Résultat : ni
       // `target="_blank"`, ni l'annonce « nouvel onglet » — soit exactement la garde
-      // d'accessibilité que ce schéma existe pour rendre possible. Le cas n'est pas
-      // atteignable aujourd'hui (`link` vaut `null` pour les 11), il le devient dès
-      // que la Story 6.5 écrira dans cette colonne AVEC CE MÊME SCHÉMA.
+      // d'accessibilité que ce schéma existe pour rendre possible.
+      // ⚠️ PÉRIMÉ, CORRIGÉ LE 2026-08-04 (Story 6.5) : la suite disait « le cas n'est pas
+      // atteignable aujourd'hui, `link` vaut `null` pour les 11 ». MESURÉ en base : **les 11
+      // portent un lien** depuis le commit `64aad1a` de la Story 4.2 elle-même. Le cas est
+      // donc atteignable dès maintenant par un `UPDATE` direct — et il l'est par la saisie
+      // depuis cette story, qui écrit dans cette colonne AVEC CE MÊME SCHÉMA.
       // ⚠️ Ne pas « simplifier » en retirant ce test : les deux conditions couvrent des
       // choses différentes, et c'est la seconde qui lie ce fichier à `links.ts`.
       return /^https?:\/\//.test(value);
@@ -122,14 +233,25 @@ export const partnerInputSchema = z.object({
    */
   name: trimmedText
     .min(2, "Le nom doit faire au moins 2 caractères.")
-    .max(120)
+    .max(NAME_MAX, `Le nom ne peut pas dépasser ${NAME_MAX} caractères.`)
     .refine((value) => !visiblementVide(value), {
       message: "Le nom ne peut pas être composé uniquement de caractères invisibles.",
     }),
   category: z.enum(PARTNER_CATEGORIES),
-  /** `null` = pas de logo ⇒ absent du bandeau de la home, documenté sur /partenaires. */
-  logo: optionalText,
-  description: optionalText,
+  /**
+   * `null` = pas de logo ⇒ absent du bandeau de la home, documenté sur /partenaires.
+   *
+   * ⚠️ Cette valeur ne se saisit PAS : elle est produite par le téléversement (Story 6.5),
+   * qui écrit un nom généré par le serveur. La liste blanche ci-dessous n'est donc pas là
+   * pour guider une frappe — elle est là pour qu'un `UPDATE` direct, une restauration de
+   * sauvegarde ou une migration de données ne puissent pas y déposer une valeur à partir de
+   * laquelle un chemin disque serait ensuite construit.
+   */
+  logo: texteOptionnel(LOGO_MAX, "Le chemin du logo").refine(
+    (value) => value === null || (LOGO_MOTIF.test(value) && !value.includes("..")),
+    { message: LOGO_MESSAGE },
+  ),
+  description: texteOptionnel(DESCRIPTION_MAX, "La description"),
   link: optionalHttpUrl,
   /**
    * 🔴 BORNÉ À LA PLAGE DE `integer` POSTGRES (int4), et ce n'est pas de la préciosité :
