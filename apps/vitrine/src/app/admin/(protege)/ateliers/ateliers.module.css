@@ -1,0 +1,85 @@
+/* Ce qui est PROPRE aux écrans d'ateliers (Story 6.9) — le reste vient de
+   `styles/admin-page.module.css`, le vocabulaire de page du back-office.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5).
+
+   ⚠️ Ce fichier ne redéclare RIEN du vocabulaire partagé : ni ligne, ni état, ni lien, ni
+   `.mention` — celle-ci a été EXTRAITE vers `admin-page.module.css` par cette story même,
+   avec le compte des copies et le motif du retrofit partiel (voir là-bas). */
+
+/* ───────── Titre de famille ─────────
+   Repris de `.categorie` des partenaires : même rôle (nommer un groupe dans une liste
+   d'inventaire), donc même traitement. Ce n'est PAS une extraction manquée — les deux
+   fichiers sont les seuls consommateurs, et fusionner deux règles de 6 lignes obligerait à
+   nommer un concept (« titre de groupe d'inventaire ») que rien d'autre ne réclame. Le
+   compte est de 2, il est écrit, et il sera réévalué au 3ᵉ (Story 6.10, les membres). */
+.famille {
+  margin-top: 34px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+
+.famille:first-of-type {
+  margin-top: 0;
+}
+
+.familleVide {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Le public visé dans une ligne d'inventaire. Plus discret que la description, qui utilise
+   `.ligneLieu` du vocabulaire partagé.
+   ⚠️ `--grey` est autorisé ICI et interdit sur le rendu public : le back-office est sur
+   `--navy-deep` (le fond le plus sombre du projet), qui est précisément le cas pour lequel
+   DESIGN.md §Contraste & AA réserve `--grey`. Sur la bande `--navy` de /animations, la même
+   couleur ne passerait pas — c'est pour cela que `WorkshopCatalog.module.css` ne l'utilise
+   nulle part. Deux surfaces, deux fonds effectifs, deux règles (leçon 4.2). */
+.publicVise {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* ───────── Le plateau de prévisualisation ─────────
+   🔴 IL PORTE `editorial.band`, DONC `background: var(--navy)` — le fond RÉEL de la section
+   d'accueil du catalogue sur /animations. Prévisualiser sur le fond du back-office
+   (`--navy-deep`) montrerait un contraste qui n'existe nulle part (leçon 4.2 : « un fond
+   effectif n'est pas un token »).
+   Ce bloc n'ajoute donc que la mise en boîte dans l'écran d'admin : marge, coins arrondis et
+   respiration horizontale. Il ne touche à AUCUNE propriété de couleur ou de typographie —
+   c'est ce qui garantit que le composant public est rendu tel quel. */
+.apercu {
+  margin-top: 18px;
+  padding-right: 24px;
+  padding-bottom: var(--section-y);
+  padding-left: 24px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+/* N'EXISTE QUE DANS L'APERÇU — sur le site, une famille sans atelier ne rend rien du tout
+   (`WorkshopCatalog` retourne `null`). Écrire cette phrase dans le composant la ferait
+   apparaître sur la page publique.
+
+   🔴 `--light` ET NON `--grey` — CORRIGÉ EN REVUE, ET LE FICHIER SE CONTREDISAIT LUI-MÊME.
+   Trente lignes plus haut, `.publicVise` explique que « `--grey` est autorisé ICI et interdit
+   sur le rendu public : le back-office est sur `--navy-deep`… Sur la bande `--navy`, la même
+   couleur ne passerait pas ». Or ce bloc-ci est rendu **DANS** `editorial.band`, donc sur
+   `--navy` — la doctrine que ce fichier énonce ne s'appliquait pas à sa propre règle.
+
+   🔬 MESURÉ : `--grey` (#9293ad) sur `--navy` (#29265b) = **4,60:1**. Le seuil AA d'un texte
+   normal est 4,50:1 — donc techniquement conforme, avec **0,10 de marge**, sur un texte de
+   15px. `--light` (#edeffd) sur ce même fond donne **12,06:1**.
+   ⚠️ C'est la leçon 4.2 (« un fond effectif n'est pas un token ») : la couleur n'était pas
+   fautive, c'est son FOND qui avait changé entre l'écran de liste et l'aperçu. */
+.apercuVide {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}

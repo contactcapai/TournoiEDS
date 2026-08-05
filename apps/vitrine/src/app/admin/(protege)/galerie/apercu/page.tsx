@@ -114,7 +114,7 @@ export default async function ApercuGaleriePage() {
           rendu final ; sur le site, seules les photos PUBLIÉES comptent dans les 8. Un écran
           muet là-dessus se ferait lire comme exhaustif — corollaire de
           `pieges/garde-nominale.md` appliqué à un écran plutôt qu'à une porte. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         {brouillons > 0 ? (
           <>
             Cet aperçu inclut <strong>{brouillons} brouillon{brouillons > 1 ? "s" : ""}</strong>,
@@ -135,7 +135,7 @@ export default async function ApercuGaleriePage() {
           plus vue du site. Le dire ici est le seul endroit où l'information arrive AVANT la
           décision. */}
       {evincees > 0 ? (
-        <p className={propre.mention} role="note">
+        <p className={styles.mention} role="note">
           ⚠️ En publiant {brouillons > 1 ? "ces brouillons" : "ce brouillon"},{" "}
           <strong>
             {evincees} photo{evincees > 1 ? "s" : ""} actuellement sur l&rsquo;accueil

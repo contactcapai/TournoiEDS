@@ -166,3 +166,33 @@
 .fichier:focus-visible {
   border-color: var(--gold);
 }
+
+/* ───────── Rappel de règle de contenu ─────────
+   🔴 EXTRAIT AU 2ᵉ CONSOMMATEUR, ET LE COMPTE EST ÉCRIT (Story 6.9).
+   Né dans `PartenaireForm.module.css` (6.5) pour le garde-fou FR33 des catégories de
+   partenaires ; repayé À L'IDENTIQUE par `AtelierForm` (6.9), qui rappelle FR33 **et** FR10
+   au point de saisie. **2 consommateurs**, corps rigoureusement identique — c'est ici que
+   l'extraction se paie, et le retrofit de `PartenaireForm` est dans le MÊME commit (sinon le
+   nombre de copies ne baisse pas : composant + copie locale = toujours 2, patron `Wrap` et
+   `editorial.module.css`).
+   ⚠️ Le fichier `PartenaireForm.module.css` a été SUPPRIMÉ : `.regle` en était le seul
+   contenu. Une feuille vide laissée derrière est un import mort qui survit aux refactors.
+
+   🔴 CE BLOC EST UN LIVRABLE, PAS UNE DÉCORATION. `seed.ts` disait déjà que la garde « seuls
+   les faits acquis » devrait être rappelée AU POINT DE SAISIE dès qu'un back-office
+   existerait — « un commentaire dans un fichier que le bénévole ne lira jamais ne protège
+   rien ». C'est ce bloc.
+
+   Filet OR et non gris : il doit se distinguer d'une aide de champ ordinaire, parce qu'il ne
+   dit pas comment remplir mais ce qu'on n'a pas le droit d'affirmer. `--light` et jamais
+   `--grey` sur `--surface` (doctrine editorial.module.css l.115-119). */
+.regle {
+  padding: 14px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}

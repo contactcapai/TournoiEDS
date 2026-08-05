@@ -138,7 +138,7 @@ export default async function ModifierPhotoPage({
         {/* ⚠️ CE QUE CET ÉCRAN NE FAIT PAS, DIT PLUTÔT QUE LAISSÉ CHERCHER. Remplacer
             l'image d'une photo existante reviendrait à écrire un second fichier et à retirer
             le premier : c'est un téléversement, pas une modification. */}
-        <p className={propre.mention} role="note">
+        <p className={styles.mention} role="note">
           Le fichier image ne se remplace pas ici. Pour changer la photo elle-même,
           supprimez celle-ci et téléversez la nouvelle.
         </p>

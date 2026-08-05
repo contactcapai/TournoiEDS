@@ -156,3 +156,36 @@
     margin-left: 0;
   }
 }
+
+/* ───────── Mention de contexte ─────────
+   Ce qu'un écran montre de plus que le site, ou ce qu'un geste décide AILLEURS. « Dire une
+   borne coûte une phrase, la taire coûte un ticket. »
+
+   🔴 EXTRAITE PAR LA STORY 6.9, ET LE COMPTE EST ÉCRIT — TROIS COPIES EXISTAIENT, DEUX
+   ÉTAIENT IDENTIQUES.
+     · `galerie.module.css` (6.4) et `partenaires.module.css` (6.5) : corps RIGOUREUSEMENT
+       identiques → retrofités vers cette règle dans le MÊME commit (sinon le nombre de copies
+       ne baisse pas : règle partagée + copies locales = toujours trois). Rendu inchangé, et
+       c'est vérifiable puisque les corps étaient égaux caractère pour caractère.
+     · `agenda/[id]/apercu/page.module.css` (6.3) : corps DIFFÉRENT — `margin-top: 28px` au
+       lieu de 18, `padding: 16px 18px` au lieu de 14/16, et **aucun `font-size`**, donc une
+       taille héritée. **Elle n'est PAS retrofitée** : l'aligner changerait le rendu d'une
+       story mergée depuis une story qui n'a rien à voir avec l'agenda, et la différence est
+       purement esthétique — la règle de rythme du projet (`CLAUDE.md` §2) veut qu'elle
+       s'empile en dette et se solde en une seule passe, pas au fil de l'eau. Consignée en
+       **R37**, routée vers la **Story 6.10**.
+   ⇒ Après cette story : **2 définitions** (celle-ci + celle de l'agenda), contre 3 avant.
+
+   Filet OR et non gris : cette phrase ne dit pas comment remplir un champ, elle dit une
+   conséquence. `--light` et jamais `--grey` sur `--surface`. */
+.mention {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}

@@ -1,0 +1,197 @@
+/* Cards du catalogue d'ateliers (Story 6.9) — rendues DANS `.prose` de la bande `.band` de
+   /animations, c'est-à-dire sur `background: var(--navy)`.
+
+   🔴 FORME REPRISE DE `07 site MSL` (`TrainingCard`/`TrainingGrid`), CHARTE ENTIÈREMENT EDS.
+   Arbitrage de Brice au gate visuel du 2026-08-04 : « la forme MSL, la charte EDS ». MSL est
+   en Tailwind + framer-motion avec des accents multicolores par catégorie ; ici tout passe par
+   les tokens du projet, sans une dépendance de plus et sans introduire une couleur que la
+   charte EDS n'a pas.
+
+   🔬 CONTRASTES MESURÉS sur le fond réel de la carte (`--surface` #322e6e), et non sur le fond
+   de la section (leçon 4.2 — « un fond effectif n'est pas un token ») :
+     · `--light`  sur `--surface` : 10,49:1   (le résumé)
+     · `--cream`  sur `--surface` : 10,43:1   (le titre)
+     · `--gold`   sur `--surface` :  6,02:1   (l'étiquette « Public » et le filet)
+   Les trois passent AA très largement. ⚠️ `--grey` y donnerait **4,00:1**, un ÉCHEC AA : il
+   n'est utilisé nulle part dans ce fichier, et il ne doit pas y entrer.
+
+   Tokens-only, à quelques px structurels près (sans token dans l'échelle du projet), tous
+   commentés sur place. */
+
+/* ───────── La grille ─────────
+   🔴 `auto-fill` + `minmax` ET AUCUNE `@media` — ce n'est pas un raccourci, c'est ce qui rend
+   la grille conforme à la contrainte du projet. La convention impose d'écrire le breakpoint
+   **880px en littéral** dans toute `@media` ; une grille de cards en aurait demandé deux ou
+   trois (1 → 2 → 3 colonnes), donc autant d'occasions de diverger du reste du site. Ici le
+   nombre de colonnes découle de la largeur disponible, sans qu'aucun seuil soit à maintenir.
+
+   ⚠️ 260px de minimum : en dessous, un intitulé de 80 caractères et une description de 200
+   deviennent illisibles. À 320px de viewport (la largeur la plus tendue du projet), la
+   colonne utile fait ~268px — donc UNE carte, pleine largeur, ce qui est le comportement
+   voulu. `.prose` plafonne à 680px : au-delà, deux cartes, jamais trois — la mesure de
+   lecture reste celle de la page.
+
+   `list-style: none` est ici sans risque : le `role="list"` explicite du markup rétablit la
+   sémantique que Safari retire dans ce cas (voir le commentaire du composant). */
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* ───────── La carte ─────────
+   Fond `--surface` sur `--navy` : le même écart de valeur que les encadrés du back-office et
+   que la tuile de `/partenaires`. La carte se détache sans devenir un bloc coloré.
+
+   🔴 `display: flex` en colonne + `margin-top: auto` sur `.meta` : le filet du public visé est
+   collé EN BAS de la carte, quelle que soit la longueur du titre et du résumé. Sans cela, deux
+   cartes voisines de hauteurs de texte différentes auraient leurs filets à des hauteurs
+   différentes — c'est le défaut le plus visible d'une grille de cards, et il ne se voit qu'avec
+   des données réelles de longueurs inégales. */
+.carte {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px;
+  border: 1px solid rgba(218, 178, 101, 0.28); /* --gold à 28 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  /* Le repli de ligne est porté ici et hérité par tous les enfants — voir le bloc dédié plus
+     bas, c'est un défaut RÉEL mesuré. */
+  overflow-wrap: anywhere;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+/* 🔴 LE SURVOL SOULÈVE, comme la card MSL (`whileHover={{ y: -8 }}`) — mais en CSS, sans
+   framer-motion. 4px et non 8 : la carte EDS est posée sur un fond sombre où une ombre portée
+   ne se voit pas, donc le mouvement est le seul signal, et il doit rester discret sur une page
+   éditoriale.
+   ⚠️ La carte n'est PAS cliquable (aucun détail à révéler, voir le composant) : ce survol est
+   un accusé de lecture, pas une promesse de destination. C'est pourquoi il ne change ni le
+   curseur, ni la couleur du titre. */
+.carte:hover {
+  transform: translateY(-4px);
+  border-color: rgba(218, 178, 101, 0.55);
+}
+
+/* ⚠️ OBLIGATOIRE, et le projet le paie partout : sous `prefers-reduced-motion: reduce`, aucune
+   animation ni transition. On garde le changement de filet, qui n'est pas un mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .carte {
+    transition: border-color 180ms ease;
+  }
+
+  .carte:hover {
+    transform: none;
+  }
+}
+
+/* ───────── L'intitulé ─────────
+   `--font-display` (Bebas) comme les autres titres du site, mais à 20px : subordonné au `<h3>`
+   de famille (24px) qui le domine, lui-même subordonné au `<h2>` de section
+   (`--fs-block-heading`, 44px). L'échelle du projet s'arrête à 24px vers le bas côté titres,
+   d'où ce px structurel.
+   `line-height: 1.1` : Bebas est une capitale étroite, l'interligne de corps (`--lh-body`)
+   creuserait un titre sur deux lignes. */
+.titre {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: var(--ls-display);
+  color: var(--cream);
+}
+
+/* ───────── La description ─────────
+   `--light`, comme `.prose` : c'est le même registre de texte, dans un conteneur différent.
+   ⚠️ AUCUNE troncature (`line-clamp`), contrairement à MSL qui coupe à 3 lignes. Ici la borne
+   est posée À LA SAISIE (200 caractères, `RESUME_MAX`, avec un compteur dans le formulaire) :
+   tronquer à l'affichage EN PLUS ferait qu'un bénévole verrait son texte accepté puis coupé,
+   sans savoir où — c'est très exactement la dette R26, déjà payée sur les titres d'événements. */
+.resume {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── Le public visé ─────────
+   `margin-top: auto` : voir le bloc `.carte`. Le filet aligne toutes les cartes d'une rangée.
+   ⚠️ Le bloc entier disparaît quand le champ est vide (le composant ne le rend pas) : il n'y a
+   donc jamais de filet orphelin ni d'étiquette sans valeur. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(218, 178, 101, 0.22); /* --gold à 22 %, filet sans token */
+}
+
+/* L'étiquette, en capitales — même traitement que l'Eyebrow du site, en plus petit.
+   13px = `--fs-eyebrow`, le plus petit token typographique du projet.
+
+   🔴 `--cream` ET NON `--gold`, ET C'EST UNE MESURE QUI L'A IMPOSÉ — DÉFAUT RÉEL ATTRAPÉ PAR
+   LIGHTHOUSE APRÈS LE PASSAGE EN CARDS.
+   La première version écrivait cette étiquette en `--gold`. Sur le fond de carte à pleine
+   opacité, `--gold` sur `--surface` donne **6,02:1** : largement AA, et mon calcul s'arrêtait
+   là. **Il était faux, parce qu'il ignorait le contexte.**
+
+   🔬 Lighthouse a mesuré **4,12:1** sur cet élément, avec des couleurs qui ne sont AUCUN de nos
+   tokens : `#aa8c5c` sur `#2c2963`. La cause est que cette carte vit dans une section portant
+   `motion.reveal`, dont l'animation part d'`opacity: 0.75` — et **une `opacity` sur un
+   conteneur mélange TOUT ce qu'il contient avec le fond de la page**. Le contraste réel est
+   donc celui du mélange, pas celui des tokens.
+
+   ⚠️ `motion.module.css` le dit noir sur blanc et je ne l'avais pas appliqué : le **plancher
+   du projet est 0,747**, et le fichier prévient qu'il est calculé sur les combinaisons
+   PRÉSENTES dans les sections animées — donc **à recalculer dès qu'une section en introduit
+   une nouvelle**. Celle-ci en était une.
+
+   Recalculé au plancher 0,747, sur le fond effectif :
+     · `--gold`  → **4,06:1**  ❌ (Lighthouse : 4,12 — le modèle et la mesure concordent)
+     · `--cream` → **6,64:1**  ✅
+     · `--light` → **6,68:1**  ✅
+   ⇒ `--cream`. Le **filet**, lui, reste en or : il n'est pas du texte, son seuil est 3:1, et
+   il tient à 4,06 même au plancher. L'accent or de la carte est donc conservé là où il ne
+   coûte rien. */
+.metaLabel {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.metaValeur {
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── 🔴 REPLI DE LIGNE — DÉFAUT RÉEL, TROUVÉ EN REVUE ET **MESURÉ** ─────────
+   (Porté par `.carte` ci-dessus ; ce bloc en garde le raisonnement.)
+
+   Les trois champs sont bornés (80 / 200 / 120), mais **rien n'exige un espace** : ni Zod, ni
+   les `CHECK` de la `0010`. Un intitulé de 80 caractères d'un seul tenant est une saisie
+   parfaitement valide — et un copier-coller d'URL en produit une sans y penser.
+
+   🔬 MESURÉ sur le rendu servi, témoin de 80 caractères réellement insécables : à **320px de
+   viewport**, l'élément faisait **248px de boîte pour 2006px de texte** — soit **1758px de
+   débordement**. À 412px : 1666px. Après correctif : **0**.
+
+   🔴 ET AUCUNE PORTE NE LE VOYAIT :
+     · `globals.css` pose `overflow-x: clip` → rogné **en silence**, ni scrollbar ni alerte ;
+     · `pnpm --filter vitrine gate` est restée **VERTE** : elle balaie les **boîtes**
+       d'éléments contre le viewport, or la boîte ne grandit pas — c'est le **texte** qui
+       déborde **d'elle**. Le témoin juste est `element.scrollWidth > element.clientWidth`.
+     · Lighthouse n'a aucun audit de largeur au périmètre retenu (a11y + SEO).
+   ⇒ Garde permanente : `gate:ateliers` ⑬, qui mesure le repli à 320 et 412px dans un vrai
+   navigateur. La limitation générale de `gate.mjs` est la dette **R38**.
+
+   ⚠️ L'écran d'administration portait DÉJÀ cette garde (`admin-page.module.css`, `.ligneTitre`)
+   avec un commentaire décrivant mot pour mot ce cas : le raisonnement n'avait pas été reporté
+   sur la surface PUBLIQUE. `anywhere` et non `break-word`, comme là-bas — on ne diverge pas. */

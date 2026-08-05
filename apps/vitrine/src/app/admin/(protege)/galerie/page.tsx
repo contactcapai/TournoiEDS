@@ -157,7 +157,7 @@ export default async function AdminGaleriePage() {
 
       {/* 🔴 CE QUE L'ORDRE DÉCIDE, ÉCRIT EN TOUTES LETTRES (AC6). Sans cette phrase,
           « organiser la galerie » se lit comme un rangement sans conséquence. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         L&rsquo;accueil ne montre que les <strong>{HOME_PHOTO_COUNT} premières photos
         publiées</strong>, dans l&rsquo;ordre ci-dessous. Monter une photo, c&rsquo;est
         décider qu&rsquo;elle passe sur la page la plus vue du site.{" "}
@@ -170,7 +170,7 @@ export default async function AdminGaleriePage() {
           NOM du fichier, pas son CONTENU. Comme le nom est généré par le serveur, deux
           téléversements de la même image réussissent tous les deux — et la galerie
           l'afficherait deux fois. Ce n'est pas rattrapable par la base. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         Une même photo peut être téléversée <strong>deux fois</strong> sans que le site s&rsquo;en
         aperçoive : chaque envoi crée un fichier distinct. En cas de doublon, supprimez-en un.
       </p>

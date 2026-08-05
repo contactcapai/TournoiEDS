@@ -2,7 +2,11 @@
 //
 // 🔴 UNE TABLE PAR STORY, JAMAIS D'ANTICIPATION (règle posée en Story 1.7 et maintenue).
 // Une table sans consommateur est une migration qu'il faudra défaire. À venir, chacune
-// avec sa story : `member` / `workshop` (Epic 6).
+// avec sa story : `member` (Story 6.10) et `site_setting` (Story 6.13).
+// ⚠️ `workshop` a été livrée par la Story 6.9 — et elle est la PREMIÈRE table de ce fichier
+// à naître AVEC son écran de saisie. Conséquence visible plus bas : ses `CHECK` de non-blanc
+// ET de plafond sont dans sa migration INITIALE (`0010`), là où `event`/`bar` (`0006`),
+// `photo.alt` (`0008`) et `partner` (`0009`) ont chacune payé une migration de RATTRAPAGE.
 // ⚠️ La table `achievement` annoncée ici jusqu'à la Story 4.1 N'EXISTERA PAS : la
 // restructuration du 2026-07-30 l'a fondue dans `partner` (catégorie `participation`).
 //
@@ -68,10 +72,32 @@ import { LOGO_EXTENSION, PREFIXE_LOGO } from "../../lib/logos";
 // navigateur. Une seule liste pour Zod, la base et la table de `Content-Type`.
 import { EXTENSIONS } from "../../lib/schemas/photo";
 import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
+// ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` CI-DESSUS : `event.ts` exporte déjà un
+// `TITRE_MAX` (celui d'un événement, 80 lui aussi — mais par COÏNCIDENCE d'alignement sur son
+// propre rendu, pas parce que ce serait la même règle). Les importer nus ferait une collision
+// que TypeScript refuserait ; les fusionner serait pire, puisqu'ajuster la troncature de
+// `/agenda` changerait alors la borne d'un atelier. Chaque domaine garde SA borne.
+import {
+  PUBLIC_MAX as WORKSHOP_PUBLIC_MAX,
+  RESUME_MAX as WORKSHOP_RESUME_MAX,
+  TITRE_MAX as WORKSHOP_TITRE_MAX,
+  WORKSHOP_FAMILIES,
+} from "../../lib/schemas/workshop";
 
 /**
- * Nature d'un événement. Identifiants techniques en anglais, comme les tables ; les
- * libellés publics (« Hebdo », « Temps fort ») sont du RENDU et vivent dans la 3.2.
+ * Nature d'un événement. Valeurs en anglais ; les libellés publics (« Hebdo », « Temps
+ * fort ») sont du RENDU et vivent dans la 3.2.
+ *
+ * ⚠️ CETTE PHRASE DISAIT « identifiants techniques en anglais, COMME LES TABLES » jusqu'au
+ * 2026-08-04, et elle énonçait une règle que le projet ne suit pas. **Mesuré au cadrage de la
+ * Story 6.9** : sur les quatre enums du fichier, **trois sont en français** —
+ * `partner_category` (`partenaire`, `soutien`, `participation`), `solicitation_type`
+ * (`animation`, `partenariat`, `autre`) et `workshop_family` (`atelier`, `sensibilisation`,
+ * `evenement`). `event_type` est le seul en anglais. La convention réelle est donc : **la
+ * langue du DOMAINE**, l'anglais restant pour ce qui n'a pas de nom métier français évident.
+ * Corrigé à la source plutôt que contourné en silence — une story qui aurait suivi la règle
+ * telle qu'elle était écrite aurait fabriqué la seule incohérence du fichier
+ * (`00 référence/pieges/avertissement-commentaire.md`).
  *
  * Les valeurs viennent de `src/lib/schemas/event.ts` : **une seule liste**, pas deux
  * reliées par un commentaire. Le sens de l'import est celui-là parce que le module Zod
@@ -755,6 +781,136 @@ export const solicitation = pgTable(
   ],
 );
 
+/**
+ * Famille d'intervention (Story 6.9).
+ *
+ * 🔴 LES TROIS VALEURS NE S'INVENTENT PAS ICI — ELLES SONT DÉJÀ À L'ÉCRAN DEPUIS LA 2.7.
+ * `app/(public)/animations/page.tsx` rend trois `<h3>` (« Ateliers et tournois conviviaux »,
+ * « Sensibilisation aux écrans », « Animations sur vos événements ») et porte l'instruction :
+ * *« elles deviennent la TAXONOMIE DURABLE (futur enum `workshop_family` de la Story 6.9).
+ * Ne pas les renommer à la légère. »*
+ *
+ * Les valeurs viennent de `src/lib/schemas/workshop.ts` — **une seule liste**, même sens de
+ * dépendance que les trois autres enums et pour la même raison (le module Zod est bundlé côté
+ * client par le formulaire d'admin ; l'inverse y ferait entrer tout Drizzle).
+ *
+ * ⚠️ L'ORDRE DE LA LISTE EST L'ORDRE DE L'ENUM, DONC CELUI DU `ORDER BY family`, DONC CELUI
+ * DES TROIS FAMILLES SUR LA PAGE PUBLIQUE. Un `ORDER BY` sur une colonne d'enum trie par
+ * ordre de DÉCLARATION, pas alphabétiquement (leçon `partner_category`).
+ */
+export const workshopFamily = pgEnum("workshop_family", WORKSHOP_FAMILIES);
+
+/**
+ * Atelier du catalogue d'animations (FR34, alimente FR10 — Story 6.9).
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 PREMIÈRE TABLE DU PROJET À NAÎTRE **AVEC** SON ÉCRAN DE SAISIE
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `event`/`bar`, `photo` et `partner` sont toutes nées lors d'une story de MODÈLE, puis ont
+ * reçu leur back-office un epic plus tard — et toutes les trois ont alors payé une migration
+ * de **rattrapage** pour des bornes de longueur absentes (`0006`, `0008`, `0009`). Le motif
+ * était chaque fois le même, et il est écrit dans le bloc de `bar` : *« ce n'était pas un
+ * oubli de doctrine mais une conséquence de la règle de tête de fichier : elle n'avait pas
+ * encore de surface de saisie »*. Ici, la surface de saisie arrive dans la même story.
+ * ⇒ **Les `CHECK` de non-blanc ET de plafond sont dans la `0010`.** Aucun rattrapage à prévoir.
+ *
+ * 🔴 CE QUE CETTE TABLE N'A PAS EST SON LIVRABLE — NE PAS LA « COMPLÉTER ».
+ * Aucune colonne `tarif`, `duree`, `effectif` ni `nombre_de_postes`. **FR10** fait de cette
+ * page une offre d'**utilité sociale** et non une prestation ; **FR16** interdit tout chiffre
+ * de communauté sur le site. L'AC de la story l'exige comme **garde-fou de schéma et non
+ * comme consigne** : un champ « tarif » ferait basculer la page par sa seule présence dans le
+ * formulaire, avant même qu'on le remplisse. Et la page publique le dit déjà en ligne depuis
+ * la 2.7 : *« Le format exact — durée, nombre de postes, jeux, âge du public — se définit avec
+ * vous. »* Ajouter ces colonnes contredirait un texte publié.
+ *
+ * ⚠️ Aucune relation non plus : un atelier n'est rattaché à rien. Il n'a donc **aucune clé
+ * étrangère entrante**, ce qui est précisément ce qui rend sa suppression dure sans danger
+ * (contrairement à `event`, dont la suppression a demandé un raisonnement sur les photos).
+ */
+export const workshop = pgTable(
+  "workshop",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** L'intitulé. Rendu en gras dans la liste de sa famille sur `/animations`. */
+    title: text().notNull(),
+    /**
+     * Une LIGNE de contexte, pas un paragraphe. Absente → la ligne est rendue sans elle,
+     * jamais avec un tiret orphelin (NFR8, doctrine UX-DR10).
+     */
+    summary: text(),
+    /** Le public visé (« Collégiens et lycéens »). Facultatif, même doctrine que `summary`. */
+    audience: text(),
+    /**
+     * Obligatoire : le catalogue public est **groupé par famille**. Un atelier sans famille
+     * n'aurait nulle part où se rendre — c'est une garde de rendu, pas une préférence.
+     */
+    family: workshopFamily().notNull(),
+    /** Classement manuel **à l'intérieur d'une famille** (voir l'index et les actions). */
+    sortOrder: integer().notNull().default(0),
+    /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`, `photo`). */
+    isPublished: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * 🔴 GARDES AU NIVEAU DES DONNÉES — MÊME DOCTRINE QUE PARTOUT DANS CE FICHIER : **la base
+     * est le garde-fou qu'on ne peut pas contourner** (`UPDATE` direct, restauration de
+     * sauvegarde, migration de données), **Zod est celui qui parle au bénévole**
+     * (`lib/schemas/workshop.ts`, d'où viennent ces bornes — jamais recopiées ici).
+     *
+     * `notNull` ne suffit pas : `'' IS NOT NULL` est **vrai** en SQL, donc un
+     * `UPDATE workshop SET title = ''` produirait un atelier sans intitulé, rendu en toutes
+     * lettres — c'est-à-dire une puce vide — sur une page publique.
+     *
+     * 🔴 TOUTES NULL-SAFE, ET C'EST LA LEÇON LA PLUS CHÈRE DE L'EPIC 6. `event_has_venue`
+     * (Story 3.1) s'évaluait à `FALSE OR NULL` = **`NULL`** dans le cas exact qu'elle
+     * interdisait, et **un `CHECK` qui vaut `NULL` PASSE** (logique ternaire SQL : il n'échoue
+     * que sur `FALSE`). Trois epics et sept portes vertes ne l'ont pas vu. Ici, les deux
+     * colonnes nullables portent donc une branche `is null` **explicite**, et `title` est
+     * `notNull` : aucune des trois contraintes ne peut s'évaluer à `NULL`.
+     *
+     * 🔴 `sql.raw()` EST OBLIGATOIRE POUR CES NOMBRES : dans un gabarit `sql``, une valeur
+     * interpolée devient un PARAMÈTRE LIÉ, et la contrainte sortirait dans le `.sql` sous la
+     * forme `length(...) <= $1` — un DDL versionné **invalide**, puisque personne n'est là
+     * pour lier `$1`. Défaut mesuré à la génération en Story 4.3 ; ni le typecheck ni le
+     * build ne le voient. **Le seul témoin est le SQL généré, qu'il faut donc LIRE.**
+     *
+     * ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : `btrim` ne retire que les blancs ASCII, pas U+200B
+     * (leçon 6.3). Un `title` fait de caractères invisibles franchit ce `CHECK` ; Zod le
+     * refuse (`visiblementVide`). **Les neuf contraintes de la `0006`, celles de la `0008` et
+     * de la `0009` ont exactement la même limite** — à rouvrir pour TOUTES les tables
+     * ensemble, jamais pour une seule. Une dixième forme de contrainte inventée ici ferait
+     * diverger la doctrine sans fermer le trou.
+     */
+    check(
+      "workshop_title_valide",
+      sql`length(btrim(${table.title})) > 0 and length(${table.title}) <= ${sql.raw(String(WORKSHOP_TITRE_MAX))}`,
+    ),
+    check(
+      "workshop_summary_valide",
+      sql`${table.summary} is null or (length(btrim(${table.summary})) > 0 and length(${table.summary}) <= ${sql.raw(String(WORKSHOP_RESUME_MAX))})`,
+    ),
+    check(
+      "workshop_audience_valide",
+      sql`${table.audience} is null or (length(btrim(${table.audience})) > 0 and length(${table.audience}) <= ${sql.raw(String(WORKSHOP_PUBLIC_MAX))})`,
+    ),
+    // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : le catalogue filtre sur `is_published`,
+    // puis ordonne par `family`, puis par `sort_order` (`queries/workshops.ts`). Patron exact
+    // de `partner_published_category_order_idx`, et un seul index sert les deux requêtes
+    // (publique et back-office), qui partagent leur ordre.
+    index("workshop_published_family_order_idx").on(
+      table.isPublished,
+      table.family,
+      table.sortOrder,
+    ),
+  ],
+);
+
 // ════════════════════════════════════════════════════════════════════════════════
 // AUTHENTIFICATION BACK-OFFICE — Auth.js v5 + adaptateur Drizzle (Story 6.1)
 // ════════════════════════════════════════════════════════════════════════════════
@@ -913,6 +1069,14 @@ export type NewPhoto = typeof photo.$inferInsert;
 export type Solicitation = typeof solicitation.$inferSelect;
 export type NewSolicitation = typeof solicitation.$inferInsert;
 export type SolicitationType = (typeof solicitationType.enumValues)[number];
+export type Workshop = typeof workshop.$inferSelect;
+export type NewWorkshop = typeof workshop.$inferInsert;
+/**
+ * 🔴 RÉ-EXPORT, PAS UNE SECONDE DÉFINITION — même montage que `PartnerCategory` (6.5), et
+ * pour la même raison : le formulaire d'admin est un composant CLIENT, et un type venu d'ici
+ * y ferait entrer Drizzle. Le type naît là où naissent les valeurs.
+ */
+export type { WorkshopFamily } from "../../lib/schemas/workshop";
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Account = typeof account.$inferSelect;
