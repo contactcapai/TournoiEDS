@@ -34,8 +34,16 @@ pnpm --filter vitrine start          # dans un autre terminal
 pnpm --filter vitrine gate           # ⇐ sort en code 1 si une garde tombe
 ```
 
-Trois gardes, sur **5 pages × 7 largeurs** — soit **105 contrôles** (compte à jour au
-2026-08-01 ; il ne bouge QUE si une page publique est ajoutée à `config.mjs`) :
+**Quatre** gardes, sur **5 pages × 7 largeurs** — soit **140 contrôles** (compte à jour au
+2026-08-05 ; il ne bouge que si une page publique est ajoutée à `config.mjs` **ou** si une
+garde s'ajoute) :
+
+> 🔴 **CE BLOC A ÉTÉ PÉRIMÉ PENDANT UNE STORY, ET CLAUDE.md DIT QU'IL FAIT FOI.** Il annonçait
+> encore « Trois gardes … 105 contrôles » alors que la Story 6.10 avait livré le 4ᵉ contrôle
+> et que `gate.mjs` faisait déjà `controles += 4`. Corrigé au cadrage de la **Story 6.11**,
+> qui ne pouvait pas déclarer « 140 inchangé » contre un document qui disait 105.
+> ⇒ **Le compte se relit ICI et se re-vérifie contre `gate.mjs` à chaque story** — pas de
+> mémoire (`00 référence/pieges/cadrage-perime.md`).
 
 1. **Débordement horizontal** (dette R14) — **balayage par élément** : chaque boîte
    contre le viewport (décoratifs `aria-hidden` exclus, tolérance 2px).
@@ -47,6 +55,11 @@ Trois gardes, sur **5 pages × 7 largeurs** — soit **105 contrôles** (compte 
 2. **Header sticky** (dette R19) — on **défile**, puis on relève la position réelle.
    `position: sticky` présent dans le CSS ne prouve rien.
 3. **Classes fantômes** — aucun `class` ne doit contenir le littéral `undefined`.
+4. **Débordement de TEXTE dans sa propre boîte** (dette R38, Story 6.10) — `scrollWidth >
+   clientWidth` **PAR ÉLÉMENT**, sur les feuilles de texte. La garde ① balaie les BOÎTES,
+   or une boîte **ne grandit pas** quand un mot insécable dépasse : c'est le texte qui
+   déborde d'elle, et `overflow-x: clip` le rogne en silence. Elle a trouvé un défaut
+   **dormant depuis la Story 3.2** (titre d'événement rogné de 7px à 320px sur `/`).
 
 ⚠️ **À exécuter sur le build de PRODUCTION**, pas sur `next dev`.
 
@@ -64,7 +77,16 @@ pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
 pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
 pnpm --filter vitrine gate:agenda        # surface de saisie « agenda » (6.3) — ⚠️ écrit en base, en transaction ANNULÉE
 pnpm --filter vitrine gate:galerie       # surface « galerie » (6.4) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
+pnpm --filter vitrine gate:partenaires   # surface « partenaires » (6.5) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
+pnpm --filter vitrine gate:ateliers      # surface « ateliers » (6.9) — ⚠️ écrit en base, en transaction ANNULÉE
+pnpm --filter vitrine gate:membres       # surface « membres » (6.10) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
+pnpm --filter vitrine gate:sollicitations # surface « sollicitations » (6.11) — ⚠️ écrit en base, et nettoie
 ```
+
+> ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05** : les trois portes
+> livrées entre-temps avaient chacune leur section plus bas, mais aucune n'était remontée ici.
+> Une liste alignée une fois se désaligne à l'ajout suivant — **la relire contre
+> `package.json`**, qui est la seule source qui ne peut pas mentir.
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
 Le défaut R2 EST un défilement : le lire dans le DOM ne le mesure pas. Elle **clique
@@ -509,3 +531,77 @@ Trois gardes n'ont pas de cas d'auto-validation, et la porte **le dit en sortie*
 témoin ne porte aucun marqueur d'administration — lui en présenter un demanderait d'en fabriquer
 un faux), ⑤ (les contre-épreuves sont déjà l'inverse de ④), ⑪ (son cas d'échec est une fuite
 réelle de fichiers, qu'on ne provoque pas exprès sur un volume qu'on sauvegarde).
+
+---
+
+## `gate:sollicitations` — la 17ᵉ porte (Story 6.11)
+
+```bash
+pnpm --filter vitrine gate:sollicitations
+SOLLICITATIONS_AUTOTEST=1 npx tsx --conditions=react-server tools/visual-gate/sollicitations-check.mts
+```
+
+**33 gardes**, autotest **29**, **5 exemptions déclarées**. ⚠️ Elle **écrit en base** (4ᵉ dans
+ce cas) : toutes ses lignes portent un marqueur dans `name`, sont supprimées en `finally`, et
+**le décompte final le vérifie** — un compte qui ne revient pas à l'identique fait sortir la
+porte en code 1, quel que soit l'état des gardes.
+
+### Ce qu'elle a de propre : son objet est une donnée personnelle **de tiers**
+
+`gate:membres` (6.10) gardait déjà de la donnée personnelle — des prénoms d'**adhérents**,
+couverts par la clause des statuts. Ici ce sont le nom, l'adresse e-mail et le message libre de
+collectivités, d'écoles et d'entreprises qui n'ont aucun lien avec l'association et n'ont
+consenti qu'à **recevoir une réponse**. La garde ③ insère un témoin dont l'e-mail et le message
+sont des chaînes uniques, puis interroge le **HTML servi** sans aucun cookie.
+
+Cinq gardes n'existent nulle part ailleurs :
+
+- **⑦ l'ordre est TOTAL** — elle fabrique le cas de la dette **R31** (deux lignes au **même**
+  `created_at`, ce qu'un double-clic produit), lit deux fois, et vérifie **à la fois** que
+  l'ordre est stable **et** qu'il suit bien `id DESC`. Un tri stable mais faux passerait le
+  premier contrôle seul ;
+- **⑨ la bascule n'écrit QUE `is_processed`** — le nom, l'e-mail, le type et le message ont été
+  saisis par un **visiteur** : les rendre modifiables serait falsifier une demande reçue ;
+- **⑪ aucune colonne d'ordre manuel** — l'**absence** est le livrable. Les cinq autres surfaces
+  ont un `sort_order` ; ici l'ordre est chronologique, il appartient aux faits ;
+- **⑯ `cleanText` neutralise les caractères sans largeur, et la règle n'existe qu'UNE fois** —
+  garde posée après la revue, qui a établi que `cleanText` ne faisait qu'un `.trim()` alors
+  qu'un commentaire de la Story 6.9, **sur une page publique**, affirmait le contraire. Elle
+  éprouve **six** cas, dont une contre-épreuve indispensable : un **emoji à ZWJ doit SURVIVRE**
+  (U+200D porte du sens) — sans elle, un durcissement corromprait des valeurs légitimes ;
+- **⑬ la valeur de `GMAIL_APP_PASSWORD` ne part jamais dans le HTML** — l'écran dit que les
+  notifications ne partent pas (dette **R32**), mais il le **mesure** sur l'environnement au
+  lieu de l'écrire en dur, et le risque de ce montage est de rendre le secret lui-même.
+
+### 🔴 Deux gardes LISENT le source, et c'est assumé
+
+⑧ (« tout export commence par `requireAdmin()` ») et ⑨ portent sur du code dont l'**effet**
+exige une session, que cette porte n'a pas. Les lire est le seul témoin disponible — même
+raisonnement que la leçon la plus chère de l'Epic 6 : *quand l'écriture est aveugle, on LIT le
+texte*. La limite est **déclarée en sortie** : un `requireAdmin()` présent ne prouve pas qu'il
+est atteint, c'est le gate visuel qui l'exerce.
+
+### Trois défauts d'INSTRUMENT trouvés en la prouvant — tous accusant le produit
+
+17ᵉ, 18ᵉ et 19ᵉ occurrences de `00 référence/pieges/instrument-non-valide.md`. **Les croire
+aurait fait « corriger » du code juste**, et l'un des trois aurait fait supprimer le
+commentaire qui porte la règle :
+
+1. **⑥b accusait Zod** de laisser passer un e-mail de 255 caractères. Le cas en faisait
+   **252** (`repeat(247) + "@b.fr"`) : il était **sous** la borne, donc correctement accepté.
+   La longueur d'un cas de borne se **calcule**, elle ne s'estime pas.
+2. **⑫ accusait la description** de la section de promettre « Voir le rendu avant de publier ».
+   Elle lisait le **commentaire** qui explique précisément pourquoi cette description ne le dit
+   pas. Même classe que le balayage de classes fantômes de la 6.10 (5 faux positifs sur des
+   stories mergées). Corrigé en retirant les lignes de commentaire avant de chercher.
+3. **⑫b accusait une route `apercu/` d'exister**, sur la foi d'un `307`. Or le matcher
+   `/admin/:path*` du proxy **redirige avant tout routage** : il ne discrimine rien, un `307`
+   ne prouve ni l'existence ni l'absence — et `apercu` serait de toute façon capté par le
+   segment `[id]`. L'absence d'une route **se lit sur le disque**, pas en HTTP.
+
+### Ce que l'auto-validation NE prouve pas
+
+Deux gardes n'ont pas de cas d'auto-validation, et la porte **le dit en sortie** : ② (la route
+témoin ne porte aucun marqueur d'administration — lui en présenter un demanderait d'en
+fabriquer un faux, donc de valider une chaîne inventée plutôt que la garde), ⑤ (la
+contre-épreuve est déjà l'inverse de ④ ; l'inverser à son tour reviendrait à ré-exécuter ④).

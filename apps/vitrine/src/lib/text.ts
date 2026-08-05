@@ -7,16 +7,62 @@
  */
 
 /**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * CARACTÈRES SANS LARGEUR — **UNE SEULE DÉFINITION DANS TOUT LE PROJET** (Story 6.11)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 ÉCHAPPEMENTS EXPLICITES, JAMAIS LES CARACTÈRES EUX-MÊMES : ils sont INVISIBLES dans un
+ * éditeur, donc une classe écrite en littéral serait impossible à relire ou à modifier sans
+ * risque — et un `git diff` ne montrerait rien.
+ * U+00AD trait d'union conditionnel · U+200B→U+200F espaces de largeur nulle et marques de
+ * direction · U+2060→U+2064 jointures invisibles · U+FEFF BOM (déjà retiré par `.trim()`,
+ * listé pour que la classe soit complète).
+ *
+ * 🔴 POURQUOI ELLE VIT **ICI** ET NON DANS `schemas/texte.ts`, OÙ ELLE EST NÉE. Ce module
+ * n'a **aucun import** ; `schemas/texte.ts` importe zod. La règle est consommée des DEUX
+ * côtés — par la validation à l'écriture (Zod) **et** par le filet du rendu (`cleanText`) —
+ * donc elle doit vivre dans celui des deux qui ne coûte rien à l'autre. Dans l'autre sens,
+ * zod entrerait dans le chemin de rendu de **13 composants serveur**. `schemas/texte.ts` la
+ * RÉEXPORTE pour ses six consommateurs : une seule définition, deux portes d'entrée.
+ */
+const SANS_LARGEUR = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
+
+/** Vrai si la chaîne ne contient AUCUN caractère visible (après retrait des sans-largeur). */
+export const visiblementVide = (value: string) =>
+  value.replace(SANS_LARGEUR, "").length === 0;
+
+/**
  * Un texte blanc n'est pas un texte.
  *
  * Le CHECK `event_has_venue` (Story 3.1) protège la BASE, pas le rendu : une ligne écrite
  * avant le durcissement Zod, ou par du SQL direct, peut porter un `venueName` d'espaces.
  * Côté affichage il doit se comporter comme absent — exactement comme le schéma Zod
  * ramène `''` à `null` côté écriture.
+ *
+ * 🔴 ET « BLANC » INCLUT LES CARACTÈRES SANS LARGEUR — CORRIGÉ À LA STORY 6.11, TROUVÉ EN
+ * REVUE PAR **DEUX** AGENTS INDÉPENDAMMENT.
+ *
+ * Cette fonction ne faisait qu'un `.trim()`, qui ne couvre **que** `Zs` et les contrôles :
+ * un texte fait uniquement de U+200B en ressortait **inchangé**, donc rendu comme un
+ * fragment visuellement ET vocalement vide, au lieu de basculer sur le repli de l'appelant
+ * (« (prénom manquant) », « (expéditeur manquant) »…).
+ *
+ * ⚠️ CE N'ÉTAIT PAS UNE DETTE MUETTE : `WorkshopCatalog.tsx` (Story 6.9, page publique
+ * `/animations`) **affirmait en commentaire** que *« `cleanText` ramène `''`, `'   '` et les
+ * chaînes de caractères invisibles à `null` »*. Un document d'autorité prescrivait un
+ * invariant que le code n'avait pas — `00 référence/pieges/cadrage-perime.md`. La parade du
+ * projet est de corriger **la source**, pas de repayer le garde-fou : c'est fait ici, et les
+ * **13 consommateurs** se comportent désormais comme leurs propres commentaires le
+ * promettent depuis la Story 6.3.
+ *
+ * ⚠️ La base, elle, laisse toujours passer ces valeurs (`btrim` ne retire pas U+200B, limite
+ * déclarée dans `schema.ts`) : ce filet reste donc le dernier rempart du rendu, exactement
+ * comme son en-tête le dit.
  */
 export function cleanText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
-  return trimmed.length > 0 ? trimmed : null;
+  if (trimmed.length === 0) return null;
+  return visiblementVide(trimmed) ? null : trimmed;
 }
 
 /**

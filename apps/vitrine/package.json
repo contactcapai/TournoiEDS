@@ -24,7 +24,8 @@
     "gate:galerie": "tsx --conditions=react-server tools/visual-gate/galerie-check.mts",
     "gate:partenaires": "tsx --conditions=react-server tools/visual-gate/partenaires-check.mts",
     "gate:ateliers": "tsx tools/visual-gate/ateliers-check.mts",
-    "gate:membres": "tsx --conditions=react-server tools/visual-gate/membres-check.mts"
+    "gate:membres": "tsx --conditions=react-server tools/visual-gate/membres-check.mts",
+    "gate:sollicitations": "tsx --conditions=react-server tools/visual-gate/sollicitations-check.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",
