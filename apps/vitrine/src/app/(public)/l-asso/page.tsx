@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { Brush, Button, CrownWatermark, LinkArrow } from "@repo/ui";
+import { TeamGrid } from "@/components/asso/TeamGrid/TeamGrid";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import { getPublishedMembers } from "@/server/db/queries/members";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
 
 // Page « L'asso » (Story 2.6) — PREMIÈRE page dédiée du site, et premier <h1> hors
 // du hero. Server Component pur : aucune interactivité, donc aucun 'use client'.
-// La page est prérendue Static.
+//
+// 🔴 ELLE N'EST PLUS `○ Static` DEPUIS LA STORY 6.10 : elle lit la table `member`, donc elle
+// est `ƒ Dynamic` (voir le bloc `dynamic` plus bas). Elle était la DERNIÈRE page publique
+// statique du site — il n'y en a plus aucune.
 //
 // ⚠️ AUCUNE MAQUETTE NE DÉCRIT CETTE PAGE. Décision UX tracée (.decision-log.md
 // l.96 : « Maquettes pages dédiées : AUCUNE, pages spine-only assumées »). Le
@@ -52,7 +57,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LAsso() {
+/**
+ * 🔴 CETTE PAGE LIT LA BASE ⇒ `force-dynamic`, EXACTEMENT COMME `/`, `/agenda`,
+ * `/partenaires` ET `/animations`.
+ *
+ * ⚠️ CE N'EST PAS UN CONFORT DE FRAÎCHEUR, C'EST CE QUI TIENT LA CI. La CI `build` **sans
+ * `DATABASE_URL`** (garde-fou n°2 de la Story 1.7, structurel dans `.github/workflows/ci.yml`).
+ * Sans cette ligne, Next tenterait un PRÉRENDU au build : la connexion Drizzle s'ouvrirait, et
+ * `next build` échouerait — pas en local, où `.env.local` existe, mais sur la CI, où il n'y a
+ * aucun secret. Le défaut serait donc invisible jusqu'à la PR.
+ *
+ * Témoin déclaré AVANT la mesure (AC12) : `/l-asso` passe de `○ Static` à `ƒ Dynamic`, et le
+ * build ne rend **plus aucune** page publique statique.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function LAsso() {
+  // 🔴 LA PAGE REQUÊTE, LE COMPOSANT NON (patron AC1 de la 3.2, tenu partout depuis).
+  // Requêter dans `TeamGrid` serait un N+1 sur une page rejouée à chaque visite.
+  const membres = await getPublishedMembers();
+
   return (
     <>
       {/* ① Tête de page. Seul <h1> du document ; le <main id="content"> est fourni
@@ -187,12 +211,30 @@ export default function LAsso() {
         </Wrap>
       </section>
 
-      {/* ⑤ L'équipe — présentation COLLECTIVE : aucun nom, aucun portrait, aucun
-          effectif chiffré (un effectif serait un chiffre de communauté, FR16).
-          Le projet n'a aucune donnée nominative, et NFR5 pose un bloquant projet :
-          aucune procédure de consentement au droit à l'image n'existe côté asso.
-          Arbitrage de Brice (2026-07-29) : collectif maintenant, nominatif plus
-          tard → dette R16, absorbée par la Story 6.10. Ne PAS inventer de prénoms. */}
+      {/* ⑤ L'équipe — la PROSE COLLECTIVE, puis la grille nominative si des membres
+          sont publiés (Story 6.10, FR35 → FR9).
+
+          🔴 LA PROSE RESTE, MÊME UNE FOIS LA GRILLE PEUPLÉE. Elle explique le
+          FONCTIONNEMENT (bénévolat, pas de temps plein, choix de formats) : les
+          prénoms ne le disent pas. La remplacer perdrait le sens au profit de la liste.
+
+          🔴 ET SANS AUCUN MEMBRE PUBLIÉ, CETTE SECTION EST EXACTEMENT CELLE D'AVANT :
+          `TeamGrid` se rend `null`. C'est l'état du jour du merge, et c'est un état
+          HONNÊTE — la dette R16 se solde par la SAISIE, pas par du code.
+
+          ⚠️ Aucun effectif chiffré, ici ni ailleurs (FR16) : ni « N bénévoles », ni un
+          compteur dérivé de la longueur de la liste. La section ⑥ ci-dessous le dit en
+          toutes lettres au visiteur — un décompte contredirait un texte publié.
+
+          ⚠️ Ne PAS inventer de prénoms : la liste arrive par le back-office.
+
+          ⚠️ Le commentaire qui vivait ici affirmait qu'« aucune procédure de consentement
+          au droit à l'image n'existe côté asso ». **PÉRIMÉ, et corrigé à la source par la
+          Story 6.10** : le point est ARBITRÉ depuis le 2026-07-29 (les personnes sont
+          adhérentes et couvertes par la clause des statuts — voir `Hero.tsx`, qui porte
+          l'arbitrage, et la note de R4 dans `deferred-work.md`). Ne pas le ré-introduire :
+          ce serait payer un garde-fou pour neutraliser un cadrage déjà tranché
+          (`00 référence/pieges/cadrage-perime.md`). */}
       <section
         className={`${editorial.section} ${motion.reveal}`}
         aria-labelledby="equipe-title"
@@ -214,6 +256,10 @@ export default function LAsso() {
               seule personne.
             </p>
           </div>
+          {/* La grille se rend `null` tant qu'aucun membre n'est publié : ni titre
+              orphelin, ni grille vide, ni « Aucun membre » (NFR8, doctrine PartnerWall
+              de la 4.2). Elle vit SOUS la prose, dans le même `<Wrap>`. */}
+          <TeamGrid membres={membres} />
         </Wrap>
       </section>
 

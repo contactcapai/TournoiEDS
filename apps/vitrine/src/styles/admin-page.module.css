@@ -174,7 +174,10 @@
        purement esthétique — la règle de rythme du projet (`CLAUDE.md` §2) veut qu'elle
        s'empile en dette et se solde en une seule passe, pas au fil de l'eau. Consignée en
        **R37**, routée vers la **Story 6.10**.
-   ⇒ Après cette story : **2 définitions** (celle-ci + celle de l'agenda), contre 3 avant.
+   ⇒ Après la 6.9 : **2 définitions** (celle-ci + celle de l'agenda), contre 3 avant.
+   ✅ **APRÈS LA 6.10 : UNE SEULE.** L'aperçu d'agenda consomme désormais celle-ci — la dette
+   **R37 ②** est soldée, et l'écart de rendu qu'elle portait (28/18px, 16/14px, `font-size`
+   absent) a été regardé au gate visuel de cette story.
 
    Filet OR et non gris : cette phrase ne dit pas comment remplir un champ, elle dit une
    conséquence. `--light` et jamais `--grey` sur `--surface`. */

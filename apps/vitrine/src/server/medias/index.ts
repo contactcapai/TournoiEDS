@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import sharp from "sharp";
 
 import { LOGO_EXTENSION, LOGO_HAUTEUR, LOGO_LARGEUR_MAX } from "../../lib/logos";
+import { PORTRAIT_COTE, PORTRAIT_EXTENSION } from "../../lib/portraits";
 import { EXTENSIONS } from "../../lib/schemas/photo";
 
 /**
@@ -573,11 +574,97 @@ const FILET_PLANCHER_PX = 24;
 /**
  * Normalise un logo dans la **boîte canonique** et l'écrit sur le volume.
  *
- * ══════════════════════════════════════════════════════════════════════════════════════
- * 🔴 `fit: "inside"` + LES **DEUX** DIMENSIONS BORNÉES — LA SECONDE EST CELLE QU'ON OUBLIE
- * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE MÉCANISME VIT DANS `normaliserDansBoite` DEPUIS LA STORY 6.10 (extraction au 2ᵉ
+ * consommateur, compte écrit là-bas) — **`fit: "inside"`, les DEUX dimensions bornées, jamais
+ * d'agrandissement, sortie WebP à alpha conservé**, avec les mesures `sharp` qui le justifient.
+ * Ne pas les recopier ici : deux copies de la même leçon divergeraient au premier ajustement,
+ * et c'est exactement ce que la dette R37 vient de coûter sur `texteOptionnel`.
  *
- * MESURÉ avec la version réellement installée (`sharp@0.34.5`) :
+ * ⚠️ CE QUI RESTE PROPRE AU LOGO, ET QUI N'EST DONC PAS EXTRAIT : les deux avertissements.
+ * `plusPetitQueLaBoite` compare la **HAUTEUR** — c'est elle qui aligne le bandeau, et une
+ * source large mais assez haute n'a rien d'anormal (trois des quatre logos réels).
+ *
+ * ⚠️ La garde de RENDU (tuile à hauteur fixe + `object-fit: contain`, garde-fou H de la 4.1)
+ * reste en place — les deux ne protègent pas au même endroit.
+ */
+export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo> {
+  const resultat = await normaliserDansBoite(contenu, {
+    largeurMax: LOGO_LARGEUR_MAX,
+    hauteurMax: LOGO_HAUTEUR,
+    pixelsMax: PIXELS_MAX_LOGO,
+    extension: LOGO_EXTENSION,
+    domaine: "logo",
+  });
+  if (!resultat.ok) return { ok: false, echec: resultat.echec };
+
+  return {
+    ok: true,
+    filename: resultat.filename,
+    largeur: resultat.largeur,
+    hauteur: resultat.hauteur,
+    // Comparaison sur la HAUTEUR seule : c'est elle qui fait l'alignement du bandeau. Une
+    // source large mais assez haute n'a rien d'anormal — c'est le cas de trois des quatre
+    // logos réels.
+    plusPetitQueLaBoite: resultat.sourceHauteur < LOGO_HAUTEUR,
+    // Voir `FILET_PLANCHER_PX` : le test porte sur le fichier PRODUIT, jamais sur la source.
+    // Une source 4000 × 96 est parfaitement saine en soi ; c'est ce qu'elle DEVIENT dans la
+    // boîte canonique qui est illisible.
+    filet: Math.min(resultat.largeur, resultat.hauteur) < FILET_PLANCHER_PX,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 LE SQUELETTE PARTAGÉ — EXTRAIT AU **2ᵉ CONSOMMATEUR** PAR LA STORY 6.10, ET LE COMPTE
+//    EST ÉCRIT ICI PARCE QUE LA DOCTRINE DU PROJET EXIGE QU'IL LE SOIT.
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// **Deux** normaliseurs, pas trois : `normaliserLogo` (6.5) et `normaliserPortrait` (6.10).
+// La galerie (6.4) n'en a PAS — elle conserve l'original tel quel, parce qu'une photo de
+// soirée n'a pas de boîte canonique et que R15 attend des sources haute définition. Ne pas
+// la « rattacher par symétrie » : elle ne partage pas ce besoin.
+//
+// 🔴 CE QUI EST EXTRAIT EST CE QUI EST **PROVABLEMENT IDENTIQUE** : l'ordre des quatre
+// étapes, et surtout la LEÇON qui les tient — borner les DEUX dimensions, ne jamais
+// agrandir, sortir en WebP, et refuser AVANT de dépenser un décodage.
+//
+// 🔴 CE QUI N'EST **PAS** EXTRAIT, ET C'EST DÉLIBÉRÉ : les deux booléens d'avertissement.
+// Ils portent des seuils et un SENS propres à chaque domaine — `plusPetitQueLaBoite` compare
+// la HAUTEUR pour un logo (c'est elle qui aligne le bandeau) et le CÔTÉ pour un portrait
+// (le cadre est carré). Les fondre en un booléen « générique » ferait diverger la doctrine
+// sans rien fermer, exactement comme une dixième forme de `CHECK` inventée pour une table.
+type BoiteCanonique = {
+  largeurMax: number;
+  hauteurMax: number;
+  pixelsMax: number;
+  /**
+   * L'extension du fichier produit. ⚠️ Elle vient de `lib/logos.ts` ou `lib/portraits.ts`,
+   * jamais d'un littéral ici : ces modules sont la source de vérité que les `CHECK` de
+   * `schema.ts` consomment aussi. Un `"webp"` écrit en dur ici serait une seconde définition,
+   * et le jour où l'une des deux bougerait, la base refuserait un fichier qu'on vient d'écrire.
+   */
+  extension: string;
+  /** Uniquement pour le journal : `[medias] Échec de la normalisation du <domaine>`. */
+  domaine: string;
+};
+
+type NormalisationBrute =
+  | {
+      ok: true;
+      filename: string;
+      /** Dimensions du fichier RÉELLEMENT écrit. */
+      largeur: number;
+      hauteur: number;
+      /** Dimensions de la SOURCE — les avertissements de domaine en ont besoin. */
+      sourceLargeur: number;
+      sourceHauteur: number;
+    }
+  | { ok: false; echec: EchecMedia };
+
+/**
+ * Décode, borne dans la boîte, ré-encode en WebP et pose le fichier sur le volume.
+ *
+ * 🔴 `fit: "inside"` + LES **DEUX** DIMENSIONS BORNÉES — LA SECONDE EST CELLE QU'ON OUBLIE.
+ * MESURÉ avec la version réellement installée (`sharp@0.34.5`), sur la boîte des logos :
  *
  *     4000 × 96   →  resize({ height: 96, fit: "inside" })          →  4000 × 96  ⚠️
  *     4000 × 96   →  resize({ width: 380, height: 96, ... })        →   380 × 9   ✅
@@ -585,26 +672,27 @@ const FILET_PLANCHER_PX = 24;
  *      331 × 96   →  resize({ width: 380, height: 96, ... })        →   331 × 96  ✅ (no-op)
  *      138 × 40   →  resize({ ..., withoutEnlargement: true })      →   138 × 40  ✅ (non agrandi)
  *
- * Une contrainte qui ne porte que sur la hauteur laisse donc passer une bannière **intacte**,
- * avec son poids d'origine, pour un rendu de 4,5 px de haut dans la tuile. ⚠️ Et **aucune
- * porte de ce projet ne le verrait** — ni `gate` (`overflow-x: clip` rogne en silence), ni
- * Lighthouse, ni le contraste. Seul un œil, une fois en production.
+ * Une contrainte qui ne porte que sur la hauteur laisse passer une bannière **intacte**, avec
+ * son poids d'origine. ⚠️ Et **aucune porte de ce projet ne le verrait** — ni `gate`
+ * (`overflow-x: clip` rogne en silence), ni Lighthouse, ni le contraste. Seul un œil, une fois
+ * en production.
  *
- * 🔴 `fit: "inside"` GARANTIT LE RAPPORT D'ASPECT — c'est l'exigence littérale de l'AC :
- * *« sans jamais être déformé »*. `cover` recadrerait, `fill` étirerait : les deux
- * mutileraient une marque tierce. La garde de RENDU (tuile à hauteur fixe +
- * `object-fit: contain`, garde-fou H de la 4.1) reste en place — les deux ne protègent pas
- * au même endroit, et cette story n'en remplace aucune.
+ * 🔴 `fit: "inside"` GARANTIT LE RAPPORT D'ASPECT. `cover` recadrerait, `fill` étirerait : les
+ * deux mutileraient une marque tierce — ou déformeraient un visage. Le recadrage éventuel
+ * appartient au RENDU (`object-fit`), jamais au fichier stocké : il est réversible là-bas, et
+ * définitif ici.
  *
- * 🔴 SORTIE **WEBP**, TRANSPARENCE CONSERVÉE. Les quatre logos réels du projet portent tous
- * un canal alpha, et deux d'entre eux sont BLANCS : un aplat opaque les rendrait invisibles
- * sur `--navy`. C'est le défaut que le seed documente déjà (« les deux logos blancs sont
- * invisibles sur fond clair »), et il serait ici irréversible — le fichier d'origine n'est
- * pas conservé.
+ * 🔴 SORTIE **WEBP**, TRANSPARENCE CONSERVÉE (`alphaQuality` par défaut = 100). Les quatre
+ * logos réels du projet portent tous un canal alpha, et deux sont BLANCS : un aplat opaque les
+ * rendrait invisibles sur `--navy`. Ce serait irréversible — le fichier d'origine n'est pas
+ * conservé.
  */
-export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo> {
-  // ── ① Le contenu décide, avec le plafond des logos ─────────────────────────────────
-  const analyse = await analyserImage(contenu, PIXELS_MAX_LOGO);
+async function normaliserDansBoite(
+  contenu: Buffer,
+  boite: BoiteCanonique,
+): Promise<NormalisationBrute> {
+  // ── ① Le contenu décide, avec le plafond du domaine ────────────────────────────────
+  const analyse = await analyserImage(contenu, boite.pixelsMax);
   if (!analyse.ok) return { ok: false, echec: analyse.echec };
 
   // ── ② Le volume doit exister AVANT qu'on dépense un décodage ───────────────────────
@@ -620,14 +708,13 @@ export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo
   try {
     const resultat = await sharp(contenu)
       .resize({
-        width: LOGO_LARGEUR_MAX,
-        height: LOGO_HAUTEUR,
+        width: boite.largeurMax,
+        height: boite.hauteurMax,
         fit: "inside",
-        // 🔴 ON N'AGRANDIT JAMAIS — voir `plusPetitQueLaBoite`.
+        // 🔴 ON N'AGRANDIT JAMAIS — doctrine R23 : avertir, jamais corriger dans le dos.
+        // Agrandir ne fabriquerait aucun détail ; le rendu serait mou sans raison lisible.
         withoutEnlargement: true,
       })
-      // `alphaQuality` par défaut (100) : le canal alpha n'est pas dégradé. C'est lui qui
-      // porte la découpe du logo, pas un détail de compression.
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true });
     normalise = resultat.data;
@@ -637,12 +724,12 @@ export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo
     // complet peut encore échouer : fichier tronqué dont l'en-tête est intact, mémoire
     // insuffisante… Le message rendu au bénévole reste celui de l'écriture — de son point
     // de vue, rien n'a été conservé, et il peut réessayer.
-    console.error("[medias] Échec de la normalisation du logo :", erreur);
+    console.error(`[medias] Échec de la normalisation du ${boite.domaine} :`, erreur);
     return { ok: false, echec: { motif: "ecriture" } };
   }
 
   // ── ④ Le nom vient du serveur, l'extension est TOUJOURS webp ───────────────────────
-  const ecriture = await poserFichier(normalise, LOGO_EXTENSION, volume.base);
+  const ecriture = await poserFichier(normalise, boite.extension, volume.base);
   if (!ecriture.ok) return { ok: false, echec: ecriture.echec };
 
   return {
@@ -650,14 +737,87 @@ export async function normaliserLogo(contenu: Buffer): Promise<NormalisationLogo
     filename: ecriture.filename,
     largeur: sortie.width,
     hauteur: sortie.height,
-    // Comparaison sur la HAUTEUR seule : c'est elle qui fait l'alignement du bandeau. Une
-    // source large mais assez haute n'a rien d'anormal — c'est le cas de trois des quatre
-    // logos réels.
-    plusPetitQueLaBoite: analyse.image.hauteur < LOGO_HAUTEUR,
-    // Voir `FILET_PLANCHER_PX` : le test porte sur le fichier PRODUIT, jamais sur la source.
-    // Une source 4000 × 96 est parfaitement saine en soi ; c'est ce qu'elle DEVIENT dans la
-    // boîte canonique qui est illisible.
-    filet: Math.min(sortie.width, sortie.height) < FILET_PLANCHER_PX,
+    sourceLargeur: analyse.image.largeur,
+    sourceHauteur: analyse.image.hauteur,
+  };
+}
+
+/**
+ * Plafond de pixels des portraits — **même raisonnement que `PIXELS_MAX_LOGO`, autre valeur.**
+ *
+ * Un portrait PEUT venir d'un appareil photo, contrairement à un logo : 40 Mpx serait un peu
+ * juste face à un capteur récent recadré. 60 Mpx couvre tout matériel grand public tout en
+ * gardant la garde de MÉMOIRE qui est la raison d'être de ce plafond — cette fonction DÉCODE
+ * réellement les pixels, là où `ecrireMedia` se contente de lire un en-tête.
+ */
+const PIXELS_MAX_PORTRAIT = 60_000_000;
+
+/**
+ * Plancher de lisibilité d'un portrait, sur la plus petite dimension du fichier PRODUIT.
+ *
+ * 80 px, soit un quart de `PORTRAIT_COTE` — même ratio que `FILET_PLANCHER_PX` face à
+ * `LOGO_HAUTEUR`. En dessous, le cadre carré (`object-fit: cover`) devrait étirer l'image d'un
+ * facteur 4 pour la remplir : ce n'est plus un portrait, c'est une bouillie.
+ *
+ * ⚠️ ON AVERTIT, ON NE REFUSE PAS — doctrine **R23**. Refuser bloquerait une photo légitime
+ * quoique bizarrement cadrée, et un bénévole n'aurait aucun moyen de comprendre pourquoi.
+ */
+const FILET_PLANCHER_PORTRAIT_PX = 80;
+
+export type NormalisationPortrait =
+  | {
+      ok: true;
+      filename: string;
+      /** Dimensions du fichier RÉELLEMENT écrit. */
+      largeur: number;
+      hauteur: number;
+      /**
+       * La source était plus PETITE que la boîte carrée, donc elle n'a **pas** été agrandie.
+       * Le portrait sera moins net que ses voisins. ⚠️ Ce n'est pas un échec, c'est un fait à
+       * dire (doctrine R23) — l'écran l'affiche.
+       *
+       * ⚠️ Comparaison sur le CÔTÉ, et non sur la hauteur comme pour un logo : le cadre est
+       * carré, donc c'est la plus petite dimension de la source qui décide de la netteté après
+       * le recadrage `cover`.
+       */
+      plusPetitQueLaBoite: boolean;
+      /** Le fichier produit est un **filet** — voir `FILET_PLANCHER_PORTRAIT_PX`. */
+      filet: boolean;
+    }
+  | { ok: false; echec: EchecMedia };
+
+/**
+ * Normalise un portrait de membre dans sa boîte carrée et l'écrit sur le volume (Story 6.10).
+ *
+ * 🔴 BOÎTE **CARRÉE** 320 × 320, ET `fit: "inside"` NE ROGNE RIEN : le rapport d'origine est
+ * TOUJOURS conservé — une photo 3/4 ressort 240 × 320. La boîte est un **plafond**, pas un
+ * gabarit. C'est le CSS de la carte (`object-fit: cover`) qui recadre à l'affichage, et ce
+ * recadrage-là est **réversible** : le fichier, lui, garde tout ce qu'on lui a donné.
+ *
+ * ⚠️ Ne pas « améliorer » en passant à `fit: "cover"` ici pour obtenir un carré parfait : on
+ * détruirait définitivement le hors-champ, et une décision de cadrage prise par le serveur sur
+ * le visage de quelqu'un est exactement ce qu'un back-office ne doit pas faire dans le dos.
+ */
+export async function normaliserPortrait(contenu: Buffer): Promise<NormalisationPortrait> {
+  const resultat = await normaliserDansBoite(contenu, {
+    largeurMax: PORTRAIT_COTE,
+    hauteurMax: PORTRAIT_COTE,
+    pixelsMax: PIXELS_MAX_PORTRAIT,
+    extension: PORTRAIT_EXTENSION,
+    domaine: "portrait",
+  });
+  if (!resultat.ok) return { ok: false, echec: resultat.echec };
+
+  return {
+    ok: true,
+    filename: resultat.filename,
+    largeur: resultat.largeur,
+    hauteur: resultat.hauteur,
+    plusPetitQueLaBoite:
+      Math.min(resultat.sourceLargeur, resultat.sourceHauteur) < PORTRAIT_COTE,
+    // Le test porte sur le fichier PRODUIT, jamais sur la source : une source 4000 × 96 est
+    // saine en soi ; c'est ce qu'elle DEVIENT dans la boîte canonique qui est illisible.
+    filet: Math.min(resultat.largeur, resultat.hauteur) < FILET_PLANCHER_PORTRAIT_PX,
   };
 }
 

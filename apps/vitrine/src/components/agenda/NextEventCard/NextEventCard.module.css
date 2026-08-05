@@ -81,6 +81,18 @@
   text-transform: uppercase;
   color: var(--cream);
   margin-bottom: 14px;
+  /* 🔴 DÉFAUT RÉEL, TROUVÉ LE 2026-08-05 PAR LE 4ᵉ CONTRÔLE DE `gate` (dette R38, Story 6.10),
+     ET IL DORMAIT DEPUIS LA STORY 3.2.
+     MESURÉ sur `/` à 320px de viewport, avec la donnée du seed : le titre « Jeudi jeux — Le Tap
+     Corner » tient dans une boîte de **77px** et son contenu en fait **84px** — 7px rognés EN
+     SILENCE par `overflow-x: clip`, sans scrollbar ni avertissement. Aucune porte ne le voyait :
+     ① balaie les BOÎTES, or la boîte ne grandit pas, c'est le TEXTE qui déborde d'elle.
+     ⚠️ Le titre vient de la BASE (`event.title`, borné à 80 caractères à la saisie depuis la
+     6.3) : un intitulé plus long ou contenant un mot insécable aggraverait le rognage sans
+     qu'aucun bénévole ne puisse le savoir. `anywhere` et non `break-word` : `break-word` ne
+     coupe pas à l'intérieur d'un mot quand une occasion de coupure existe ailleurs sur la ligne,
+     ce qui laisse justement passer le cas qui nous occupe. */
+  overflow-wrap: anywhere;
 }
 
 .facts {

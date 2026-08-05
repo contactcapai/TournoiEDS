@@ -23,7 +23,8 @@
     "gate:agenda": "tsx tools/visual-gate/agenda-check.mts",
     "gate:galerie": "tsx --conditions=react-server tools/visual-gate/galerie-check.mts",
     "gate:partenaires": "tsx --conditions=react-server tools/visual-gate/partenaires-check.mts",
-    "gate:ateliers": "tsx tools/visual-gate/ateliers-check.mts"
+    "gate:ateliers": "tsx tools/visual-gate/ateliers-check.mts",
+    "gate:membres": "tsx --conditions=react-server tools/visual-gate/membres-check.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",

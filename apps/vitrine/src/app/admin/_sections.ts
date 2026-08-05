@@ -58,7 +58,12 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "L'offre d'animations : intitulés, familles, ordre, publication. Voir le rendu avant de publier.",
   },
-  // Story 6.10 → { href: "/admin/membres",       libelle: "Membres",       description: "…" }
+  {
+    href: "/admin/membres",
+    libelle: "Membres",
+    description:
+      "L'équipe présentée sur la page « L'asso » : prénom, rôle, portrait, ordre, publication. Voir le rendu avant de publier.",
+  },
   // Story 6.11 → { href: "/admin/sollicitations", libelle: "Sollicitations", description: "…" }
   // Story 6.13 → { href: "/admin/reglages",      libelle: "Réglages",      description: "…" }
 ] as const;

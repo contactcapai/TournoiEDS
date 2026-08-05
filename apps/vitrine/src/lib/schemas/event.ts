@@ -17,7 +17,7 @@
  */
 import { z } from "zod";
 
-import { visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide } from "./texte";
 
 /**
  * Valeurs de l'enum `event_type`, **définies ici une seule fois**.
@@ -89,23 +89,17 @@ export const BAR_QUARTIER_MAX = 120;
 export const BAR_VILLE_MAX = 80;
 
 /**
- * Champ optionnel BORNÉ : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`.
+ * 🔴 `texteOptionnel` A ÉTÉ EXTRAITE VERS `./texte.ts` PAR LA STORY 6.10 (dette R37 ①).
  *
- * ⚠️ Le `.max()` s'applique AVANT la transformation en `null` : le message porte donc sur
- * ce que la personne a réellement tapé, et non sur une valeur déjà normalisée.
- * ⚠️ Le message dit le NOMBRE et le CHAMP — « Trop long » n'aide personne à corriger.
+ * Cette copie était la PLUS ANCIENNE des trois, et la seule à placer `.max()` **avant** le
+ * `.transform()`. Conséquence mesurée : une chaîne de 300 caractères **invisibles** était
+ * refusée ici comme « trop longue » alors que `partner.ts` et `workshop.ts` la traitaient
+ * comme vide. C'est la version d'`event.ts` qui a changé — voir le bloc de `./texte.ts`,
+ * qui explique pourquoi le nouveau comportement est le bon message et non une régression.
+ *
+ * ⚠️ Ne pas redéclarer une fabrique locale ici : ce fichier a déjà payé, en revue de la 6.3,
+ * le trou d'une garde qu'il n'avait pas consommée (`visiblementVide`).
  */
-function texteOptionnel(max: number, libelle: string) {
-  return trimmedText
-    .max(max, `${libelle} ne doit pas dépasser ${max} caractères.`)
-    // ⚠️ `visiblementVide` est traité comme VIDE, pas comme une erreur : un champ facultatif
-    // rempli par un copier-coller qui n'a laissé que des caractères invisibles doit se
-    // comporter comme un champ qu'on n'a pas rempli. C'est ce qui permet au `.refine()` du
-    // lieu de dire « indiquez un bar ou un lieu » plutôt que « caractères invisibles ».
-    .transform((value) => (value.length === 0 || visiblementVide(value) ? null : value))
-    .nullable()
-    .default(null);
-}
 
 /**
  * Identifiant optionnel. La chaîne vide est traitée comme « non renseigné » **avant** la
