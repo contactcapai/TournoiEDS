@@ -120,7 +120,7 @@ export default async function ApercuPartenairesPage() {
           rendu final ; sur le site, seules les entrées PUBLIÉES apparaissent. Un écran muet
           là-dessus se ferait lire comme exhaustif — corollaire de `pieges/garde-nominale.md`
           appliqué à un écran plutôt qu'à une porte. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         {brouillons > 0 ? (
           <>
             Cet aperçu inclut{" "}
@@ -159,7 +159,7 @@ export default async function ApercuPartenairesPage() {
             <ProofBand partners={avecLogo} sourceAdmin />
           </div>
         ) : (
-          <p className={propre.mention} role="note">
+          <p className={styles.mention} role="note">
             ⚠️ <strong>Aucun partenaire n&rsquo;a de logo</strong>, donc la bande « Reconnus,
             soutenus, connectés » <strong>n&rsquo;apparaît pas du tout</strong> sur
             l&rsquo;accueil — ni son titre, ni son chapô, ni son lien « Devenir partenaire ».
@@ -190,7 +190,7 @@ export default async function ApercuPartenairesPage() {
         ) : (
           /* ⚠️ CONTRAIREMENT AU BANDEAU, LA PAGE, ELLE, EXISTE TOUJOURS — son URL est dans le
              header. Elle rend alors une phrase à la place des quatre murs (AC4 de la 4.2). */
-          <p className={propre.mention} role="note">
+          <p className={styles.mention} role="note">
             Aucune entrée : la page Partenaires <strong>existe quand même</strong> (son adresse
             est dans le menu du site) et affiche une phrase à la place des murs — jamais quatre
             titres vides.

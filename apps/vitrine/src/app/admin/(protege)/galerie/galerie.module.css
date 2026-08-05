@@ -51,20 +51,6 @@
   color: var(--cream);
 }
 
-/* Mention de contexte : ce qu'un écran montre ou ne montre pas. Même registre que la
-   `.mention` de l'aperçu d'agenda — dire une borne coûte une phrase, la taire coûte un
-   ticket. */
-.mention {
-  margin-top: 18px;
-  padding: 14px 16px;
-  border-left: 3px solid var(--gold);
-  border-radius: var(--radius-button);
-  background: var(--surface);
-  max-width: 72ch;
-  font-size: 15px;
-  line-height: var(--lh-body);
-  color: var(--light);
-}
 
 /* Le plateau de prévisualisation : fond `--navy-deep`, celui du `body` sur lequel la
    galerie de l'accueil est réellement posée.

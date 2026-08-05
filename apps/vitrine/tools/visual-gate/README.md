@@ -375,3 +375,81 @@ l'instrument mesure quelque chose.
 ne peut pas voir qu'une **catégorie est juste au sens FR33** (ranger sous « soutien » une
 collectivité qu'on espère seulement convaincre passe toutes les gardes techniques), ni qu'un
 **logo est lisible sur `--navy`** — un logo blanc sur fond blanc aussi.
+
+---
+
+## `gate:ateliers` — la surface « ateliers » (Story 6.9)
+
+**Quinzième instrument**, et le premier dont le risque central n'est **ni un fichier, ni une
+date** : c'est un **ORDRE** et une **ABSENCE**.
+
+```bash
+pnpm --filter vitrine gate:ateliers
+ATELIERS_AUTOTEST=1 pnpm --filter vitrine gate:ateliers   # contre-épreuve
+```
+
+⚠️ **Elle n'a PAS besoin de `--conditions=react-server`**, contrairement à `gate:galerie` et
+`gate:partenaires` : elle n'importe rien de `src/server/` (aucun média, donc aucun
+`server-only`). C'est une conséquence directe du fait que cette surface est en **texte pur**.
+Ne pas ajouter le drapeau « par symétrie » — il masquerait le jour où un import serveur s'y
+glisserait.
+
+Deux moitiés, comme les trois portes de surface qui la précèdent :
+
+| | Ce qu'elle mesure |
+|---|---|
+| **A** — HTTP nu, **sans aucun cookie** | 4 routes d'administration gardées (dont l'**aperçu**, qui rend les brouillons) et sans fuite de contenu dans le corps servi |
+| **B** — la base, les contrats et le RENDU | 10 écritures SQL qui doivent **ÉCHOUER** (les 3 contraintes de la `0010` + l'enum + les `NOT NULL`) · 6 contre-épreuves qui doivent **PASSER**, dont les valeurs **pile à la borne** · 11 cas de `workshopInputSchema` exercé lui-même · la **parité base ↔ Zod** lue dans le texte des contraintes · l'**ordre total** mesuré par relectures · l'**absence** des colonnes de tarif/durée/effectif · aucun brouillon dans le HTML de `/animations` · les 3 familles et la phrase de clôture **servies** · le **repli de ligne** mesuré dans un vrai navigateur à 320 et 412px · le **ménage**, qui est une garde |
+
+**49 gardes vertes** au merge.
+
+### Ce qu'elle a trouvé, et que rien d'autre n'aurait vu
+
+🔴 **On ne peut PAS mesurer la null-safety d'un `CHECK` par une écriture.** La porte a été
+prouvée rouge en retirant la branche `is null` de `workshop_summary_valide` — et **seule la
+garde ⑧ est passée au rouge**. La contre-épreuve ⑦ (« summary explicitement `NULL` ») est
+restée **verte**, et c'est logique, donc grave : avec la contrainte cassée,
+`CHECK (length(btrim(NULL)) > 0 …)` vaut `NULL`, donc **passe**, donc l'écriture est acceptée,
+donc la contre-épreuve est satisfaite. **Le défaut rend la contre-épreuve aveugle par
+construction.**
+
+C'est exactement le défaut `event_has_venue` (Story 3.1), qui a survécu **trois epics et sept
+portes vertes**. La seule façon de le voir est de **LIRE le texte de la contrainte**
+(`pg_get_constraintdef`), ce que fait la garde ⑧ et elle seule. ⚠️ Ne jamais la supprimer en la
+croyant redondante avec ⑥/⑦.
+
+🔴 **L'ABSENCE se garde, ou elle se perd.** La garde ⑩ lit le schéma **réel** de la base et
+échoue si une colonne de tarif, de durée ou d'effectif y apparaît. C'est la seule règle de
+cette story qu'aucune relecture ne tiendra dans six mois : quelqu'un ajoutera « juste une
+durée, c'est pratique », et la page bascule d'une offre d'**utilité sociale** (FR10) à un
+catalogue de prestations sans qu'aucune autre porte ne le dise.
+
+🔴 **`gate` NE VOIT PAS UN DÉBORDEMENT DE TEXTE À L'INTÉRIEUR DE SA PROPRE BOÎTE.** Les trois
+champs d'un atelier sont bornés, mais **rien n'exige un espace**. Mesuré : un intitulé de 80
+caractères insécables donnait, à 320px, **248px de boîte pour 2006px de texte — 1758px de
+débordement**, et `pnpm --filter vitrine gate` est restée **VERTE**. Ce n'est pas un défaut de
+`gate` : elle balaie les **boîtes**, or la boîte du `<li>` ne grandit pas — c'est le **texte**
+qui déborde d'elle. Le témoin juste est `element.scrollWidth > element.clientWidth`, **par
+élément** — à ne pas confondre avec le témoin INTERDIT du projet
+(`documentElement.scrollWidth === clientWidth`), aveugle sous `overflow-x: clip`. La garde ⑬ le
+mesure dans un vrai navigateur ; la limitation **générale** de `gate.mjs` est la dette **R38**.
+
+⚠️ **Et le premier témoin de cette garde était FAUX** : un titre en
+`mots-separes-par-des-traits-d-union` — le navigateur le coupait proprement, **le trait d'union
+est une occasion de coupure en CSS**. L'instrument mesurait un cas qui n'en était pas un et
+rendait un faux vert. Des lettres nues, et rien d'autre.
+
+### Contre-épreuve
+
+`ATELIERS_AUTOTEST=1` présente à chaque garde un cas qu'elle **doit** voir. **21 gardes** ont
+vu le leur.
+
+🔴 **Et l'autotest DÉCLARE ce qu'il ne prouve pas**, en sortie : **quatre gardes** (② fuite,
+④ enum ↔ code, ⑦ contre-épreuves, ⑫ ménage) n'ont **pas** de cas d'auto-validation, chacune
+pour un motif écrit. Une auto-validation qui ne déclare pas sa propre couverture laisse croire
+que toutes les gardes sont éprouvées — c'est la forme la plus discrète de
+`pieges/instrument-non-valide.md`.
+
+⚠️ **Cinq exemptions déclarées en sortie**, dont une qui mérite d'être connue : la garde ⑩
+interdit une **colonne** de tarif, elle ne peut rien contre « 50 € la séance » **tapé dans le
+champ de description**. Seul le rappel du formulaire couvre ce cas.

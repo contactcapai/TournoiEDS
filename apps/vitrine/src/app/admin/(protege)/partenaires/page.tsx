@@ -169,7 +169,7 @@ export default async function AdminPartenairesPage() {
       {/* 🔴 CE QU'UN GESTE DÉCIDE AILLEURS, ÉCRIT EN TOUTES LETTRES (AC7). Personne ne devine
           qu'enlever un logo fait disparaître une entrée de la page d'accueil — ni, à la
           limite, qu'enlever le DERNIER fait disparaître une section entière. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         Le <strong>bandeau de l&rsquo;accueil</strong> ne montre que les partenaires{" "}
         <strong>publiés qui ont un logo</strong> — {dansLeBandeau.size} aujourd&rsquo;hui.
         {dansLeBandeau.size === 0
@@ -184,7 +184,7 @@ export default async function AdminPartenairesPage() {
       {/* ⚠️ FAIT À DIRE, PAS À TAIRE : l'ordre manuel ne franchit jamais une catégorie. Sans
           cette phrase, « monter » se lit comme un classement global et les flèches semblent
           ne rien faire quand on atteint le haut d'un groupe. */}
-      <p className={propre.mention} role="note">
+      <p className={styles.mention} role="note">
         L&rsquo;ordre se règle <strong>à l&rsquo;intérieur d&rsquo;une catégorie</strong>. Les
         catégories, elles, se suivent toujours dans le même ordre — sponsors, partenaires,
         soutiens, participations — sur l&rsquo;accueil comme sur la page Partenaires.

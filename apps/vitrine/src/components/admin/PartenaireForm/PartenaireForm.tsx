@@ -16,7 +16,6 @@ import {
 } from "@/lib/schemas/partner";
 import { creerPartenaire, enregistrerPartenaire } from "@/server/actions/partenaires";
 import styles from "@/styles/admin-form.module.css";
-import propre from "./PartenaireForm.module.css";
 
 /**
  * Création et modification d'un partenaire (Story 6.5, FR22, FR33).
@@ -220,7 +219,7 @@ export function PartenaireForm({ partenaire }: PartenaireFormProps) {
 
       {/* ⚠️ RAPPEL PERMANENT, EN PLUS DE L'AIDE CONTEXTUELLE : c'est la règle de contenu la
           plus facile à enfreindre de bonne foi, et elle vaut pour les quatre catégories. */}
-      <p className={propre.regle} role="note">
+      <p className={styles.regle} role="note">
         <strong>Seuls les faits acquis ont leur place ici.</strong> Le site prouve par les
         actes, jamais par les intentions : une structure qu&rsquo;on espère convaincre
         n&rsquo;est pas un soutien, et l&rsquo;afficher comme tel engagerait

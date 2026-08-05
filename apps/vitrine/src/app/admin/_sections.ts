@@ -52,7 +52,12 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Sponsors, partenaires, soutiens et participations : logos, ordre, publication. Voir le rendu avant de publier.",
   },
-  // Story 6.9  → { href: "/admin/ateliers",      libelle: "Ateliers",      description: "…" }
+  {
+    href: "/admin/ateliers",
+    libelle: "Ateliers",
+    description:
+      "L'offre d'animations : intitulés, familles, ordre, publication. Voir le rendu avant de publier.",
+  },
   // Story 6.10 → { href: "/admin/membres",       libelle: "Membres",       description: "…" }
   // Story 6.11 → { href: "/admin/sollicitations", libelle: "Sollicitations", description: "…" }
   // Story 6.13 → { href: "/admin/reglages",      libelle: "Réglages",      description: "…" }

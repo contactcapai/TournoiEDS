@@ -104,7 +104,7 @@ export default async function ModifierPartenairePage({
             sur /partenaires — mais elle est ABSENTE du bandeau de l'accueil. Personne ne le
             devine : c'est une décision prise dans `queries/partners.ts` (`logo IS NOT NULL`),
             à trois fichiers d'ici. */}
-        <p className={propre.mention} role="note">
+        <p className={styles.mention} role="note">
           {dansLeBandeau ? (
             <>
               Ce partenaire est <strong>dans le bandeau de l&rsquo;accueil</strong> : il est
