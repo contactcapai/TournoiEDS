@@ -1,0 +1,93 @@
+/* Ce qui est PROPRE aux écrans de SOLLICITATIONS (Story 6.11) : les deux états, l'objet de la
+   demande et le bloc de lecture du message. Le vocabulaire de page (titre, chapô, liste,
+   ligne, état, vide, mention, section) vient de `styles/admin-page.module.css`.
+   Tokens uniquement (project-context.md §5). */
+
+/* ───────── Les deux états ─────────
+   🔴 ILS NE RÉUTILISENT PAS `.etatPublie` / `.etatBrouillon`, ET C'EST DÉLIBÉRÉ. Sur les cinq
+   autres écrans, l'or signifie « publié » — donc « actif sur le site ». Ici rien n'est publié,
+   et l'état qui mérite l'attention est « À TRAITER », pas son contraire. Emprunter les classes
+   partagées aurait donné de l'or à ce qui est FINI et du gris pointillé à ce qui ATTEND :
+   la sémantique exactement à l'envers, pour économiser huit lignes de CSS. */
+
+/* Demande le regard : filet plein, or. */
+.etatATraiter {
+  border: 1px solid var(--gold);
+  color: var(--gold);
+}
+
+/* Faite, donc calme : pointillé gris, comme tout ce qui est au repos dans ce back-office. */
+.etatTraitee {
+  border: 1px dashed rgba(146, 147, 173, 0.6); /* --grey à 60 %, filet sans token */
+  color: var(--grey);
+}
+
+/* La nature de la demande (Animation / Partenariat / Autre) — l'« objet » au sens de l'AC.
+   ⚠️ Le libellé vient de `SOLICITATION_TYPE_LABELS`, jamais recopié ici. */
+.objet {
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* ───────── Écran de détail ───────── */
+
+/* Les champs de la demande, en lecture seule. `dl` plutôt que des paragraphes : ce sont des
+   couples intitulé/valeur, et c'est ce que le lecteur d'écran doit entendre. */
+.fiche {
+  margin-top: 24px;
+  display: grid;
+  gap: 14px;
+  max-width: 72ch;
+}
+
+.champ {
+  display: grid;
+  gap: 2px;
+}
+
+.intitule {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+.valeur {
+  font-size: 17px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── Le message ─────────
+   🔴 `white-space: pre-wrap` : le visiteur a tapé des retours à la ligne, les écraser
+   rendrait un pavé illisible sur un texte qui peut faire 5000 caractères.
+   🔴 `overflow-wrap: anywhere` : le message est de la SAISIE LIBRE — une URL longue ou un mot
+   insécable de 80 caractères y est parfaitement valide, et `globals.css` pose
+   `overflow-x: clip`, qui le ROGNERAIT EN SILENCE. C'est le défaut mesuré en Story 6.9
+   (1758px de débordement à 320px, porte VERTE) et le 4ᵉ contrôle de `gate` existe pour ça. */
+.message {
+  margin-top: 6px;
+  padding: 16px 18px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  max-width: 72ch;
+  font-size: 17px;
+  line-height: var(--lh-body);
+  color: var(--light);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* L'adresse e-mail est elle aussi de la saisie libre et peut atteindre 254 caractères. */
+.email {
+  overflow-wrap: anywhere;
+}
+
+/* Dit pourquoi le bouton « Répondre » manque quand l'adresse est illisible par un client de
+   messagerie. `--gold` sur `--navy` : c'est un avertissement, pas une valeur. */
+.avertissement {
+  color: var(--gold);
+  font-size: 15px;
+}

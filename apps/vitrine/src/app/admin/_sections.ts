@@ -64,6 +64,16 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "L'équipe présentée sur la page « L'asso » : prénom, rôle, portrait, ordre, publication. Voir le rendu avant de publier.",
   },
-  // Story 6.11 → { href: "/admin/sollicitations", libelle: "Sollicitations", description: "…" }
+  {
+    href: "/admin/sollicitations",
+    libelle: "Sollicitations",
+    // 🔴 CETTE DESCRIPTION NE FINIT **PAS** PAR « Voir le rendu avant de publier », alors que
+    // les CINQ précédentes le font. Ce n'est pas un oubli : une sollicitation ne se publie
+    // pas, il n'y a rien à prévisualiser, et cette section n'a donc **aucune route
+    // `apercu/`**. Recopier la phrase par mimétisme promettrait une porte sans pièce — le
+    // défaut exact que ce fichier existe pour empêcher, et qui s'est produit DEUX fois.
+    description:
+      "Les demandes reçues par le formulaire : les lire, les marquer traitées, les supprimer quand elles n'ont plus lieu d'être.",
+  },
   // Story 6.13 → { href: "/admin/reglages",      libelle: "Réglages",      description: "…" }
 ] as const;

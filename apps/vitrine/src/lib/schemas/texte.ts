@@ -31,6 +31,8 @@
 
 import { z } from "zod";
 
+import { visiblementVide } from "../text";
+
 /**
  * 🔴 CARACTÈRES SANS LARGEUR — `.trim()` NE LES ENLÈVE PAS, ET C'EST UN TROU RÉEL.
  *
@@ -50,18 +52,18 @@ import { z } from "zod";
  * corromprait. La garde reste donc minimale — elle ne rejette que ce qui n'a AUCUN
  * caractère visible.
  *
- * 🔴 ÉCHAPPEMENTS EXPLICITES, JAMAIS LES CARACTÈRES EUX-MÊMES : ils sont INVISIBLES dans
- * un éditeur, donc une classe écrite en littéral serait impossible à relire ou à modifier
- * sans risque — et un `git diff` ne montrerait rien.
- * U+00AD trait d'union conditionnel · U+200B→U+200F espaces de largeur nulle et marques
- * de direction · U+2060→U+2064 jointures invisibles · U+FEFF BOM (déjà retiré par
- * `.trim()`, listé pour que la classe soit complète).
+ * 🔴 LA CLASSE DE CARACTÈRES A DÉMÉNAGÉ — STORY 6.11, ET LE MOTIF COMPTE.
+ * Elle est née ici (Story 6.4/6.5) parce que seule la VALIDATION en avait besoin. La revue de
+ * la 6.11 a établi que le **filet du RENDU** (`cleanText`, `lib/text.ts`) devait appliquer
+ * exactement la même règle — et l'affirmait déjà en commentaire sans la tenir.
+ * Deux consommateurs, donc **une** définition : elle vit désormais dans `lib/text.ts`, qui
+ * n'a **aucun import**. L'inverse aurait fait entrer **zod** dans le chemin de rendu de 13
+ * composants serveur. Ce fichier la RÉEXPORTE : ses six consommateurs ne changent pas.
+ * ⚠️ Ne pas la redéfinir ici « pour éviter un import » — ce serait la 2ᵉ copie d'une règle
+ * Unicode, et une divergence entre écriture et rendu serait parfaitement silencieuse.
  */
-const SANS_LARGEUR = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
-
-/** Vrai si la chaîne ne contient AUCUN caractère visible (après retrait des sans-largeur). */
-export const visiblementVide = (value: string) =>
-  value.replace(SANS_LARGEUR, "").length === 0;
+// Réexport : les six schémas consommateurs continuent d'importer depuis ce module.
+export { visiblementVide };
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
