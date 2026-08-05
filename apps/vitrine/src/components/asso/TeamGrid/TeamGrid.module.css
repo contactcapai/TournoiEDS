@@ -1,0 +1,175 @@
+/* Cards de l'équipe (Story 6.10) — rendues DANS la section « Une équipe de bénévoles » de
+   /l-asso, c'est-à-dire sur `background: var(--navy)` (le fond de page).
+
+   🔴 FORME REPRISE DE `WorkshopCatalog` (6.9), qui l'avait elle-même reprise de `07 site MSL`
+   sur arbitrage de Brice. On ne réinvente pas une deuxième grille de cards sur le même site :
+   même grille `auto-fill`, même fond `--surface`, même filet or, même survol. ⚠️ Ce qui DIFFÈRE
+   est le contenu (un cadre d'image en tête) et rien d'autre.
+
+   🔬 CONTRASTES MESURÉS SUR LE FOND EFFECTIF DE LA CARTE (`--surface` #322e6e), et non sur le
+   fond de la section (leçon 4.2 — « un fond effectif n'est pas un token ») :
+     · `--cream` sur `--surface` : 10,43:1   (le prénom)
+     · `--light` sur `--surface` : 10,49:1   (le rôle)
+
+   🔴 ET RECALCULÉS AU PLANCHER D'OPACITÉ, PARCE QUE CETTE SECTION PORTE `motion.reveal` —
+   c'est le défaut réel attrapé par Lighthouse en 6.9, et il est le même ici. Une `opacity` sur
+   un conteneur MÉLANGE tout son contenu avec le fond de la page : le contraste réel est celui
+   du mélange, jamais celui des tokens. `motion.module.css` documente le plancher **0,747** et
+   prévient qu'il est à recalculer dès qu'une section introduit une combinaison nouvelle.
+   Recalculé au plancher 0,747, sur le fond effectif :
+     · `--cream` → **6,64:1**  ✅
+     · `--light` → **6,68:1**  ✅
+   ⚠️ `--grey` y donnerait **≈ 2,7:1**, un ÉCHEC AA franc : il n'est utilisé nulle part dans ce
+   fichier, et il ne doit pas y entrer. Le filet or, lui, n'est pas du texte (seuil 3:1).
+
+   Tokens-only, à quelques px structurels près (sans token dans l'échelle du projet), tous
+   commentés sur place. */
+
+/* ───────── La grille ─────────
+   Même montage que `WorkshopCatalog` : `auto-fill` + `minmax`, AUCUNE `@media`. La convention
+   du projet impose d'écrire le breakpoint 880px en littéral dans toute `@media` ; une grille de
+   cards en demanderait deux ou trois, donc autant d'occasions de diverger. Ici le nombre de
+   colonnes découle de la largeur disponible, sans seuil à maintenir.
+
+   ⚠️ 180px de minimum, contre 260 pour les ateliers, et l'écart est mesuré et non arbitraire :
+   une carte d'atelier porte un intitulé de 80 caractères ET une description de 200 ; une carte
+   de membre porte un prénom (60 max) et un rôle (80 max). Elle peut donc être bien plus étroite
+   sans devenir illisible, et une équipe se lit mieux en plusieurs colonnes qu'en colonne unique.
+   À 320px de viewport (la largeur la plus tendue du projet), la colonne utile fait ~268px →
+   UNE carte. `.prose` de /l-asso plafonne à 680px : au-delà, trois cartes.
+
+   `list-style: none` est ici sans risque : le `role="list"` explicite du markup rétablit la
+   sémantique que Safari retire dans ce cas (voir le commentaire du composant). */
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* ───────── La carte ─────────
+   Fond `--surface` sur `--navy` : le même écart de valeur que la card d'atelier, que les
+   encadrés du back-office et que la tuile de `/partenaires`. La carte se détache sans devenir
+   un bloc coloré. */
+.carte {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid rgba(218, 178, 101, 0.28); /* --gold à 28 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+.carte:hover {
+  transform: translateY(-2px);
+  border-color: rgba(218, 178, 101, 0.5); /* --gold à 50 % */
+}
+
+/* ⚠️ `prefers-reduced-motion` : la convention du projet (a11y AA par défaut) est de neutraliser
+   tout déplacement. Le changement de couleur du filet, lui, reste — il porte l'information de
+   survol sans bouger. Même traitement que `WorkshopCatalog`. */
+@media (prefers-reduced-motion: reduce) {
+  .carte {
+    transition: border-color 180ms ease;
+  }
+
+  .carte:hover {
+    transform: none;
+  }
+}
+
+/* ───────── 🔴 LE CADRE — TOUJOURS RENDU, AVEC OU SANS PHOTO ─────────
+   C'est l'arbitrage de Brice du 2026-08-05, et c'est CE BLOC qui le tient : la boîte est
+   décrite ici, pas dans la branche du composant. Photo et silhouette occupent donc
+   rigoureusement la même place, et **ajouter un portrait ne déplace rien** dans la grille.
+
+   `aspect-ratio: 1` plutôt qu'une hauteur fixe : le cadre suit la largeur de la colonne, donc
+   la grille reste régulière à toutes les largeurs sans une seule `@media`.
+
+   Fond `--navy-deep` : plus sombre que la carte, donc le cadre se lit comme un cadre même
+   quand il est vide. ⚠️ C'est aussi ce qui rend une photo à fond clair visible sans halo. */
+.cadre {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-tile);
+  background: var(--navy-deep);
+}
+
+/* `cover` et non `contain` : le fichier stocké conserve TOUJOURS son ratio d'origine
+   (`fit: "inside"` côté `sharp`), donc une photo 3/4 arrive en 240 × 320. C'est ici, au RENDU,
+   que le recadrage carré se fait — et il est réversible, contrairement à un recadrage écrit
+   dans le fichier. `object-position: center top` : sur un portrait, le visage est en haut. */
+.photo {
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ───────── La silhouette ─────────
+   ⚠️ `--grey` est ICI LÉGITIME alors qu'il est interdit pour le texte de ce fichier : ce n'est
+   pas du texte, c'est une forme décorative (`aria-hidden`) qui ne porte aucune information.
+   Son seuil n'est ni 4,5:1 ni 3:1 — elle n'a aucun seuil, puisque rien ne dépend de sa
+   perception. Elle est volontairement discrète : elle marque une place, elle ne réclame pas
+   l'attention.
+
+   `currentColor` dans le SVG suit cette `color`. */
+.silhouette {
+  position: absolute;
+  /* 22 % d'inset : la silhouette occupe le cœur du cadre sans le remplir — un tracé au bord
+     ressemblerait à une image mal cadrée plutôt qu'à un repère. px structurel exprimé en %,
+     pour qu'il suive la taille du cadre à toutes les largeurs. */
+  inset: 22%;
+  width: 56%;
+  height: 56%;
+  color: var(--grey);
+  fill: currentColor;
+  opacity: 0.55;
+}
+
+/* ───────── Le prénom ─────────
+   `--font-display` (Bebas) comme les autres titres de card du site, à 20px — exactement
+   l'échelle de `.titre` de `WorkshopCatalog`, pour que deux grilles de cards du même site ne
+   se répondent pas à deux tailles différentes.
+   `line-height: 1.1` : Bebas est une capitale étroite, l'interligne de corps creuserait un
+   prénom sur deux lignes.
+
+   ⚠️ CE N'EST PAS UN `<hN>`, ET C'EST DÉLIBÉRÉ — contrairement à la card d'atelier, dont le
+   titre est un `<h4>`. Un atelier est un OBJET de la page, navigable par titres ; un membre est
+   une entrée d'une liste dont le titre est déjà « Une équipe de bénévoles ». Peupler le plan du
+   document de vingt `<h4>` de prénoms rendrait la navigation par titres MOINS utile, pas plus.
+   La sémantique de liste (`<ul role="list">`) porte déjà la structure. */
+.prenom {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: var(--ls-display);
+  color: var(--cream);
+  /* 🔴 DETTE R38 : `gate` balaie les BOÎTES, or une boîte ne grandit pas — c'est le TEXTE qui
+     déborde d'elle, et `overflow-x: clip` le rogne EN SILENCE. Un prénom de 60 caractères
+     insécables (borne de saisie) déborderait à 320px. Mesuré en 6.9 sur un intitulé d'atelier :
+     1758px de débordement, porte VERTE. Le 4ᵉ contrôle de `gate.mjs` livré par cette story le
+     voit désormais — cette ligne est ce qu'il garde. */
+  overflow-wrap: anywhere;
+}
+
+/* ───────── Le rôle ─────────
+   `--light`, comme la description d'une card d'atelier : même registre de texte.
+   ⚠️ AUCUNE troncature (`line-clamp`) : la borne est posée À LA SAISIE (80 caractères,
+   `ROLE_MAX`, avec un compteur dans le formulaire). Tronquer à l'affichage EN PLUS ferait qu'un
+   bénévole verrait son texte accepté puis coupé sans savoir où — c'est très exactement la dette
+   R26, déjà payée sur les titres d'événements. */
+.role {
+  margin-top: 4px;
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  color: var(--light);
+  overflow-wrap: anywhere; /* même garde R38 que le prénom */
+}

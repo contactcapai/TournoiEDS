@@ -453,3 +453,59 @@ que toutes les gardes sont éprouvées — c'est la forme la plus discrète de
 ⚠️ **Cinq exemptions déclarées en sortie**, dont une qui mérite d'être connue : la garde ⑩
 interdit une **colonne** de tarif, elle ne peut rien contre « 50 € la séance » **tapé dans le
 champ de description**. Seul le rappel du formulaire couvre ce cas.
+
+
+---
+
+## `gate:membres` — la 16ᵉ porte (Story 6.10)
+
+`pnpm --filter vitrine gate:membres` · auto-validation : `MEMBRES_AUTOTEST=1 …`
+
+⚠️ Elle exige `--conditions=react-server` (contrairement à `gate:ateliers`) : elle importe
+`src/server/medias/`, qui commence par `import "server-only"` — un paquet qui **lève** hors du
+graphe serveur. C'est la conséquence directe du fait que cette surface écrit des **fichiers**.
+
+| | Ce qu'elle mesure |
+|---|---|
+| **A** — HTTP nu, **sans aucun cookie** | 4 routes d'administration gardées (dont l'**aperçu**, qui rend les brouillons) et sans fuite de contenu · **aucun membre non publié** dans le HTML des 5 pages publiques |
+| **B** — la base, les contrats, le volume et le RENDU | 11 écritures SQL qui doivent **ÉCHOUER** (les 3 `CHECK` de la `0011` + les `NOT NULL`), **dont le piège du point** (`/medias/portraits/axwebp`) · 3 contre-épreuves qui doivent **PASSER**, dont les valeurs **pile à la borne** et `portrait IS NULL` · la **parité base ↔ Zod lue dans le TEXTE des contraintes** · l'**ABSENCE** de toute colonne d'effectif (FR16), lue dans le schéma réel · l'**ordre total** mesuré par relectures · 10 cas de `memberInputSchema` + 4 de `estCheminPortraitValide`, exercés **eux-mêmes** · le **normaliseur `sharp` exercé lui-même** sur 4 cas · le **cycle de vie du volume** · le **ménage**, qui est une garde · la **sémantique unifiée de `texteOptionnel`** sur les 3 schémas (dette R37) |
+
+### Ce qu'elle ajoute aux quatre autres portes de surface
+
+Elle est la première dont l'objet est une **donnée personnelle**. Deux gardes n'existent nulle
+part ailleurs :
+
+- **le portrait d'un membre NON PUBLIÉ** ne doit pas être servi — c'est la photo de quelqu'un
+  que l'association n'a pas choisi de publier ;
+- **⑭ la dette R37** : trois copies de `texteOptionnel` avaient divergé en silence pendant trois
+  stories — `event.ts` **refusait** ce que `partner.ts` et `workshop.ts` **acceptaient** sur une
+  chaîne de 300 caractères invisibles. La 6.10 les a unifiées ; cette garde ré-exerce les
+  **trois** schémas sur la même valeur et exige le même verdict. Sans elle, la ligne se serait
+  refermée sur une correction que **rien ne surveille** — or R37 disait précisément *« aucune
+  porte ne voit ces divergences »*.
+
+### Ce qu'elle a trouvé, et que rien d'autre n'aurait vu
+
+- la **bannière 4000 × 96** ressort **320 × 8**, donc **bornée ET signalée comme filet** : la
+  leçon centrale de la 6.5 (`resize({ height })` ne borne pas la largeur) tient aussi pour les
+  portraits, et elle est mesurée sur les dimensions de **sortie**, jamais sur la réussite de
+  l'appel ;
+- une source **900 × 1200** ressort **240 × 320** : `fit: "inside"` conserve TOUJOURS le ratio.
+  Le recadrage carré appartient au **rendu** (`object-fit: cover`), où il est réversible —
+  jamais au fichier, où il serait définitif.
+
+### Un défaut d'INSTRUMENT, payé une seconde fois avant d'être corrigé
+
+Sa première version utilisait le pool externe **à l'intérieur** de `sql.begin`, sur un pool
+`max: 1` : l'unique connexion étant tenue par la transaction, la seconde requête attendait une
+connexion qui ne se libérerait jamais. **La porte ne rendait alors aucun verdict — elle se
+BLOQUAIT**, ce qui est le pire des états : ni vert, ni rouge, juste une commande qui ne rend
+jamais la main. C'est exactement le défaut payé par `gate:partenaires` en 6.5. Corrigé en
+passant la **transaction** à chaque exécuteur, ce qui rend l'erreur impossible à refaire.
+
+### Ce que l'auto-validation NE prouve pas
+
+Trois gardes n'ont pas de cas d'auto-validation, et la porte **le dit en sortie** : ② (la route
+témoin ne porte aucun marqueur d'administration — lui en présenter un demanderait d'en fabriquer
+un faux), ⑤ (les contre-épreuves sont déjà l'inverse de ④), ⑪ (son cas d'échec est une fuite
+réelle de fichiers, qu'on ne provoque pas exprès sur un volume qu'on sauvegarde).

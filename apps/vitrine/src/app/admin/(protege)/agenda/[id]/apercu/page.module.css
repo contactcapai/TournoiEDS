@@ -25,17 +25,13 @@
   background: var(--navy);
 }
 
-/* 🔴 CETTE CLASSE PORTAIT LA BORNE R34 (« le rendu déjà passé n'est pas prévisualisable »).
-   La Story 6.4 a SOLDÉ la dette : la borne est partie, et la classe est renommée pour dire
-   ce qu'elle fait maintenant — signaler ce qu'un écran montre ou ne montre pas. Renommer
-   plutôt que garder `.borne` évite qu'un lecteur cherche une borne qui n'existe plus. */
-.mention {
-  margin-top: 28px;
-  padding: 16px 18px;
-  border-left: 3px solid var(--gold);
-  border-radius: var(--radius-button);
-  background: var(--surface);
-  max-width: 72ch;
-  line-height: var(--lh-body);
-  color: var(--light);
-}
+/* 🔴 `.mention` A ÉTÉ RETIRÉE D'ICI PAR LA STORY 6.10 — DETTE **R37 ②** SOLDÉE.
+   Elle existait en TROIS copies ; la 6.9 en a extrait deux vers `styles/admin-page.module.css`
+   et a REFUSÉ celle-ci parce qu'elle DIVERGEAIT réellement — `margin-top: 28px` au lieu de 18,
+   `padding: 16px 18px` au lieu de 14/16, et **aucun `font-size`**, donc une taille héritée
+   visiblement plus grande. Unifier revenait à changer le rendu d'une story MERGÉE (6.3) depuis
+   une story qui portait par ailleurs un modèle neuf : le report était délibéré, et il était
+   routé ici.
+   ⇒ Cet écran consomme désormais `admin-page.module.css`. Le compte passe de **2 à 1**.
+   ⚠️ L'écart de rendu (encadré plus compact, texte à 15px) est VOULU, et il a été regardé au
+   gate visuel de la 6.10 — c'est la raison pour laquelle un seul gate suffisait. */

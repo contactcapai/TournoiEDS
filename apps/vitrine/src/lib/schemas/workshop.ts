@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 
-import { visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -96,53 +96,14 @@ export const PUBLIC_MAX = 120;
 const trimmedText = z.string().trim();
 
 /**
- * Champ optionnel BORNÉ : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`.
+ * 🔴 `texteOptionnel` A ÉTÉ EXTRAITE VERS `./texte.ts` PAR LA STORY 6.10 (dette R37 ①).
  *
- * ══════════════════════════════════════════════════════════════════════════════════════
- * 🔢 TROISIÈME COPIE — COMPTÉE, ET **DÉLIBÉRÉMENT PAS EXTRAITE**
- * ══════════════════════════════════════════════════════════════════════════════════════
- *
- * La doctrine du projet est « extraction au 2ᵉ consommateur », et la leçon de R9 est
- * **« toujours COMPTER »**. Alors comptons : cette fabrique existe déjà dans `event.ts`
- * (l.98, Story 6.3) et dans `partner.ts` (l.150, Story 6.5). Celle-ci est la **3ᵉ**.
- *
- * 🔴 ET POURTANT ELLE N'EST PAS EXTRAITE, PARCE QUE **LES DEUX COPIES EXISTANTES NE DISENT
- * PAS LA MÊME CHOSE** — mesuré au cadrage, en les lisant côte à côte :
- *
- *   ① `event.ts` place `.max()` **AVANT** le `.transform()` ; `partner.ts` place un
- *      `.refine(length <= max)` **APRÈS**. Conséquence réelle et observable : une chaîne de
- *      300 caractères **invisibles** est **refusée** par `event.ts` (elle est trop longue
- *      avant d'être jugée vide) et **acceptée** par `partner.ts` (elle devient `null`, et
- *      `null` passe le `refine`).
- *   ② leurs messages diffèrent (« ne doit pas » / « ne peut pas »).
- *
- * Extraire imposerait donc de **choisir une sémantique**, c'est-à-dire de **changer le
- * comportement d'au moins une story déjà mergée** — depuis une story qui porte par ailleurs
- * un modèle neuf et un rendu public. C'est exactement le raisonnement tracé par la Story 2.7
- * pour le vocabulaire éditorial : on n'emporte pas le rendu d'une story mergée à l'intérieur
- * d'une story au risque plus élevé. La divergence est consignée en dette **R37**, routée vers
- * la **Story 6.10**, qui sera le 4ᵉ consommateur et pourra trancher avec deux surfaces à
- * retrofiter et un seul gate visuel.
- *
- * ⚠️ CETTE COPIE-CI PREND LA FORME DE `partner.ts`, la plus récente, pour une raison
- * vérifiable : la longueur y est comptée **après** `.trim()`, c'est-à-dire exactement comme
- * le compteur de `ChampTexte` (`valeur.trim().length`). Les deux doivent dire la même chose,
- * sinon le compteur crie à tort — et un compteur qui crie à tort est un compteur qu'on cesse
- * de lire (défaut trouvé en revue de la 6.3).
- *
- * ⚠️ La borne entre **dans la fabrique** et ne peut pas s'ajouter après coup par un `.max()` :
- * le `.transform()` a déjà changé le type en `string | null`, sur lequel `.max()` n'existe
- * pas — et l'y forcer par un `.pipe()` rendrait un message illisible. Le libellé du champ est
- * donc passé en paramètre : un bénévole doit lire « le public visé », pas « string ».
+ * Le bloc qui vivait ici comptait **trois copies** et expliquait pourquoi il ne les extrayait
+ * PAS : trancher la sémantique aurait changé le comportement d'une story déjà mergée, depuis
+ * une story qui portait par ailleurs un modèle neuf et un rendu public. Le report était routé
+ * vers la 6.10, qui l'a payé. **Le compte est passé de 3 à 1**, et cette copie-ci — qui avait
+ * déjà pris la forme de `partner.ts` — est **inchangée dans son comportement**.
  */
-const texteOptionnel = (max: number, libelle: string) =>
-  trimmedText
-    .transform((value) => (visiblementVide(value) ? null : value))
-    .nullable()
-    .default(null)
-    .refine((value) => value === null || value.length <= max, {
-      message: `${libelle} ne peut pas dépasser ${max} caractères.`,
-    });
 
 /**
  * Un atelier du catalogue d'animations (FR34, alimente FR10).

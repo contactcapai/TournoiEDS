@@ -36,6 +36,10 @@ const PAGE_MALADE = `
   .carrousel-sain { overflow-x: auto; width: 600px; white-space: nowrap; }
   .carrousel-malade { overflow-x: auto; width: 1200px; white-space: nowrap; }
   .piste { width: 2400px; }
+  /* ⑤ — R38 : la BOITE ne grandit pas, c'est le TEXTE qui deborde d'elle. */
+  .boite-etroite { width: 120px; }
+  /* Temoin NEGATIF : meme mot, meme boite, mais la parade est posee. */
+  .boite-etroite-gardee { width: 120px; overflow-wrap: anywhere; }
 </style></head><body>
   <header>en-tete</header>
   <main id="content">
@@ -43,6 +47,8 @@ const PAGE_MALADE = `
     <div class="undefined">classe fantome</div>   <!-- ③ -->
     <div class="carrousel-sain"><div class="piste">contenu large mais ATTEIGNABLE</div></div>
     <div class="carrousel-malade"><div class="piste">contenu large et conteneur hors ecran</div></div>
+    <p class="boite-etroite">MOTINSECABLEQUIDEBORDEDESAPROPREBOITE</p>
+    <p class="boite-etroite-gardee">MOTINSECABLEMAISGARDEPARLAPARADEANYWHERE</p>
     <div class="long"></div>
   </main>
   <footer>pied</footer>
@@ -96,6 +102,23 @@ try {
       n: "④b conteneur défilant hors écran — toujours signalé",
       vu: d.overflow.debordements.some((b) => /hors ecran/.test(b.texte)),
       detail: `signalé : ${d.overflow.debordements.some((b) => /hors ecran/.test(b.texte))}`,
+    },
+    {
+      // ⑤ R38 — le TEXTE deborde de sa propre boite, la boite ne bouge pas.
+      n: "⑤a debordement de TEXTE dans sa boite",
+      vu: d.overflow.debordementsTexte.some((t) => /MOTINSECABLEQUI/.test(t.texte)),
+      detail:
+        `${d.overflow.debordementsTexte.length} debordement(s) de texte vu(s)` +
+        (d.overflow.debordementsTexte[0]
+          ? ` — boite ${d.overflow.debordementsTexte[0].boite}px / contenu ${d.overflow.debordementsTexte[0].contenu}px`
+          : ""),
+    },
+    {
+      // ⑤b — CONTRE-EPREUVE : la parade `overflow-wrap: anywhere` doit faire TAIRE
+      // le detecteur. Sans ce cas, un detecteur qui signalerait TOUT passerait ⑤a.
+      n: "⑤b la parade `overflow-wrap: anywhere` fait taire le detecteur",
+      vu: !d.overflow.debordementsTexte.some((t) => /MOTINSECABLEMAIS/.test(t.texte)),
+      detail: `signale a tort : ${d.overflow.debordementsTexte.some((t) => /MOTINSECABLEMAIS/.test(t.texte))}`,
     },
   ];
 

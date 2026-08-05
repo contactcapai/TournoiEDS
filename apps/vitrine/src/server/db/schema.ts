@@ -1,12 +1,12 @@
 // Schéma Drizzle de la vitrine.
 //
 // 🔴 UNE TABLE PAR STORY, JAMAIS D'ANTICIPATION (règle posée en Story 1.7 et maintenue).
-// Une table sans consommateur est une migration qu'il faudra défaire. À venir, chacune
-// avec sa story : `member` (Story 6.10) et `site_setting` (Story 6.13).
-// ⚠️ `workshop` a été livrée par la Story 6.9 — et elle est la PREMIÈRE table de ce fichier
-// à naître AVEC son écran de saisie. Conséquence visible plus bas : ses `CHECK` de non-blanc
-// ET de plafond sont dans sa migration INITIALE (`0010`), là où `event`/`bar` (`0006`),
-// `photo.alt` (`0008`) et `partner` (`0009`) ont chacune payé une migration de RATTRAPAGE.
+// Une table sans consommateur est une migration qu'il faudra défaire. À venir, avec sa
+// story : `site_setting` (Story 6.13).
+// ⚠️ `workshop` (6.9) et `member` (6.10) naissent AVEC leur écran de saisie. Conséquence
+// visible plus bas : leurs `CHECK` de non-blanc ET de plafond sont dans leur migration
+// INITIALE (`0010`, `0011`), là où `event`/`bar` (`0006`), `photo.alt` (`0008`) et `partner`
+// (`0009`) ont chacune payé une migration de RATTRAPAGE.
 // ⚠️ La table `achievement` annoncée ici jusqu'à la Story 4.1 N'EXISTERA PAS : la
 // restructuration du 2026-07-30 l'a fondue dans `partner` (catégorie `participation`).
 //
@@ -66,6 +66,16 @@ import {
   PARTNER_CATEGORIES,
 } from "../../lib/schemas/partner";
 import { LOGO_EXTENSION, PREFIXE_LOGO } from "../../lib/logos";
+import { PORTRAIT_EXTENSION, PREFIXE_PORTRAIT } from "../../lib/portraits";
+// ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` ET `workshop` : `member.ts` exporte
+// des bornes dont les noms nus (`PRENOM_MAX`, `ROLE_MAX`, `PORTRAIT_MAX`) sont propres à SON
+// domaine. Les fusionner avec celles d'un autre domaine serait pire qu'une collision :
+// ajuster la borne d'un rôle changerait alors celle d'un titre d'événement.
+import {
+  PORTRAIT_MAX as MEMBER_PORTRAIT_MAX,
+  PRENOM_MAX as MEMBER_PRENOM_MAX,
+  ROLE_MAX as MEMBER_ROLE_MAX,
+} from "../../lib/schemas/member";
 // Même sens de dépendance que les deux listes d'enum ci-dessus : la liste des extensions
 // autorisées vit dans le module Zod (bundlé côté client en Epic 6), et le schéma Drizzle
 // la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
@@ -911,6 +921,143 @@ export const workshop = pgTable(
   ],
 );
 
+/**
+ * Membre de l'équipe présenté sur `/l-asso` (FR35, alimente FR9 — Story 6.10).
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA SEULE TABLE DE CE FICHIER QUI CONTIENT DE LA **DONNÉE PERSONNELLE** PUBLIÉE
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `solicitation` en contient aussi, mais elle n'est **jamais rendue publiquement**. Ici, un
+ * prénom et un rôle partent sur le web. Deux conséquences qui se lisent dans le schéma :
+ *
+ *   ① **MINIMISATION (RGPD, NFR5)** — ni nom de famille, ni e-mail, ni téléphone, ni date
+ *      d'entrée au bureau. On ne stocke que ce que la page rend. Une colonne qui n'est
+ *      rendue nulle part n'a aucune raison d'exister.
+ *   ② **DROIT À L'EFFACEMENT** — la suppression est **DURE**, et elle emporte le fichier
+ *      portrait. Aucune clé étrangère entrante sur cette table ⇒ rien ne s'y oppose,
+ *      contrairement à `event`, dont la suppression a demandé un raisonnement sur les photos.
+ *
+ * 🔴 CE QUE CETTE TABLE N'A PAS EST SON LIVRABLE — NE PAS LA « COMPLÉTER ».
+ * Aucune colonne d'effectif, de compteur, de total ni d'ancienneté. **FR16** interdit tout
+ * chiffre de communauté sur le site, et **la page publique le dit déjà en ligne** depuis la
+ * Story 2.6 : *« Pas de compteur de membres ni de statistiques d'audience sur ce site. »*
+ * Une colonne de ce type contredirait un texte publié, sur la page même qui le porte. C'est
+ * un **garde-fou de SCHÉMA**, pas une consigne dans une documentation que personne ne rouvre.
+ *
+ * ⚠️ Pas de catégorie `bureau` / `bénévole` : l'équipe est une **liste unique ordonnée**.
+ * Séparer les gens en deux classes sur une page dont le propos est qu'ils font la même chose
+ * serait un contresens éditorial. Le `role` dit déjà ce qu'il faut.
+ */
+export const member = pgTable(
+  "member",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** Le prénom. Rendu comme titre de la carte sur `/l-asso`. */
+    firstName: text().notNull(),
+    /**
+     * Le rôle (« Présidente », « Bénévole animation »). **Obligatoire** : un prénom nu publié
+     * sur le web serait une donnée personnelle publiée sans raison — c'est le rôle qui
+     * justifie la publication.
+     */
+    role: text().notNull(),
+    /**
+     * Chemin du portrait sur le volume, ou `null`. **Facultatif, et son absence est le cas
+     * NOMINAL** : une équipe mixte est le cas le plus probable.
+     *
+     * ⚠️ Une seule forme de valeur, contrairement à `partner.logo` qui en porte deux — aucun
+     * portrait n'a jamais été semé dans `public/`, et il n'y en aura pas. Voir `lib/portraits.ts`.
+     */
+    portrait: text(),
+    /** Classement manuel de l'équipe (voir l'index et les actions). */
+    sortOrder: integer().notNull().default(0),
+    /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`, `photo`). */
+    isPublished: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * 🔴 GARDES AU NIVEAU DES DONNÉES — **la base est le garde-fou qu'on ne peut pas
+     * contourner** (`UPDATE` direct, restauration de sauvegarde, migration de données),
+     * **Zod est celui qui parle au bénévole** (`lib/schemas/member.ts`, d'où viennent ces
+     * bornes — jamais recopiées ici).
+     *
+     * `notNull` ne suffit pas : `'' IS NOT NULL` est **vrai** en SQL, donc un
+     * `UPDATE member SET first_name = ''` produirait une carte sans prénom sur une page
+     * publique.
+     *
+     * 🔴 `sql.raw()` EST OBLIGATOIRE POUR CES NOMBRES ET CE MOTIF : dans un gabarit `sql``,
+     * une valeur interpolée devient un PARAMÈTRE LIÉ, et la contrainte sortirait dans le
+     * `.sql` sous la forme `length(...) <= $1` — un DDL versionné **invalide**, puisque
+     * personne n'est là pour lier `$1`. Ni le typecheck ni le build ne le voient. **Le seul
+     * témoin est le SQL généré, qu'il faut donc LIRE.**
+     *
+     * ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : `btrim` ne retire que les blancs ASCII, pas U+200B
+     * (leçon 6.3). Zod le refuse (`visiblementVide`). **Les contraintes des `0006`, `0008`,
+     * `0009` et `0010` ont exactement la même limite** — à rouvrir pour TOUTES les tables
+     * ensemble, jamais pour une seule.
+     */
+    check(
+      "member_prenom_valide",
+      sql`length(btrim(${table.firstName})) > 0 and length(${table.firstName}) <= ${sql.raw(String(MEMBER_PRENOM_MAX))}`,
+    ),
+    check(
+      "member_role_valide",
+      sql`length(btrim(${table.role})) > 0 and length(${table.role}) <= ${sql.raw(String(MEMBER_ROLE_MAX))}`,
+    ),
+    /**
+     * 🔴 LA SEULE CONTRAINTE NULLABLE DE CETTE TABLE — DONC LA SEULE QUI PUISSE S'ÉVALUER À
+     * `NULL`, DONC **LA SEULE QUI PORTE UNE BRANCHE `is null` EXPLICITE**.
+     *
+     * C'est la leçon la plus chère de l'Epic 6, et elle a coûté trois epics : `event_has_venue`
+     * (Story 3.1) s'écrivait `bar_id is not null or length(btrim(venue_name)) > 0` et valait
+     * `FALSE OR NULL` = **`NULL`** quand les deux colonnes étaient nulles — c'est-à-dire dans
+     * le cas EXACT qu'elle existait pour interdire. Et **un `CHECK` qui vaut `NULL` PASSE**
+     * (logique ternaire SQL : il n'échoue que sur `FALSE`). Sept portes vertes ne l'ont pas vu,
+     * parce qu'une contre-épreuve par ÉCRITURE est aveugle à ce défaut **par construction**.
+     * ⇒ `gate:membres` vérifie la parité en **LISANT le texte de la contrainte**
+     * (`pg_get_constraintdef`), pas seulement en écrivant.
+     *
+     * Liste blanche, jamais liste noire — doctrine `photo_filename_safe` (4.3) et
+     * `partner_logo_valide` (6.5), reprises mot pour mot : **un seul** préfixe autorisé (aucun
+     * équivalent de `/partenaires/` ici) et **une seule** extension.
+     *
+     * 🔴 `\\.` ET NON `\.` — piège d'échappement à deux étages, et il est SILENCIEUX. Dans un
+     * littéral de gabarit JS, `\.` est un échappement non reconnu et s'évalue en `.` : la
+     * chaîne remise à Postgres porterait un point « n'importe quel caractère », et
+     * `/medias/portraits/axwebp` passerait — **c'est le piège du point, mesuré en 6.5**. D'où
+     * l'exigence d'ÉPROUVER ce `CHECK` par des écritures qui doivent ÉCHOUER.
+     */
+    check(
+      "member_portrait_valide",
+      sql`${table.portrait} is null or (length(${table.portrait}) <= ${sql.raw(String(MEMBER_PORTRAIT_MAX))} and ${table.portrait} ~ ${sql.raw(`'^${PREFIXE_PORTRAIT}[a-z0-9][a-z0-9._-]*\\.${PORTRAIT_EXTENSION}$'`)} and ${table.portrait} !~ '\\.\\.')`,
+    ),
+    /**
+     * 🔴 UNICITÉ DU PORTRAIT — ELLE PROTÈGE LA **SUPPRESSION**, PAS L'AFFICHAGE.
+     *
+     * Sans elle, deux membres peuvent référencer le même fichier. Supprimer le premier
+     * détruirait alors le portrait du second, qui afficherait une silhouette sans que rien ne
+     * relie l'effet à sa cause. Le back-office ne peut pas produire ce cas (chaque
+     * téléversement génère son propre UUID) — mais une restauration partielle ou un `UPDATE`
+     * direct, si. Patron `partner_logo_unique` (6.5).
+     *
+     * ⚠️ Postgres autorise **plusieurs `NULL`** dans un index unique : les membres sans
+     * portrait ne se gênent pas entre eux. C'est ce qui rend cette contrainte posable sur une
+     * colonne nullable sans rien casser.
+     */
+    uniqueIndex("member_portrait_unique").on(table.portrait),
+    // Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERT : le rendu public filtre sur
+    // `is_published` puis ordonne par `sort_order` (`queries/members.ts`). Un seul index sert
+    // les deux requêtes (publique et back-office), qui partagent leur ordre. Patron
+    // `workshop_published_family_order_idx`.
+    index("member_published_order_idx").on(table.isPublished, table.sortOrder),
+  ],
+);
+
 // ════════════════════════════════════════════════════════════════════════════════
 // AUTHENTIFICATION BACK-OFFICE — Auth.js v5 + adaptateur Drizzle (Story 6.1)
 // ════════════════════════════════════════════════════════════════════════════════
@@ -1077,6 +1224,8 @@ export type NewWorkshop = typeof workshop.$inferInsert;
  * y ferait entrer Drizzle. Le type naît là où naissent les valeurs.
  */
 export type { WorkshopFamily } from "../../lib/schemas/workshop";
+export type Member = typeof member.$inferSelect;
+export type NewMember = typeof member.$inferInsert;
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Account = typeof account.$inferSelect;

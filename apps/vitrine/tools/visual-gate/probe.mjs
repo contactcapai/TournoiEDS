@@ -144,13 +144,118 @@ export const PROBE = `(() => {
       depasseAGauche: o.gauche > TOL ? o.gauche : 0,
       depasseADroite: o.droite > TOL ? o.droite : 0 }));
 
+  //    ══════════════════════════════════════════════════════════════════════════════
+  //    🔴 ⑨ DÉBORDEMENT DE **TEXTE À L'INTÉRIEUR DE SA PROPRE BOÎTE** — dette R38,
+  //       tranchée au niveau GÉNÉRAL par la Story 6.10.
+  //    ══════════════════════════════════════════════════════════════════════════════
+  //
+  //    La mesure ① ci-dessus balaie les BOÎTES contre le viewport. Or un bloc garde la
+  //    largeur de son conteneur : quand un mot insécable dépasse, **la boîte ne grandit
+  //    pas — c'est le TEXTE qui déborde D'ELLE**. ① est donc structurellement aveugle à
+  //    ce cas, et \`overflow-x: clip\` le rogne EN SILENCE.
+  //
+  //    🔬 MESURÉ en Story 6.9 : un intitulé d'atelier de 80 caractères insécables (une
+  //    saisie VALIDE, à la borne) faisait à 320px de viewport **248px de boîte pour
+  //    2006px de texte — 1758px de débordement**, et \`pnpm --filter vitrine gate\`
+  //    RESTAIT VERTE. À 412px : 1666px. La 6.9 a posé un repli local ; la portée réelle
+  //    est TOUTE page rendant du texte SAISI (légendes de photos, descriptions de
+  //    partenaires, titres et récapitulatifs d'événements, intitulés d'ateliers, prénoms
+  //    et rôles de membres). C'était le 3ᵉ paiement de la même dette (4.3, 6.9, 6.10).
+  //
+  //    🔴 LE TÉMOIN EST \`element.scrollWidth > element.clientWidth\`, **PAR ÉLÉMENT** —
+  //    à ne pas confondre avec le témoin INTERDIT du projet
+  //    (\`documentElement.scrollWidth === clientWidth\`), aveugle sous \`overflow-x: clip\`.
+  //    La différence est réelle et non verbale : ici la comparaison porte sur un
+  //    ÉLÉMENT dont la boîte est bornée par son conteneur, là-bas sur le document, dont
+  //    la zone défilable est justement ce que \`clip\` empêche de croître.
+  //
+  //    🔴 LE CONTRÔLE PORTE SUR LES **FEUILLES DE TEXTE** — ÉLÉMENTS SANS ENFANT
+  //    ÉLÉMENT — ET C'EST UNE DÉCISION, PAS UNE COMMODITÉ.
+  //
+  //    Le défaut que R38 décrit est « un texte trop long pour SA PROPRE boîte ». Il se
+  //    produit sur l'élément qui contient directement le texte : le \`<h4>\` d'une card,
+  //    le \`<p>\` d'un rôle, le \`<li>\` d'une liste. Un ANCÊTRE, lui, hérite mécaniquement
+  //    du \`scrollWidth\` gonflé de ses descendants : le signaler est un ARTEFACT DE
+  //    PROPAGATION, pas une seconde découverte. MESURÉ le 2026-08-05, les trois familles
+  //    d'artefacts qu'une version naïve rapportait :
+  //      · \`Hero .accent\` (+4px) — il ne fait qu'ENVELOPPER un \`Brush\`, dont le trait
+  //        \`::after\` déborde par construction ;
+  //      · \`Hero .photoCol\` (+8px) — il enveloppe le \`Sticker\`, dont la rotation étend
+  //        la boîte englobante au-delà de la boîte de mise en page ;
+  //      · \`PastCarousel .viewport\` (+2574px) — c'est le conteneur défilant lui-même,
+  //        dont \`scrollWidth > clientWidth\` est très exactement CE QUI LE REND DÉFILABLE.
+  //    Aucun des trois n'est un texte rogné. Se restreindre aux feuilles les élimine
+  //    tous les trois **par construction**, sans inventer trois exemptions ad hoc.
+  //
+  //    ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : un débordement de texte dans un élément qui porte
+  //    AUSSI des enfants éléments n'est pas vu. C'est le prix de la précision ici, et il
+  //    est modeste — le texte saisi est rendu dans des feuilles partout sur ce site.
+  //
+  //    QUATRE EXCLUSIONS de plus, toutes DÉCLARÉES en sortie de porte (une exclusion
+  //    muette laisse croire que la porte couvre tout) :
+  //      - \`aria-hidden\` : décoratifs, déjà exclus de ① pour la même raison ;
+  //      - le motif « visuellement masqué » (.sr-only) : sa boîte fait 1px par
+  //        construction, donc TOUT texte y « déborde » — 92 à 126px mesurés. Ce n'est
+  //        pas un défaut, c'est le motif lui-même ;
+  //      - la primitive \`Brush\`, feuille elle-même, dont le \`::after\` est posé à
+  //        \`left/right: -4px\` — +4px de \`scrollWidth\` PAR CONSTRUCTION ;
+  //      - les conteneurs réellement DÉFILANTS, eux-mêmes ou en ancêtre : le contenu y
+  //        est à un geste de distance, pas rogné — même raisonnement que l'exclusion
+  //        n°3 de ①.
+  //
+  //    ⚠️ TOLÉRANCE 2px, comme ① : les arrondis sub-pixels de \`scrollWidth\` (entier)
+  //    face à \`clientWidth\` (entier lui aussi, mais arrondi d'une largeur fractionnaire)
+  //    produisent régulièrement 1px d'écart sans aucun débordement réel.
+  const estSrOnly = (el) => classesOf(el).some((c) => /^sr-only$/.test(c));
+  const dansDefilantQuelconque = (el) => conteneurDefilant(el) !== null;
+  //    🔬 EXEMPTION \`Brush\` — MESURÉE, PAS SUPPOSÉE, ET NOMMÉE PLUTÔT QUE SEUILLÉE.
+  //    La primitive \`Brush\` (@repo/ui) pose son trait de pinceau en \`::after\` avec
+  //    \`left: -4px; right: -4px\` : le pseudo-élément déborde donc de la boîte du
+  //    \`<span>\` PAR CONSTRUCTION, et gonfle \`scrollWidth\` de +4px. Mesuré sur les 5
+  //    pages : 4px exactement, toujours, sur les seuls \`Brush\`. Ce n'est pas du texte
+  //    rogné, c'est la charte.
+  //    ⚠️ ON EXCLUT LA CLASSE, PAS « LES ÉCARTS DE 4px ». Un seuil à 5px masquerait un
+  //    VRAI débordement de 4px ailleurs, et personne ne saurait jamais qu'il a été
+  //    masqué. Une exemption nommée se relit, se discute, et tombe si la primitive change.
+  //    ⚠️ \`"Brush:brush"\` ET NON \`"brush"\` : \`norm()\` rend \`fichier + ":" + nomLocal\`
+  //    (voir sa définition en tête). Écrit \`"brush"\`, le filtre ne matchait RIEN et la
+  //    porte restait rouge sur les 5 pages — hypothèse corrigée PAR LA MESURE, en lisant
+  //    la classe réellement servie (\`Brush-module__hzCJba__brush\`) plutôt qu'en la
+  //    supposant. C'est le motif \`pieges/instrument-non-valide.md\` attrapé du bon côté :
+  //    l'instrument accusait le produit, la mesure a montré que c'était lui.
+  const estBrush = (el) => classesOf(el).includes("Brush:brush");
+
+  const estDefilant = (el) => {
+    const ox = getComputedStyle(el).overflowX;
+    return ox === "auto" || ox === "scroll";
+  };
+
+  const candidatsTexte = all
+    // 🔴 FEUILLES DE TEXTE UNIQUEMENT — voir le raisonnement ci-dessus.
+    .filter((el) => el.children.length === 0)
+    .filter((el) => (el.textContent || "").trim().length > 0)
+    .filter((el) => !el.closest("[aria-hidden='true']"))
+    .filter((el) => !estSrOnly(el) && !el.closest(".sr-only"))
+    .filter((el) => !estBrush(el))
+    .filter((el) => !estDefilant(el) && !dansDefilantQuelconque(el));
+
+  const debordementsTexte = candidatsTexte
+    .map((el) => ({ el, ecart: el.scrollWidth - el.clientWidth }))
+    .filter((o) => o.ecart > TOL)
+    .map((o) => ({ path: pathOf(o.el), tag: o.el.tagName,
+      boite: o.el.clientWidth, contenu: o.el.scrollWidth, depassement: o.ecart,
+      texte: (o.el.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 40) }));
+
   const overflow = { viewportWidth: vw, debordements,
     // Rapporté pour que l'exclusion soit VISIBLE et non silencieuse : si ce compte
     // grimpe sans qu'un carrousel n'ait été ajouté, c'est le signal d'un abus.
     exclusDefilant,
+    // ⑨ R38 — et son propre compte d'exclusions, pour la même raison.
+    debordementsTexte,
+    exclusTexte: candidatsTexte.length,
     // Conservé À TITRE INFORMATIF seulement — voir l'avertissement ci-dessus.
     scrollWidthInforme: de.scrollWidth,
-    ok: debordements.length === 0 };
+    ok: debordements.length === 0 && debordementsTexte.length === 0 };
 
   // ⑥ Texte du <main> — textContent (indépendant de la mise en page), AC4/AC9
   const main = document.querySelector("main#content");

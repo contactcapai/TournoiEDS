@@ -105,7 +105,7 @@ export default async function ApercuEvenementPage({
               un bénévole qui vient de téléverser des brouillons pour cet événement verrait
               sinon un placeholder et conclurait à une panne. Dire ce que l'écran ne montre
               pas coûte une phrase ; le taire coûte un ticket. */}
-          <p className={styles.mention} role="note">
+          <p className={agenda.mention} role="note">
             La photo affichée est la <strong>première photo publiée</strong> de cet
             événement. Un brouillon n&rsquo;y apparaît pas — pas plus que sur le site : le
             cadre « photo à venir » est alors le rendu réel.
@@ -130,7 +130,7 @@ export default async function ApercuEvenementPage({
             public voit : elles montrent le rendu qu'il avait quand il était à venir. Le
             dire évite qu'on les prenne pour l'état courant du site. */}
         {evenement.estPasse ? (
-          <p className={styles.mention} role="note">
+          <p className={agenda.mention} role="note">
             Cet événement est passé : cette scène et la suivante montrent le rendu
             qu&rsquo;il <strong>avait quand il était à venir</strong>. Ce que le public voit
             aujourd&rsquo;hui, c&rsquo;est la vignette ci-dessus.

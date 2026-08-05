@@ -1,0 +1,86 @@
+/* Ce qui est PROPRE aux écrans de MEMBRES (Story 6.10) : la vignette de portrait, le chemin
+   du fichier et le plateau d'aperçu. Le vocabulaire de page (titre, chapô, liste, ligne, état,
+   vide, mention) vient de `styles/admin-page.module.css`, celui des formulaires de
+   `styles/admin-form.module.css`. Tokens uniquement (project-context.md §5). */
+
+/* ───────── La vignette de portrait ─────────
+   🔴 ELLE REPRODUIT LE CADRE PUBLIC : carré, fond `--navy-deep`, `object-fit: cover`. C'est la
+   seule façon que ce qu'on voit ici ressemble à ce que verra le visiteur — et notamment que le
+   RECADRAGE soit visible avant publication. Un aperçu en `contain` montrerait toute la photo et
+   cacherait précisément ce que le cadre coupe.
+   ⚠️ Ce n'est PAS une copie de `TeamGrid.module.css` : ni la grille, ni le fond de carte, ni le
+   filet or, ni le survol ne sont repris. C'est une vignette d'inventaire qui emprunte trois
+   valeurs au rendu — la forme carrée, le fond et le mode de recadrage. L'aperçu réel, lui,
+   monte le composant public (voir `apercu/page.tsx`). */
+.vignette {
+  position: relative;
+  flex: 0 0 auto;
+  width: 120px;
+  height: 120px;
+  overflow: hidden;
+  border-radius: var(--radius-tile);
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  background: var(--navy-deep);
+}
+
+.vignetteImage {
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* L'absence de portrait n'est pas un vide : c'est un état, et il se lit. ⚠️ Ici on ÉCRIT
+   « Pas de portrait » plutôt que de dessiner la silhouette : cet écran est un inventaire, il
+   doit nommer l'état. La silhouette, elle, se voit dans l'aperçu — qui montre le rendu réel. */
+.sansPortrait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Le chemin du fichier. Petit et en gris : il n'a d'intérêt que pour identifier un fichier,
+   jamais pour être lu. */
+.fichier {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--grey);
+  font-variant-numeric: tabular-nums;
+  /* Un UUID ne contient pas d'espace : sans ça, il déborde la colonne et `overflow-x: clip` le
+     rogne EN SILENCE (dette R14, et `gate` ne couvre pas /admin). */
+  overflow-wrap: anywhere;
+}
+
+/* Le rôle, sous le prénom dans la liste d'inventaire. */
+.role {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--light);
+  overflow-wrap: anywhere;
+}
+
+/* La vignette et le texte d'une ligne, côte à côte. `align-items: flex-start` : sur une ligne
+   dont le rôle passe à deux lignes, la vignette reste alignée en haut. */
+.ligneAvecVignette {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* ───────── Le plateau d'aperçu ─────────
+   Il porte le fond RÉEL de la section publique (`--navy`, celui de la page) et sa gouttière,
+   pour que le contraste observé soit celui du rendu. Le contraste d'un texte dépend de son
+   fond EFFECTIF (leçon 4.2) : prévisualiser sur le fond du back-office montrerait un rendu qui
+   n'existe nulle part. */
+.apercu {
+  margin-top: 20px;
+  padding: 28px var(--wrap-pad);
+  border-radius: var(--radius-card);
+  background: var(--navy);
+}

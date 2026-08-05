@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { LOGO_EXTENSION, PREFIXE_LOGO } from "../logos";
-import { visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -134,27 +134,14 @@ const trimmedText = z.string().trim();
  */
 
 /**
- * Champ optionnel : une chaîne vide (formulaire non rempli) vaut `null`, pas `""`.
+ * 🔴 `texteOptionnel` A ÉTÉ EXTRAITE VERS `./texte.ts` PAR LA STORY 6.10 (dette R37 ①).
  *
- * 🔴 FABRIQUE ET NON CONSTANTE DEPUIS LA STORY 6.5 : la borne ne peut PAS s'ajouter après coup
- * par un `.max()`. Le `.transform()` a déjà changé le type en `string | null`, sur lequel
- * `.max()` n'existe pas — et l'y forcer par un `.pipe()` rendrait un message illisible. La
- * borne entre donc dans la fabrique, avec le nom du champ dans son message : un bénévole doit
- * lire « la description », pas « string ».
- *
- * ⚠️ La longueur est comptée APRÈS `.trim()` (c'est ce que `trimmedText` produit), donc
- * exactement comme le compteur de `ChampTexte`, qui compte `valeur.trim().length`. Les deux
- * doivent dire la même chose, sinon le compteur crie à tort — et un compteur qui crie à tort
- * est un compteur qu'on cesse de lire (défaut trouvé en revue de la 6.3).
+ * C'est **cette** sémantique qui a été retenue pour les trois consommateurs — borne comptée
+ * APRÈS `trim()`, donc exactement comme le compteur de `ChampTexte`. Le comportement de ce
+ * fichier est donc **inchangé** ; ce sont `event.ts` et le module partagé qui se sont alignés
+ * sur lui. Le raisonnement complet vit dans `./texte.ts`, pas ici : une seule copie du motif,
+ * une seule copie de son explication.
  */
-const texteOptionnel = (max: number, libelle: string) =>
-  trimmedText
-    .transform((value) => (visiblementVide(value) ? null : value))
-    .nullable()
-    .default(null)
-    .refine((value) => value === null || value.length <= max, {
-      message: `${libelle} ne peut pas dépasser ${max} caractères.`,
-    });
 
 /**
  * URL de partenaire.
