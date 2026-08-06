@@ -651,6 +651,79 @@ try {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // ⑬ 🔴 UNE VALEUR SAISIE NE DOIT JAMAIS S'ÉCHAPPER DU HTML QUI LA PORTE
+  //    (injection de BALISAGE — pas d'exécution de script, et la nuance est mesurée)
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Garde ajoutée APRÈS LA REVUE (Edge Case Hunter), sur un défaut RÉEL et MESURÉ, que cette
+  // story avait elle-même introduit.
+  //
+  // `SolicitationDialog` rend son repli `<noscript>` par `dangerouslySetInnerHTML` — montage
+  // légitime (React ne rend pas de façon fiable des enfants JSX dans un `<noscript>`), et
+  // parfaitement sûr TANT QUE le contenu était statique. Cette story a rendu `contactEmail`
+  // **saisissable**, donc la chaîne interpolée est devenue une donnée. Le commentaire du
+  // fichier affirmait pourtant encore « aucune donnée utilisateur — aucune surface
+  // d'injection » : un avertissement FAUX est pire qu'absent, parce qu'il est CRU.
+  //
+  // ⚠️ CE N'EST PAS UN XSS AVEC EXÉCUTION, ET LE DIRE JUSTE COMPTE. Un `<script>` inséré par
+  // `innerHTML` n'est jamais exécuté (comportement DOM standard), et le contenu d'un
+  // `<noscript>` n'est parsé comme du balisage QUE si le scripting est désactivé — auquel cas
+  // aucun gestionnaire d'événement ne s'exécute non plus. Ce qui reste, et qui est réel : de
+  // l'**injection de balisage** servie à tout visiteur sans JS — une redirection
+  // `<meta http-equiv="refresh">`, un faux formulaire, un contenu trompeur. Le déclencheur est
+  // une saisie d'administrateur, donc le rayon est borné par une confiance déjà accordée : la
+  // garde existe pour la **saisie imparfaite**, pas contre un administrateur hostile.
+  // ⚠️ Le motif e-mail est DÉLIBÉRÉMENT minimal (`[^\s@]+@[^\s@]+\.[^\s@]+`) : durcir la
+  // validation refuserait des adresses valides, et la vraie validation d'une adresse est
+  // l'envoi d'un message. La garde ne porte donc PAS sur ce qui entre en base — elle porte sur
+  // ce qui SORT dans le HTML. C'est la bonne couche : l'échappement.
+  //
+  // 🔴 ELLE MESURE LE HTML SERVI, PAS LE SOURCE. Une relecture de code dirait « il y a un
+  // échappement » ; seule la lecture du corps servi dit qu'il TIENT.
+  {
+    // 🔴 LA CHARGE DOIT ÊTRE STOCKABLE, ET LA PREMIÈRE NE L'ÉTAIT PAS — défaut d'instrument
+    // mesuré au traitement de la revue. Elle contenait des ESPACES
+    // (`<meta http-equiv=refresh content=0>`), or le motif de `site_setting_contact_email_valide`
+    // est `[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+` : aucun espace nulle part. Le `CHECK`
+    // l'a refusée (`23514`) et la porte a **planté** au lieu de rendre un verdict — la forme la
+    // moins coûteuse d'instrument faux, mais un instrument faux quand même.
+    // Parade : le vecteur RÉELLEMENT atteignable, relevé en revue, qui remplace les espaces par
+    // des `/` — séparateurs équivalents pour l'analyseur de balises HTML. Vérifié contre le
+    // `CHECK` avant d'être utilisé ici : `~` renvoie `t`.
+    // ⚠️ On garde aussi une balise `<script>` comme témoin d'échappement, tout en sachant
+    // qu'elle ne s'exécuterait PAS (voir l'en-tête de cette garde).
+    const CHARGE =
+      'zz"/><meta/http-equiv=refresh/content=0;url=https://evil.test/<script>alert(1)</script>@exemple-gate.test';
+    await sql`update site_setting set contact_email = ${CHARGE} where id = 1`;
+
+    // `SolicitationDialog` est monté sur ces trois pages (via `DoubleDoor` sur `/`).
+    for (const page of ["/", "/animations", "/partenaires"]) {
+      const r = await corpsDe(page);
+      // En autotest, on cherche une chaîne SÛRE : la garde doit alors tomber.
+      const sorties = AUTOTEST
+        ? ["<a "]
+        : ['<meta/http-equiv=refresh', "<script>alert(1)</script>", 'href="mailto:zz"'];
+      const trouvees = sorties.filter((s) => r.corps.includes(s));
+      if (trouvees.length === 0) {
+        ok("⑬", page, "la charge saisie ressort ÉCHAPPÉE — elle ne sort ni de l'attribut ni de la balise");
+      } else {
+        ko(
+          "⑬",
+          page,
+          `INJECTION DE BALISAGE : la valeur de contact_email s'échappe du HTML ` +
+            `(${trouvees.join(" · ")}) — une adresse saisie au back-office injecte du balisage ` +
+            "arbitraire chez tout visiteur sans JavaScript",
+        );
+      }
+      // Contre-épreuve : la charge doit tout de même être PRÉSENTE, sous forme échappée.
+      // Sans elle, une garde resterait verte si le repli disparaissait purement et simplement.
+      if (!AUTOTEST && !r.corps.includes("zz&quot;") && !r.corps.includes("@exemple-gate.test")) {
+        ko("⑬", page, "la charge n'apparaît NULLE PART : le repli <noscript> a disparu, la garde ne mesure plus rien");
+      }
+    }
+  }
+
   // ── ⑤ LIGNE ABSENTE ⇒ REPLI HONNÊTE, PAS UNE 500 ─────────────────────────────────────
   // 🔴 Limite DÉCLARÉE de `lireReglages()`, et donc à ÉPROUVER : le lecteur retombe sur l'état
   // d'avant cette story plutôt que de faire rendre les 5 pages en erreur. Sans cette garde,

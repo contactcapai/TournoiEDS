@@ -4,9 +4,30 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@repo/ui";
 
-
 import { SolicitationForm } from "../SolicitationForm/SolicitationForm";
 import styles from "./SolicitationDialog.module.css";
+
+/**
+ * Échappe une valeur destinée à être interpolée dans du **HTML BRUT** — attribut ou texte.
+ *
+ * 🔴 UN SEUL CONSOMMATEUR, ET ON NE L'EXTRAIT PAS. La règle du projet est d'extraire au 2ᵉ
+ * consommateur, jamais « au cas où » (leçon R9). Le `<noscript>` ci-dessous est le **seul**
+ * endroit de la vitrine qui construise du HTML par concaténation de chaînes : partout ailleurs,
+ * c'est React qui rend, et React échappe. Le jour où un second gabarit apparaît, cette fonction
+ * déménage — et ce jour-là, ce sera une garde de CORRECTION partagée, comme `visiblementVide`.
+ *
+ * ⚠️ Les cinq caractères, pas trois : `&` en PREMIER (sinon on ré-échapperait les entités qu'on
+ * vient de produire), puis `<` `>` pour les balises, `"` et `'` pour les attributs. Retirer le
+ * `"` suffirait à rouvrir exactement le défaut trouvé en revue.
+ */
+function echapperHtml(valeur: string): string {
+  return valeur
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 /**
  * Bouton « Nous écrire » + la boîte de dialogue qui porte `SolicitationForm`.
@@ -143,8 +164,29 @@ export function SolicitationDialog({
         et l'adresse e-mail le remplace, exactement au même endroit.
         ⚠️ `dangerouslySetInnerHTML` est ici le montage CORRECT et non un contournement :
         React ne rend pas de façon fiable des enfants JSX dans un `<noscript>` à
-        l'hydratation. Le contenu est entièrement statique et ne porte aucune donnée
-        utilisateur — aucune surface d'injection.
+        l'hydratation.
+        🔴 MAIS LE CONTENU N'EST PLUS STATIQUE DEPUIS LA STORY 6.13, ET CE COMMENTAIRE
+        AFFIRMAIT LE CONTRAIRE. Il disait : « Le contenu est entièrement statique et ne porte
+        aucune donnée utilisateur — aucune surface d'injection. » C'était vrai tant que
+        `CONTACT_EMAIL` était une constante compilée. La 6.13 la rend SAISISSABLE au
+        back-office (`site_setting.contact_email`) : la chaîne interpolée ci-dessous est
+        devenue une DONNÉE. Un avertissement faux est pire qu'absent — il est CRU.
+        ⇒ Tout ce qui entre dans ce gabarit passe désormais par `echapperHtml`. Trouvé en
+        revue par DEUX agents indépendamment, puis MESURÉ : la valeur
+        `zz"/><meta/http-equiv=refresh/…@x.test` passe Zod ET le `CHECK` (le motif e-mail
+        n'exclut ni `"` ni `<`), sortait de l'attribut `href` et injectait du balisage.
+        ⚠️ CE N'ÉTAIT PAS UN XSS AVEC EXÉCUTION, et le dire juste compte : un `<script>` posé
+        par `innerHTML` ne s'exécute jamais, et le contenu d'un `<noscript>` n'est parsé comme
+        du balisage QUE si le scripting est désactivé — auquel cas aucun gestionnaire
+        d'événement ne tourne non plus. Ce qui était réel : une INJECTION DE BALISAGE
+        (redirection `<meta refresh>`, faux formulaire) servie à tout visiteur sans JS.
+        ⚠️ ON N'A PAS DURCI LE MOTIF E-MAIL, et c'est délibéré : il est minimal exprès
+        (`lib/schemas/site-setting.ts`), parce qu'un motif ambitieux refuse des adresses
+        valides — et la vraie validation d'une adresse est l'envoi d'un message. La bonne
+        couche pour ce défaut est l'ÉCHAPPEMENT, ici, au point de rendu.
+        ⚠️ Le footer, lui, n'a jamais été vulnérable : il rend `href={...}` en JSX, donc React
+        échappe. Le seul point de rupture était ce gabarit de chaîne.
+        🔬 Gardé par `gate:reglages` ⑬, prouvée ROUGE sur le défaut réel avant ce correctif.
         ⚠️ Ce repli N'EST PAS un doublon du formulaire au sens de R28 : les deux ne sont
         JAMAIS rendus ensemble, c'est l'un OU l'autre selon que JS s'exécute.
       */}
@@ -152,7 +194,8 @@ export function SolicitationDialog({
         dangerouslySetInnerHTML={{
           __html:
             `<style>[data-solicitation-trigger]{display:none}</style>` +
-            `<a class="${styles.repli}" href="mailto:${contactEmail}">${label} — ${contactEmail}</a>`,
+            `<a class="${styles.repli}" href="mailto:${echapperHtml(contactEmail)}">` +
+            `${echapperHtml(label)} — ${echapperHtml(contactEmail)}</a>`,
         }}
       />
 
