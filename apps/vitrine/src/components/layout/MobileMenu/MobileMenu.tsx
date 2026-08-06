@@ -4,12 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ExternalIcon } from "@repo/ui";
-import {
-  DISCORD_URL,
-  REJOINDRE_URL,
-  NEW_TAB_SR,
-  classerDestination,
-} from "@/lib/links";
+import { NEW_TAB_SR, classerDestination } from "@/lib/links";
 import styles from "./MobileMenu.module.css";
 
 // Lien de navigation sérialisable (données définies côté RSC dans SiteHeader).
@@ -25,12 +20,34 @@ export interface NavLink {
 // (2) détection du lien actif (usePathname). Il rend AUSSI la nav desktop pour
 // partager `usePathname`. Le SiteHeader parent reste un Server Component.
 
+// ⚠️ `DISCORD_URL` et `REJOINDRE_URL` ONT DISPARU DE `@/lib/links` (Story 6.13) : elles sont
+// devenues `site_setting.discord_url` / `site_setting.helloasso_url`, et arrivent en props.
 // `NEW_TAB_SR` et `isExternalUrl` sont désormais partagés depuis `@/lib/links`
 // (promus en Story 1.5 pour que header ET footer les consomment — Garde-fou n°3).
 // `ExternalIcon` l'est aussi depuis la Story 5.5 : il vivait ICI en copie locale,
 // à l'identique de celle du footer — les deux sont fondues dans `@repo/ui`.
 
-export function MobileMenu({ links }: { links: NavLink[] }) {
+/**
+ * 🔴 LES DEUX DESTINATIONS ARRIVENT EN PROPS — STORY 6.13, ET C'EST STRUCTUREL.
+ *
+ * Ce composant porte `'use client'`. Les six réglages du site vivent en base
+ * (`site_setting`) et se lisent par `server/db/queries/settings.ts`, qui est **`server-only`** :
+ * l'importer d'ici casserait le build. `SiteHeader` (RSC) lit via le layout et transmet.
+ *
+ * ⚠️ Ce sont des chaînes SÉRIALISABLES, comme `links` — la frontière client reste exactement
+ * celle de la Story 1.4, aucun `'use client'` n'a été ajouté ni déplacé par la 6.13.
+ */
+export function MobileMenu({
+  links,
+  discordUrl,
+  helloassoUrl,
+}: {
+  links: NavLink[];
+  /** Invitation Discord, ou `DESTINATION_ABSENTE`. */
+  discordUrl: string;
+  /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
+  helloassoUrl: string;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const hamburgerRef = useRef<HTMLButtonElement>(null);
@@ -126,7 +143,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
 
   // Lien Discord (icône seule → nom accessible explicite + indication SR).
   function renderDiscord(onNavigate?: () => void) {
-    const destination = classerDestination(DISCORD_URL);
+    const destination = classerDestination(discordUrl);
     const external = destination === "externe";
 
     // 🔴 SANS DESTINATION, CE N'EST PLUS UN LIEN — Story 5.5 (dette R2). Il rendait
@@ -145,7 +162,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
       destination === "absente"
         ? { "data-inerte": "" }
         : {
-            href: DISCORD_URL,
+            href: discordUrl,
             ...(external ? { target: "_blank", rel: "noopener noreferrer" } : {}),
             "aria-label": external
               ? "Discord — rejoindre la communauté (nouvel onglet)"
@@ -174,7 +191,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
 
   // CTA « Nous rejoindre » (primitive Button gold, sortant sûr).
   function renderCta(onNavigate?: () => void) {
-    const destination = classerDestination(REJOINDRE_URL);
+    const destination = classerDestination(helloassoUrl);
 
     // 🔴 SANS DESTINATION, LE CTA RESTE VISIBLE MAIS NE CLIQUE PLUS — arbitrage de Brice
     // du 2026-08-01 (Story 5.5). `REJOINDRE_URL` valait la page d'accueil GÉNÉRIQUE de
@@ -187,6 +204,9 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
     // exactement l'inverse — le hero a cessé d'afficher son placeholder, et plus rien
     // ne rappelle le travail restant. Le jour où l'URL arrive, UNE ligne de `lib/links.ts`
     // rallume les quatre rendus de ce CTA, avec icône et annonce.
+    // 🔴 MISE À JOUR 6.13 : ce n'est plus « UNE ligne de `lib/links.ts` » — la valeur se SAISIT
+    // désormais dans `/admin/reglages` et arrive ici en prop. Le comportement, lui, est
+    // strictement inchangé : c'est toujours `classerDestination` qui décide.
     if (destination === "absente") {
       return <Button variant="gold" inactive>Nous rejoindre</Button>;
     }
@@ -195,7 +215,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
     return (
       <Button
         variant="gold"
-        href={REJOINDRE_URL}
+        href={helloassoUrl}
         icon={external ? <ExternalIcon /> : undefined}
         {...(external
           ? { target: "_blank", rel: "noopener noreferrer" }

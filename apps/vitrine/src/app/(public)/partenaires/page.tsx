@@ -6,6 +6,7 @@ import { Wrap } from "@/components/common/Wrap/Wrap";
 import { PartnerWall } from "@/components/proof/PartnerWall/PartnerWall";
 import { PARTNER_CATEGORIES } from "@/lib/schemas/partner";
 import { getPublishedPartners } from "@/server/db/queries/partners";
+import { lireReglages } from "@/server/db/queries/settings";
 import type { PartnerCategory } from "@/server/db/schema";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -116,7 +117,15 @@ export const metadata: Metadata = {
 export default async function Partenaires() {
   // La page requête et distribue en props ; aucun composant enfant ne lit la base
   // (patron AC1 de la 3.2). Une seule lecture ici — pas de `Promise.all` à faire.
-  const partners = await getPublishedPartners();
+  // 🔴 LA LECTURE DES RÉGLAGES (Story 6.13) — pour `SolicitationDialog`, qui est un composant
+  // CLIENT et ne peut donc pas lire lui-même l'e-mail de contact (son repli `<noscript>` en
+  // dépend). ⚠️ Cette page est l'un des TROIS sites d'appel de la modale, avec `DoubleDoor` et
+  // `/partenaires` — le compte avait été raté au cadrage de la 6.13, et c'est le TYPECHECK qui
+  // l'a dit, parce que la prop a été rendue OBLIGATOIRE plutôt qu'optionnelle.
+  // ⚠️ Parallélisée : elle est indépendante de la lecture ci-dessus, et `lireReglages()` est
+  // enveloppée de `cache()` — le `(public)/layout.tsx` l'appelle aussi, et les deux appels ne
+  // font qu'UNE requête SQL le temps de cette requête HTTP.
+  const [partners, reglages] = await Promise.all([getPublishedPartners(), lireReglages()]);
 
   // 🔴 L'ORDRE DES MURS DÉCOULE DE `PARTNER_CATEGORIES`, IL N'EST PAS RÉÉCRIT. C'est la
   // même liste qui construit le `pgEnum`, donc le même ordre que le `ORDER BY category`
@@ -241,7 +250,11 @@ export default async function Partenaires() {
             structure : décrivez-nous votre projet, même s&apos;il est encore flou.
           </p>
           <div className={editorial.cta}>
-            <SolicitationDialog variant="gold" label="Nous écrire" />
+            <SolicitationDialog
+              variant="gold"
+              label="Nous écrire"
+              contactEmail={reglages.contactEmail}
+            />
           </div>
           {/* Le volet « offre d'animations » de FR31, satisfait par un RENVOI et non par
               une recopie de la page Animations (NFR1). Route interne → ni target, ni

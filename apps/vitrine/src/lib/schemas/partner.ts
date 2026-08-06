@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { LOGO_EXTENSION, PREFIXE_LOGO } from "../logos";
-import { texteOptionnel, visiblementVide } from "./texte";
+import { texteOptionnel, urlHttpOptionnelle, visiblementVide } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -144,63 +144,23 @@ const trimmedText = z.string().trim();
  */
 
 /**
- * URL de partenaire.
+ * 🔴 `optionalHttpUrl` A ÉTÉ EXTRAITE VERS `./texte.ts` PAR LA STORY 6.13.
  *
- * 🔴 ABSOLUE ET EN `http(s)`, ET C'EST UNE GARDE D'ACCESSIBILITÉ, PAS UN CAPRICE.
- * Le rendu dérive `target="_blank"` + la mention SR « nouvel onglet » de `isExternalUrl()`
- * (`src/lib/links.ts`), qui ne reconnaît comme sortant qu'un schéma `http(s)`. Une valeur
- * relative (« mately.fr », « /mately ») passerait donc en lien INTERNE : le clic partirait
- * vers une route inexistante de la vitrine, sans que rien ne l'annonce. Le message est
- * écrit pour un bénévole, pas pour un développeur.
+ * Elle s'appelle désormais `urlHttpOptionnelle(max, libelle)` et vit à côté de
+ * `texteOptionnel`, dont elle a exactement la forme. Motif : elle passe de **un** à **six**
+ * consommateurs (les cinq URL de `site_setting`, rendues dans le header et le footer des 5
+ * pages), et sa divergence serait **silencieuse** — sa règle lie ce dossier à `isExternalUrl()`
+ * de `lib/links.ts`, et un trou comblé d'un seul côté ne se voit ni au lint, ni au typecheck,
+ * ni au build. C'est le motif littéral de la dette **R37**, appliqué **avant** d'en payer le
+ * prix cette fois.
  *
- * ⚠️ Volontairement PAS `z.url()` seul : il accepte `mailto:`, `javascript:` et `ftp:`.
- * On veut un site web, et `javascript:` dans un `href` est une injection.
+ * Le comportement de ce fichier est **inchangé** ; les cinq garanties de l'original sont
+ * conservées mot pour mot, y compris l'exigence de la forme littérale `^https?://`. **Seul le
+ * message change de tournure** (« L'adresse du site est invalide… » au lieu de « Adresse du
+ * site invalide… »), parce que le libellé est devenu un paramètre. Le raisonnement complet vit
+ * dans `./texte.ts`, en un seul exemplaire.
  */
-const HTTP_URL_MESSAGE =
-  "Adresse du site invalide : elle doit commencer par https:// (ou http://) et être " +
-  "complète, par exemple https://exemple.fr — une adresse partielle enverrait le " +
-  "visiteur sur une page inexistante du site de l'asso.";
-
-const optionalHttpUrl = trimmedText
-  .transform((value) => (visiblementVide(value) ? null : value))
-  .nullable()
-  .default(null)
-  // Borne AVANT la validation de forme : « trop longue » est un diagnostic plus utile que
-  // « adresse invalide » sur une URL de 4 000 caractères, qui l'est aussi mais pour une
-  // raison qu'on ne lui reproche pas.
-  .refine((value) => value === null || value.length <= LINK_MAX, {
-    message: `L'adresse du site ne peut pas dépasser ${LINK_MAX} caractères.`,
-  })
-  .refine(
-    (value) => {
-      if (value === null) return true;
-      const parsed = z.url().safeParse(value);
-      if (!parsed.success) return false;
-      // `z.url()` a validé la forme ; on restreint ici le SCHÉMA.
-      if (!/^https?:$/i.test(new URL(value).protocol)) return false;
-      // 🔴 ON EXIGE EN PLUS LA FORME LITTÉRALE QUE `isExternalUrl()` SAIT RECONNAÎTRE,
-      // et ce n'est pas une redondance — c'est la seule façon que la promesse de ce
-      // schéma soit TENUE. Trouvé à la revue : `new URL()` NORMALISE, alors que la
-      // valeur stockée est la chaîne BRUTE, et que `links.ts` la teste avec
-      // `/^https?:\/\//` — sans le drapeau `i`, et en exigeant le double slash.
-      // Trois valeurs passaient donc le schéma puis étaient classées INTERNES :
-      //   « HTTPS://exemple.fr »  (casse)
-      //   « https:exemple.fr »    (pas de slash)
-      //   « https:/exemple.fr »   (un seul slash)
-      // Le navigateur, lui, y navigue bien comme à une URL absolue. Résultat : ni
-      // `target="_blank"`, ni l'annonce « nouvel onglet » — soit exactement la garde
-      // d'accessibilité que ce schéma existe pour rendre possible.
-      // ⚠️ PÉRIMÉ, CORRIGÉ LE 2026-08-04 (Story 6.5) : la suite disait « le cas n'est pas
-      // atteignable aujourd'hui, `link` vaut `null` pour les 11 ». MESURÉ en base : **les 11
-      // portent un lien** depuis le commit `64aad1a` de la Story 4.2 elle-même. Le cas est
-      // donc atteignable dès maintenant par un `UPDATE` direct — et il l'est par la saisie
-      // depuis cette story, qui écrit dans cette colonne AVEC CE MÊME SCHÉMA.
-      // ⚠️ Ne pas « simplifier » en retirant ce test : les deux conditions couvrent des
-      // choses différentes, et c'est la seconde qui lie ce fichier à `links.ts`.
-      return /^https?:\/\//.test(value);
-    },
-    { message: HTTP_URL_MESSAGE },
-  );
+const optionalHttpUrl = urlHttpOptionnelle(LINK_MAX, "L'adresse du site");
 
 /**
  * Chemin ou URL du logo.

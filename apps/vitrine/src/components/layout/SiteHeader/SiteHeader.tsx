@@ -24,7 +24,21 @@ const NAV_LINKS: NavLink[] = [
   { label: "Partenaires", href: "/partenaires" },
 ];
 
-export function SiteHeader() {
+/**
+ * 🔴 LES DEUX DESTINATIONS ARRIVENT EN PROPS DEPUIS LE LAYOUT — STORY 6.13.
+ *
+ * Ce composant ne les lit pas lui-même, et il ne le pourra jamais pour l'une des deux : c'est
+ * `MobileMenu`, un composant CLIENT, qui les rend, et un module `server-only` ne peut pas y
+ * être importé. Le layout lit une fois et distribue (patron AC1 de la 3.2).
+ */
+export interface SiteHeaderProps {
+  /** Invitation Discord, ou `DESTINATION_ABSENTE` — voir `lireReglages()`. */
+  discordUrl: string;
+  /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
+  helloassoUrl: string;
+}
+
+export function SiteHeader({ discordUrl, helloassoUrl }: SiteHeaderProps) {
   return (
     <header className={styles.header}>
       <Wrap className={styles.row}>
@@ -41,7 +55,7 @@ export function SiteHeader() {
           />
         </Link>
 
-        <MobileMenu links={NAV_LINKS} />
+        <MobileMenu links={NAV_LINKS} discordUrl={discordUrl} helloassoUrl={helloassoUrl} />
       </Wrap>
     </header>
   );

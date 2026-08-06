@@ -9,10 +9,16 @@
 // l'ajout d'une page est le signal d'une erreur de configuration, pas un succès.
 // L'Epic 5 n'ajoute aucune route (le formulaire vit sur /partenaires).
 //
-// ⚠️ `/`, `/agenda` ET `/partenaires` LISENT LA BASE à chaque requête (Stories 3.2,
-// 3.3 et 4.2) : le Postgres de dev doit tourner et `apps/vitrine/.env.local` être
-// renseigné, sinon elles répondent en erreur et la porte ne mesure rien.
+// ⚠️ LES **CINQ** PAGES LISENT LA BASE à chaque requête : le Postgres de dev doit
+// tourner et `apps/vitrine/.env.local` être renseigné, sinon elles répondent en
+// erreur et la porte ne mesure rien.
 //   docker compose -f docker/docker-compose.dev.yml up -d
+// 🔴 [CORRIGÉ le 2026-08-06, Story 6.13.] Ce commentaire disait « `/`, `/agenda` ET
+// `/partenaires` » (Stories 3.2, 3.3, 4.2) — périmé de deux stories : `/animations`
+// lit `workshop` depuis la 6.9 et `/l-asso` lit `member` depuis la 6.10. Et depuis
+// la 6.13, le layout `(public)` lui-même lit `site_setting`, donc les cinq pages
+// dépendent de la base **par leur chrome** en plus de leur contenu. Un commentaire
+// qui sous-compte les prérequis fait chercher la panne au mauvais endroit.
 export const PAGES = (
   process.env.GATE_PAGES ?? "/,/agenda,/partenaires,/l-asso,/animations"
 ).split(",");

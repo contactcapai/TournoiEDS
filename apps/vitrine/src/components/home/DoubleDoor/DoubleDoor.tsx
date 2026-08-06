@@ -1,7 +1,7 @@
 import { Button, Eyebrow, ExternalIcon, LinkArrow } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
-import { NEW_TAB_SR, REJOINDRE_URL, classerDestination } from "@/lib/links";
+import { NEW_TAB_SR, classerDestination } from "@/lib/links";
 import motion from "@/styles/motion.module.css";
 import styles from "./DoubleDoor.module.css";
 
@@ -22,11 +22,25 @@ import styles from "./DoubleDoor.module.css";
 // long-scroll — il ne pouvait pas disparaître avec le bloc.
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
-export function DoubleDoor() {
+/**
+ * 🔴 DEUX RÉGLAGES EN PROPS — STORY 6.13.
+ *
+ * `helloassoUrl` sert ce composant ; `contactEmail` ne fait que TRAVERSER, vers
+ * `SolicitationDialog`, qui est un composant CLIENT et ne peut donc pas le lire lui-même.
+ */
+export function DoubleDoor({
+  helloassoUrl,
+  contactEmail,
+}: {
+  /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
+  helloassoUrl: string;
+  /** E-mail public de contact — transmis tel quel à `SolicitationDialog`. */
+  contactEmail: string;
+}) {
   // CALCULÉ, jamais présumé : target/rel/mention SR/icône se dérivent tous de la
   // destination, donc ce bloc est insensible à ce que le go-live mettra dans
   // `lib/links.ts`. Patron identique à `MobileMenu.renderCta()`, qui vise la MÊME cible.
-  const rejoindre = classerDestination(REJOINDRE_URL);
+  const rejoindre = classerDestination(helloassoUrl);
   const rejoindreExternal = rejoindre === "externe";
 
   return (
@@ -85,7 +99,7 @@ export function DoubleDoor() {
             ) : (
               <Button
                 variant="gold"
-                href={REJOINDRE_URL}
+                href={helloassoUrl}
                 icon={rejoindreExternal ? <ExternalIcon /> : undefined}
                 {...(rejoindreExternal
                   ? { target: "_blank", rel: "noopener noreferrer" }
@@ -133,7 +147,7 @@ export function DoubleDoor() {
                 une page de DOCUMENTATION. Il ouvre donc directement le formulaire en
                 modale, sans détour. Le lien « Devenir partenaire » de `ProofBand`, lui,
                 garde sa destination — son intention est de consulter la page. */}
-            <SolicitationDialog variant="outline" label="Nous contacter" />
+            <SolicitationDialog variant="outline" label="Nous contacter" contactEmail={contactEmail} />
           </div>
         </div>
       </Wrap>

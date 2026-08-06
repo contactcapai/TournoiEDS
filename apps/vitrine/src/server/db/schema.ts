@@ -81,6 +81,7 @@ import {
 // la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
 // navigateur. Une seule liste pour Zod, la base et la table de `Content-Type`.
 import { EXTENSIONS } from "../../lib/schemas/photo";
+import { EMAIL_MAX, MOTIF_EMAIL_SQL, URL_MAX } from "../../lib/schemas/site-setting";
 import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
 // ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` CI-DESSUS : `event.ts` exporte déjà un
 // `TITRE_MAX` (celui d'un événement, 80 lui aussi — mais par COÏNCIDENCE d'alignement sur son
@@ -1059,6 +1060,161 @@ export const member = pgTable(
 );
 
 // ════════════════════════════════════════════════════════════════════════════════
+// RÉGLAGES DU SITE — table à LIGNE UNIQUE (Story 6.13, FR38)
+// ════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Les destinations externes et l'e-mail de contact du site, **saisissables au back-office**.
+ *
+ * Jusqu'à cette story, ces six valeurs étaient des constantes de `src/lib/links.ts`, qui s'y
+ * déclarait « SOURCE UNIQUE des cibles externes ». Elles vivent désormais **ici**, et
+ * `lib/links.ts` ne garde que ce qui ne se saisit pas : `TOURNOI_URL` (domaine réel et stable)
+ * et les utilitaires de classement (`classerDestination`, `isExternalUrl`, `NEW_TAB_SR`).
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 UNE SEULE LIGNE, ET C'EST LA CONTRAINTE QUI LE GARANTIT — ÉCART DÉCLARÉ À AR-DB2
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * AR-DB2 impose « PK uuid » et les dix autres tables la respectent. Ici la clé est un
+ * `integer` **contraint à 1**, et l'écart *est* le livrable : c'est `site_setting_ligne_unique`
+ * qui rend la ligne unique. Avec un `uuid`, « une seule ligne » ne serait tenu par **rien** —
+ * un `INSERT` de plus passerait sans bruit, et le lecteur en choisirait une au hasard, donc
+ * le header des 5 pages pourrait changer d'une requête à l'autre.
+ *
+ * ⚠️ **Pas de `created_at`**, contrairement aux dix autres tables. La ligne naît **avec la
+ * migration `0012`** : sa date de création est celle du fichier de migration, et une colonne
+ * qui la répéterait ne dirait rien à personne. `updated_at`, lui, est utile — il dit quand
+ * l'équipe a touché aux réglages pour la dernière fois.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 CE QUE CETTE TABLE N'A PAS EST SON LIVRABLE — NE PAS LA « COMPLÉTER »
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Aucune colonne de titre de site, de description, d'adresse postale, de téléphone, d'horaires
+ * ni de texte éditorial. Aucun magasin clé/valeur libre. Le raisonnement complet vit dans
+ * `lib/schemas/site-setting.ts` (arbitrage de Brice du 2026-07-29, NFR8, Q6, FR16) ; ici il
+ * suffit de savoir que **l'absence est intentionnelle** et que la garde ⑧ de `gate:reglages`
+ * la tient.
+ */
+export const siteSetting = pgTable(
+  "site_setting",
+  {
+    /**
+     * Toujours `1`. Ce n'est pas un identifiant : c'est le **verrou de singleton**, et le
+     * `CHECK` ci-dessous est ce qui lui donne son sens.
+     */
+    id: integer().primaryKey().default(1),
+    /**
+     * Les cinq destinations externes. **`null` = non renseignée, et c'est le cas NOMINAL au
+     * merge** (dette R29) : le rendu ne produit alors **aucun lien** — ni `href`, ni focus, ni
+     * annonce « nouvel onglet » — doctrine de la Story 5.5, qui a soldé R2.
+     */
+    discordUrl: text(),
+    instagramUrl: text(),
+    xUrl: text(),
+    linkedinUrl: text(),
+    helloassoUrl: text(),
+    /**
+     * L'e-mail public de contact. **Obligatoire** : le footer en fait son unique `mailto:` et
+     * `SolicitationDialog` s'en sert de repli quand le formulaire échoue (Story 5.1).
+     *
+     * ⚠️ **CE N'EST PAS L'IDENTITÉ SMTP.** Le compte qui *envoie* est la constante
+     * `COMPTE_SMTP` de `server/mail/client.ts`, parce que `GMAIL_APP_PASSWORD` y est lié.
+     * Cette colonne pilote l'adresse **publiée** et le **destinataire** des notifications.
+     */
+    contactEmail: text().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * 🔴 GARDES AU NIVEAU DES DONNÉES — **la base est le garde-fou qu'on ne peut pas
+     * contourner** (`UPDATE` direct, restauration de sauvegarde, migration de données),
+     * **Zod est celui qui parle au bénévole** (`lib/schemas/site-setting.ts`, d'où viennent
+     * ces bornes — jamais recopiées ici).
+     *
+     * 🔴 `sql.raw()` EST OBLIGATOIRE POUR CES NOMBRES ET CES MOTIFS : dans un gabarit `sql``,
+     * une valeur interpolée devient un PARAMÈTRE LIÉ, et la contrainte sortirait dans le
+     * `.sql` sous la forme `length(...) <= $1` — un DDL versionné **invalide**, puisque
+     * personne n'est là pour lier `$1`. Ni le typecheck ni le build ne le voient. **Le seul
+     * témoin est le SQL généré, qu'il faut donc LIRE.**
+     */
+    check("site_setting_ligne_unique", sql`${table.id} = 1`),
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 CINQ COLONNES NULLABLES ⇒ CINQ BRANCHES `is null` EXPLICITES
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * C'est la leçon la plus chère de l'Epic 6, et cette story offre **cinq** occasions de la
+     * refaire d'un coup. `event_has_venue` (Story 3.1) s'écrivait
+     * `bar_id is not null or length(btrim(venue_name)) > 0` et valait `FALSE OR NULL` =
+     * **`NULL`** quand les deux colonnes étaient nulles — c'est-à-dire dans le cas EXACT
+     * qu'elle existait pour interdire. Et **un `CHECK` qui vaut `NULL` PASSE** (logique
+     * ternaire SQL : il n'échoue que sur `FALSE`). Il a survécu **trois epics** et **sept
+     * portes vertes**, parce qu'une contre-épreuve par ÉCRITURE y est aveugle **par
+     * construction**. ⇒ la garde ① de `gate:reglages` **LIT le texte des contraintes**
+     * (`pg_get_constraintdef`), elle ne se contente pas d'écrire.
+     *
+     * Le motif `^https?://` est **littéralement celui d'`isExternalUrl()`** (`lib/links.ts`) :
+     * une valeur que la base accepte doit être une valeur que le rendu classe **sortante**,
+     * sinon le lien serait rendu en interne, sans onglet ni annonce.
+     */
+    check(
+      "site_setting_discord_url_valide",
+      sql`${table.discordUrl} is null or (length(${table.discordUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.discordUrl} ~ '^https?://')`,
+    ),
+    check(
+      "site_setting_instagram_url_valide",
+      sql`${table.instagramUrl} is null or (length(${table.instagramUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.instagramUrl} ~ '^https?://')`,
+    ),
+    check(
+      "site_setting_x_url_valide",
+      sql`${table.xUrl} is null or (length(${table.xUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.xUrl} ~ '^https?://')`,
+    ),
+    check(
+      "site_setting_linkedin_url_valide",
+      sql`${table.linkedinUrl} is null or (length(${table.linkedinUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.linkedinUrl} ~ '^https?://')`,
+    ),
+    check(
+      "site_setting_helloasso_url_valide",
+      sql`${table.helloassoUrl} is null or (length(${table.helloassoUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.helloassoUrl} ~ '^https?://')`,
+    ),
+    /**
+     * 🔴 LA SEULE CONTRAINTE **NON** NULLABLE, DONC LA SEULE SANS BRANCHE `is null` — et son
+     * absence est aussi délibérée que la présence des cinq autres.
+     *
+     * `notNull` ne suffit pas : `'' IS NOT NULL` est **vrai** en SQL, donc un
+     * `UPDATE site_setting SET contact_email = ''` retirerait en silence le seul moyen de
+     * joindre l'association affiché sur le site.
+     *
+     * ⚠️ **DEUX LANGAGES, UNE SEULE RÈGLE — ET L'ÉCART EST DÉCLARÉ.** Zod teste
+     * `MOTIF_EMAIL` (classes JS `\s`), Postgres teste la même chose en classes POSIX
+     * (`[[:space:]]`, qui n'existe pas en JS). Ce ne sont pas deux copies d'un motif : ce sont
+     * deux écritures de la même règle, et la garde ① de la porte les confronte **aux mêmes
+     * valeurs** pour que la parité soit mesurée et non affirmée.
+     *
+     * 🔴 DOUBLE ANTISLASH AVANT LE POINT, ET NON UN SEUL — piège d'échappement à deux étages,
+     * et il est SILENCIEUX. Dans un littéral de gabarit JS, un antislash-point est un
+     * échappement non reconnu et s'évalue en point nu : la chaîne remise à Postgres porterait
+     * un « n'importe quel caractère », et `a@bXfr` passerait. C'est le **piège du point**,
+     * mesuré en 6.5 puis en 6.10. D'où l'exigence d'ÉPROUVER ce `CHECK` par des écritures qui
+     * doivent ÉCHOUER.
+     *
+     * ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : `btrim` ne retire que les blancs ASCII, pas U+200B
+     * (leçon 6.3). Zod le refuse (`visiblementVide`). **Les contraintes des `0006`, `0008`,
+     * `0009`, `0010` et `0011` ont exactement la même limite** — à rouvrir pour TOUTES les
+     * tables ensemble, jamais pour une seule.
+     */
+    check(
+      "site_setting_contact_email_valide",
+      sql`length(btrim(${table.contactEmail})) > 0 and length(${table.contactEmail}) <= ${sql.raw(String(EMAIL_MAX))} and ${table.contactEmail} ~ ${sql.raw(MOTIF_EMAIL_SQL)}`,
+    ),
+  ],
+);
+
+// ════════════════════════════════════════════════════════════════════════════════
 // AUTHENTIFICATION BACK-OFFICE — Auth.js v5 + adaptateur Drizzle (Story 6.1)
 // ════════════════════════════════════════════════════════════════════════════════
 //
@@ -1226,6 +1382,8 @@ export type NewWorkshop = typeof workshop.$inferInsert;
 export type { WorkshopFamily } from "../../lib/schemas/workshop";
 export type Member = typeof member.$inferSelect;
 export type NewMember = typeof member.$inferInsert;
+export type SiteSetting = typeof siteSetting.$inferSelect;
+export type NewSiteSetting = typeof siteSetting.$inferInsert;
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Account = typeof account.$inferSelect;

@@ -10,6 +10,7 @@ import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { getUpcomingEvents } from "@/server/db/queries/events";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
 import { getPublishedPhotos } from "@/server/db/queries/photos";
+import { lireReglages } from "@/server/db/queries/settings";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
 // Hero (2.1) → hub événementiel (3.2) → trois axes (2.2) → citation (2.3) →
@@ -91,10 +92,18 @@ export default async function Home() {
   // de base de données à chaque requête pour rien (la page est `force-dynamic`, donc ce
   // coût est payé à CHAQUE visite, pas une fois au build). La Story 4.3 en ajoute une
   // troisième sans changer le nombre de tours d'horloge.
-  const [upcoming, partners, photos] = await Promise.all([
+  //
+  // 🔴 LA QUATRIÈME LECTURE (Story 6.13) — les réglages du site. Elle rejoint le
+  // `Promise.all` pour la raison exacte des trois autres : elle est indépendante, et
+  // l'enchaîner ajouterait un aller-retour par visite.
+  // ⚠️ `lireReglages()` est enveloppée de `cache()` : le `(public)/layout.tsx` l'appelle
+  // AUSSI, pour le header et le footer, et les deux appels ne font qu'UNE requête SQL le
+  // temps de cette requête HTTP. Ce n'est PAS un cache applicatif — rien à invalider.
+  const [upcoming, partners, photos, reglages] = await Promise.all([
     getUpcomingEvents(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
     getPublishedPhotos(HOME_PHOTO_COUNT),
+    lireReglages(),
   ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -102,7 +111,7 @@ export default async function Home() {
   return (
     <>
       <Hero hasUpcomingEvent={next !== null} />
-      <EventHub next={next} rest={rest} />
+      <EventHub next={next} rest={rest} discordUrl={reglages.discordUrl} />
       <ThreeAxes />
       <QuoteBand />
       {/* Passerelle Tournoi (5.4) — position FIXÉE PAR FR7 : entre la citation et le
@@ -120,7 +129,10 @@ export default async function Home() {
           (« placeholders maîtrisés, jamais une grille cassée »). La décision de rendre
           l'un ou l'autre appartient au composant, pas à l'ordre des blocs. */}
       <Gallery photos={photos} />
-      <DoubleDoor />
+      <DoubleDoor
+        helloassoUrl={reglages.helloassoUrl}
+        contactEmail={reglages.contactEmail}
+      />
     </>
   );
 }
