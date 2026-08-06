@@ -4,7 +4,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@repo/ui";
 
-import { CONTACT_EMAIL } from "@/lib/links";
 
 import { SolicitationForm } from "../SolicitationForm/SolicitationForm";
 import styles from "./SolicitationDialog.module.css";
@@ -33,10 +32,23 @@ import styles from "./SolicitationDialog.module.css";
  */
 export function SolicitationDialog({
   label,
+  contactEmail,
   variant = "gold",
 }: {
   /** Libellé du bouton. Chaîne et non `ReactNode` : le repli `<noscript>` le réutilise. */
   label: string;
+  /**
+   * L'e-mail public de contact — Story 6.13.
+   *
+   * 🔴 EN PROP ET NON EN IMPORT, ET C'EST OBLIGATOIRE : ce composant porte `'use client'`, la
+   * valeur vit dans `site_setting`, et son lecteur est `server-only`. Le parent RSC
+   * (`DoubleDoor`) la reçoit de la page et la transmet.
+   *
+   * ⚠️ C'est le REPLI `<noscript>` qui en dépend — le seul moyen de joindre l'association
+   * quand JavaScript est absent. Ne jamais le rendre facultatif ni lui donner de défaut : un
+   * défaut en dur serait une SECONDE source de vérité, et elle divergerait en silence.
+   */
+  contactEmail: string;
   variant?: "gold" | "outline";
 }) {
   const [ouverte, setOuverte] = useState(false);
@@ -140,7 +152,7 @@ export function SolicitationDialog({
         dangerouslySetInnerHTML={{
           __html:
             `<style>[data-solicitation-trigger]{display:none}</style>` +
-            `<a class="${styles.repli}" href="mailto:${CONTACT_EMAIL}">${label} — ${CONTACT_EMAIL}</a>`,
+            `<a class="${styles.repli}" href="mailto:${contactEmail}">${label} — ${contactEmail}</a>`,
         }}
       />
 

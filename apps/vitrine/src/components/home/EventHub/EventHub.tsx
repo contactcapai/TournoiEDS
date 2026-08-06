@@ -1,9 +1,9 @@
-import { Brush, Button, LinkArrow } from "@repo/ui";
+import { Brush, Button, ExternalIcon, LinkArrow } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
+import { NEW_TAB_SR, classerDestination } from "@/lib/links";
 import type { AgendaEvent } from "@/server/db/queries/events";
 import motion from "@/styles/motion.module.css";
 import styles from "./EventHub.module.css";
@@ -29,13 +29,22 @@ export interface EventHubProps {
   next: AgendaEvent | null;
   /** Les suivants — le roulement. Peut être vide sans que ce soit l'état vide. */
   rest: AgendaEvent[];
+  /**
+   * Invitation Discord, ou `DESTINATION_ABSENTE` — Story 6.13.
+   *
+   * ⚠️ En PROP et non en import : la valeur vit dans `site_setting` et se lit par un module
+   * `server-only`. La PAGE requête et distribue (patron AC1 de la 3.2) — c'est aussi ce qui
+   * permet à la page de ne payer qu'une lecture pour ses deux consommateurs.
+   */
+  discordUrl: string;
 }
 
 /** État vide : aucune date à venir. Propre au hub — la page /agenda a le sien. */
-function EmptyState() {
+function EmptyState({ discordUrl }: { discordUrl: string }) {
   // Le comportement se dérive de la destination : le jour où la vraie invitation arrive,
   // ce lien devient sortant SANS retoucher ce fichier — comme le footer et le menu mobile.
-  const discord = classerDestination(DISCORD_URL);
+  // 🔴 MISE À JOUR 6.13 : « la vraie invitation » se SAISIT désormais dans `/admin/reglages`.
+  const discord = classerDestination(discordUrl);
   const discordExternal = discord === "externe";
   // 🔴 SANS DESTINATION, LE MOT N'EST PLUS UN LIEN (Story 5.5, dette R2). La phrase,
   // elle, N'EST PAS reformulée : c'est du contenu ÉDITORIAL, et le choix le moins
@@ -56,11 +65,22 @@ function EmptyState() {
           </span>
         ) : (
           <a
-            href={DISCORD_URL}
+            href={discordUrl}
             className={`${styles.emptyLink} ${styles.emptyLinkActif}`}
             {...(discordExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           >
             Discord
+            {/* 🔴 INDICATION VISIBLE DE LIEN SORTANT — AJOUTÉE PAR LA STORY 6.13, ET LE DÉFAUT
+                N'ÉTAIT PAS ATTEIGNABLE AVANT ELLE. `EXPERIENCE.md` l.199 exige, pour un lien
+                sortant à libellé TEXTE, « indication visible + texte lecteur d'écran ». Ce
+                lien n'avait que le second — mais il ne pouvait pas être sortant : `DISCORD_URL`
+                valait `DESTINATION_ABSENTE` depuis toujours (dette R29), donc le rendu retombait
+                sur un `<span>` inerte. C'est cette story, en rendant la valeur SAISISSABLE, qui
+                rend le cas atteignable.
+                ⚠️ MESURÉ, PAS DÉDUIT : `gate:links` garde ② est passée ROUGE dès que la porte
+                `gate:reglages` a renseigné les cinq destinations — l'état que personne n'avait
+                jamais produit sur ce projet. */}
+            <ExternalIcon />
             {discordExternal ? <span className="sr-only">{NEW_TAB_SR}</span> : null}
           </a>
         )}
@@ -73,7 +93,7 @@ function EmptyState() {
   );
 }
 
-export function EventHub({ next, rest }: EventHubProps) {
+export function EventHub({ next, rest, discordUrl }: EventHubProps) {
   return (
     // aria-labelledby ↔ id du <h2> de la tête de section (pattern acquis review 1.6 F6).
     <section className={styles.section} aria-labelledby="agenda-title">
@@ -130,7 +150,7 @@ export function EventHub({ next, rest }: EventHubProps) {
               </div>
             </>
           ) : (
-            <EmptyState />
+            <EmptyState discordUrl={discordUrl} />
           )}
         </div>
       </Wrap>

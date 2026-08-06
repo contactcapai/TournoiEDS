@@ -4,7 +4,34 @@
 import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 
-import { CONTACT_EMAIL } from "@/lib/links";
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE COMPTE SMTP EST UNE CONSTANTE, ET IL NE DOIT **JAMAIS** DEVENIR UN RÉGLAGE
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Jusqu'à la Story 6.13, cette valeur était `CONTACT_EMAIL`, importée de `lib/links.ts` — la
+ * MÊME constante que celle affichée dans le footer. La 6.13 rend l'e-mail de contact
+ * **saisissable au back-office** (`site_setting.contact_email`), et les deux se seraient donc
+ * mis à bouger ensemble. **C'est le fait le plus dangereux du cadrage de cette story :**
+ *
+ *   · `GMAIL_APP_PASSWORD` est un mot de passe d'APPLICATION, lié au compte Google
+ *     `esportdessacres@gmail.com`. Un bénévole qui modifierait l'e-mail public
+ *     **invaliderait l'authentification SMTP** ;
+ *   · et l'échec serait **TOTALEMENT SILENCIEUX** : `submitSolicitation` (Story 5.1, AC3)
+ *     découple volontairement l'`INSERT` de l'envoi, précisément pour qu'une panne de mail ne
+ *     perde jamais la donnée. Une sollicitation serait donc persistée et **notifiée à
+ *     personne**, sans que rien ne le dise — c'est-à-dire la dette **R32** reproduite **par la
+ *     saisie**, depuis un écran dont personne ne soupçonnerait le lien.
+ *
+ * ⇒ Ce qui SE SAISIT (`site_setting.contact_email`) est l'adresse **publiée** et le
+ * **destinataire** des notifications (`to`). Ce qui NE SE SAISIT PAS est l'**identité du
+ * transport** : `auth.user` ici, et `from` dans `notifySolicitation` — Gmail réécrit ou refuse
+ * de toute façon un `from` qui n'est pas le compte authentifié (ou l'un de ses alias vérifiés).
+ *
+ * ⚠️ NE PAS « HARMONISER » LES DEUX. Elles portent aujourd'hui la même valeur, et c'est une
+ * coïncidence : elles ne répondent pas à la même question.
+ */
+export const COMPTE_SMTP = "esportdessacres@gmail.com";
 
 // Singleton caché via globalThis : évite de multiplier les transports au HMR dev — même
 // motif que `db/client.ts`.
@@ -39,7 +66,7 @@ function createTransport() {
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 10_000,
-    auth: { user: CONTACT_EMAIL, pass },
+    auth: { user: COMPTE_SMTP, pass },
   });
 }
 

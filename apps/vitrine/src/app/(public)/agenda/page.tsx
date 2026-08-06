@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Brush, Button } from "@repo/ui";
+import { Brush, Button, ExternalIcon } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
 import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { DISCORD_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
+import { NEW_TAB_SR, classerDestination } from "@/lib/links";
 import { getPastEvents, getUpcomingEvents } from "@/server/db/queries/events";
 import { getPhotosForEvents } from "@/server/db/queries/photos";
+import { lireReglages } from "@/server/db/queries/settings";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
@@ -93,9 +94,22 @@ const PAST_LIMIT = 4;
 /* ⚠️ `RECAP_MAX` et `PAST_TITLE_MAX` ONT SUIVI `PastEvent` dans son composant (Story 6.4,
    dette R34) : ce sont ses bornes de rendu, elles n'ont jamais concerné cette page. */
 
-/** Lien Discord — même traitement que le footer, le menu mobile et le hub. */
-function DiscordLink({ className, classNameActif }: { className?: string; classNameActif?: string }) {
-  const destination = classerDestination(DISCORD_URL);
+/**
+ * Lien Discord — même traitement que le footer, le menu mobile et le hub.
+ *
+ * ⚠️ `discordUrl` arrive EN PARAMÈTRE depuis la page (Story 6.13) : la valeur vit dans
+ * `site_setting` et c'est la PAGE qui requête, jamais un composant.
+ */
+function DiscordLink({
+  discordUrl,
+  className,
+  classNameActif,
+}: {
+  discordUrl: string;
+  className?: string;
+  classNameActif?: string;
+}) {
+  const destination = classerDestination(discordUrl);
   const external = destination === "externe";
 
     // 🔴 SANS DESTINATION, LE MOT N'EST PLUS UN LIEN (Story 5.5, dette R2). La phrase,
@@ -114,11 +128,22 @@ function DiscordLink({ className, classNameActif }: { className?: string; classN
   }
   return (
     <a
-      href={DISCORD_URL}
+      href={discordUrl}
       className={`${className ?? ""} ${classNameActif ?? ""}`.trim()}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
     >
       Discord
+      {/* 🔴 INDICATION VISIBLE DE LIEN SORTANT — AJOUTÉE PAR LA STORY 6.13, ET LE DÉFAUT
+          N'ÉTAIT PAS ATTEIGNABLE AVANT ELLE. `EXPERIENCE.md` l.199 exige, pour un lien
+          sortant à libellé TEXTE, « indication visible + texte lecteur d'écran ». Ce
+          lien n'avait que le second — mais il ne pouvait pas être sortant : `DISCORD_URL`
+          valait `DESTINATION_ABSENTE` depuis toujours (dette R29), donc le rendu retombait
+          sur un `<span>` inerte. C'est cette story, en rendant la valeur SAISISSABLE, qui
+          rend le cas atteignable.
+          ⚠️ MESURÉ, PAS DÉDUIT : `gate:links` garde ② est passée ROUGE dès que la porte
+          `gate:reglages` a renseigné les cinq destinations — l'état que personne n'avait
+          jamais produit sur ce projet. */}
+      <ExternalIcon />
       {external ? <span className="sr-only">{NEW_TAB_SR}</span> : null}
     </a>
   );
@@ -128,9 +153,17 @@ export default async function Agenda() {
   // Deux lectures, une par section. Pas de tri en mémoire à partir d'une seule
   // requête : chaque liste a sa borne et son ordre propres, et les faire sortir de
   // Postgres est ce qui garantit que la borne s'applique EN BASE et non après coup.
-  const [upcoming, past] = await Promise.all([
+  //
+  // 🔴 LA TROISIÈME LECTURE (Story 6.13) — les réglages du site, pour les DEUX mentions
+  // Discord de cette page (l'état vide et l'aside). Elle rejoint le `Promise.all` : elle est
+  // indépendante des deux autres.
+  // ⚠️ `lireReglages()` est enveloppée de `cache()` : le `(public)/layout.tsx` l'appelle aussi
+  // pour le header et le footer, et les deux appels ne font qu'UNE requête SQL le temps de
+  // cette requête HTTP.
+  const [upcoming, past, reglages] = await Promise.all([
     getUpcomingEvents(UPCOMING_LIMIT),
     getPastEvents(PAST_LIMIT),
+    lireReglages(),
   ]);
 
   // 🔴 UNE SEULE REQUÊTE POUR LES N VIGNETTES, PAS UNE PAR CARTE (dette R25). Une
@@ -204,7 +237,11 @@ export default async function Agenda() {
                   Aucune date calée pour l&apos;instant — on prépare la suite. Les
                   jeudis reprennent vite&nbsp;: le plus simple, en attendant, c&apos;est
                   de passer dire bonjour sur{" "}
-                  <DiscordLink className={styles.emptyLink} classNameActif={styles.emptyLinkActif} />.
+                  <DiscordLink
+                    discordUrl={reglages.discordUrl}
+                    className={styles.emptyLink}
+                    classNameActif={styles.emptyLinkActif}
+                  />.
                 </p>
               </div>
             )}
@@ -212,7 +249,11 @@ export default async function Agenda() {
             {/* CTA de PAGE, unique — et non un CTA par événement. */}
             <p className={styles.aside}>
               Une question sur un rendez-vous, ou envie de prévenir que vous
-              venez&nbsp;? On répond sur <DiscordLink className={styles.asideLink} classNameActif={styles.asideLinkActif} />.
+              venez&nbsp;? On répond sur <DiscordLink
+                discordUrl={reglages.discordUrl}
+                className={styles.asideLink}
+                classNameActif={styles.asideLinkActif}
+              />.
             </p>
           </div>
         </Wrap>

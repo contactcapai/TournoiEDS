@@ -6,6 +6,7 @@ import { WorkshopCatalog } from "@/components/animations/WorkshopCatalog/Worksho
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
 import { WORKSHOP_FAMILIES, type WorkshopFamily } from "@/lib/schemas/workshop";
+import { lireReglages } from "@/server/db/queries/settings";
 import { getPublishedWorkshops, type WorkshopEntry } from "@/server/db/queries/workshops";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -123,7 +124,16 @@ function grouperParFamille(
 export default async function Animations() {
   // 🔴 LA PAGE REQUÊTE, LES COMPOSANTS NON (patron AC1 de la 3.2). Une lecture par famille
   // dans `WorkshopCatalog` serait un N+1 sur une page rejouée à chaque visite.
-  const parFamille = grouperParFamille(await getPublishedWorkshops());
+  // 🔴 LA LECTURE DES RÉGLAGES (Story 6.13) — pour `SolicitationDialog`, qui est un composant
+  // CLIENT et ne peut donc pas lire lui-même l'e-mail de contact (son repli `<noscript>` en
+  // dépend). ⚠️ Cette page est l'un des TROIS sites d'appel de la modale, avec `DoubleDoor` et
+  // `/partenaires` — le compte avait été raté au cadrage de la 6.13, et c'est le TYPECHECK qui
+  // l'a dit, parce que la prop a été rendue OBLIGATOIRE plutôt qu'optionnelle.
+  // ⚠️ Parallélisée : elle est indépendante de la lecture ci-dessus, et `lireReglages()` est
+  // enveloppée de `cache()` — le `(public)/layout.tsx` l'appelle aussi, et les deux appels ne
+  // font qu'UNE requête SQL le temps de cette requête HTTP.
+  const [ateliers, reglages] = await Promise.all([getPublishedWorkshops(), lireReglages()]);
+  const parFamille = grouperParFamille(ateliers);
 
   return (
     <>
@@ -374,7 +384,11 @@ export default async function Animations() {
                 arbitrage de Brice au gate visuel) : ce CTA porte une intention de CONTACT,
                 or /partenaires est une page de DOCUMENTATION — le visiteur y arrivait puis
                 devait encore trouver le formulaire en bas de page. */}
-            <SolicitationDialog variant="gold" label="Nous solliciter" />
+            <SolicitationDialog
+              variant="gold"
+              label="Nous solliciter"
+              contactEmail={reglages.contactEmail}
+            />
           </div>
         </Wrap>
       </section>

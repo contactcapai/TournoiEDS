@@ -1,19 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalIcon } from "@repo/ui";
-import {
-  TOURNOI_URL,
-  REJOINDRE_URL,
-  DISCORD_URL,
-  INSTAGRAM_URL,
-  X_URL,
-  LINKEDIN_URL,
-  CONTACT_EMAIL,
-  NEW_TAB_SR,
-  DESTINATION_ABSENTE,
-  classerDestination,
-} from "@/lib/links";
+import { TOURNOI_URL, NEW_TAB_SR, DESTINATION_ABSENTE, classerDestination } from "@/lib/links";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import type { Reglages } from "@/server/db/queries/settings";
 import styles from "./SiteFooter.module.css";
 
 // Pied de page persistant de la vitrine (Server Component — Garde-fou n°1/Conventions :
@@ -42,24 +32,31 @@ const NAV_LINKS: FooterLink[] = [
 ];
 
 // Colonne « Participer » : adhésion + porte partenaires + plateforme tournoi.
-const PARTICIPER_LINKS: FooterLink[] = [
-  { label: "Adhérer (HelloAsso)", href: REJOINDRE_URL },
+// ⚠️ FABRIQUÉE À CHAQUE RENDU depuis les réglages (Story 6.13) et non plus constante : seule
+// « Adhérer » en dépend, mais l'ordre des trois entrées appartient à la colonne, pas au réglage.
+const participerLinks = (helloassoUrl: string): FooterLink[] => [
+  { label: "Adhérer (HelloAsso)", href: helloassoUrl },
   { label: "Devenir partenaire", href: "/partenaires" },
   { label: "Plateforme tournoi", href: TOURNOI_URL },
 ];
 
 // Réseaux sociaux : icône (aria-hidden) + nom accessible via aria-label.
-// ⚠️ Les QUATRE destinations sont ABSENTES (dette R29, échéance go-live) : les tuiles
-// sont donc rendues NON INTERACTIVES. Le jour où les comptes existent, il suffit de
-// renseigner `lib/links.ts` — rien à changer ici.
+// ⚠️ Les QUATRE destinations sont ABSENTES TANT QUE PERSONNE NE LES A SAISIES (dette R29) :
+// les tuiles sont alors rendues NON INTERACTIVES. Le jour où les comptes existent, il suffit
+// de les renseigner dans `/admin/reglages` — rien à changer ici.
+// 🔴 MISE À JOUR 6.13 : ce commentaire disait « il suffit de renseigner `lib/links.ts` ». Ce
+// fichier n'est plus la source de vérité — les valeurs vivent dans `site_setting` et arrivent
+// en props. Une consigne qui envoie éditer un fichier qui ne décide plus rien est exactement
+// la dette que `pieges/cadrage-perime.md` recense.
 // 🔴 Le commentaire d'origine annonçait « tuile inerte (pas d'onglet) » alors que la
 // tuile rendait `<a href="#">`, donc un lien focalisable qui remontait en haut de page.
 // Il décrivait le défaut R2 comme si c'était une garde : un avertissement faux est CRU.
-const SOCIALS: { name: string; href: string; icon: "discord" | "instagram" | "x" | "linkedin" }[] = [
-  { name: "Discord", href: DISCORD_URL, icon: "discord" },
-  { name: "Instagram", href: INSTAGRAM_URL, icon: "instagram" },
-  { name: "X", href: X_URL, icon: "x" },
-  { name: "LinkedIn", href: LINKEDIN_URL, icon: "linkedin" },
+type SocialIconName = "discord" | "instagram" | "x" | "linkedin";
+const socials = (r: Reglages): { name: string; href: string; icon: SocialIconName }[] => [
+  { name: "Discord", href: r.discordUrl, icon: "discord" },
+  { name: "Instagram", href: r.instagramUrl, icon: "instagram" },
+  { name: "X", href: r.xUrl, icon: "x" },
+  { name: "LinkedIn", href: r.linkedinUrl, icon: "linkedin" },
 ];
 
 // Bandeau bas : pages légales non encore rédigées (Garde-fou n°6) → placeholders
@@ -78,7 +75,7 @@ const LEGAL_LINKS: FooterLink[] = [
 // sans indication visible pendant quatre stories (dette R12).
 
 // Icônes sociales (toutes décoratives → aria-hidden ; nom porté par aria-label).
-function SocialIcon({ icon }: { icon: (typeof SOCIALS)[number]["icon"] }) {
+function SocialIcon({ icon }: { icon: SocialIconName }) {
   switch (icon) {
     case "discord":
       // Réutilise le tracé Discord du header (duplication consciente — Garde-fou n°3).
@@ -173,7 +170,17 @@ function FooterColumnLink({ link }: { link: FooterLink }) {
   }
 }
 
-export function SiteFooter() {
+/**
+ * 🔴 LES SIX RÉGLAGES ARRIVENT EN PROPS DEPUIS `(public)/layout.tsx` — STORY 6.13.
+ *
+ * Ce composant est un RSC et pourrait lire la base lui-même. Il ne le fait pas, pour la même
+ * raison que partout ailleurs sur ce projet : **la page (ou le layout) requête, les composants
+ * reçoivent** (patron AC1 de la 3.2). Le layout lit une fois pour le header ET le footer.
+ */
+export function SiteFooter({ reglages }: { reglages: Reglages }) {
+  const PARTICIPER_LINKS = participerLinks(reglages.helloassoUrl);
+  const SOCIALS = socials(reglages);
+
   return (
     <footer className={styles.footer}>
       <Wrap>
@@ -264,8 +271,8 @@ export function SiteFooter() {
               })}
             </ul>
             {/* Email = mailto (pas « sortant » : pas de nouvel onglet ni annonce). */}
-            <a href={`mailto:${CONTACT_EMAIL}`} className={styles.email}>
-              {CONTACT_EMAIL}
+            <a href={`mailto:${reglages.contactEmail}`} className={styles.email}>
+              {reglages.contactEmail}
             </a>
           </div>
         </div>

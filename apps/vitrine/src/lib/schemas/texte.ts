@@ -15,8 +15,19 @@
  * dettes que `pieges/dette-invisible.md` recense.
  *
  * ⚠️ Ce module ne contient QUE ce qui est réellement partagé. Ne pas y déverser les
- * helpers propres à un schéma (`optionalHttpUrl`…) : ils portent des défauts et des
- * messages qui appartiennent à leur domaine.
+ * helpers propres à un schéma : ils portent des défauts et des messages qui appartiennent à
+ * leur domaine.
+ *
+ * 🔴 RECTIFICATION DU 2026-08-06 (Story 6.13) — CETTE PHRASE CITAIT `optionalHttpUrl` COMME
+ * CONTRE-EXEMPLE, ET C'EST EXACTEMENT LE MOTIF DE R37, UNE STORY PLUS TARD. Elle a été écrite
+ * quand ce helper n'avait **un** consommateur (`partner.link`). La 6.13 lui en donne **cinq de
+ * plus** — les cinq URL de `site_setting`, rendues dans le header et le footer des **5 pages**.
+ * Le critère qui fait entrer un helper ici n'est pas « est-il générique ? » mais **« sa
+ * divergence serait-elle silencieuse ? »**, et celle-ci le serait doublement : sa règle lie
+ * littéralement ce dossier à `isExternalUrl()` de `lib/links.ts` (voir `urlHttpOptionnelle`),
+ * et un trou comblé d'un seul côté ne se voit ni au lint, ni au typecheck, ni au build.
+ * Ce qui appartenait au domaine de `partner`, c'était son **message** : il est devenu un
+ * paramètre, exactement comme celui de `texteOptionnel`.
  *
  * 🔴 RECTIFICATION DU 2026-08-05 (Story 6.10) — CETTE PHRASE CITAIT `optionalText`, ET ELLE
  * A EU RAISON EXACTEMENT UNE FOIS. Elle a été écrite quand `texteOptionnel` n'existait qu'à
@@ -123,3 +134,75 @@ export const texteOptionnel = (max: number, libelle: string) =>
     .refine((value) => value === null || value.length <= max, {
       message: `${libelle} ne peut pas dépasser ${max} caractères.`,
     });
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * URL http(s) OPTIONNELLE — UNE SEULE DÉFINITION, DEPUIS LA STORY 6.13
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Née dans `partner.ts` (Story 4.1) sous le nom `optionalHttpUrl`, **privée**, un seul
+ * consommateur. La 6.13 lui en donne cinq de plus (`discord_url`, `instagram_url`, `x_url`,
+ * `linkedin_url`, `helloasso_url`) — voir la rectification en tête de fichier.
+ *
+ * 🔴 ABSOLUE ET EN `http(s)`, ET C'EST UNE GARDE D'ACCESSIBILITÉ, PAS UN CAPRICE.
+ * Le rendu dérive `target="_blank"` + la mention SR « nouvel onglet » + l'icône `ExternalIcon`
+ * de `classerDestination()` / `isExternalUrl()` (`src/lib/links.ts`), qui ne reconnaissent
+ * comme sortant qu'un schéma `http(s)`. Une valeur relative (« mately.fr », « /mately »)
+ * passerait donc en lien **INTERNE** : le clic partirait vers une route inexistante de la
+ * vitrine, **sans que rien ne l'annonce**.
+ *
+ * ⚠️ Volontairement PAS `z.url()` seul : il accepte `mailto:`, `javascript:` et `ftp:`. On veut
+ * un site web, et `javascript:` dans un `href` est une injection.
+ *
+ * 🔴 ET ON EXIGE **EN PLUS** LA FORME LITTÉRALE QUE `isExternalUrl()` SAIT RECONNAÎTRE.
+ * Ce n'est pas une redondance, c'est la seule façon que la promesse ci-dessus soit TENUE —
+ * trouvé à la revue de la 6.5 : `new URL()` **NORMALISE**, alors que la valeur stockée est la
+ * chaîne BRUTE, et que `links.ts` la teste avec `/^https?:\/\//`, **sans** le drapeau `i` et en
+ * exigeant le double slash. Trois valeurs passaient donc le schéma puis étaient classées
+ * INTERNES, le navigateur y naviguant pourtant comme à une URL absolue :
+ *
+ *     « HTTPS://exemple.fr »   (casse)
+ *     « https:exemple.fr »     (pas de slash)
+ *     « https:/exemple.fr »    (un seul slash)
+ *
+ * Résultat : ni `target="_blank"`, ni annonce « nouvel onglet ». ⚠️ **Ne pas « simplifier » en
+ * retirant ce dernier test** : les deux conditions couvrent des choses différentes, et c'est la
+ * seconde qui lie ce module à `links.ts`. En 6.13 le cas n'a plus rien de théorique — le lien
+ * est rendu dans le **header et le footer des 5 pages**.
+ *
+ * ⚠️ Une valeur `visiblementVide` (espaces, U+200B collés par un copier-coller) vaut **`null`**
+ * et **jamais une erreur** : un champ facultatif dont le collage n'a laissé que de l'invisible
+ * doit se comporter comme un champ qu'on n'a pas rempli — même sémantique que `texteOptionnel`.
+ *
+ * @param max Longueur maximale, comptée **après** `trim()`.
+ * @param libelle Le nom du champ **tel qu'un bénévole le lit** (« L'adresse du Discord »).
+ */
+export const urlHttpOptionnelle = (max: number, libelle: string) =>
+  z
+    .string()
+    .trim()
+    .transform((value) => (visiblementVide(value) ? null : value))
+    .nullable()
+    .default(null)
+    // Borne AVANT la validation de forme : « trop longue » est un diagnostic plus utile que
+    // « adresse invalide » sur une URL de 4 000 caractères, qui l'est aussi mais pour une
+    // raison qu'on ne lui reproche pas.
+    .refine((value) => value === null || value.length <= max, {
+      message: `${libelle} ne peut pas dépasser ${max} caractères.`,
+    })
+    .refine(
+      (value) => {
+        if (value === null) return true;
+        if (!z.url().safeParse(value).success) return false;
+        // `z.url()` a validé la FORME ; on restreint ici le SCHÉMA.
+        if (!/^https?:$/i.test(new URL(value).protocol)) return false;
+        // La forme littérale attendue par `isExternalUrl()` — voir l'en-tête.
+        return /^https?:\/\//.test(value);
+      },
+      {
+        message:
+          `${libelle} est invalide : elle doit commencer par https:// (ou http://) et être ` +
+          `complète, par exemple https://exemple.fr — une adresse partielle enverrait le ` +
+          `visiteur sur une page inexistante du site de l'asso.`,
+      },
+    );

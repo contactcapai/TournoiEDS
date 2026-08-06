@@ -81,6 +81,7 @@ pnpm --filter vitrine gate:partenaires   # surface « partenaires » (6.5) — �
 pnpm --filter vitrine gate:ateliers      # surface « ateliers » (6.9) — ⚠️ écrit en base, en transaction ANNULÉE
 pnpm --filter vitrine gate:membres       # surface « membres » (6.10) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
 pnpm --filter vitrine gate:sollicitations # surface « sollicitations » (6.11) — ⚠️ écrit en base, et nettoie
+pnpm --filter vitrine gate:reglages      # surface « réglages » (6.13) — ⚠️ écrit en base, et RESTAURE
 ```
 
 > ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05** : les trois portes
@@ -135,6 +136,7 @@ LINKS_DEBRANCHER_PIEGE=1 pnpm --filter vitrine gate:links   # ⇐ contre-épreuv
 ADMIN_AUTOTEST=1 pnpm --filter vitrine gate:admin           # ⇐ contre-épreuve de la porte du back-office
 AGENDA_AUTOTEST=1 pnpm --filter vitrine gate:agenda         # ⇐ contre-épreuve de la porte de saisie
 GALERIE_AUTOTEST=1 pnpm --filter vitrine gate:galerie       # ⇐ contre-épreuve de la porte de galerie
+REGLAGES_AUTOTEST=1 pnpm --filter vitrine gate:reglages     # ⇐ contre-épreuve de la porte des réglages
 ```
 
 🔴 **Le compte est passé à HUIT au moment de la Story 5.5** (« faux trois fois » ci-dessus
@@ -605,3 +607,93 @@ Deux gardes n'ont pas de cas d'auto-validation, et la porte **le dit en sortie**
 témoin ne porte aucun marqueur d'administration — lui en présenter un demanderait d'en
 fabriquer un faux, donc de valider une chaîne inventée plutôt que la garde), ⑤ (la
 contre-épreuve est déjà l'inverse de ④ ; l'inverser à son tour reviendrait à ré-exécuter ④).
+
+## `gate:reglages` — la 18ᵉ porte (Story 6.13)
+
+```bash
+pnpm --filter vitrine gate:reglages
+REGLAGES_AUTOTEST=1 npx tsx --conditions=react-server tools/visual-gate/reglages-check.mts
+```
+
+**37 gardes**, autotest **27**, **9 exemptions déclarées**. ⚠️ Elle **écrit en base** (5ᵉ dans ce
+cas), et c'est la seule dont le ménage est une **RESTAURATION** et non une suppression : la table
+`site_setting` n'a qu'**une** ligne, celle du site. La porte relève son état d'entrée, la modifie,
+puis la remet et **la relit champ par champ** — une divergence fait sortir en code 1 quel que soit
+l'état des gardes. Même traitement pour les événements qu'elle dépublie temporairement (voir ⑨).
+
+### Ce qu'elle a de propre : elle mesure un aller-retour **écriture → site public**
+
+Les six autres portes de surface gardent une saisie et son rendu **sur la page de cette surface**.
+Ici, ce qui est écrit dans `site_setting` ressort dans le **header et le footer des 5 pages
+publiques**. La garde ③ écrit donc réellement en base puis va **lire le HTML servi** des cinq
+pages ; la garde ④ fait l'inverse — elle remet les colonnes à `NULL` et vérifie qu'il ne reste
+**aucun** lien (ni `href`, ni focus, ni annonce « nouvel onglet »), parce que cette story rend le
+défaut **R2** atteignable **par la saisie**.
+
+Cinq gardes n'existent nulle part ailleurs :
+
+- **① les 7 `CHECK` sont LUS**, pas éprouvés par une écriture. La table a **cinq colonnes
+  nullables**, donc cinq occasions de refaire `event_has_venue` (un `CHECK` qui vaut `NULL`
+  **passe**, et il a survécu à trois epics). La garde exige la chaîne `IS NULL` dans le texte de
+  chacune des cinq ;
+- **② le singleton tient** — une seconde ligne est refusée. Sans elle, « table à ligne unique » ne
+  serait qu'une intention, et le chrome du site pourrait changer d'une requête à l'autre ;
+- **⑤ ligne ABSENTE ⇒ repli honnête, pas une 500** — elle supprime la ligne et vérifie que les
+  5 pages répondent `200` **et** servent l'e-mail de repli. C'est une limite **déclarée** de
+  `lireReglages()`, donc une limite à éprouver ;
+- **⑥ l'e-mail SAISI n'est pas l'identité SMTP** — le fait le plus dangereux de la story. Rendre
+  `contact_email` saisissable pendant qu'il servait d'`auth.user` à nodemailer aurait cassé l'envoi
+  **en silence** (le découplage de la 5.1 fait qu'une sollicitation serait persistée et notifiée à
+  personne) ;
+- **⑧ ABSENCE : aucune colonne de texte libre** dans `site_setting`. « Ajoute donc le titre du
+  site tant qu'on y est » est la demande la plus naturelle du monde, et c'est exactement ce que
+  l'arbitrage du 2026-07-29 a écarté (colonnes typées, NFR8) et ce que Q6 interdit.
+
+### 🔴 Deux gardes LISENT le source, et c'est déclaré
+
+⑥ (identité SMTP) et ⑦ (« tout export commence par `requireAdmin()` ») portent sur du code dont
+l'**effet** exige soit une session, soit un envoi SMTP réel — or **aucun message n'a jamais été
+émis sur ce projet** (dette **R32**). Les lire est le seul témoin disponible ; la limite est
+déclarée en sortie.
+
+### 🔴 La garde ⑨ FABRIQUE son cas — sinon elle ne couvrirait qu'un tiers du correctif
+
+La dette **R33 ③** porte sur **trois** mentions « Discord » en prose : l'aside d'`/agenda`
+(toujours rendu), l'état vide d'`/agenda` et l'état vide du hub de `/`. Les deux derniers ne se
+rendent **que s'il n'y a aucun événement à venir publié** — jamais sur une base peuplée. La porte
+dépublie donc les événements à venir le temps de la mesure, relève leurs identifiants, et **ne
+republie que ceux-là** (la base porte des brouillons légitimes). Sans ce détour, deux fichiers CSS
+sur trois n'auraient reçu **aucune** mesure, dont `EventHub.module.css`, que rien d'autre ne touche.
+
+⚠️ Et c'est elle qui a prouvé la porte **ROUGE avant le correctif** : le souligné était posé sur la
+classe de base, donc rendu **au repos** sur un élément inerte. La garde ⑥ de `gate:links` ne mesure
+que le **survol** — elle était structurellement aveugle à ce défaut.
+
+### Cinq défauts d'INSTRUMENT trouvés en la prouvant
+
+20ᵉ à 24ᵉ occurrences de `00 référence/pieges/instrument-non-valide.md`. **Trois accusaient le
+produit, un était un faux négatif, un était une erreur de syntaxe :**
+
+1. **① accusait le `CHECK` de l'e-mail** de ne pas contenir `[[:space:]]`. Le motif s'écrit
+   `[^[:space:]@]` : la classe POSIX y est toujours précédée d'un `[^`, jamais d'un `[`. MESURÉ :
+   `position('[[:space:]]' in …)` → **0**, `position('[:space:]' in …)` → **104**. L'aiguille
+   cherchait une chaîne qui ne peut exister dans **aucun** texte de contrainte.
+2. **⑥ accusait `client.ts`** de lire les réglages. Elle tombait sur les **deux lignes de
+   commentaire** qui expliquent précisément pourquoi le compte SMTP n'est *pas*
+   `site_setting.contact_email` — la porte accusait le texte qui porte la règle qu'elle garde.
+   Même classe que le finding de la 6.11 qui aurait fait supprimer un commentaire pour faire taire
+   sa propre garde. Le seul témoin qui distingue « lit » de « parle de » est l'**import**.
+3. **⑨ était un FAUX NÉGATIF, et c'est le plus grave des cinq.** Son prédicat retirait l'annonce
+   lecteur d'écran par une regex à parenthèses échappées — écrite dans un **littéral de gabarit
+   JS**, où un antislash-parenthèse s'évalue en parenthèse nue. Le navigateur recevait un **groupe
+   de capture** : « Discord (nouvel onglet) » devenait « Discord () », jamais égal à « Discord ».
+   La garde concluait « aucune mention en prose » et **s'exemptait elle-même**. C'est le **même
+   piège d'échappement à deux étages** que le point du motif SQL (6.5, 6.10) — cette fois retourné
+   contre l'instrument. Parade : on ne bricole plus de chaîne, on retire le `.sr-only` du **DOM
+   cloné** (classe globale, donc non hachée).
+4. **une erreur de syntaxe** : un commentaire cité entre accents graves **à l'intérieur** du
+   littéral de gabarit envoyé au navigateur le refermait. Elle n'a jamais rendu de verdict — elle
+   a fait échouer la transformation, ce qui est la forme la moins coûteuse d'instrument faux.
+5. **la couverture elle-même** : ⑨ ne mesurait qu'**une** des trois occurrences de R33 ③, et
+   s'exemptait proprement des deux autres. Une exemption honnête reste une exemption : c'est ce
+   qui a conduit à faire fabriquer les états vides par la porte.

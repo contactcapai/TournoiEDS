@@ -75,5 +75,16 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les demandes reçues par le formulaire : les lire, les marquer traitées, les supprimer quand elles n'ont plus lieu d'être.",
   },
-  // Story 6.13 → { href: "/admin/reglages",      libelle: "Réglages",      description: "…" }
+  {
+    href: "/admin/reglages",
+    libelle: "Réglages",
+    // 🔴 NI « Voir le rendu avant de publier » (comme cinq des six précédentes), NI une
+    // formulation qui laisserait croire à un brouillon. Cette section est la SEULE sans
+    // liste, sans aperçu et **sans étape de publication** : ce qui y est enregistré est en
+    // ligne au rechargement suivant, sur toutes les pages. La description dit donc où le
+    // résultat se voit — sur le site lui-même — parce que c'est la seule réponse vraie.
+    description:
+      "Les adresses de vos comptes (Discord, réseaux, HelloAsso) et l'e-mail de contact. " +
+      "Elles s'appliquent à tout le site dès l'enregistrement, sans brouillon.",
+  },
 ] as const;
