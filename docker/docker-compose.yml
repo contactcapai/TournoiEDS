@@ -207,10 +207,15 @@ services:
   # Instance PROPRE A L'ASSO (decision de Brice, 2026-08-07) : les jetons d'API des
   # comptes sociaux ne vivent pas sur l'instance d'un prestataire.
   #
-  # 🔴 VERSION EPINGLEE, PAS `latest` : 2.20.9 est la version sur laquelle
-  # publication-reseaux.json a ete valide puis exporte (instance CapAI). L'import n8n
+  # 🔴 VERSION EPINGLEE, PAS `latest` — et 2.33.7 est un choix MESURE (2026-08-07) :
+  # en 2.20.9 (version d'export du workflow, alignee sur CapAI), la verification
+  # Header Auth du nœud Webhook refusait TOUT jeton — champs du credential prouves
+  # exacts par l'API, en-tete prouve intact par un workflow-echo, comparaison en 403
+  # quand meme. C'est le meme symptome que l'ex-dette R43 sur CapAI (meme version) :
+  # les cinq variantes d'ecriture n'etaient probablement jamais en cause. L'import n8n
   # drope des parametres en silence (00 reference/pieges/webhook-n8n.md) — changer de
-  # version d'image est un GESTE, avec re-verification nœud par nœud derriere.
+  # version d'image est un GESTE : sauvegarde du volume AVANT (migrations DB a sens
+  # unique), puis re-verification nœud par nœud et re-sonde du webhook derriere.
   #
   # 🔴 DEUX ROUTEURS TRAEFIK, ET C'EST UNE FRONTIERE DE SECURITE :
   #   - eds-n8n-webhook (Host + PathPrefix(`/webhook`)) : SANS basic auth — les webhooks
@@ -230,7 +235,7 @@ services:
   # passation (docs/PASSATION.md §3). Ne JAMAIS changer la cle apres coup.
   # ─────────────────────────────────────────────────
   n8n:
-    image: n8nio/n8n:2.20.9
+    image: n8nio/n8n:2.33.7
     container_name: eds-n8n
     restart: unless-stopped
     environment:
