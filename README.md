@@ -280,14 +280,38 @@ de la Story 1.10). ⚠️ Cette vérification datait de la stack Supabase : **el
 sur la cible actuelle. La **restauration de production (DR)** sur le VPS reste une **étape
 opérationnelle** à planifier périodiquement (cf. `docs/PASSATION.md`).
 
-### Sauvegardes automatiques (base tournoi + base vitrine + médias, off-site)
+### Restore n8n (workflows + credentials des comptes sociaux)
 
-L'orchestrateur `backup-all.sh` (Story 1.10) enchaîne les **3 sauvegardes**, copie **hors-VPS**
-(optionnel) et applique la **rotation** :
+Les données n8n (base SQLite : workflows, **credentials chiffrés**) vivent dans le volume
+`docker_n8n-data`. Restaurer **conteneur `eds-n8n` arrêté** :
+
+```bash
+cd /opt/tournoi-tft/docker
+docker compose stop n8n
+
+# Restaurer dans le volume existant (écrase le contenu courant) :
+docker run --rm -i -v docker_n8n-data:/data alpine tar xzf - -C /data   < /root/backups/n8n-YYYYMMDD-HHMMSS.tar.gz
+
+docker compose start n8n
+```
+
+> 🔴 **L'archive seule est MORTE sans `N8N_ENCRYPTION_KEY`** (docker/.env) : les credentials
+> y sont chiffrés par cette clé, qui ne part **pas** dans les sauvegardes (voulu — secrets).
+> Restaurer avec une autre clé donne une instance qui démarre, montre ses workflows… et rend
+> `403` à chaque appel authentifié — indistinguable d'un mauvais jeton. Conservation de la
+> clé hors VPS : `docs/PASSATION.md` §3.
+> Vérification post-restore : ouvrir le workflow, **re-vérifier chaque nœud**
+> (`apps/vitrine/n8n/README.md`), puis un **appel réel** au webhook.
+
+### Sauvegardes automatiques (base tournoi + base vitrine + médias + n8n, off-site)
+
+L'orchestrateur `backup-all.sh` (Story 1.10, étendu par la Story 7.1) enchaîne les
+**4 sauvegardes**, copie **hors-VPS** (optionnel) et applique la **rotation** :
 
 ```bash
 sudo /opt/tournoi-tft/docker/backup-all.sh
-# -> /root/backups/{tournoi,vitrine,medias}-YYYYMMDD-HHMMSS.{sql.gz,tar.gz}
+# -> /root/backups/{tournoi,vitrine}-YYYYMMDD-HHMMSS.sql.gz
+#    /root/backups/{medias,n8n}-YYYYMMDD-HHMMSS.tar.gz
 ```
 
 **Copie hors-VPS (boring & multi-fournisseur, anti-lock-in — NFR6) :**
@@ -594,3 +618,88 @@ Si le cert prod ne s'émet pas après 2 min :
 2. Vérifier DNS : `dig +short api-tournoi.esportdessacres.fr` depuis un resolver externe.
 3. Vérifier port 80 ouvert : `curl -I http://api-tournoi.esportdessacres.fr` depuis l'extérieur doit atteindre Traefik (pas de timeout UFW).
 4. **Ne pas** redémarrer en boucle (rate limit LE prod : 5 duplicate / 7j). Repasser en **staging** pour debug, puis rebasculer prod une fois la config validée.
+
+---
+
+## Runbook — Installer le n8n d'EDS (Story 7.1)
+
+> ⚠️ **Opérationnel — à exécuter sur le VPS (pas automatisé, pas en CI).** Instance
+> **propre à l'association** (décision du 2026-08-07) : les jetons d'API des comptes
+> sociaux ne vivent pas sur l'instance d'un prestataire. Doc-first :
+> `apps/vitrine/n8n/README.md` (liste de re-vérification nœud par nœud) et
+> `00 référence/pieges/webhook-n8n.md`.
+
+### Étape 1 — DNS d'abord, et le vérifier
+
+```bash
+# Créer l'enregistrement A : n8n.esportdessacres.fr -> IP du VPS (registrar Hostinger).
+# 🔴 NE PAS FAIRE `up -d` AVANT CE TÉMOIN : une tentative Let's Encrypt sur un hôte
+# sans DNS échoue et brûle le rate limit prod (5 échecs / 7 jours).
+dig +short n8n.esportdessacres.fr
+# Attendu : l'IP du VPS, et RIEN d'autre.
+```
+
+### Étape 2 — Secrets dans `docker/.env`
+
+```bash
+cd /opt/tournoi-tft/docker
+# Ajouter (cf. .env.example, commentaires compris) :
+#   N8N_HOST=n8n.esportdessacres.fr
+#   N8N_ENCRYPTION_KEY=<40 alphanumériques>   <- tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40
+#   N8N_BASICAUTH='<user>:<hash bcrypt>'      <- QUOTES SIMPLES (le hash contient des $)
+# Hash : docker run --rm httpd:2.4-alpine htpasswd -nbB brice 'LE_MOT_DE_PASSE'
+# 🔴 Conserver N8N_ENCRYPTION_KEY hors VPS (PASSATION §3) : sans elle, les sauvegardes
+# n8n-*.tar.gz sont mortes.
+```
+
+### Étape 3 — Démarrage & compte owner
+
+```bash
+docker compose up -d n8n
+docker compose ps n8n            # attendre "healthy"
+# Ouvrir https://n8n.esportdessacres.fr -> le basic auth Traefik s'interpose (voulu),
+# PUIS l'écran n8n "Set up owner account" : le créer IMMÉDIATEMENT (compte de l'asso).
+# Vérifier la frontière : /webhook/nimportequoi doit répondre SANS basic auth (404 n8n),
+# et / doit l'exiger.
+```
+
+### Étape 4 — Import du workflow & credential (⚠️ à la main, pas par l'API)
+
+```bash
+# UI n8n : Workflows -> Import from File -> apps/vitrine/n8n/publication-reseaux.json
+# 🔴 Après l'import, RE-VÉRIFIER CHAQUE NŒUD (l'import drope des paramètres en silence) :
+#    la liste exacte est dans apps/vitrine/n8n/README.md §Ré-importer.
+# 🔴 Credential "Header Auth" : le créer DANS L'INTERFACE (Name = x-eds-webhook-token,
+#    Value = jeton NEUF généré ici — jamais recycler une valeur d'une autre instance),
+#    puis le RATTACHER au nœud Webhook : la référence importée pointe l'id de l'ancienne
+#    instance. L'écriture par l'API a rendu des credentials inertes (403) sur l'instance
+#    CapAI — cause jamais établie, à RE-MESURER, pas à supposer résolue.
+# Activer le workflow (l'URL de production /webhook/... n'existe QUE workflow ACTIF).
+```
+
+### Étape 5 — Verify d'entrée (le témoin est l'exécution, pas le 200)
+
+```bash
+# Depuis le back-office vitrine (poste de dev, .env.local) :
+#   N8N_WEBHOOK_URL=https://n8n.esportdessacres.fr/webhook/eds-publication-evenement
+#   N8N_WEBHOOK_TOKEN=<le jeton ci-dessus>
+# Cliquer "Annoncer sur les réseaux" sur un événement publié, puis côté n8n :
+# Executions -> l'exécution doit être là, avec LE BON CORPS REÇU (id, titre, debut avec
+# offset +0X:00). Un HTTP 200 seul ne prouve rien (pieges/faux-succes.md).
+# Cas d'échec : docker compose stop n8n -> le back-office doit afficher un message
+# utilisable et NE PAS horodater social_posted_at. Puis docker compose start n8n.
+```
+
+### Étape 6 — La 4ᵉ sauvegarde, éprouvée
+
+```bash
+sudo /opt/tournoi-tft/docker/backup-all.sh     # les logs doivent dire 1/4 ... 4/4
+ls -lh /root/backups/n8n-*.tar.gz
+# Restauration ÉPROUVÉE (cible jetable, sans toucher la prod) :
+docker volume create n8n-restore-test
+docker run --rm -i -v n8n-restore-test:/data alpine tar xzf - -C /data   < /root/backups/n8n-<TS>.tar.gz
+docker run --rm -v n8n-restore-test:/data:ro alpine test -f /data/database.sqlite && echo "SQLite présent"
+docker volume rm n8n-restore-test
+# (La preuve complète — credentials déchiffrables — est celle de l'Étape 5 rejouée après
+# un restore réel ; à planifier avec les DR périodiques, PASSATION §3.)
+```

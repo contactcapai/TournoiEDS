@@ -15,9 +15,11 @@
 
 - **Un seul serveur** : un VPS Hostinger (Ubuntu), IP `<IP_VPS>`. Tout y tourne en
   conteneurs Docker derrière un reverse-proxy **Traefik** (HTTPS automatique Let's Encrypt).
-- **Trois applications** + une stack de base de données :
+- **Quatre applications** + une stack de base de données :
   - `tournoi.esportdessacres.fr` + `api-tournoi.esportdessacres.fr` — la plateforme de tournoi.
   - `esportdessacres.fr` — le site vitrine (Next.js).
+  - `n8n.esportdessacres.fr` — le **n8n de l'asso** (publication réseaux, Story 7.1) :
+    il porte les **jetons d'API des comptes sociaux** — voir §3 (sauvegarde) et §8.
 - **Deux bases PostgreSQL distinctes** (c'est voulu) :
   - `tournoi-tft-postgres` — la base du tournoi (Prisma).
   - `postgres` (`tournoi-tft-postgres`) — **le seul moteur de base**, avec DEUX bases cloisonnées :
@@ -102,7 +104,10 @@ sudo /opt/tournoi-tft/docker/backup-all.sh
 # Produit dans /root/backups :
 #   tournoi-*.sql.gz   (base tournoi)
 #   vitrine-*.sql.gz   (base de la vitrine)
-#   storage-*.tar.gz   (fichiers du bucket Storage)
+#   medias-*.tar.gz    (photos téléversées par le back-office)
+#   n8n-*.tar.gz       (n8n : workflows + credentials des comptes sociaux, Story 7.1)
+# (⚠️ cette liste disait encore « storage-*.tar.gz », un nom de la stack Supabase
+#  retirée le 2026-07-29 — corrigé à la Story 7.1, avec l'ajout de la 4e cible.)
 ```
 
 ### Sauvegardes automatiques (recommandé en prod)
@@ -115,12 +120,17 @@ sudo /opt/tournoi-tft/docker/backup-all.sh
 
 ### Restaurer
 
-Procédures détaillées (3 cas : base tournoi, base vitrine, médias) dans
+Procédures détaillées (4 cas : base tournoi, base vitrine, médias, n8n) dans
 [`README.md`](../README.md) §Restore. Points clés :
 
 - **Base tournoi** et **base vitrine** se restaurent **séparément** — même moteur depuis la
   révision du 2026-07-29, mais **deux bases distinctes** : ne pas confondre les deux dumps.
 - Restaurer la **base vitrine AVANT les médias** (la table des photos référence les fichiers).
+- 🔴 **La sauvegarde n8n est MORTE sans `N8N_ENCRYPTION_KEY`** (`docker/.env`) : les jetons
+  d'API des comptes sociaux y sont chiffrés par cette clé, qui ne part **pas** dans les
+  sauvegardes. **Conserver la clé hors VPS** (gestionnaire de mots de passe du bureau, avec
+  `<IP_VPS>`/`<USER_SSH>`) — c'est la pire des quatre pertes possibles : un jeton perdu se
+  ré-émet chez chaque plateforme, avec leurs délais de validation.
 - ⚠️ **Ne jamais supprimer le volume `tournoi-pg-data`** pour « repartir propre » côté vitrine :
   il porte **aussi** la base du tournoi. C'est le prix du moteur mutualisé.
 
@@ -293,3 +303,43 @@ Interroge le site **sans aucun cookie** et vérifie que `/admin` est fermé, que
 connexion reste joignable, que le flux OAuth n'est pas bloqué, et que les pages publiques
 répondent toujours sans session. ⚠️ Elle **déclare ses exemptions** en sortie : une porte verte
 ne veut pas dire « tout est couvert ».
+
+---
+
+## 8. n8n : publication réseaux (Story 7.1)
+
+### C'est quoi, et pourquoi il est à nous
+
+`n8n.esportdessacres.fr` est le n8n **de l'association** (pas celui d'un prestataire —
+décision du 2026-08-07) : c'est lui qui portera les **jetons d'API des comptes sociaux**
+(Instagram, X, Discord). Le back-office du site lui envoie l'annonce d'un événement
+(« Annoncer sur les réseaux »), il authentifie, valide et accuse réception.
+
+⚠️ **Tant que la Story 7.6 n'est pas faite, il ne PUBLIE rien** : le workflow reçoit et
+répond, mais aucun nœud social n'existe encore (leur absence est volontaire et vérifiable
+d'un coup d'œil — 5 nœuds, aucun connecteur social).
+
+### Y accéder
+
+- `https://n8n.esportdessacres.fr` — **deux authentifications successives**, c'est voulu :
+  d'abord le **basic auth** Traefik (identifiants dans le gestionnaire de mots de passe du
+  bureau), puis le **login n8n** (compte owner de l'asso).
+- Les webhooks (`/webhook/…`) ne passent pas par le basic auth : ils portent **leur propre**
+  jeton (`x-eds-webhook-token`).
+
+### Les trois choses à ne jamais faire
+
+1. **Changer `N8N_ENCRYPTION_KEY`** (`docker/.env`) : les jetons déjà chiffrés deviendraient
+   illisibles — symptôme trompeur (`403` à l'appel, comme un mauvais jeton).
+2. **Supprimer le volume `docker_n8n-data`** : il porte les workflows ET les credentials.
+3. **Renseigner un credential par l'API** : créer les credentials **dans l'interface**
+   (l'écriture par l'API a produit des credentials inertes — `403` — sur une autre instance,
+   cause jamais établie ; procédure et liste de re-vérification :
+   `apps/vitrine/n8n/README.md`).
+
+### Après toute mise à jour ou ré-import de workflow
+
+**Re-vérifier chaque nœud à la main** (l'import n8n perd des paramètres **en silence**) :
+la liste exacte est dans `apps/vitrine/n8n/README.md` §Ré-importer. Puis un **appel réel**
+depuis le back-office, et vérifier l'exécution **côté n8n** (Executions : bon corps reçu).
+Un « HTTP 200 » seul ne prouve rien.
