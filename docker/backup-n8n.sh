@@ -17,10 +17,15 @@
 # docs/PASSATION.md §3.
 #
 # COHERENCE (meme reserve ecrite que backup-medias.sh) : le tar se fait A CHAUD sur une
-# base SQLite. Tolere parce que le cron tourne a 03:30, fenetre ou n8n n'execute rien
-# (aucun declencheur planifie, webhooks au trafic nul la nuit). Pour une coherence
-# STRICTE : arreter le conteneur 'eds-n8n' le temps du tar (indisponibilite courte).
-# On ne pretend pas « coherent » sans cette reserve.
+# base SQLite en mode WAL. L'archive contient donc database.sqlite ET database.sqlite-wal
+# (+ -shm). C'est VOULU : les trois pris ensemble au meme instant sont rejouables. Tolere
+# parce que le cron tourne a 03:30, fenetre ou n8n n'execute rien (aucun declencheur
+# planifie, webhooks au trafic nul la nuit). Pour une coherence STRICTE : arreter le
+# conteneur 'eds-n8n' le temps du tar (indisponibilite courte). On ne pretend pas
+# « coherent » sans cette reserve.
+# 🔴 RESTAURATION : le volume cible doit etre VIDE avant l'extraction (README §Restore n8n).
+# Extraire par dessus un -wal/-shm posterieur ferait rejouer des pages plus recentes que
+# la sauvegarde — corruption silencieuse. tar superpose, il n'efface pas.
 
 set -eu
 

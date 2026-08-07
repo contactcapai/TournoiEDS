@@ -176,7 +176,8 @@ du -sh /root/backups   # taille des sauvegardes
 ```bash
 sudo find /root/backups -name "tournoi-*.sql.gz"  -mtime +14 -delete
 sudo find /root/backups -name "vitrine-*.sql.gz" -mtime +14 -delete
-sudo find /root/backups -name "storage-*.tar.gz"  -mtime +14 -delete
+sudo find /root/backups -name "medias-*.tar.gz"   -mtime +14 -delete
+sudo find /root/backups -name "n8n-*.tar.gz"      -mtime +14 -delete
 ```
 
 ### Accéder à la base
@@ -332,10 +333,11 @@ d'un coup d'œil — 5 nœuds, aucun connecteur social).
 1. **Changer `N8N_ENCRYPTION_KEY`** (`docker/.env`) : les jetons déjà chiffrés deviendraient
    illisibles — symptôme trompeur (`403` à l'appel, comme un mauvais jeton).
 2. **Supprimer le volume `docker_n8n-data`** : il porte les workflows ET les credentials.
-3. **Renseigner un credential par l'API** : créer les credentials **dans l'interface**
-   (l'écriture par l'API a produit des credentials inertes — `403` — sur une autre instance,
-   cause jamais établie ; procédure et liste de re-vérification :
-   `apps/vitrine/n8n/README.md`).
+3. **Re-cocher « Ignore Bots »** sur le nœud Webhook (mesure Story 7.1) : coché, il rejette
+   l'UA `node` du `fetch` de la vitrine en `403 « Authorization data is wrong! »` — identique
+   à un mauvais jeton. C'était la vraie cause du 403 attribué à tort au credential.
+   ⇒ Un credential se crée **indifféremment par l'interface ou par l'API** ; seule règle :
+   **l'éprouver par un appel réel** après création (`apps/vitrine/n8n/README.md`, piège ②).
 
 ### Après toute mise à jour ou ré-import de workflow
 

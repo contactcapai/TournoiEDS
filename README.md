@@ -171,16 +171,17 @@ sudo /opt/tournoi-tft/docker/backup-pg.sh
 
 ### Cleanup dossier `/root/backups`
 
-La rotation est **automatisée** par `backup-all.sh` (Story 1.10) : purge des 3 familles
-`tournoi-*` / `vitrine-*` / `medias-*` au-delà de **14 jours** en local (et 30 j sur le
-remote off-site, si configuré). Voir §Sauvegardes automatiques.
+La rotation est **automatisée** par `backup-all.sh` (Story 1.10, étendu à la 7.1) : purge des
+**4 familles** `tournoi-*` / `vitrine-*` / `medias-*` / `n8n-*` au-delà de **14 jours** en local
+(et 30 j sur le remote off-site, si configuré). Voir §Sauvegardes automatiques.
 
 Purge manuelle ponctuelle (équivalent, si besoin hors cron) :
 
 ```bash
 sudo find /root/backups -name "tournoi-*.sql.gz"  -mtime +14 -delete
 sudo find /root/backups -name "vitrine-*.sql.gz" -mtime +14 -delete
-sudo find /root/backups -name "storage-*.tar.gz"  -mtime +14 -delete
+sudo find /root/backups -name "medias-*.tar.gz"   -mtime +14 -delete
+sudo find /root/backups -name "n8n-*.tar.gz"      -mtime +14 -delete
 ```
 
 Surveiller l'espace disque pendant un événement live (`df -h /root`).
@@ -289,7 +290,13 @@ Les données n8n (base SQLite : workflows, **credentials chiffrés**) vivent dan
 cd /opt/tournoi-tft/docker
 docker compose stop n8n
 
-# Restaurer dans le volume existant (écrase le contenu courant) :
+# 🔴 VIDER le volume AVANT d'extraire — tar SUPERPOSE, il n'efface pas. La sauvegarde est
+# prise A CHAUD et contient database.sqlite-wal / -shm (WAL non checkpointé). Extraire par
+# dessus un volume qui porte un -wal/-shm/-journal POSTÉRIEUR ferait rejouer par SQLite des
+# pages plus récentes que la sauvegarde restaurée — corruption SILENCIEUSE, sans erreur.
+docker run --rm -v docker_n8n-data:/data alpine sh -c 'rm -rf /data/* /data/..?* /data/.[!.]* 2>/dev/null; true'
+
+# Extraire dans le volume vidé (db + wal + shm cohérents entre eux, de la même archive) :
 docker run --rm -i -v docker_n8n-data:/data alpine tar xzf - -C /data   < /root/backups/n8n-YYYYMMDD-HHMMSS.tar.gz
 
 docker compose start n8n
@@ -650,7 +657,18 @@ cd /opt/tournoi-tft/docker
 # Hash : docker run --rm httpd:2.4-alpine htpasswd -nbB brice 'LE_MOT_DE_PASSE'
 # 🔴 Conserver N8N_ENCRYPTION_KEY hors VPS (PASSATION §3) : sans elle, les sauvegardes
 # n8n-*.tar.gz sont mortes.
+# 🔴 chmod 600 docker/.env : il porte desormais N8N_ENCRYPTION_KEY (dechiffre les futurs
+# jetons d'API des comptes sociaux) et N8N_BASICAUTH, en plus des secrets PG. Lecture root
+# seule, coherent avec le sudo deja exige pour les sauvegardes.
+chmod 600 docker/.env
 ```
+
+> 🔴 **`docker compose up -d n8n` ÉCHOUE MAINTENANT si `N8N_ENCRYPTION_KEY` est absente**
+> (garde `${N8N_ENCRYPTION_KEY:?...}` dans le compose). C'est voulu : sans cette garde, n8n
+> **auto-génère** une clé et la range **dans le volume sauvegardé** — l'inverse exact de la
+> doctrine (clé hors sauvegarde), et des credentials créés ensuite deviendraient illisibles au
+> redéploiement suivant (`Mismatching encryption keys`). Un échec bruyant au démarrage vaut
+> mieux que cette réparation silencieuse.
 
 ### Étape 3 — Démarrage & compte owner
 
@@ -663,17 +681,21 @@ docker compose ps n8n            # attendre "healthy"
 # et / doit l'exiger.
 ```
 
-### Étape 4 — Import du workflow & credential (⚠️ à la main, pas par l'API)
+### Étape 4 — Import du workflow & credential
 
 ```bash
 # UI n8n : Workflows -> Import from File -> apps/vitrine/n8n/publication-reseaux.json
 # 🔴 Après l'import, RE-VÉRIFIER CHAQUE NŒUD (l'import drope des paramètres en silence) :
 #    la liste exacte est dans apps/vitrine/n8n/README.md §Ré-importer.
-# 🔴 Credential "Header Auth" : le créer DANS L'INTERFACE (Name = x-eds-webhook-token,
-#    Value = jeton NEUF généré ici — jamais recycler une valeur d'une autre instance),
-#    puis le RATTACHER au nœud Webhook : la référence importée pointe l'id de l'ancienne
-#    instance. L'écriture par l'API a rendu des credentials inertes (403) sur l'instance
-#    CapAI — cause jamais établie, à RE-MESURER, pas à supposer résolue.
+# 🔴 IGNORE BOTS doit rester DÉCOCHÉ sur le nœud Webhook (mesure Story 7.1) : coché, il
+#    rejette l'UA 'node' du fetch de la vitrine en 403 identique a un mauvais jeton.
+# Credential "Header Auth" (Name = x-eds-webhook-token, Value = jeton NEUF — jamais
+#    recycler une valeur d'une autre instance), puis le RATTACHER au nœud Webhook : la
+#    référence importée pointe l'id d'une autre instance.
+#    ✅ L'écriture par l'API OU par l'interface marche indifféremment (mesuré Story 7.1) :
+#    le 403 « Authorization data is wrong! » attribué au credential sur CapAI venait en
+#    réalité d'Ignore Bots, PAS du credential. Seule règle : ÉPROUVER par un appel réel
+#    après création (Étape 5) — un 403 ne distingue pas ses causes.
 # Activer le workflow (l'URL de production /webhook/... n'existe QUE workflow ACTIF).
 ```
 

@@ -13,7 +13,14 @@
 
 services:
   traefik:
-    image: traefik:v3
+    # 🔴 VERSION EXACTE, PAS le tag flottant `v3` (durcissement Story 7.1). La 7.1 introduit
+    # le PREMIER motif « deux routeurs sur le meme Host, middleware asymetrique » (n8n : webhook
+    # sans basic auth / UI avec) — motif de la classe GHSA-gm3x-23wp-hc2c (bypass de middleware
+    # par normalisation de chemin, corrige en v3.6.3). La 3.6.14 deployee est saine (verifie :
+    # un chemin encode via le routeur webhook ne rend que le SPA public, ni API ni ecriture).
+    # Epingler EVITE qu'un `docker compose pull` futur reintroduise un statut inconnu en silence
+    # — meme discipline « montee = geste + re-verif » que le pin n8n ci-dessous.
+    image: traefik:v3.6.14
     container_name: tournoi-tft-traefik
     restart: unless-stopped
     command:
@@ -247,7 +254,11 @@ services:
       # URL publique annoncee aux nœuds Webhook (sans elle, n8n afficherait des URLs
       # en http://localhost:5678 inutilisables).
       - WEBHOOK_URL=https://${N8N_HOST}/
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      # 🔴 OBLIGATOIRE, echec BRUYANT si absente (garde `:?`). Sans elle, n8n AUTO-GENERE une
+      # cle et la range DANS le volume sauvegarde (log « No encryption key found - Auto-
+      # generating »), healthcheck vert — puis « Mismatching encryption keys » au redeploiement
+      # suivant, apres que des credentials aient pu etre crees avec la cle fantome (mesure 7.1).
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY manquant dans docker/.env (voir .env.example) — ne JAMAIS laisser n8n auto-generer sa cle}
       # Fuseau des declencheurs et de l'UI — la regle de date du workflow est
       # « ISO avec offset de Paris, jamais un Z » (apps/vitrine/n8n/README.md).
       - GENERIC_TIMEZONE=Europe/Paris
