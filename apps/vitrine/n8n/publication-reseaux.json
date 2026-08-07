@@ -1,0 +1,165 @@
+{
+  "name": "[14 Sacres] Publication reseaux — evenement agenda",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eds-publication-evenement",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {
+          "ignoreBots": true
+        }
+      },
+      "id": "webhook-eds",
+      "name": "Webhook — annonce evenement",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "fe1ac9f7-c10e-4b0c-8ef4-dee54bbcfdf5",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bYP83ma8hQG80vU5",
+          "name": "[14 Sacres] Webhook publication reseaux"
+        }
+      },
+      "notes": "Recoit le POST de apps/vitrine/src/server/integrations/n8n.ts (Story 6.7). Reponse via 'Respond to Webhook' et NON 'immediately' : un 200 rendu avant validation ne prouverait rien (pieges/faux-succes.md)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validation du contrat envoye par la vitrine (Story 6.7).\n//\n// 🔴 ELLE EXISTE PARCE QUE LE 200 DOIT VOULOIR DIRE QUELQUE CHOSE. Si ce workflow repondait\n// « immediately », le site recevrait 200 pour n'importe quel corps — y compris vide — et son\n// verdict « annonce partie » serait un faux succes (00 reference/pieges/faux-succes.md).\n//\n// ⚠️ ET ELLE EXISTE AUSSI CONTRE NOUS-MEMES : pieges/webhook-n8n.md documente que l'import n8n\n// DROPE des parametres en silence. Un champ perdu a l'import doit produire un refus lisible,\n// pas une execution verte sur une donnee amputee.\n\nconst corps = $input.first().json.body ?? {};\nconst manques = [];\n\nif (corps.version !== 1) manques.push(`version attendue 1, recue ${JSON.stringify(corps.version)}`);\nif (corps.source !== 'vitrine-eds') manques.push(`source inattendue: ${JSON.stringify(corps.source)}`);\n\nconst e = corps.evenement ?? {};\nfor (const champ of ['id', 'titre', 'type', 'debut', 'lien']) {\n  if (typeof e[champ] !== 'string' || e[champ].trim() === '') manques.push(`evenement.${champ} absent`);\n}\n\n// 🔴 LA DATE DOIT PORTER L'OFFSET DE PARIS, ET UN « Z » EST REFUSE.\n// Les deux formes designent le meme instant, mais un « Z » a perdu l'heure que les gens\n// liront sur l'affiche : composer « 17h00 » a partir de lui publierait une annonce fausse de\n// deux heures. Regle miroir de lib/schemas/publication.ts — les deux doivent bouger ensemble.\nif (typeof e.debut === 'string' && !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$/.test(e.debut)) {\n  manques.push(`evenement.debut n'est pas un ISO avec offset: ${e.debut}`);\n}\n\nreturn [{ json: { valide: manques.length === 0, manques, evenement: e } }];"
+      },
+      "id": "valider-eds",
+      "name": "Valider le message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "notes": "Miroir de lib/schemas/publication.ts. Si l'un des deux change, l'autre doit changer."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valide }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-eds",
+      "name": "Message valide ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, recu: $json.evenement.id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ok-eds",
+      "name": "Repondre — accepte",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        -100
+      ],
+      "notes": "🔴 ACCUSE RECEPTION — PAS UNE PUBLICATION. Aucun nœud Instagram / X / Discord n'existe ici, et leur ABSENCE est le livrable de la Story 6.7 (voir README.md)."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, manques: $json.manques }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "ko-eds",
+      "name": "Repondre — refuse",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        100
+      ],
+      "notes": "400 et non 200 : c'est ce qui rend le verdict du site vrai. Le detail des manques reste cote n8n — le site n'affiche jamais un texte technique a un benevole."
+    }
+  ],
+  "connections": {
+    "Webhook — annonce evenement": {
+      "main": [
+        [
+          {
+            "node": "Valider le message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valider le message": {
+      "main": [
+        [
+          {
+            "node": "Message valide ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message valide ?": {
+      "main": [
+        [
+          {
+            "node": "Repondre — accepte",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Repondre — refuse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Paris",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all"
+  },
+  "active": true
+}

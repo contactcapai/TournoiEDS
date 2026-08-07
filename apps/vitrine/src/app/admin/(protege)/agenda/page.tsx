@@ -82,6 +82,7 @@ function LigneEvenement({ evenement }: { evenement: AgendaEvent }) {
           id={evenement.id}
           isPublished={evenement.isPublished}
           titre={evenement.title}
+          socialPostedAt={evenement.socialPostedAt}
         />
       </div>
     </li>

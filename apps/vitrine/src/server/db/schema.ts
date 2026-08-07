@@ -230,6 +230,40 @@ export const event = pgTable(
     recap: text(),
     /** Défaut `false` : rien n'est public par accident. */
     isPublished: boolean().notNull().default(false),
+    /**
+     * Quand cet événement a été **annoncé sur les réseaux** (Story 6.7, FR23). `NULL` = jamais.
+     *
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 CETTE COLONNE EST LE **SEUL FILET** D'UN MAILLON DONT L'EFFET EST HORS DU SITE
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * `00 référence/pieges/integration-tierce.md`, règle ③ : *« tant que le verify d'entrée est
+     * dû, la surface de LECTURE n'est pas un confort : c'est le seul filet du système. »* Un
+     * clic sur « Annoncer sur les réseaux » produit son effet **ailleurs** — dans n8n, puis, un
+     * jour, sur des comptes sociaux. Sans trace, un bénévole n'a **aucun moyen** de savoir si
+     * son geste a porté, et le seul recours serait de recliquer : c'est-à-dire de risquer une
+     * **deuxième annonce publique** que ce back-office ne sait pas dépublier.
+     *
+     * 🔴 **ELLE N'EST PAS UN VERROU.** Une seconde annonce reste possible, et c'est voulu :
+     * republier après une correction est un besoin légitime. Ce qu'on refuse, c'est qu'un
+     * doublon soit **invisible** — même arbitrage que la fermeture de **R31** sur les
+     * sollicitations (« acceptée AVEC FILET », pas corrigée). L'écran rappelle donc la date de
+     * la précédente annonce **dans la confirmation**, au moment où la décision se prend.
+     *
+     * ⚠️ Horodatée **uniquement sur succès**. Un échec de transport ne l'écrit pas : une trace
+     * posée sur un envoi qui n'est pas parti est pire que pas de trace du tout — elle
+     * empêcherait précisément le geste qu'il faut refaire.
+     *
+     * ⚠️ **AUCUNE colonne de texte d'annonce, de brouillon, ni de statut par réseau.** La
+     * composition du message vit dans n8n, qui est l'outil dont c'est le métier et le seul
+     * endroit où elle s'ajuste sans redéploiement. Ce que le site envoie, ce sont des **faits**
+     * (voir `lib/schemas/publication.ts`). L'absence est une garde, tenue par `gate:reseaux` ⑧.
+     *
+     * ⚠️ Pas de `CHECK` : il n'y a aucune règle à tenir qu'un `timestamptz` ne tienne déjà.
+     * Interdire une date future serait une garde nominale — l'horloge du conteneur et celle de
+     * Postgres peuvent différer de quelques secondes, et le refus se produirait au pire moment.
+     */
+    socialPostedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

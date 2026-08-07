@@ -697,3 +697,108 @@ produit, un était un faux négatif, un était une erreur de syntaxe :**
 5. **la couverture elle-même** : ⑨ ne mesurait qu'**une** des trois occurrences de R33 ③, et
    s'exemptait proprement des deux autres. Une exemption honnête reste une exemption : c'est ce
    qui a conduit à faire fabriquer les états vides par la porte.
+
+---
+
+## `gate:reseaux` — la 19ᵉ porte (Story 6.7)
+
+```bash
+pnpm --filter vitrine gate:reseaux
+RESEAUX_AUTOTEST=1 pnpm --filter vitrine gate:reseaux   # auto-validation de l'instrument
+```
+
+**26 gardes · 9 éprouvées par autotest · 17 déclarées NON éprouvées · 5 exemptions.**
+⚠️ Elle n'exige **pas** de serveur Next : elle importe le produit et fabrique son propre
+service tiers. Elle a besoin de `DATABASE_URL` (garde ⑪, lecture d'`information_schema`).
+
+### Ce qu'elle a de propre : elle **fabrique le service tiers** qu'elle mesure
+
+Toutes les autres portes de surface observent quelque chose qui existe déjà (une page servie,
+une table, un fichier). Celle-ci démarre un **serveur HTTP sur `127.0.0.1`** qui joue n8n, y
+pointe `N8N_WEBHOOK_URL`, appelle la **vraie** `publierEvenement()` et lit le **corps
+réellement reçu**. C'est ce qui la range du côté de `gate:links` (qui clique vraiment) et non
+du côté d'une relecture de source : un instrument qui relirait `n8n.ts` pour vérifier que « le
+jeton est bien en en-tête » validerait sa propre lecture du code, pas l'octet émis.
+
+Trois comportements du faux n8n, et chacun est une garde : **accepte** (200), **refuse** (500),
+et **muet** — celui-ci n'envoie jamais de réponse, ce qui est le seul moyen d'éprouver que le
+délai explicite existe. Sans lui, l'attente serait celle du système (~2 min).
+
+### 🔴 C'est la porte qui a dicté une décision du PRODUIT, pas l'inverse
+
+Une première version de `server/integrations/n8n.ts` refusait `http://` **sans exception** —
+transposition littérale du `requireTLS` de la Story 5.1. En écrivant la porte, la conséquence
+est apparue : plus **aucun POST réel** n'était émettable vers un faux n8n local sans fabriquer
+un certificat auto-signé et désarmer la vérification TLS du processus, c'est-à-dire sans
+remplacer une **mesure d'effet** par une **lecture de source**.
+
+C'est le mécanisme exact de la dette **R32** : une garde correcte sur le papier qui rend le
+maillon **invérifiable**, donc jamais vérifié. Et la règle ② de
+`00 référence/pieges/integration-tierce.md` dit l'inverse — *« choisir le transport vérifiable
+dans l'environnement de développement »*.
+
+⇒ Exemption **de boucle locale uniquement**, justifiée par le modèle de menace (sur `127.0.0.1`
+le paquet ne quitte pas la machine : il n'y a aucun intermédiaire à qui le cacher), et dont la
+garde ⑥ éprouve les **huit bords** — dont **deux pièges de SUFFIXE** :
+`http://localhost.attaquant.fr` et `http://127.0.0.1.attaquant.fr` sont des hôtes **publics**
+dont le nom commence par celui de la boucle locale.
+
+### 🔴 Sa couverture d'auto-validation est CALCULÉE, jamais énumérée
+
+`gate:ateliers` avait posé la règle — *« un autotest muet sur sa propre couverture laisse croire
+qu'il couvre tout »* — et sa parade était une **liste écrite à la main** des gardes non
+éprouvées. Cette liste a été **fausse dès la première exécution ici** : elle annonçait **quatre**
+gardes sans cas d'auto-validation, il y en avait **dix-sept**.
+
+Puis, en la corrigeant, l'explication rédigée juste en dessous — « les trois familles », garde
+par garde — s'est trouvée **désalignée d'une garde (⑥b)** au premier lancement suivant. Deux
+fois le même défaut, dans le même fichier, en dix minutes.
+
+⇒ La liste est désormais **dérivée** (une garde qui n'a produit qu'un `ok` en autotest est une
+garde à qui l'on n'a présenté aucun cas d'échec), et le texte qui l'accompagne ne **recopie
+aucun identifiant** — il ne décrit que des *raisons*. C'est le défaut de `app/admin/_sections.ts`
+et de la liste de portes de `CLAUDE.md` §4, transposé à un instrument : *une énumération alignée
+à la main se désaligne à l'ajout suivant.*
+
+### Ce qu'elle garde et que rien d'autre ne voit
+
+| # | Garde | Pourquoi rien d'autre ne la voit |
+|---|---|---|
+| ① | un POST réel part, et son corps satisfait `publicationPayloadSchema` **exporté par le produit** | aucune porte n'émet de requête sortante |
+| ①b | **exactement une** requête (aucune reprise automatique) | un `POST` rejoué publierait **deux fois** |
+| ② | la **valeur** du jeton n'est jamais dans le corps ; elle est dans l'en-tête | un corps part dans les **données d'exécution** que n8n conserve et affiche |
+| ③ | le corps ne porte **que** les 12 clés du contrat, et **aucune arobase** | le message quitte le périmètre RGPD du site |
+| ④ | un refus (500) rend une phrase **sans** code HTTP, URL ni nom de fonction | on mesure la **chaîne rendue**, pas le code qui la produit |
+| ⑤ | un webhook **muet** rend la main dans le délai déclaré par le produit | sinon l'attente est celle de l'OS (~2 min) |
+| ⑥ | les 8 bords du transport, **suffixes compris** | `gate:links` ne connaît que les liens du rendu |
+| ⑦ | variable absente **ou vide** ⇒ message actionnable, module **importable** | c'est ce qui tient `next build` sans secret, donc la CI |
+| ⑧ | la date porte l'**offset réel de Paris**, et un `Z` est **refusé** avant le réseau | un `Z` ferait composer à n8n une annonce **fausse de deux heures** |
+| ⑨ | **un seul** fichier de `src/` connaît `N8N_WEBHOOK_URL` (AR-API2) | ⚠️ lecture de source, déclarée |
+| ⑩ | `requireAdmin()` en tête de chaque export ; l'action refuse elle-même un événement non publié | ⚠️ lecture de source, déclarée |
+| ⑪ | **ABSENCE** : aucune colonne de « texte d'annonce » sur `event` | la composition vit dans n8n, pas en base |
+| ⑫ | le workflow **versionné** n'a aucun nœud social, **aucun nœud désactivé**, aucun secret, et répond via `responseNode` | un nœud désactivé *ressemble* à une livraison — la forme que prend **R32** |
+
+### Un défaut d'instrument évité par la mesure, pas par la relecture
+
+La garde ⑫ a d'abord été écrite comme une recherche de la chaîne `discord` dans le fichier du
+workflow. Elle tombait — sur le **commentaire qui déclare l'absence de ces nœuds**. C'est le
+défaut trouvé en revue de la 6.11 **puis** de la 6.13 (*« la porte accuse le texte qui porte la
+règle qu'elle garde »*), rencontré une troisième fois. Le témoin juste est le **type des
+nœuds**, jamais le texte du fichier.
+
+### Ce que l'auto-validation NE prouve pas
+
+Dix-sept gardes n'ont aucun cas d'échec fabriqué, et la porte les **nomme en sortie**. Trois
+familles : celles dont le cas d'échec *est déjà* un échec fabriqué (500, silence, variable
+absente) — l'inverser reviendrait à valider le banc de mesure ; celles qui constatent une
+**présence**, dont l'inverse est le cas nominal d'une autre garde du même bloc ; celles qui
+lisent le workflow **versionné**, dont le faux cas demanderait un second fichier que personne
+n'importe.
+
+### 🔴 Et surtout : ce qu'elle ne mesure pas du tout
+
+Elle s'arrête à **l'octet émis**. Qu'une annonce **paraisse** sur un réseau social n'est ni
+mesuré ni livré — c'est le périmètre A1 arbitré par Brice, et la dette **R42**. Elle n'appelle
+**jamais** le vrai webhook : une porte qui publierait pour se tester enverrait de vraies annonces
+à chaque exécution. Le vrai appel est le **verify d'entrée**, fait à la main une fois, consigné
+dans la story.
