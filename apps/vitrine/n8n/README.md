@@ -15,7 +15,21 @@ fichier JSON** qui n'a qu'un consommateur, `apps/vitrine/src/server/integrations
 deuxième projet du monorepo aura un workflow n8n, ce dossier devra devenir ce paquet — pas avant.
 C'est la doctrine « extraction au 2ᵉ consommateur » du projet, appliquée à un dossier.
 
-## 🔴 L'état réel, au 2026-08-07 — **AUCUNE instance n8n n'est encore la cible**
+## ✅ L'état réel, au soir du 2026-08-07 — **le n8n d'EDS EST INSTALLÉ (Story 7.1)**
+
+| | |
+|---|---|
+| Instance | **`n8n.esportdessacres.fr`** — VPS de l'asso, image épinglée `n8nio/n8n:2.33.7`, UI derrière basic auth Traefik + login n8n, webhooks sur routeur dédié sans basic auth |
+| Workflow | id `n6r0B6reFnRGizKa`, **ACTIF**, importé depuis ce dossier puis re-vérifié |
+| Credential | « `x-eds-webhook-token` » (id `kQBTHL7BquUaPh2q`), créé à l'installation, jeton **neuf** |
+| Verify d'entrée | ✅ **PAYÉ le 2026-08-07** (ex-AC12) : clic réel depuis le back-office → exécution n8n n°7 observée, corps reçu complet, `debut` avec offset `+02:00`, `social_posted_at` horodaté en base |
+| ⚠️ Ignore Bots | **DÉCOCHÉ, et c'est une décision mesurée** — voir le piège ② ci-dessous |
+
+⚠️ **Il ne PUBLIE toujours rien** : aucun nœud social (volets ③④ de R42 → Story 7.6).
+
+*(L'état antérieur, conservé pour l'historique du cadrage : )*
+
+## 🔴 L'état au matin du 2026-08-07 — AUCUNE instance n8n n'était encore la cible
 
 **Décision de Brice du 2026-08-07 : l'association aura SON PROPRE n8n.** L'instance CapAI
 (`n8n.srv1286894.hstgr.cloud`, partagée entre ~12 projets clients) **n'est pas la destination**,
@@ -80,12 +94,31 @@ Un workflow désactivé rend donc **404** sur l'URL de production. Côté site, 
 « le service de publication a refusé l'annonce » — un symptôme qui ressemble à une panne alors
 que c'est un **interrupteur**.
 
-### ② 🔴 LE CREDENTIAL N'A PAS PU ÊTRE RENSEIGNÉ PAR L'API — **à RE-MESURER sur l'instance d'EDS**
+### ② 🔴 « Authorization data is wrong! » — LA CAUSE EST ÉTABLIE, ET CE N'ÉTAIT PAS LE CREDENTIAL
 
-> ⚠️ **Ce qui suit a été mesuré sur l'instance CapAI, qui n'est plus la cible.** Ce n'est donc
-> plus un blocage : c'est un **piège à re-mesurer** au moment d'installer le n8n d'EDS. Il peut
-> très bien ne pas se reproduire sur une instance qu'on contrôle — la cause exacte n'a jamais été
-> établie, seulement le symptôme. **Le re-mesurer, ne pas le supposer résolu.**
+> ✅ **RE-MESURÉ ET RÉSOLU le 2026-08-07 sur l'instance d'EDS (Story 7.1). La cause réelle :
+> l'option `Ignore Bots` du nœud Webhook.** Elle rejette en `403 « Authorization data is
+> wrong! »` — **avant même de regarder le credential** — tout User-Agent que `isbot` classe
+> robot : `curl`, `python-urllib`… **et `node`, l'UA du `fetch` de la vitrine elle-même.**
+> Le message est LE MÊME que pour un mauvais jeton : le témoin ne distingue pas les deux causes.
+>
+> **L'instruction qui l'a coincée** (chaque hypothèse réfutée par une mesure) : champs du
+> credential prouvés exacts (export CLI déchiffré) → en-tête prouvé intact jusqu'à n8n
+> (workflow-écho) → credential prouvé résolu au runtime (montage HTTP Request → écho) →
+> versions 2.20.9 **et** 2.33.7 identiques → **lecture du source** : le `throw` d'Ignore Bots
+> précède `validateAuth`. Sonde en UA navigateur → **200**.
+>
+> ⇒ **Conséquences.** ① L'épisode CapAI (ex-R43) se requalifie : les **cinq** variantes
+> d'écriture par l'API étaient sondées en `curl` — **l'écriture de credentials par l'API
+> fonctionne** (prouvé sur EDS : créé, rattaché, déchiffré, utilisé). ② `Ignore Bots` est
+> **DÉCOCHÉ** sur ce webhook, et ce n'est pas un affaiblissement : l'authentification est
+> portée par le **jeton**, qu'aucun crawler n'a ; l'option n'ajoutait qu'un mode d'échec
+> silencieux qui a coûté des heures sur **deux** instances — et elle aurait rejeté le
+> **premier clic réel** d'un bénévole. ③ Un credential se crée indifféremment par l'interface
+> ou par l'API ; seule règle conservée : **éprouver par un appel réel** après création.
+>
+> *(Mesure d'origine sur CapAI, conservée pour l'historique — relue aujourd'hui, elle était
+> déjà compatible avec la vraie cause : )*
 
 **Mesuré le 2026-08-07**, et c'est la variante « credentials » du piège `webhook-n8n.md` :
 
@@ -118,7 +151,10 @@ d'entrée). L'import n8n **drope des paramètres en silence** — c'est le mode 
 dominant de ce stack, vu dans **six projets CapAI**. La liste de ce qu'il faut retrouver :
 
 - **Webhook** : `POST`, chemin `eds-publication-evenement`, *Authentication* = **Header Auth**
-  (credential rattaché), *Respond* = **Using 'Respond to Webhook' Node**, option *Ignore Bots*.
+  (credential rattaché), *Respond* = **Using 'Respond to Webhook' Node**, et 🔴 **option
+  *Ignore Bots* DÉCOCHÉE** — décision **mesurée** de la Story 7.1 : cochée, elle rejette l'UA
+  `node` du `fetch` de la vitrine en `403` identique à un mauvais jeton (piège ② ci-dessus).
+  La re-cocher casserait l'appelant réel **en silence**.
   🔴 **`Respond immediately` serait un défaut, pas une simplification** : le site recevrait `200`
   pour n'importe quel corps, y compris vide, et son verdict « annonce partie » deviendrait un
   **faux succès** (`00 référence/pieges/faux-succes.md`).

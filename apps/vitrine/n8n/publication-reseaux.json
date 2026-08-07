@@ -7,9 +7,7 @@
         "path": "eds-publication-evenement",
         "authentication": "headerAuth",
         "responseMode": "responseNode",
-        "options": {
-          "ignoreBots": true
-        }
+        "options": {}
       },
       "id": "webhook-eds",
       "name": "Webhook — annonce evenement",
@@ -22,11 +20,11 @@
       "webhookId": "fe1ac9f7-c10e-4b0c-8ef4-dee54bbcfdf5",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "bYP83ma8hQG80vU5",
-          "name": "[14 Sacres] Webhook publication reseaux"
+          "id": "kQBTHL7BquUaPh2q",
+          "name": "x-eds-webhook-token"
         }
       },
-      "notes": "Recoit le POST de apps/vitrine/src/server/integrations/n8n.ts (Story 6.7). Reponse via 'Respond to Webhook' et NON 'immediately' : un 200 rendu avant validation ne prouverait rien (pieges/faux-succes.md)."
+      "notes": "Recoit le POST de apps/vitrine/src/server/integrations/n8n.ts (Story 6.7). Reponse via 'Respond to Webhook' et NON 'immediately' : un 200 rendu avant validation ne prouverait rien (pieges/faux-succes.md). IGNORE BOTS VOLONTAIREMENT ABSENT (mesure Story 7.1) : l'option rejetait le User-Agent 'node' du fetch de la vitrine en 403 'Authorization data is wrong!' — indistinguable d'un mauvais jeton. L'authentification est portee par le jeton, pas par le filtrage d'UA (voir README)."
     },
     {
       "parameters": {
