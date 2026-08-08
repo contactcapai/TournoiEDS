@@ -601,6 +601,34 @@ echo | openssl s_client -connect staging.esportdessacres.fr:443 \
   -servername staging.esportdessacres.fr 2>/dev/null | openssl x509 -noout -issuer -dates
 ```
 
+### Étape 5 bis — 🔴 Droits du volume des médias (sur un volume créé À LA MAIN)
+
+> **Défaut mesuré le 2026-08-08 (Story 7.4), au premier téléversement réel :**
+> `EACCES: permission denied` sur `/repo/apps/vitrine/medias`. Cause en deux couches —
+> ① le répertoire n'existait pas dans l'image, donc **Docker créait le point de montage en
+> `root:root`** ; ② le processus tourne en `nextjs` (**uid 1001**).
+>
+> ✅ **Corrigé durablement dans le Dockerfile** (le répertoire y est créé avec le bon
+> propriétaire) : tout volume **neuf** est utilisable d'emblée, y compris à la bascule de
+> production. ⚠️ **Mais un volume DÉJÀ créé n'est jamais ré-initialisé par Docker** — c'est le
+> cas de `docker_eds-medias`, posé à la main le 2026-07-29 pour débloquer `backup-medias.sh`.
+> Il se corrige **une fois** :
+
+```bash
+# Corriger le proprietaire du volume existant (deploy est dans le groupe docker, pas de sudo)
+docker run --rm -v docker_eds-medias:/v alpine:3 chown -R 1001:1001 /v
+
+# 🔴 PREUVE — ecrire EN TANT QUE uid 1001, jamais en root : un `touch` en root reussirait
+# toujours et ne prouverait RIEN (pieges/faux-succes.md, le bon temoin).
+docker exec -u 1001 eds-vitrine sh -c \
+  'touch /repo/apps/vitrine/medias/.essai && rm /repo/apps/vitrine/medias/.essai && echo OK'
+```
+
+⚠️ **Rien ne signale ce défaut avant un téléversement réel** : ni le build, ni le healthcheck,
+ni aucune porte outillée — le conteneur est `healthy` et le site public parfait. Même famille
+que la dette **R21**. C'est la raison pour laquelle l'AC5 de la Story 7.4 exige un **upload
+réel**, et non la simple existence du volume.
+
 ### Étape 6 — Non-régression des services déjà en ligne
 
 > Cette étape REMPLACE l'ancienne « bascule Let's Encrypt prod », devenue sans objet

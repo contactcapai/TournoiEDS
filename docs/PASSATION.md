@@ -265,11 +265,35 @@ est un incident **visible** ; ouvert, il est **silencieux**.
 
 1. Récupérer son identifiant : Discord → Paramètres → Avancé → **Mode développeur**, puis clic
    droit sur le profil → « Copier l'identifiant » (un nombre de 17 à 20 chiffres).
-2. L'ajouter (ou le retirer) dans `AUTH_ADMIN_DISCORD_IDS`, séparé par une virgule.
-3. Redémarrer le conteneur de la vitrine.
+2. L'ajouter (ou le retirer) dans `AUTH_ADMIN_DISCORD_IDS`, séparé par une **virgule**, sans
+   guillemets. Le fichier est `apps/vitrine/.env.prod` sur le serveur (`.env.local` en local).
+3. 🔴 **`docker compose up -d vitrine` — SURTOUT PAS `docker compose restart`.**
+
+```bash
+cd /opt/tournoi-tft
+nano apps/vitrine/.env.prod          # AUTH_ADMIN_DISCORD_IDS=1111...,2222...
+cd docker && docker compose up -d vitrine
+```
+
+> 🔴 **`restart` NE RELIT PAS `env_file` — mesuré le 2026-08-08 (Story 7.4).** Une variable
+> ajoutée puis suivie d'un `restart` reste **absente** du conteneur ; seul `up -d` le recrée
+> avec le nouvel environnement. Cette section disait « redémarrer le conteneur » : la consigne
+> était **fausse**, et son symptôme est le pire possible — la personne ajoutée ne peut toujours
+> pas entrer, exactement comme si l'identifiant était mauvais.
+> *(Preuve : variable témoin ajoutée au fichier ⇒ absente après `restart`, présente après
+> `up -d`. Témoin retiré ensuite.)*
+
+4. La personne se connecte : sa ligne en base est créée **à cet instant**, jamais avant — la
+   garde `signIn` refuse **avant** toute écriture (Story 6.1).
 
 ⚠️ **Jamais un pseudo, jamais une adresse e-mail** : les deux se changent en un clic depuis
-Discord, l'identifiant non.
+Discord, l'identifiant non. Un identifiant mal formé (espace au lieu d'une virgule, guillemets
+copiés-collés) **échoue fermé** — c'est correct, mais le symptôme ressemble à une allowlist
+vide : le journal du conteneur le dit explicitement (`[auth] AUTH_ADMIN_DISCORD_IDS contient …`).
+
+⚠️ **Il n'y a qu'UN seul rôle** (R39, arbitrée à la rétro Epic 6) : toute personne de la liste a
+**tous** les droits — créer, modifier, supprimer, publier, et déclencher l'annonce réseaux. Il
+n'existe pas de lecteur ni de contributeur restreint.
 
 ✅ **Le retrait prend effet à la requête suivante**, même si la personne a une session ouverte —
 mesuré. Pas besoin d'attendre une expiration ni de vider une table.

@@ -79,6 +79,27 @@ COPY --from=builder --chown=nextjs:nodejs /repo/apps/vitrine/public             
 # de servir des pages sur un schema faux. Un incident VISIBLE vaut mieux qu'un site en
 # ligne sur une base sans tables.
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Point de montage des MEDIAS — cree ICI, et c'est une CORRECTION DE DEFAUT REEL
+# ──────────────────────────────────────────────────────────────────────────────
+# 🔴 Defaut MESURE le 2026-08-08 sur le staging (Story 7.4) : le premier televersement
+# reel a echoue en `EACCES: permission denied` sur /repo/apps/vitrine/medias.
+# Cause en DEUX couches :
+#   ① ce repertoire n'existait PAS dans l'image -> Docker cree lui-meme le point de
+#      montage, et il le cree en root:root ;
+#   ② le processus tourne en `nextjs` (uid 1001) -> aucun droit d'ecriture.
+# Docker n'initialise un volume nomme depuis l'image (contenu ET proprietaire) que si
+# le chemin EXISTE dans l'image. En le creant ici avec le bon proprietaire, tout volume
+# NEUF est utilisable d'emblee — c'est ce qui evitera de repayer ce defaut a la bascule
+# de production (Story 7.5) ou sur un serveur reconstruit.
+# ⚠️ Un volume DEJA cree reste inchange : il se corrige une fois a la main
+#    (`docker run --rm -v docker_eds-medias:/v alpine chown -R 1001:1001 /v`),
+#    procedure dans le README.
+# ⚠️ Le mode de defaillance etait le pire possible : rien ne le signale avant qu'un
+# benevole ne televerse pour de vrai — ni le build, ni le healthcheck, ni les portes.
+# Meme famille que la dette R21.
+RUN mkdir -p /repo/apps/vitrine/medias && chown -R nextjs:nodejs /repo/apps/vitrine/medias
+
 USER nextjs
 EXPOSE 3000
 CMD ["node", "apps/vitrine/server.js"]
