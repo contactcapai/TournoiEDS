@@ -6,7 +6,7 @@
 //
 // Chemin de Chrome : surchargeable par la variable d'environnement CHROME_PATH.
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -28,7 +28,53 @@ if (!CHROME) {
   );
 }
 
+/**
+ * Supprime les profils ORPHELINS laissés par les exécutions précédentes.
+ *
+ * 🔴 POURQUOI AU LANCEMENT, ALORS QUE `close()` NETTOIE DÉJÀ : parce que le ménage
+ * de `close()` échoue SYSTÉMATIQUEMENT sur Windows, et qu'on ne s'en apercevait
+ * pas — l'erreur y est avalée. `proc.kill()` ne tue que le `chrome.exe` parent ;
+ * ses processus enfants gardent le dossier verrouillé quelques secondes de plus,
+ * donc le `rmSync` immédiat tombe à tous les coups.
+ *
+ * Le repli écrit jusqu'au 2026-08-08 — « il sera purgé avec le dossier temporaire
+ * du système » — était **FAUX** : Windows ne vide jamais `%TEMP%` de lui-même tant
+ * que Storage Sense est désactivé, ce qui est le réglage par défaut. Constat mesuré
+ * le 2026-08-08 sur la machine de dev : **543 profils, 25,2 Go**, dont des résidus
+ * d'octobre 2025. Un nettoyage supposé fait mais jamais observé — `pieges/faux-succes.md`
+ * appliqué à notre propre outillage.
+ *
+ * Au LANCEMENT, en revanche, plus personne ne tient les profils des exécutions
+ * passées : c'est le seul instant où la suppression peut réussir.
+ *
+ * ⚠️ Seuil à 24 h, et il est une GARDE, pas une commodité : plusieurs portes peuvent
+ * tourner en parallèle, et un profil en cours d'usage est forcément plus récent que
+ * ça. Ne pas le baisser — supprimer les fichiers d'un Chrome vivant ferait échouer
+ * une porte pour une raison qui n'a rien à voir avec ce qu'elle mesure.
+ */
+function purgerProfilsOrphelins() {
+  const limite = Date.now() - 24 * 60 * 60 * 1000;
+  try {
+    for (const nom of readdirSync(tmpdir())) {
+      if (!nom.startsWith("eds-")) continue;
+      const chemin = join(tmpdir(), nom);
+      try {
+        if (statSync(chemin).mtimeMs < limite) {
+          rmSync(chemin, { recursive: true, force: true });
+        }
+      } catch {
+        // Profil encore verrouillé, ou disparu entre le listing et le stat :
+        // la prochaine exécution repassera dessus. Le ménage est best-effort —
+        // il ne doit JAMAIS empêcher la porte de mesurer.
+      }
+    }
+  } catch {
+    // Dossier temporaire illisible : idem, la mission de ce module est de mesurer.
+  }
+}
+
 export async function launchChrome(port = 9222) {
+  purgerProfilsOrphelins();
   const profile = mkdtempSync(join(tmpdir(), "eds-cdp-"));
   const proc = spawn(
     CHROME,
@@ -290,8 +336,12 @@ export async function launchChrome(port = 9222) {
       try {
         rmSync(profile, { recursive: true, force: true });
       } catch {
-        // profil verrouillé par Windows le temps que Chrome rende la main :
-        // il sera purgé avec le dossier temporaire du système
+        // 🔴 Sur Windows, cet échec est la RÈGLE et non l'exception : `proc.kill()`
+        // ne tue que le `chrome.exe` parent, dont les enfants tiennent encore le
+        // dossier. Le rattrapage est `purgerProfilsOrphelins()` au lancement
+        // SUIVANT — surtout PAS « le dossier temporaire du système », qui ne se
+        // vide jamais tout seul (ce que ce commentaire affirmait à tort jusqu'au
+        // 2026-08-08, au prix de 25,2 Go de profils accumulés).
       }
     },
   };
