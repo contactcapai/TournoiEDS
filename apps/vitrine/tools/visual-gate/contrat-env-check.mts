@@ -161,6 +161,20 @@ function variablesImplicitesAuth(fichiers: { chemin: string; source: string }[])
     origine: "implicite Auth.js (signature des sessions)",
   });
 
+  // 🔴 AJOUTÉE LE 2026-08-08 SUR UN DÉFAUT MESURÉ EN STAGING (Story 7.4, AC5).
+  // Sans `AUTH_URL`, Auth.js derrière un reverse proxy construit son `redirect_uri` avec
+  // l'adresse d'ÉCOUTE du conteneur (`https://0.0.0.0:3000`) : Discord répond
+  // `invalid_redirect_uri` et **personne ne peut se connecter au back-office**.
+  // ⚠️ `trustHost: true` ne couvre PAS ce cas : il autorise l'inférence, il ne la rend pas
+  // juste. Le défaut est donc invisible en local (où l'inférence tombe juste) et n'apparaît
+  // qu'en déploiement — exactement la famille de R32, et exactement ce qu'une porte doit
+  // empêcher de revenir.
+  constats.push({
+    variable: "AUTH_URL",
+    fichiers: porteurs.map((f) => path.relative(RACINE_APP, f.chemin)),
+    origine: "implicite Auth.js (origine publique derrière proxy)",
+  });
+
   for (const f of fichiers) {
     for (const m of f.source.matchAll(/from\s+["']next-auth\/providers\/([a-z0-9-]+)["']/g)) {
       const provider = m[1].toUpperCase().replace(/-/g, "_");
@@ -303,8 +317,11 @@ function autotest(): number {
 
   // ③ Les implicites d'Auth.js, DÉRIVÉES et non énumérées.
   verifier(
-    "③ les implicites Auth.js sont dérivées — AUTH_SECRET + AUTH_DISCORD_ID/_SECRET",
-    noms.has("AUTH_SECRET") && noms.has("AUTH_DISCORD_ID") && noms.has("AUTH_DISCORD_SECRET"),
+    "③ les implicites Auth.js sont dérivées — AUTH_SECRET + AUTH_URL + AUTH_DISCORD_ID/_SECRET",
+    noms.has("AUTH_SECRET") &&
+      noms.has("AUTH_URL") &&
+      noms.has("AUTH_DISCORD_ID") &&
+      noms.has("AUTH_DISCORD_SECRET"),
   );
 
   // ④ Le périmètre ne déborde pas sur l'outillage (cardinal du prédicat, parade n°3).
