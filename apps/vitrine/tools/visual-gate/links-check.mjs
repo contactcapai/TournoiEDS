@@ -100,6 +100,26 @@ const COLLECTE = `(() => {
   return { ancres, inertes };
 })()`;
 
+// 🔴 SONDE D'ENTRÉE — AJOUTÉE À LA RÉTRO EPIC 6, ET ELLE VIENT D'UN DÉFAUT VÉCU.
+// Sans elle, un serveur absent (ou lancé sur le MAUVAIS PORT) fait charger à Chrome sa
+// propre page d'erreur : elle ne défile pas et n'a pas de menu — la porte rendait alors
+// **35 gardes en échec** réparties sur les 5 pages, c'est-à-dire qu'elle ACCUSAIT LE
+// PRODUIT pour une erreur d'environnement. Mesuré le 2026-08-08, en tentant de prouver
+// le correctif R40 : serveur lancé sur 3000 alors que les portes attendent 4310.
+// `gate.mjs` avait déjà cette sonde (l.48-53) et disait franchement « rien ne répond » ;
+// cette porte-ci ne l'avait pas. C'est la 11ᵉ occurrence de
+// `00 référence/pieges/instrument-non-valide.md` sur ce projet — et la 1ʳᵉ où l'instrument
+// mal branché l'a été par le dev lui-même, pendant la rétro qui promeut cette leçon.
+// ⚠️ Le témoin est `sonde.ok` et NON « le port répond » : un port ouvert ne prouve pas
+// que la bonne application sert (`pieges/faux-succes.md`, corollaire du bon témoin).
+const sonde = await fetch(BASE + PAGES[0]).catch(() => null);
+if (!sonde?.ok) {
+  console.error(`\n❌ Rien ne répond correctement sur ${BASE}${PAGES[0]}.`);
+  console.error("   Lancer d'abord : pnpm --filter vitrine build && pnpm --filter vitrine start");
+  console.error(`   ⚠️ Le port attendu est celui de config.mjs (${BASE}) — pas 3000.\n`);
+  process.exit(2);
+}
+
 const chrome = await launchChrome(9358);
 
 try {
@@ -306,13 +326,36 @@ try {
         // d'instrument, 9ᵉ occurrence sur ce projet (`pieges/instrument-non-valide.md`).
         // ⚠️ On relit l'état AVANT chaque clic : Next rejoue les événements discrets
         // captés avant hydratation, donc un 2ᵉ clic aveugle REFERMERAIT le panneau.
+        //
+        // 🔴 CORRECTIF R40 (rétro Epic 6) — LA BOUCLE CI-DESSOUS ÉTAIT ELLE-MÊME LA CAUSE
+        // DU *FLAKY*, et son propre commentaire le disait sans qu'on l'entende.
+        // Mesuré en revue de la 6.11 : 1ʳᵉ exécution ROUGE (« le panneau ne s'ouvre pas »
+        // sur 2 pages), vertes ensuite, à exemptions identiques. La version précédente
+        // cliquait en boucle AVANT hydratation ; relire `aria-expanded` entre deux clics
+        // ne protège de rien, puisque les clics en attente ne sont pas encore appliqués.
+        // Next les REJOUE tous à l'hydratation ⇒ c'est la PARITÉ du nombre de clics
+        // aveugles qui décidait de l'état final. Un nombre pair = panneau refermé = porte
+        // rouge sur un site sain — 10ᵉ instrument qui accuse le produit sur ce projet.
+        // ⇒ On attend d'abord un TÉMOIN D'HYDRATATION, puis on clique UNE SEULE fois.
+        // Le témoin : React 19 attache ses clés internes (`__reactFiber$…`/`__reactProps$…`)
+        // au nœud au moment où il l'hydrate — leur présence prouve que le bouton RÉPOND.
+        // ⚠️ C'est un détail d'implémentation de React, assumé et déclaré : il est le seul
+        // témoin observable depuis le DOM, et une montée de React majeure doit le
+        // re-vérifier (sans quoi la porte redeviendrait rouge sur un site sain).
         const ouvert = await chrome.eval(`(async () => {
           const b = document.querySelector('[aria-controls="mobile-menu"]');
           if (!b) return false;
+          const hydrate = () => Object.keys(b).some(
+            (k) => k.startsWith("__reactFiber$") || k.startsWith("__reactProps$"),
+          );
+          for (let i = 0; i < 60 && !hydrate(); i++) {
+            await new Promise(r => setTimeout(r, 50));
+          }
+          if (!hydrate()) return false;
+          if (b.getAttribute("aria-expanded") !== "true") b.click();
           for (let i = 0; i < 20; i++) {
             if (b.getAttribute("aria-expanded") === "true") return true;
-            b.click();
-            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => setTimeout(r, 50));
           }
           return b.getAttribute("aria-expanded") === "true";
         })()`, true);
