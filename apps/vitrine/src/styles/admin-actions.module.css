@@ -63,6 +63,23 @@
   color: var(--gold);
 }
 
+/* Trace « annoncé sur les réseaux le … » (Story 6.7).
+
+   🔴 EN `--grey` ET NON EN `--gold`, ALORS QU'ELLE PARTAGE SA LIGNE AVEC `.erreur`. Ce n'est
+   pas une alerte : c'est un FAIT ACQUIS, qui restera affiché pour toujours sur cette ligne.
+   La lui donner la couleur d'accent la ferait lire comme un avertissement permanent, et
+   userait l'accent exactement là où `.erreur` en a besoin.
+
+   `flex-basis: 100%` : elle passe à la ligne sous les boutons plutôt que de les comprimer —
+   `.bloc` est un `flex-wrap`, et une phrase datée insérée entre deux boutons rétrécirait les
+   cibles tactiles en dessous des 44px que le reste de ce fichier tient. */
+.trace {
+  flex-basis: 100%;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bascule,
   .basculePubliee {

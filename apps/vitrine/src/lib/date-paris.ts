@@ -247,6 +247,46 @@ export function formatTime(instant: Date): string {
   return `${hour}h${pad2(minute)}`;
 }
 
+/**
+ * L'instant en **ISO 8601 portant l'offset RÉEL de Paris** : `"2026-08-13T19:00:00+02:00"`.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 C'EST LA SEULE FORME QUI PART VERS UN SERVICE TIERS (Story 6.7, webhook n8n)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Le geste réflexe est `instant.toISOString()`. Il rend `"2026-08-13T17:00:00.000Z"`, qui
+ * désigne le **même instant** et n'est donc pas *faux* — mais qui a perdu la seule
+ * information dont le destinataire a besoin : **l'heure que les gens liront sur l'affiche**.
+ * Un workflow n8n qui compose « rendez-vous à 17h00 » à partir d'un `Z` publierait une
+ * annonce fausse de deux heures, sur un réseau social, sans qu'aucune porte de ce dépôt ne
+ * puisse le voir. C'est la moitié SORTANTE du piège bidirectionnel décrit juste en dessous.
+ *
+ * ⚠️ **ET LE PIÈGE EST INVERSÉ CHEZ LE DESTINATAIRE.** `00 référence/pieges/webhook-n8n.md`
+ * documente le cas symétrique, payé sur *13 Leguillette* : un `z.string().datetime()` côté
+ * n8n **REJETTE** un offset ISO et n'accepte que le `Z`. Les deux erreurs ont la même cause
+ * — croire qu'« ISO » désigne une seule forme. Ici la règle du site est écrite, exportée et
+ * **gardée** (`publicationPayloadSchema` refuse un `Z`), pour qu'elle ne se renégocie pas
+ * silencieusement au premier réglage de nœud.
+ *
+ * 🔴 L'offset n'est **jamais écrit en dur** : `+02:00` est faux la moitié de l'année (voir
+ * la règle de tête de ce fichier). Il est relu auprès d'`Intl` **pour cet instant-là**, par
+ * la même fonction que celle qui sert à `parisWallClock`.
+ *
+ * Secondes toujours à `00` : la saisie n'a pas de secondes (`datetime-local`, Story 6.3), et
+ * en produire ferait croire à une précision que la donnée n'a pas.
+ */
+export function toParisIso(instant: Date): string {
+  const { year, month, day, hour, minute } = parisParts(instant);
+  const offsetMinutes = parisOffsetMs(instant) / 60_000;
+  const signe = offsetMinutes < 0 ? "-" : "+";
+  const absolu = Math.abs(offsetMinutes);
+
+  return (
+    `${year}-${pad2(month)}-${pad2(day)}T${pad2(hour)}:${pad2(minute)}:00` +
+    `${signe}${pad2(Math.floor(absolu / 60))}:${pad2(absolu % 60)}`
+  );
+}
+
 /* ───────────────────────────────────────────────────────────────────────────────
    SAISIE — PONT ENTRE `<input type="datetime-local">` ET L'INSTANT (Story 6.3)
 

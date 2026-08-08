@@ -70,6 +70,16 @@
   color: var(--gold);
 }
 
+/* ⚠️ `disabled` ne dure QUE l'aller-retour de l'action confirmée (Story 6.7) — jamais pour
+   signifier « impossible » : une commande indisponible n'est pas rendue du tout (doctrine
+   `_sections.ts`). Même patron visuel que `.deplacer:disabled` (`admin-actions.module.css`),
+   pour que l'attente se lise pareil partout dans le back-office. */
+.confirmer:disabled,
+.annuler:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .declencheur,
   .confirmer,

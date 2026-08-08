@@ -5,7 +5,12 @@ import { useState } from "react";
 import styles from "./BoutonConfirmation.module.css";
 
 /**
- * Bouton d'action destructrice, à confirmation EN DEUX TEMPS (Story 6.3).
+ * Bouton d'action **sans marche arrière**, à confirmation EN DEUX TEMPS (Story 6.3).
+ *
+ * ⚠️ *Disait « action destructrice » jusqu'à la Story 6.7.* Corrigé : « Annoncer sur les
+ * réseaux » ne détruit rien, et pourtant elle est **la moins réversible de tout le projet** —
+ * son effet part hors du site, sur des comptes que ce back-office ne sait pas dépublier. Le
+ * critère qui justifie ce composant n'a jamais été la destruction, c'est l'**irréversibilité**.
  *
  * 🔴 PAS DE `window.confirm`, ET CE N'EST PAS UN CAPRICE ESTHÉTIQUE. La boîte native n'est
  * ni stylable, ni traduisible, ni cohérente avec le reste du site — et surtout elle ne peut
@@ -22,8 +27,25 @@ import styles from "./BoutonConfirmation.module.css";
 export interface BoutonConfirmationProps {
   libelle: string;
   question: string;
-  /** Ce que la suppression fait VRAIMENT — y compris ce qu'elle ne détruit pas. */
+  /** Ce que l'action fait VRAIMENT — y compris ce qu'elle ne détruit pas. */
   precision?: string;
+  /**
+   * Libellé du bouton qui VALIDE, et libellé pendant l'aller-retour (Story 6.7).
+   *
+   * 🔴 **OPTIONNELS, À DÉFAUT STRICTEMENT INCHANGÉ** — « Oui, supprimer » / « Suppression… ».
+   * Les **neuf** sites d'appel antérieurs rendent donc exactement le même texte qu'avant ; la
+   * doctrine 2.7 (« on ne change pas le comportement d'une story mergée depuis une autre ») est
+   * tenue, parce qu'ajouter une option à défaut identique n'est pas un changement de
+   * comportement. Le compte de neuf est **relevé**, pas supposé (leçon R9 : *« la leçon n'est
+   * pas ne jamais dupliquer, c'est toujours COMPTER »*).
+   *
+   * ⚠️ **Et sans eux ce composant serait un défaut** : « Annoncer sur les réseaux » aurait
+   * demandé de confirmer par un bouton disant **« Oui, supprimer »**. Un libellé de validation
+   * qui nomme la mauvaise action sur un geste irréversible est pire qu'une absence de
+   * confirmation — il fait hésiter au moment exact où la personne relit.
+   */
+  libelleConfirmation?: string;
+  libelleEnCours?: string;
   /** Rend le résultat discriminé de la Server Action, dont l'erreur est affichée ici. */
   onConfirmer: () => Promise<{ ok: boolean; error?: string }>;
 }
@@ -32,6 +54,8 @@ export function BoutonConfirmation({
   libelle,
   question,
   precision,
+  libelleConfirmation = "Oui, supprimer",
+  libelleEnCours = "Suppression…",
   onConfirmer,
 }: BoutonConfirmationProps) {
   const [demandeConfirmation, setDemandeConfirmation] = useState(false);
@@ -71,6 +95,12 @@ export function BoutonConfirmation({
         <button
           type="button"
           className={styles.confirmer}
+          /* 🔴 DÉSACTIVÉ PENDANT L'ENVOI — et ce n'est PAS le patron « bouton jamais disabled »
+             du formulaire public (AC5 de la 5.1). Là-bas on refuse de bloquer une SAISIE ; ici
+             le clic déclenche un EFFET EXTERNE non annulable, et l'attente peut durer jusqu'à
+             15 s (délai de `n8n.ts`). Sans ce garde-fou, un second clic pendant « Envoi… »
+             part en second POST réel : deux annonces pour une seule décision. */
+          disabled={enCours}
           onClick={async () => {
             setEnCours(true);
             setErreur(null);
@@ -78,10 +108,16 @@ export function BoutonConfirmation({
               const resultat = await onConfirmer();
               if (!resultat.ok) {
                 setErreur(resultat.error ?? "L'opération a échoué.");
-                setDemandeConfirmation(false);
               }
-              // En cas de succès, la page se recharge (`router.refresh()` côté appelant) :
-              // ce composant disparaît avec la ligne qu'il servait.
+              /* 🔴 ON REFERME DANS TOUS LES CAS, succès compris.
+                 Ce commentaire disait : « en cas de succès, la page se recharge, ce composant
+                 disparaît avec la ligne qu'il servait ». C'était vrai des NEUF premiers
+                 consommateurs — tous des suppressions. Le dixième (« Annoncer sur les
+                 réseaux », Story 6.7) laisse la ligne EN PLACE : seule une colonne change.
+                 Le panneau restait donc ouvert après un envoi réussi, bouton actif, à côté de
+                 la trace « Annoncé le… » — un dialogue de confirmation qui survit à sa propre
+                 réponse. Trouvé en revue 6.7, et visible sur la capture du gate visuel. */
+              setDemandeConfirmation(false);
             } catch {
               setErreur("Une erreur réseau est survenue, merci de réessayer.");
               setDemandeConfirmation(false);
@@ -90,11 +126,12 @@ export function BoutonConfirmation({
             }
           }}
         >
-          {enCours ? "Suppression…" : "Oui, supprimer"}
+          {enCours ? libelleEnCours : libelleConfirmation}
         </button>
         <button
           type="button"
           className={styles.annuler}
+          disabled={enCours}
           onClick={() => setDemandeConfirmation(false)}
         >
           Annuler

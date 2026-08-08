@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
+import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { definirPublicationEvenement, supprimerEvenement } from "@/server/actions/agenda";
+import { annoncerSurLesReseaux } from "@/server/actions/reseaux";
 import styles from "@/styles/admin-actions.module.css";
 
 /**
@@ -22,12 +24,36 @@ export interface EventActionsProps {
   id: string;
   isPublished: boolean;
   titre: string;
+  /** Quand l'événement a été annoncé sur les réseaux (Story 6.7). `null` = jamais. */
+  socialPostedAt: Date | null;
 }
 
-export function EventActions({ id, isPublished, titre }: EventActionsProps) {
+export function EventActions({ id, isPublished, titre, socialPostedAt }: EventActionsProps) {
   const router = useRouter();
   const [enTransition, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
+
+  /**
+   * L'annonce faite pendant CETTE session prime sur celle venue du serveur.
+   *
+   * ⚠️ Sans cet état local, la ligne continuerait d'afficher « jamais annoncé » jusqu'au
+   * `router.refresh()`, c'est-à-dire à l'instant précis où le bénévole se demande si son
+   * geste a porté — et où le seul recours visible serait de recliquer, donc de publier deux
+   * fois. C'est la raison d'être de la colonne (`schema.ts`), et elle serait perdue par une
+   * mise à jour qui n'arrive qu'après.
+   */
+  const [annonceLocale, setAnnonceLocale] = useState<Date | null>(null);
+  const annonceLe = annonceLocale ?? socialPostedAt;
+
+  /**
+   * L'annonce est partie mais la trace n'a pas pu être écrite (revue 6.7).
+   *
+   * ⚠️ C'est le seul cas où l'écran doit dire quelque chose qu'un rechargement EFFACERA :
+   * `social_posted_at` étant resté vide, la ligne redeviendra « jamais annoncée ». Le
+   * bénévole doit donc l'apprendre MAINTENANT — sinon un reclic republierait sans que le
+   * rappel « déjà annoncé le… » n'ait pu se rendre.
+   */
+  const [traceManquante, setTraceManquante] = useState(false);
 
   return (
     <div className={styles.bloc}>
@@ -69,6 +95,42 @@ export function EventActions({ id, isPublished, titre }: EventActionsProps) {
         <span className="sr-only"> — {titre}</span>
       </button>
 
+      {/* 🔴 RENDUE SEULEMENT SI L'ÉVÉNEMENT EST PUBLIÉ — ABSENTE, JAMAIS GRISÉE.
+          Annoncer une soirée dont la page n'est pas en ligne enverrait le lecteur d'un réseau
+          social vers un agenda où elle ne figure pas (`getUpcomingEvents` filtre sur
+          `is_published`). Un bouton grisé sans explication est une porte sans pièce — le
+          défaut que `app/admin/_sections.ts` existe pour empêcher, à l'échelle d'une ligne.
+          ⚠️ L'absence ici n'est PAS la garde : la Server Action refuse elle aussi, parce
+          qu'elle est atteignable par un POST direct, quoi qu'affiche cet écran. */}
+      {isPublished ? (
+        <BoutonConfirmation
+          libelle="Annoncer sur les réseaux"
+          question={`Annoncer « ${titre} » sur les réseaux ?`}
+          /* 🔴 LA PRÉCISION CHANGE SELON QU'IL A DÉJÀ ÉTÉ ANNONCÉ, ET C'EST TOUT L'INTÉRÊT DE
+             LA TRACE. On ne bloque pas une seconde annonce (republier après correction est un
+             besoin réel) — on la rend VISIBLE au moment où la décision se prend. Même
+             arbitrage que la fermeture de R31 : « acceptée AVEC FILET », pas corrigée. */
+          precision={
+            annonceLe
+              ? `⚠️ Déjà annoncé le ${formatLongDate(annonceLe)} à ${formatTime(annonceLe)}. ` +
+                "Confirmer publiera une SECONDE annonce, que ce back-office ne sait pas retirer."
+              : "L'annonce part vers l'outil de publication. Elle ne peut pas être annulée depuis ici."
+          }
+          libelleConfirmation="Oui, annoncer"
+          libelleEnCours="Envoi…"
+          onConfirmer={async () => {
+            const resultat = await annoncerSurLesReseaux(id);
+            if (resultat.ok) {
+              setAnnonceLocale(resultat.data.annonceLe);
+              setTraceManquante(!resultat.data.traceEcrite);
+              router.refresh();
+              return { ok: true };
+            }
+            return { ok: false, error: resultat.error };
+          }}
+        />
+      ) : null}
+
       <BoutonConfirmation
         libelle="Supprimer"
         question={`Supprimer définitivement « ${titre} » ?`}
@@ -79,6 +141,27 @@ export function EventActions({ id, isPublished, titre }: EventActionsProps) {
           return resultat.ok ? { ok: true } : { ok: false, error: resultat.error };
         }}
       />
+
+      {/* La trace, lisible sans ouvrir la confirmation. `formatLongDate` + `formatTime`
+          (`lib/date-paris`) et jamais une date brute : l'heure murale de Paris est la seule
+          que le bénévole reconnaîtra. */}
+      {annonceLe ? (
+        /* `role="status"` : le succès INSÈRE ce texte au lieu de faire disparaître la ligne
+           (contrairement aux 9 suppressions qui consomment `BoutonConfirmation`), donc sans
+           région live un lecteur d'écran n'apprendrait jamais que l'annonce est partie.
+           Convention déjà tenue par les 8 formulaires du back-office. Ajouté en revue 6.7. */
+        <p className={styles.trace} role="status">
+          Annoncé sur les réseaux le {formatLongDate(annonceLe)} à {formatTime(annonceLe)}
+          {traceManquante ? (
+            <>
+              {" "}
+              — ⚠️ <strong>cette trace n&apos;a pas pu être enregistrée</strong> : elle
+              disparaîtra au prochain rechargement. Notez-le, et ne recliquez pas sans vérifier
+              vos réseaux.
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       {erreur ? (
         <p className={styles.erreur} role="alert">
