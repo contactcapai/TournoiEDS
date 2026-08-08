@@ -13,7 +13,14 @@
 
 services:
   traefik:
-    image: traefik:v3
+    # 🔴 VERSION EXACTE, PAS le tag flottant `v3` (durcissement Story 7.1). La 7.1 introduit
+    # le PREMIER motif « deux routeurs sur le meme Host, middleware asymetrique » (n8n : webhook
+    # sans basic auth / UI avec) — motif de la classe GHSA-gm3x-23wp-hc2c (bypass de middleware
+    # par normalisation de chemin, corrige en v3.6.3). La 3.6.14 deployee est saine (verifie :
+    # un chemin encode via le routeur webhook ne rend que le SPA public, ni API ni ecriture).
+    # Epingler EVITE qu'un `docker compose pull` futur reintroduise un statut inconnu en silence
+    # — meme discipline « montee = geste + re-verif » que le pin n8n ci-dessous.
+    image: traefik:v3.6.14
     container_name: tournoi-tft-traefik
     restart: unless-stopped
     command:
@@ -202,6 +209,94 @@ services:
     networks:
       - tournoi-net
 
+  # ─────────────────────────────────────────────────
+  # n8n d'Esport des Sacres — publication reseaux (Story 7.1, dette R42 ①)
+  # Instance PROPRE A L'ASSO (decision de Brice, 2026-08-07) : les jetons d'API des
+  # comptes sociaux ne vivent pas sur l'instance d'un prestataire.
+  #
+  # 🔴 VERSION EPINGLEE, PAS `latest`. Historique du choix 2.33.7 (2026-08-07) :
+  # d'abord 2.20.9 (version d'export du workflow), montee en 2.33.7 (stable du jour)
+  # en cours d'instruction d'un 403 persistant — ⚠️ dont la CAUSE REELLE s'est averee
+  # etre l'option `Ignore Bots` du nœud Webhook (elle rejette l'UA `node` de la
+  # vitrine en 403 identique a un mauvais jeton), PAS la version. Les deux versions
+  # se comportent pareil ; on RESTE sur 2.33.7 (stable, migrations DB deja jouees —
+  # elles sont a sens unique, revenir en arriere exigerait une restauration de volume).
+  # L'instruction complete : apps/vitrine/n8n/README.md, piege ②.
+  # L'import n8n drope des parametres en silence (00 reference/pieges/webhook-n8n.md) —
+  # changer de version d'image est un GESTE : sauvegarde du volume AVANT (backup-n8n.sh),
+  # puis re-verification nœud par nœud et re-sonde du webhook derriere.
+  #
+  # 🔴 DEUX ROUTEURS TRAEFIK, ET C'EST UNE FRONTIERE DE SECURITE :
+  #   - eds-n8n-webhook (Host + PathPrefix(`/webhook`)) : SANS basic auth — les webhooks
+  #     portent LEUR PROPRE authentification (Header Auth, x-eds-webhook-token). Le
+  #     prefixe couvre /webhook/ (prod) ET /webhook-test/ (bouton « Listen for test event »).
+  #   - eds-n8n-ui (Host seul) : DERRIERE le basic auth Traefik DES LA PREMIERE SECONDE.
+  #     Sans lui, la fenetre entre `up -d` et la creation du compte owner n8n serait
+  #     ouverte au premier visiteur venu — c'est exactement le « jamais expose sans
+  #     authentification, meme transitoirement » de l'AC1. Le basic auth RESTE ensuite,
+  #     en couche supplementaire devant le login n8n.
+  #   Priorite : Traefik departage par LONGUEUR de regle — la regle webhook, plus longue,
+  #   gagne sur /webhook* sans priorite explicite.
+  #
+  # ⚠️ N8N_ENCRYPTION_KEY (docker/.env) chiffre les credentials en base. La sauvegarde
+  # n8n-*.tar.gz est MORTE sans cette cle : docker/.env ne part PAS dans les sauvegardes
+  # (c'est voulu, ce sont des secrets) — le conserver ailleurs fait partie de la
+  # passation (docs/PASSATION.md §3). Ne JAMAIS changer la cle apres coup.
+  # ─────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:2.33.7
+    container_name: eds-n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${N8N_HOST}
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      # URL publique annoncee aux nœuds Webhook (sans elle, n8n afficherait des URLs
+      # en http://localhost:5678 inutilisables).
+      - WEBHOOK_URL=https://${N8N_HOST}/
+      # 🔴 OBLIGATOIRE, echec BRUYANT si absente (garde `:?`). Sans elle, n8n AUTO-GENERE une
+      # cle et la range DANS le volume sauvegarde (log « No encryption key found - Auto-
+      # generating »), healthcheck vert — puis « Mismatching encryption keys » au redeploiement
+      # suivant, apres que des credentials aient pu etre crees avec la cle fantome (mesure 7.1).
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY manquant dans docker/.env (voir .env.example) — ne JAMAIS laisser n8n auto-generer sa cle}
+      # Fuseau des declencheurs et de l'UI — la regle de date du workflow est
+      # « ISO avec offset de Paris, jamais un Z » (apps/vitrine/n8n/README.md).
+      - GENERIC_TIMEZONE=Europe/Paris
+      - TZ=Europe/Paris
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      # Base SQLite + config n8n. Sauvegarde par docker/backup-n8n.sh (4e cible).
+      - n8n-data:/home/node/.n8n
+    healthcheck:
+      # Pas de wget/curl garanti dans l'image : node est toujours la.
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:5678/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      # Routeur 1 — webhooks (auth propre : Header Auth du nœud, jamais de basic auth
+      # ici, sinon le POST du site serait refuse avant d'atteindre n8n).
+      - "traefik.http.routers.eds-n8n-webhook.rule=Host(`${N8N_HOST}`) && PathPrefix(`/webhook`)"
+      - "traefik.http.routers.eds-n8n-webhook.entrypoints=websecure"
+      - "traefik.http.routers.eds-n8n-webhook.tls=true"
+      - "traefik.http.routers.eds-n8n-webhook.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.eds-n8n-webhook.service=eds-n8n"
+      # Routeur 2 — UI et API, derriere le basic auth Traefik (N8N_BASICAUTH,
+      # docker/.env — hash htpasswd, QUOTES SIMPLES obligatoires, cf. .env.example).
+      - "traefik.http.routers.eds-n8n-ui.rule=Host(`${N8N_HOST}`)"
+      - "traefik.http.routers.eds-n8n-ui.entrypoints=websecure"
+      - "traefik.http.routers.eds-n8n-ui.tls=true"
+      - "traefik.http.routers.eds-n8n-ui.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.eds-n8n-ui.middlewares=eds-n8n-basicauth"
+      - "traefik.http.routers.eds-n8n-ui.service=eds-n8n"
+      - "traefik.http.middlewares.eds-n8n-basicauth.basicauth.users=${N8N_BASICAUTH}"
+      - "traefik.http.services.eds-n8n.loadbalancer.server.port=5678"
+    networks:
+      - tournoi-net
+
 networks:
   tournoi-net:
     name: tournoi-net
@@ -212,3 +307,6 @@ volumes:
   traefik-acme:
   # Medias de la vitrine (photos de la galerie, Epic 4/6) — ex-Supabase Storage.
   eds-medias:
+  # Donnees n8n (SQLite : workflows, credentials chiffres, executions) — Story 7.1.
+  # Sauvegarde par docker/backup-n8n.sh ; restauration : PASSATION.md §3.
+  n8n-data:
