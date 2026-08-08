@@ -33,7 +33,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
 #   eds-backup.service :
 #     [Unit]
-#     Description=Sauvegarde complete EDS (base tournoi + base vitrine + medias)
+#     Description=Sauvegarde complete EDS (base tournoi + base vitrine + medias + n8n)
 #     [Service]
 #     Type=oneshot
 #     ExecStart=/opt/tournoi-tft/docker/backup-all.sh

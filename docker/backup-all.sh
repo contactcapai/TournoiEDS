@@ -4,12 +4,18 @@
 #
 # Usage :  sudo /opt/tournoi-tft/docker/backup-all.sh
 #
-# Enchaine les 3 sauvegardes locales, puis (optionnel) copie hors-VPS, puis rotation :
+# Enchaine les 4 sauvegardes locales, puis (optionnel) copie hors-VPS, puis rotation :
 #   1. backup-pg.sh        -> tournoi-*.sql.gz   (Postgres tournoi, REUTILISE tel quel)
 #   2. backup-vitrine.sh   -> vitrine-*.sql.gz   (base 'vitrine', meme moteur Postgres)
 #   3. backup-medias.sh    -> medias-*.tar.gz    (volume des medias de la vitrine)
-#   4. copie hors-VPS (rclone) si docker/offsite.env present et OFFSITE_ENABLED=true
-#   5. rotation locale (et distante) au-dela de la fenetre de retention
+#   4. backup-n8n.sh       -> n8n-*.tar.gz       (volume n8n : credentials sociaux, Story 7.1)
+#   5. copie hors-VPS (rclone) si docker/offsite.env present et OFFSITE_ENABLED=true
+#   6. rotation locale (et distante) au-dela de la fenetre de retention
+#
+# 🔴 CE COMPTE EST ECRIT EN DUR ICI ET DANS LES log() CI-DESSOUS (« x/4 »). Ajouter une
+# 5e cible sans toucher TOUTES ces chaines les rendrait fausses, et aucune porte ne le
+# verrait (les scripts d'infra ne sont ni lintes, ni types, ni gardes). Temoin a
+# declarer AVANT la mesure : /4 -> /5 partout, en-tete ET rotation (Story 7.1, fait ②).
 #
 # Echoue FRANCHEMENT si une sauvegarde echoue (rc agrege) : ni upload ni rotation dans ce cas
 # (on ne purge jamais d'anciennes sauvegardes si la nouvelle n'est pas garantie).
@@ -40,15 +46,18 @@ fi
 export BACKUP_DIR
 rc=0
 
-log "1/3 Sauvegarde DB tournoi (backup-pg.sh)..."
+log "1/4 Sauvegarde DB tournoi (backup-pg.sh)..."
 sh   "$SCRIPT_DIR/backup-pg.sh"       || { log "ECHEC sauvegarde tournoi";  rc=1; }
 
-log "2/3 Sauvegarde base vitrine (backup-vitrine.sh)..."
+log "2/4 Sauvegarde base vitrine (backup-vitrine.sh)..."
 # backup-vitrine.sh = bash (pipefail) -> l'invoquer avec bash (pas sh, qui ignorerait pipefail).
 bash "$SCRIPT_DIR/backup-vitrine.sh" || { log "ECHEC sauvegarde base vitrine"; rc=1; }
 
-log "3/3 Sauvegarde medias (backup-medias.sh)..."
+log "3/4 Sauvegarde medias (backup-medias.sh)..."
 sh   "$SCRIPT_DIR/backup-medias.sh"  || { log "ECHEC sauvegarde medias";  rc=1; }
+
+log "4/4 Sauvegarde n8n (backup-n8n.sh)..."
+sh   "$SCRIPT_DIR/backup-n8n.sh"     || { log "ECHEC sauvegarde n8n";  rc=1; }
 
 if [ "$rc" -ne 0 ]; then
   log "FATAL: au moins une sauvegarde a echoue -> pas d'upload hors-VPS, pas de rotation."
@@ -87,12 +96,13 @@ else
 fi
 
 # ─────────────────────────────────────────────────
-# Rotation locale : purge les 3 familles au-dela de la fenetre de retention locale.
-# (Generalise le 'find -mtime' historique, limite a tournoi-*, aux 3 prefixes.)
+# Rotation locale : purge les 4 familles au-dela de la fenetre de retention locale.
+# (Generalise le 'find -mtime' historique, limite a tournoi-*, aux 4 prefixes.)
 # ─────────────────────────────────────────────────
-log "Rotation locale : purge > ${RETENTION_LOCAL_DAYS} j (tournoi-*/vitrine-*/medias-*)"
+log "Rotation locale : purge > ${RETENTION_LOCAL_DAYS} j (tournoi-*/vitrine-*/medias-*/n8n-*)"
 find "$BACKUP_DIR" -name 'tournoi-*.sql.gz'  -mtime +"$RETENTION_LOCAL_DAYS" -delete
 find "$BACKUP_DIR" -name 'vitrine-*.sql.gz'  -mtime +"$RETENTION_LOCAL_DAYS" -delete
 find "$BACKUP_DIR" -name 'medias-*.tar.gz'   -mtime +"$RETENTION_LOCAL_DAYS" -delete
+find "$BACKUP_DIR" -name 'n8n-*.tar.gz'      -mtime +"$RETENTION_LOCAL_DAYS" -delete
 
 log "Sauvegarde complete terminee (rc=0)."
