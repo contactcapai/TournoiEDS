@@ -58,10 +58,26 @@ COPY --from=builder --chown=nextjs:nodejs /repo/apps/vitrine/.next/standalone   
 COPY --from=builder --chown=nextjs:nodejs /repo/apps/vitrine/.next/static           ./apps/vitrine/.next/static
 COPY --from=builder --chown=nextjs:nodejs /repo/apps/vitrine/public                 ./apps/vitrine/public
 
-# Migrations Drizzle : schema.ts est VIDE (aucune table jusqu'a Story 3.1).
-# Decision A : pas de migrate prod ici, cablage programme differe a Story 3.1
-# (premiere vraie table). Ne pas appeler drizzle-kit : c'est une devDependency
-# absente de l'image standalone. Voir Story 3.1 pour le migrate programmatique.
+# ──────────────────────────────────────────────────────────────────────────────
+# Migrations Drizzle — jouees AU DEMARRAGE, par le serveur lui-meme (Story 7.4)
+# ──────────────────────────────────────────────────────────────────────────────
+# ⚠️ CE BLOC ANNONCAIT « schema.ts est VIDE (aucune table jusqu'a Story 3.1) — cablage
+# programme differe a Story 3.1 ». Il est reste faux quatre epics : la 3.1 a cree les
+# tables mais n'a JAMAIS cable le migrate, et le commentaire a survecu devant 11 tables
+# et 14 migrations. Personne ne l'a vu parce que la vitrine n'avait jamais tourne hors du
+# poste de dev, ou `pnpm --filter vitrine db:migrate` fait le travail a la main.
+#
+# Le cablage vit desormais dans `src/instrumentation.ts` -> `src/server/db/migrate.ts`,
+# appele une fois au demarrage du serveur. RIEN A AJOUTER ICI, et c'est le fruit d'une
+# mesure : `drizzle-orm` et `postgres` ne sont PAS dans le node_modules du standalone
+# (Next les bundle dans les chunks serveur), donc un script de demarrage autonome n'aurait
+# pas pu les importer. Les fichiers .sql, eux, entrent par `outputFileTracingIncludes`
+# (next.config.ts).
+# 🔴 Toujours vrai, et c'est la contrainte qui a dicte tout le reste : ne PAS appeler
+# drizzle-kit — c'est une devDependency, absente de cette image.
+# 🔴 Echec de migration = `process.exit(1)` : le conteneur redemarre en boucle plutot que
+# de servir des pages sur un schema faux. Un incident VISIBLE vaut mieux qu'un site en
+# ligne sur une base sans tables.
 
 USER nextjs
 EXPOSE 3000

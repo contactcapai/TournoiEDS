@@ -86,8 +86,16 @@ COMPOSE="docker compose"
 | Config de la base (`docker/initdb/`) | ⚠️ **relue seulement sur un volume VIDE** — sinon jouer le SQL à la main (README) |
 
 - Le **backend** applique ses migrations Prisma automatiquement au démarrage.
-- La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`), il faut
-  `build` (le bundle est figé au build, cf. README §Deploy).
+- ✅ **La vitrine aussi, depuis la Story 7.4** : ses migrations Drizzle sont jouées au
+  démarrage du conteneur (`src/instrumentation.ts`). **Il n'y a aucune commande de migration
+  à lancer**, et la première requête *attend* la fin des migrations — vérifié par la mesure,
+  pas déduit du code.
+  🔴 **Si une migration échoue, le conteneur sort en code 1 et redémarre en boucle.** C'est
+  voulu : servir des pages sur un schéma faux est pire qu'un service arrêté. Le symptôme à
+  lire est un `Restarting` dans `$COMPOSE ps` ; la cause est dans
+  `$COMPOSE logs vitrine | grep '\[migrate\]'`.
+- La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`, pilotée
+  par `VITRINE_HOST`), il faut `build` (le bundle est figé au build, cf. README §Deploy).
 - Toujours vérifier après coup : `$COMPOSE ps` (healthy) puis un smoke-test (§4).
 
 > 💡 **Avant toute mise à jour risquée** (migration de schéma, gros changement) : lancer une
@@ -272,10 +280,14 @@ Créée sur <https://discord.com/developers/applications>. Onglet **OAuth2** :
 
 - `AUTH_DISCORD_ID` = Client ID · `AUTH_DISCORD_SECRET` = Client Secret (**ne s'affiche
   qu'une fois** ; le régénérer invalide le précédent).
-- Section **Redirects** — les URLs doivent être déclarées **à l'identique** :
-  `https://esportdessacres.fr/api/auth/callback/discord` (+ les variantes locales en dev).
+- Section **Redirects** — les URLs doivent être déclarées **à l'identique**, **une par hôte** :
+  `https://staging.esportdessacres.fr/api/auth/callback/discord` (staging),
+  `https://esportdessacres.fr/api/auth/callback/discord` (production),
+  + les variantes locales en dev (`localhost:3000` et `localhost:4310`).
   ⚠️ Le bouton **« Save Changes »** est distinct de « Add Redirect ». Un oubli produit
   `invalid_redirect_uri` **au retour** du flux, donc après le clic « Autoriser ».
+  🔴 **Un nouvel hôte = une nouvelle ligne à ajouter ici.** Rien ne le rappelle côté code, et
+  l'échec arrive au pire moment : après que la personne a déjà autorisé l'application.
 
 ### `AUTH_SECRET`
 
