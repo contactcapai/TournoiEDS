@@ -95,6 +95,12 @@ export function BoutonConfirmation({
         <button
           type="button"
           className={styles.confirmer}
+          /* 🔴 DÉSACTIVÉ PENDANT L'ENVOI — et ce n'est PAS le patron « bouton jamais disabled »
+             du formulaire public (AC5 de la 5.1). Là-bas on refuse de bloquer une SAISIE ; ici
+             le clic déclenche un EFFET EXTERNE non annulable, et l'attente peut durer jusqu'à
+             15 s (délai de `n8n.ts`). Sans ce garde-fou, un second clic pendant « Envoi… »
+             part en second POST réel : deux annonces pour une seule décision. */
+          disabled={enCours}
           onClick={async () => {
             setEnCours(true);
             setErreur(null);
@@ -102,10 +108,16 @@ export function BoutonConfirmation({
               const resultat = await onConfirmer();
               if (!resultat.ok) {
                 setErreur(resultat.error ?? "L'opération a échoué.");
-                setDemandeConfirmation(false);
               }
-              // En cas de succès, la page se recharge (`router.refresh()` côté appelant) :
-              // ce composant disparaît avec la ligne qu'il servait.
+              /* 🔴 ON REFERME DANS TOUS LES CAS, succès compris.
+                 Ce commentaire disait : « en cas de succès, la page se recharge, ce composant
+                 disparaît avec la ligne qu'il servait ». C'était vrai des NEUF premiers
+                 consommateurs — tous des suppressions. Le dixième (« Annoncer sur les
+                 réseaux », Story 6.7) laisse la ligne EN PLACE : seule une colonne change.
+                 Le panneau restait donc ouvert après un envoi réussi, bouton actif, à côté de
+                 la trace « Annoncé le… » — un dialogue de confirmation qui survit à sa propre
+                 réponse. Trouvé en revue 6.7, et visible sur la capture du gate visuel. */
+              setDemandeConfirmation(false);
             } catch {
               setErreur("Une erreur réseau est survenue, merci de réessayer.");
               setDemandeConfirmation(false);
@@ -119,6 +131,7 @@ export function BoutonConfirmation({
         <button
           type="button"
           className={styles.annuler}
+          disabled={enCours}
           onClick={() => setDemandeConfirmation(false)}
         >
           Annuler

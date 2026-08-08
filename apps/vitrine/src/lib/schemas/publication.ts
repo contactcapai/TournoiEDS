@@ -18,6 +18,8 @@ import { z } from "zod";
 
 import {
   BAR_ADRESSE_MAX,
+  BAR_QUARTIER_MAX,
+  BAR_VILLE_MAX,
   DESCRIPTION_MAX,
   EVENT_TYPES,
   JEUX_MAX,
@@ -140,7 +142,20 @@ export const publicationPayloadSchema = z.object({
      * 6.3) ; le rendu public le traite déjà ainsi, et n8n doit pouvoir le traiter aussi.
      */
     lieu: z.string().max(Math.max(LIEU_NOM_MAX, TITRE_MAX)).nullable(),
-    adresse: z.string().max(Math.max(LIEU_ADRESSE_MAX, BAR_ADRESSE_MAX)).nullable(),
+    /**
+     * 🔴 LA BORNE COUVRE LA CONCATÉNATION, PAS UN SEUL CHAMP — corrigé en revue 6.7.
+     * Elle valait `max(LIEU_ADRESSE_MAX, BAR_ADRESSE_MAX)` = 200, ce qui ne vaut que pour le
+     * chemin « lieu libre » (une seule valeur). Le chemin BAR compose TROIS champs
+     * (`address, district, city`, `reseaux.ts` → `lieuDuPayload`), chacun borné séparément à
+     * la saisie : 200 + 120 + 80, plus les deux « , » = **404**. Un bar renseigné jusqu'à ses
+     * bornes produisait donc un payload REFUSÉ par ce schéma, et l'écran accusait le site
+     * (« c'est un défaut du site ») sans jamais nommer la vraie cause — annonce bloquée en
+     * permanence pour ce bar, sans piste. La borne suit désormais ce que la saisie autorise.
+     */
+    adresse: z
+      .string()
+      .max(Math.max(LIEU_ADRESSE_MAX, BAR_ADRESSE_MAX + BAR_QUARTIER_MAX + BAR_VILLE_MAX + 4))
+      .nullable(),
     jeux: z.string().max(JEUX_MAX).nullable(),
     description: z.string().max(DESCRIPTION_MAX).nullable(),
     /** Où l'annonce doit renvoyer : la page publique de l'agenda. */

@@ -45,6 +45,16 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
   const [annonceLocale, setAnnonceLocale] = useState<Date | null>(null);
   const annonceLe = annonceLocale ?? socialPostedAt;
 
+  /**
+   * L'annonce est partie mais la trace n'a pas pu être écrite (revue 6.7).
+   *
+   * ⚠️ C'est le seul cas où l'écran doit dire quelque chose qu'un rechargement EFFACERA :
+   * `social_posted_at` étant resté vide, la ligne redeviendra « jamais annoncée ». Le
+   * bénévole doit donc l'apprendre MAINTENANT — sinon un reclic republierait sans que le
+   * rappel « déjà annoncé le… » n'ait pu se rendre.
+   */
+  const [traceManquante, setTraceManquante] = useState(false);
+
   return (
     <div className={styles.bloc}>
       <button
@@ -112,6 +122,7 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
             const resultat = await annoncerSurLesReseaux(id);
             if (resultat.ok) {
               setAnnonceLocale(resultat.data.annonceLe);
+              setTraceManquante(!resultat.data.traceEcrite);
               router.refresh();
               return { ok: true };
             }
@@ -135,8 +146,20 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
           (`lib/date-paris`) et jamais une date brute : l'heure murale de Paris est la seule
           que le bénévole reconnaîtra. */}
       {annonceLe ? (
-        <p className={styles.trace}>
+        /* `role="status"` : le succès INSÈRE ce texte au lieu de faire disparaître la ligne
+           (contrairement aux 9 suppressions qui consomment `BoutonConfirmation`), donc sans
+           région live un lecteur d'écran n'apprendrait jamais que l'annonce est partie.
+           Convention déjà tenue par les 8 formulaires du back-office. Ajouté en revue 6.7. */
+        <p className={styles.trace} role="status">
           Annoncé sur les réseaux le {formatLongDate(annonceLe)} à {formatTime(annonceLe)}
+          {traceManquante ? (
+            <>
+              {" "}
+              — ⚠️ <strong>cette trace n&apos;a pas pu être enregistrée</strong> : elle
+              disparaîtra au prochain rechargement. Notez-le, et ne recliquez pas sans vérifier
+              vos réseaux.
+            </>
+          ) : null}
         </p>
       ) : null}
 

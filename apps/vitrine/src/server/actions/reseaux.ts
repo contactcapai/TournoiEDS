@@ -48,6 +48,15 @@ export type EvenementAnnonce = {
   id: string;
   /** L'horodatage écrit en base, pour que la ligne se mette à jour sans rechargement. */
   annonceLe: Date;
+  /**
+   * 🔴 L'AVERTISSEMENT PROMIS PAR LE COMMENTAIRE DE LA FONCTION — ajouté en revue 6.7.
+   * Il disait « on rend `ok: true` **avec un avertissement** » et ce champ n'existait pas :
+   * l'échec d'écriture partait au seul `console.error`, invisible du bénévole. Or
+   * `social_posted_at` est le SEUL filet du maillon aval : sans trace, la ligne redevient
+   * « jamais annoncée » au prochain rechargement, et un reclic republierait sans le rappel.
+   * `false` = l'annonce EST partie, mais la trace n'a pas pu être enregistrée.
+   */
+  traceEcrite: boolean;
 };
 
 /**
@@ -105,8 +114,10 @@ function baseDuSite(): string {
  *
  * ⚠️ **Un échec d'écriture APRÈS un envoi réussi n'est PAS un échec d'annonce.** L'annonce est
  * bel et bien partie ; c'est la trace qui manque. Le rendre en `{ ok: false }` ferait recliquer
- * le bénévole et publierait **deux fois**. On rend donc `ok: true` avec un avertissement, et le
- * défaut part au journal serveur — c'est le seul arbitrage de ce fichier où le confort de
+ * le bénévole et publierait **deux fois**. On rend donc `ok: true` **avec l'avertissement
+ * `traceEcrite: false`**, que l'écran rend explicitement (revue 6.7 — ce commentaire promettait
+ * un avertissement que le type ne portait pas, donc l'échec n'existait qu'au journal serveur),
+ * et le défaut part AUSSI au journal — c'est le seul arbitrage de ce fichier où le confort de
  * l'écran cède devant l'effet public.
  */
 export async function annoncerSurLesReseaux(
@@ -139,7 +150,14 @@ export async function annoncerSurLesReseaux(
     source: PAYLOAD_SOURCE,
     evenement: {
       id: evenement.id,
-      titre: evenement.title,
+      /* ⚠️ `cleanText` ICI AUSSI — corrigé en revue 6.7. `titre` était le SEUL des cinq champs
+         texte à partir brut, alors que `event.title` n'est jamais nettoyé à l'écriture non plus
+         (`texteVisible` juge, il ne nettoie pas — pour préserver les ZWJ des emojis). Un
+         caractère sans largeur collé dans un titre (copié-collé de Discord) traversait donc
+         intact jusqu'au payload, là où le même caractère est neutralisé dans `jeux` ou
+         `description`. Le repli sur la valeur brute garde le contrat `min(1)` : un titre est
+         non vide par construction (`texteVisible` à la saisie). */
+      titre: cleanText(evenement.title) ?? evenement.title,
       type: evenement.type,
       // 🔴 `toParisIso` et JAMAIS `toISOString()` : voir `lib/schemas/publication.ts`.
       debut: toParisIso(evenement.startsAt),
@@ -161,10 +179,12 @@ export async function annoncerSurLesReseaux(
   }
 
   const annonceLe = new Date();
+  let traceEcrite = true;
 
   try {
     await db.update(event).set({ socialPostedAt: annonceLe }).where(eq(event.id, id));
   } catch (erreur) {
+    traceEcrite = false;
     console.error(
       "[annoncerSurLesReseaux] ANNONCE PARTIE mais trace NON écrite — " +
         "l'événement peut sembler jamais annoncé :",
@@ -172,5 +192,5 @@ export async function annoncerSurLesReseaux(
     );
   }
 
-  return { ok: true, data: { id, annonceLe } };
+  return { ok: true, data: { id, annonceLe, traceEcrite } };
 }
