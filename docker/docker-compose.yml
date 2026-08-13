@@ -162,6 +162,27 @@ services:
     env_file:
       # DATABASE_URL et vars runtime de la vitrine (jamais committees, cf. .gitignore).
       - ../apps/vitrine/.env.prod
+    environment:
+      # 🔴 AUTH_URL — AJOUTEE PAR LA STORY 7.4, SUR UN DEFAUT MESURE SUR LE STAGING REEL.
+      # Sans elle, Auth.js construisait son `redirect_uri` avec `https://0.0.0.0:3000`
+      # (l'adresse d'ECOUTE du conteneur, HOSTNAME/PORT du Dockerfile) au lieu de l'hote
+      # public — donc `invalid_redirect_uri` cote Discord, et un back-office ou PERSONNE
+      # ne peut se connecter. Mesure du 2026-08-08 sur staging.
+      #
+      # ⚠️ `trustHost: true` (fige dans src/server/auth/config.ts) NE SUFFIT PAS : il
+      # AUTORISE l'inference de l'hote, il ne la rend pas juste. Temoin de controle pris
+      # sur la MEME requete : le proxy Next, lui, redirigeait bien vers
+      # https://staging.esportdessacres.fr/admin/login — Traefik transmet donc l'hote
+      # correctement, et le defaut est PROPRE a la derivation d'URL d'Auth.js.
+      # La note de la Story 6.1 (« on ne confie pas cette valeur a un oubli de variable
+      # sur le VPS ») avait RAISON SUR LE RISQUE — l'echec ne survient qu'en production —
+      # et TORT SUR LE REMEDE.
+      #
+      # 🔴 DERIVEE DE VITRINE_HOST, JAMAIS ECRITE A LA MAIN : elle ne peut donc pas
+      # diverger de la regle Traefik ci-dessous. La bascule de la Story 7.5 reste
+      # « deux lignes de docker/.env + un rebuild ». Contrairement au build-arg
+      # NEXT_PUBLIC_SITE_URL, celle-ci est lue au RUNTIME : un `up -d` suffit.
+      - AUTH_URL=https://${VITRINE_HOST}
     # Pas de depends_on sur postgres : la connexion Drizzle est PARESSEUSE (premier
     # appel a la DB, pas au demarrage du conteneur), donc la vitrine sert ses pages
     # statiques meme si la base n'est pas encore healthy. Acquis de la Story 1.7,
@@ -191,16 +212,18 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=tournoi-net"
-      # Hote pilote par VITRINE_HOST (docker/.env) : preprod.esportdessacres.fr le temps
-      # de la validation, esportdessacres.fr a la bascule. Rien a defaire dans le code
-      # versionne le jour J — deux lignes de docker/.env + un rebuild.
+      # Hote pilote par VITRINE_HOST (docker/.env) : staging.esportdessacres.fr le temps
+      # de la validation (Story 7.4), esportdessacres.fr a la bascule (Story 7.5). Rien a
+      # defaire dans le code versionne le jour J — deux lignes de docker/.env + un rebuild.
+      # ⚠️ Ce commentaire a nomme `preprod.esportdessacres.fr` jusqu'au 2026-08-08 : ce
+      # nom n'a jamais eu de DNS (mesure : NXDOMAIN). Voir docker/.env.example.
       - "traefik.http.routers.eds-vitrine.rule=Host(`${VITRINE_HOST}`)"
       - "traefik.http.routers.eds-vitrine.entrypoints=websecure"
       - "traefik.http.routers.eds-vitrine.tls=true"
       - "traefik.http.routers.eds-vitrine.tls.certresolver=letsencrypt"
       - "traefik.http.routers.eds-vitrine.middlewares=eds-vitrine-robots"
-      # X-Robots-Tag pilote par VITRINE_ROBOTS. En preprod : "noindex, nofollow" — sans
-      # lui, Google indexe la preproduction et elle entre en duplicate content avec le
+      # X-Robots-Tag pilote par VITRINE_ROBOTS. Sur le staging : "noindex, nofollow" —
+      # sans lui, Google indexe le staging et il entre en duplicate content avec le
       # site public. En production : VARIABLE VIDE — Traefik retire alors l'en-tete
       # (une valeur vide dans customresponseheaders SUPPRIME l'en-tete, elle ne le pose
       # pas a vide), ce qui rend la bascule inoffensive pour le referencement.

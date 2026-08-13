@@ -12,6 +12,23 @@ const nextConfig: NextConfig = {
   // Declare des maintenant pour que l'import devienne possible des la Story 1.2 (tokens) sans casser le build.
   transpilePackages: ["@repo/ui"],
   // ══════════════════════════════════════════════════════════════════════════════
+  // Migrations Drizzle dans le standalone (Story 7.4)
+  // ══════════════════════════════════════════════════════════════════════════════
+  // 🔴 LE CODE EST BUNDLE, LES .sql NE LE SONT PAS. `src/instrumentation.ts` joue les
+  // migrations au demarrage ; son code et ses imports (`drizzle-orm/postgres-js/migrator`)
+  // entrent dans les chunks serveur parce que Next les bundle. Les fichiers de migration,
+  // eux, sont de la DONNEE lue a l'execution par `migrate({ migrationsFolder })` : le
+  // traceur ne peut pas les deviner, il faut les declarer.
+  // ⚠️ SANS CE BLOC, LE MODE DE DEFAILLANCE EST LE PIRE POSSIBLE : l'image se construit,
+  // le conteneur demarre, et `migrerAuDemarrage()` ne trouve pas `meta/_journal.json` —
+  // c'est-a-dire un site en ligne sur une base SANS TABLES. D'ou la sortie en code 1 cote
+  // migrate.ts plutot qu'un simple avertissement (pieges/faux-succes.md).
+  // Les deux motifs sont necessaires : les `.sql` (le contenu joue) ET `meta/` (le journal
+  // + les snapshots, sans lesquels drizzle ne sait pas ce qui reste a appliquer).
+  outputFileTracingIncludes: {
+    "/**": ["./drizzle/**/*.sql", "./drizzle/meta/**/*.json"],
+  },
+  // ══════════════════════════════════════════════════════════════════════════════
   // Optimiseur d'images (Story 4.3) — PREMIER bloc `images` du projet.
   // Doc-first fait le 2026-07-31 sur la doc de la version en place (Next 16.2.x).
   // ══════════════════════════════════════════════════════════════════════════════

@@ -86,8 +86,33 @@ COMPOSE="docker compose"
 | Config de la base (`docker/initdb/`) | ⚠️ **relue seulement sur un volume VIDE** — sinon jouer le SQL à la main (README) |
 
 - Le **backend** applique ses migrations Prisma automatiquement au démarrage.
-- La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`), il faut
-  `build` (le bundle est figé au build, cf. README §Deploy).
+- ✅ **La vitrine aussi, depuis la Story 7.4** : ses migrations Drizzle sont jouées au
+  démarrage du conteneur (`src/instrumentation.ts`). **Il n'y a aucune commande de migration
+  à lancer**, et la première requête *attend* la fin des migrations — vérifié par la mesure,
+  pas déduit du code.
+  🔴 **Deux pannes possibles, et EN PRODUCTION elles donnent le MÊME symptôme** — c'est voulu,
+  et ça a été corrigé à la revue de la 7.4 précisément parce que ce n'était pas le cas :
+
+  | Cause | Message dans les logs | Ce que fait le conteneur |
+  |---|---|---|
+  | Une **migration échoue** (schéma cassé, base injoignable, mauvais mot de passe) | `[migrate] ÉCHEC des migrations` | sort en **code 1**, puis **redémarre en boucle** |
+  | La ligne **`DATABASE_URL` manque** dans `apps/vitrine/.env.prod` | `[migrate] DATABASE_URL ABSENTE en production` | sort en **code 1**, puis **redémarre en boucle** |
+
+  Dans les deux cas : symptôme `Restarting` dans `$COMPOSE ps`, cause dans
+  `$COMPOSE logs vitrine | grep '\[migrate\]'`. Servir des pages sur un schéma faux — ou sans
+  base du tout — est pire qu'un service arrêté.
+
+  ⚠️ **Avant la 7.4, la seconde ligne était un piège** : le conteneur démarrait, s'affichait
+  `Up (healthy)`, Traefik le servait, et **toute page qui lit la base** (dont l'accueil, à
+  chaque visite) rendait une erreur. Celui qui dépanne cherchait un `Restarting` qui
+  n'arrivait jamais. ⇒ **Si vous lisez une vieille note qui décrit ce comportement, elle est
+  périmée.**
+
+  ℹ️ **Hors production** (poste de dev, CI, construction de l'image), l'absence de
+  `DATABASE_URL` est **normale** : les migrations sont sautées avec un simple avertissement et
+  le serveur démarre. C'est ce qui permet à la CI de bâtir **sans aucun secret**.
+- La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`, pilotée
+  par `VITRINE_HOST`), il faut `build` (le bundle est figé au build, cf. README §Deploy).
 - Toujours vérifier après coup : `$COMPOSE ps` (healthy) puis un smoke-test (§4).
 
 > 💡 **Avant toute mise à jour risquée** (migration de schéma, gros changement) : lancer une
@@ -257,11 +282,35 @@ est un incident **visible** ; ouvert, il est **silencieux**.
 
 1. Récupérer son identifiant : Discord → Paramètres → Avancé → **Mode développeur**, puis clic
    droit sur le profil → « Copier l'identifiant » (un nombre de 17 à 20 chiffres).
-2. L'ajouter (ou le retirer) dans `AUTH_ADMIN_DISCORD_IDS`, séparé par une virgule.
-3. Redémarrer le conteneur de la vitrine.
+2. L'ajouter (ou le retirer) dans `AUTH_ADMIN_DISCORD_IDS`, séparé par une **virgule**, sans
+   guillemets. Le fichier est `apps/vitrine/.env.prod` sur le serveur (`.env.local` en local).
+3. 🔴 **`docker compose up -d vitrine` — SURTOUT PAS `docker compose restart`.**
+
+```bash
+cd /opt/tournoi-tft
+nano apps/vitrine/.env.prod          # AUTH_ADMIN_DISCORD_IDS=1111...,2222...
+cd docker && docker compose up -d vitrine
+```
+
+> 🔴 **`restart` NE RELIT PAS `env_file` — mesuré le 2026-08-08 (Story 7.4).** Une variable
+> ajoutée puis suivie d'un `restart` reste **absente** du conteneur ; seul `up -d` le recrée
+> avec le nouvel environnement. Cette section disait « redémarrer le conteneur » : la consigne
+> était **fausse**, et son symptôme est le pire possible — la personne ajoutée ne peut toujours
+> pas entrer, exactement comme si l'identifiant était mauvais.
+> *(Preuve : variable témoin ajoutée au fichier ⇒ absente après `restart`, présente après
+> `up -d`. Témoin retiré ensuite.)*
+
+4. La personne se connecte : sa ligne en base est créée **à cet instant**, jamais avant — la
+   garde `signIn` refuse **avant** toute écriture (Story 6.1).
 
 ⚠️ **Jamais un pseudo, jamais une adresse e-mail** : les deux se changent en un clic depuis
-Discord, l'identifiant non.
+Discord, l'identifiant non. Un identifiant mal formé (espace au lieu d'une virgule, guillemets
+copiés-collés) **échoue fermé** — c'est correct, mais le symptôme ressemble à une allowlist
+vide : le journal du conteneur le dit explicitement (`[auth] AUTH_ADMIN_DISCORD_IDS contient …`).
+
+⚠️ **Il n'y a qu'UN seul rôle** (R39, arbitrée à la rétro Epic 6) : toute personne de la liste a
+**tous** les droits — créer, modifier, supprimer, publier, et déclencher l'annonce réseaux. Il
+n'existe pas de lecteur ni de contributeur restreint.
 
 ✅ **Le retrait prend effet à la requête suivante**, même si la personne a une session ouverte —
 mesuré. Pas besoin d'attendre une expiration ni de vider une table.
@@ -272,10 +321,14 @@ Créée sur <https://discord.com/developers/applications>. Onglet **OAuth2** :
 
 - `AUTH_DISCORD_ID` = Client ID · `AUTH_DISCORD_SECRET` = Client Secret (**ne s'affiche
   qu'une fois** ; le régénérer invalide le précédent).
-- Section **Redirects** — les URLs doivent être déclarées **à l'identique** :
-  `https://esportdessacres.fr/api/auth/callback/discord` (+ les variantes locales en dev).
+- Section **Redirects** — les URLs doivent être déclarées **à l'identique**, **une par hôte** :
+  `https://staging.esportdessacres.fr/api/auth/callback/discord` (staging),
+  `https://esportdessacres.fr/api/auth/callback/discord` (production),
+  + les variantes locales en dev (`localhost:3000` et `localhost:4310`).
   ⚠️ Le bouton **« Save Changes »** est distinct de « Add Redirect ». Un oubli produit
   `invalid_redirect_uri` **au retour** du flux, donc après le clic « Autoriser ».
+  🔴 **Un nouvel hôte = une nouvelle ligne à ajouter ici.** Rien ne le rappelle côté code, et
+  l'échec arrive au pire moment : après que la personne a déjà autorisé l'application.
 
 ### `AUTH_SECRET`
 

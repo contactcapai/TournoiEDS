@@ -449,7 +449,7 @@ nano docker/.env
 #   tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 40; echo
 #
 # Ajouter AUSSI (cf. docker/.env.example) :
-#   VITRINE_HOST=preprod.esportdessacres.fr
+#   VITRINE_HOST=staging.esportdessacres.fr
 #   VITRINE_ROBOTS="noindex, nofollow"   <- GUILLEMETS OBLIGATOIRES
 # 🔴 docker/.env a DEUX lecteurs : Compose ET le shell (`set -a; . ./.env`). Compose
 # tolere une valeur non quotee avec des espaces, le shell NON : il lirait
@@ -464,8 +464,21 @@ nano apps/vitrine/.env.prod
 # Remplir : DATABASE_URL
 #   postgresql://vitrine:<VITRINE_DB_PASSWORD>@tournoi-tft-postgres:5432/vitrine
 # ⚠️ Le mot de passe doit etre IDENTIQUE a VITRINE_DB_PASSWORD de docker/.env.
-# NEXT_PUBLIC_SITE_URL est une valeur de BUILD (build-arg dans docker-compose.yml),
-# pas besoin de la remettre ici (déjà figée à https://esportdessacres.fr au build).
+#
+# 🔴 REMPLIR AUSSI LES CINQ VARIABLES AJOUTEES AU CONTRAT LE 2026-08-08 (Story 7.4) :
+#   AUTH_SECRET, AUTH_DISCORD_ID, AUTH_DISCORD_SECRET, AUTH_ADMIN_DISCORD_IDS
+#   (+ GMAIL_APP_PASSWORD, qui peut rester VIDE jusqu'a la Story 7.2).
+# Ce fichier .example ne les declarait PAS jusque-la, et l'oubli etait fail-closed ET
+# SILENCIEUX : le site public aurait ete correct et le BACK-OFFICE INJOIGNABLE (une
+# allowlist vide refuse tout le monde), sans message pointant la cause.
+# ⇒ La porte `pnpm --filter vitrine gate:contrat-env` garde desormais ce contrat : elle
+#   echoue si une variable lue par l'application manque a l'un des deux .example.
+#
+# ⚠️ NEXT_PUBLIC_SITE_URL est une valeur de BUILD (build-arg dans docker-compose.yml),
+# pas besoin de la remettre ici. Sa valeur effective est derivee de VITRINE_HOST :
+# `https://${VITRINE_HOST}`. (Cette ligne annoncait « deja figee a
+# https://esportdessacres.fr au build » : c'etait FAUX depuis que l'hote est pilote par
+# VITRINE_HOST — corrige le 2026-08-08.)
 ```
 
 ### Étape 2 bis — 🔴 Créer la base `vitrine` (volume Postgres DÉJÀ initialisé)
@@ -487,16 +500,23 @@ n'apparaîtra qu'au premier appel réel, pas au démarrage du conteneur.
 > 385 Ko, `<title>` « Le club d'esport Reims | Esport des Sacres »). Y pointer le VPS est
 > une **bascule de site public**, pas une mise en service.
 >
-> De plus, à la date de rédaction, le site à basculer laisse **`/agenda` (Epic 3) et
-> `/partenaires` (Story 4.6) en 404** — dont le CTA doré du hero et la moitié droite de la
-> double porte, soit les deux appels à l'action principaux de l'accueil.
+> ⚠️ **Le second paragraphe de cet encadré est PÉRIMÉ et a été retiré le 2026-08-08.** Il
+> disait que « `/agenda` (Epic 3) et `/partenaires` (Story 4.6) » restaient en 404 : les deux
+> pages existent depuis les Epics 3 et 4, il n'y a **plus aucun 404 interne**, et la
+> « Story 4.6 » qu'il citait n'existe pas (c'est la **4.2**).
 
-**Préproduction (défaut).** Créer dans le panel Hostinger DNS :
+> 🔴 **L'HÔTE DE STAGING EST `staging.esportdessacres.fr` — corrigé le 2026-08-08 (Story 7.4).**
+> Cette étape faisait **créer** `preprod.esportdessacres.fr`, un nom qui n'a **jamais** eu
+> d'enregistrement DNS (mesuré : NXDOMAIN). Le sous-domaine réellement créé, le **2026-08-06**,
+> est `staging` → IP du VPS. Suivre l'ancienne consigne aurait produit exactement la tentative
+> Let's Encrypt ratée que le `dig +short` ci-dessous existe pour éviter.
+
+**Staging (défaut).** Vérifier dans le panel Hostinger DNS — l'enregistrement **existe déjà** :
 ```
-A  preprod.esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
+A  staging.esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
 ```
 
-**Bascule en production**, une fois `/agenda` et `/partenaires` livrées : repointer l'apex
+**Bascule en production** (Story 7.5) : repointer l'apex
 sur `<IP_VPS>`, passer `VITRINE_HOST=esportdessacres.fr` + `VITRINE_ROBOTS=` (vide) dans
 `docker/.env`, puis `docker compose build vitrine && docker compose up -d vitrine`.
 ⚠️ **Traiter `www` dans le même geste** : `www.esportdessacres.fr` est un CNAME vers le CDN
@@ -507,66 +527,139 @@ déclare qu'un seul hôte — ajouter `www` à la règle + une redirection 301 v
 Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt brûle une tentative sur le
 rate limit prod, 5 / 7 jours) :
 ```bash
-dig +short preprod.esportdessacres.fr
-# Attendu : <IP_VPS>
+dig +short staging.esportdessacres.fr
+# Attendu : <IP_VPS>, et RIEN d'autre.
 ```
 
-### Étape 4 — Premier démarrage en ACME staging (évite le rate limit prod)
+### Étape 4 — Démarrer le service `vitrine` (CA Let's Encrypt **de production**)
 
-S'assurer que `docker/.env` a :
+> 🔴 **RÉÉCRITE LE 2026-08-08 (Story 7.4) — LA VERSION PRÉCÉDENTE ÉTAIT DEVENUE DESTRUCTRICE.**
+> Elle faisait démarrer en **CA ACME staging** puis (Étape 6) **supprimer le volume
+> `traefik-acme`**. C'était juste en juin, sur un VPS vierge. Ce n'est plus vrai :
+>
+> | Hôte servi aujourd'hui | Certificat dans `traefik-acme` |
+> |---|---|
+> | `tournoi.esportdessacres.fr` | Let's Encrypt **production** |
+> | `api-tournoi.esportdessacres.fr` | Let's Encrypt **production** |
+> | `n8n.esportdessacres.fr` | Let's Encrypt **production** (Story 7.1) |
+>
+> **Deux dégâts, tous deux sur des hôtes en ligne devant des visiteurs :**
+> ① `LETSENCRYPT_CA_SERVER` est une option du service `traefik` — **un seul resolver pour
+> toute la stack**. Le basculer en staging affecterait les **renouvellements des trois**.
+> ② Supprimer `traefik-acme` **détruirait les trois certificats de production** et forcerait
+> trois réémissions, avec interruption visible côté tournoi.
+>
+> ⇒ **On reste en CA production, et on ne touche pas au volume ACME.** La garde contre le
+> rate limit n'est plus le CA staging : c'est le `dig +short` de l'Étape 3, joué **avant**
+> le premier `up`. C'est ce qui a fait réussir le certificat de n8n **du premier coup**.
+
+Vérifier que `docker/.env` porte bien le CA **production** (il l'est déjà si le tournoi tourne) :
 ```
-LETSENCRYPT_CA_SERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+LETSENCRYPT_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
 ```
 
-Depuis `docker/` :
 ```bash
 cd /opt/tournoi-tft/docker
 
-# Démarrer la stack (tournoi + vitrine) — UN SEUL fichier compose
-docker compose up -d
+# 🔴 RELEVER LA MÉMOIRE ET LE DISQUE AVANT LE BUILD. La vitrine n'a jamais été construite
+# sur ce VPS : c'est un `pnpm install` du monorepo + un `next build` DANS un conteneur, sur
+# une machine qui sert déjà 5 services. Un `next build` tué par l'OOM-killer ne dit PAS que
+# c'est la mémoire — il rend une erreur de compilation trompeuse.
+free -m ; df -h /
 
-# Vérifier que tous les services sont healthy (5 services attendus)
+# Construire PUIS démarrer LA SEULE vitrine — surtout pas `up -d` global, qui pourrait
+# recréer les conteneurs existants. Les autres services ne doivent pas bouger.
+docker compose build vitrine
+docker compose up -d vitrine
+
+# 6 services attendus (traefik, postgres, backend, frontend, vitrine, n8n)
 docker compose ps
+
+# Les migrations Drizzle sont jouées AUTOMATIQUEMENT au démarrage du conteneur
+# (src/instrumentation.ts, Story 7.4) — il n'y a AUCUNE commande de migration à lancer.
+# Le témoin est dans le log, et la première requête ATTEND la fin des migrations :
+docker compose logs vitrine | grep '\[migrate\]'
+# Attendu : « [migrate] Migrations à jour (…) en NNN ms. »
+# 🔴 Si la migration échoue, le conteneur SORT en code 1 et redémarre en boucle : c'est
+# voulu (fail-closed). Un `docker compose ps` en « Restarting » est le symptôme à lire.
 ```
 
-### Étape 5 — Vérification locale staging
+### Étape 5 — Vérification depuis l'extérieur
 
 ```bash
-# La vitrine répond (cert STAGING = normal à cette étape)
-curl -k https://esportdessacres.fr/
-
-# Ou avec marqueur HTML
-curl -ks https://esportdessacres.fr/ | grep 'id="content"'
+# La vitrine répond, avec un VRAI certificat (CA production dès le premier coup)
+curl -s https://staging.esportdessacres.fr/ | grep 'id="content"'
 # Attendu : <main id="content">
+
+# 🔴 L'anti-indexation : le témoin est l'EN-TÊTE HTTP, jamais la présence de la variable
+# dans docker/.env. Sans canonical (dette R22), c'est la SEULE garde qui protège le staging.
+curl -sSI https://staging.esportdessacres.fr/ | grep -i x-robots-tag
+# Attendu : x-robots-tag: noindex, nofollow
+
+# L'émetteur du certificat (doit être Let's Encrypt, sans "STAGING")
+echo | openssl s_client -connect staging.esportdessacres.fr:443 \
+  -servername staging.esportdessacres.fr 2>/dev/null | openssl x509 -noout -issuer -dates
 ```
 
-### Étape 6 — Bascule Let's Encrypt prod
+### Étape 5 bis — 🔴 Droits du volume des médias (sur un volume créé À LA MAIN)
 
-Une fois staging confirmé :
+> **Défaut mesuré le 2026-08-08 (Story 7.4), au premier téléversement réel :**
+> `EACCES: permission denied` sur `/repo/apps/vitrine/medias`. Cause en deux couches —
+> ① le répertoire n'existait pas dans l'image, donc **Docker créait le point de montage en
+> `root:root`** ; ② le processus tourne en `nextjs` (**uid 1001**).
+>
+> ✅ **Corrigé durablement dans le Dockerfile** (le répertoire y est créé avec le bon
+> propriétaire) : tout volume **neuf** est utilisable d'emblée, y compris à la bascule de
+> production. ⚠️ **Mais un volume DÉJÀ créé n'est jamais ré-initialisé par Docker** — c'est le
+> cas de `docker_eds-medias`, posé à la main le 2026-07-29 pour débloquer `backup-medias.sh`.
+> Il se corrige **une fois** :
+
 ```bash
-nano /opt/tournoi-tft/docker/.env
-# Modifier :
-# LETSENCRYPT_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
+# Corriger le proprietaire du volume existant (deploy est dans le groupe docker, pas de sudo)
+docker run --rm -v docker_eds-medias:/v alpine:3 chown -R 1001:1001 /v
 
-# Supprimer le volume ACME staging (obligatoire pour réémettre un cert prod)
-docker compose down traefik
-docker volume rm docker_traefik-acme
-# ou : docker volume ls | grep acme  →  trouver le nom exact
+# 🔴 PREUVE — ecrire EN TANT QUE uid 1001, jamais en root : un `touch` en root reussirait
+# toujours et ne prouverait RIEN (pieges/faux-succes.md, le bon temoin).
+docker exec -u 1001 eds-vitrine sh -c \
+  'touch /repo/apps/vitrine/medias/.essai && rm /repo/apps/vitrine/medias/.essai && echo OK'
+```
 
-# Redémarrer Traefik (les autres services restent up)
-docker compose up -d traefik
+⚠️ **Rien ne signale ce défaut avant un téléversement réel** : ni le build, ni le healthcheck,
+ni aucune porte outillée — le conteneur est `healthy` et le site public parfait. Même famille
+que la dette **R21**. C'est la raison pour laquelle l'AC5 de la Story 7.4 exige un **upload
+réel**, et non la simple existence du volume.
+
+### Étape 6 — Non-régression des services déjà en ligne
+
+> Cette étape REMPLACE l'ancienne « bascule Let's Encrypt prod », devenue sans objet
+> (on démarre directement en CA production, cf. Étape 4).
+
+```bash
+# Les conteneurs existants ne doivent pas avoir été recréés : leur uptime est le témoin.
+docker compose ps
+
+# Et leurs certificats doivent être INCHANGÉS (émetteur ET dates, relevés avant/après).
+for h in tournoi.esportdessacres.fr api-tournoi.esportdessacres.fr n8n.esportdessacres.fr; do
+  echo "== $h"; echo | openssl s_client -connect $h:443 -servername $h 2>/dev/null \
+    | openssl x509 -noout -issuer -dates
+done
 ```
 
 ### Étape 7 — Smoke test complet
 
 ```bash
-# Attendre ~2 min que le cert prod soit émis, puis :
 bash /opt/tournoi-tft/docker/smoke-test.sh \
   https://api-tournoi.esportdessacres.fr \
   https://tournoi.esportdessacres.fr \
-  https://esportdessacres.fr
+  https://staging.esportdessacres.fr
 # 11 checks attendus SUCCES (dont cert vitrine "Let's Encrypt" sans STAGING)
 ```
+
+> ⚠️ **UN SMOKE VERT NE VEUT PAS DIRE « STAGING VALIDÉ ».** Ses 3 checks vitrine ne couvrent
+> que `/` : ni les 4 autres pages publiques, ni `/admin`, ni les médias, ni `X-Robots-Tag`,
+> ni n8n. Ce que le script ne fait pas se fait à la main (Story 7.4, AC8) :
+> les **5 pages** en 200 · `/admin` **fermé sans cookie** (`pnpm --filter vitrine gate:admin`)
+> · une **photo téléversée puis servie** · **Lighthouse a11y + SEO sur l'hôte réel** (100/100).
 
 ### Inspecter la base `vitrine`
 
