@@ -90,10 +90,27 @@ COMPOSE="docker compose"
   démarrage du conteneur (`src/instrumentation.ts`). **Il n'y a aucune commande de migration
   à lancer**, et la première requête *attend* la fin des migrations — vérifié par la mesure,
   pas déduit du code.
-  🔴 **Si une migration échoue, le conteneur sort en code 1 et redémarre en boucle.** C'est
-  voulu : servir des pages sur un schéma faux est pire qu'un service arrêté. Le symptôme à
-  lire est un `Restarting` dans `$COMPOSE ps` ; la cause est dans
-  `$COMPOSE logs vitrine | grep '\[migrate\]'`.
+  🔴 **Deux pannes possibles, et EN PRODUCTION elles donnent le MÊME symptôme** — c'est voulu,
+  et ça a été corrigé à la revue de la 7.4 précisément parce que ce n'était pas le cas :
+
+  | Cause | Message dans les logs | Ce que fait le conteneur |
+  |---|---|---|
+  | Une **migration échoue** (schéma cassé, base injoignable, mauvais mot de passe) | `[migrate] ÉCHEC des migrations` | sort en **code 1**, puis **redémarre en boucle** |
+  | La ligne **`DATABASE_URL` manque** dans `apps/vitrine/.env.prod` | `[migrate] DATABASE_URL ABSENTE en production` | sort en **code 1**, puis **redémarre en boucle** |
+
+  Dans les deux cas : symptôme `Restarting` dans `$COMPOSE ps`, cause dans
+  `$COMPOSE logs vitrine | grep '\[migrate\]'`. Servir des pages sur un schéma faux — ou sans
+  base du tout — est pire qu'un service arrêté.
+
+  ⚠️ **Avant la 7.4, la seconde ligne était un piège** : le conteneur démarrait, s'affichait
+  `Up (healthy)`, Traefik le servait, et **toute page qui lit la base** (dont l'accueil, à
+  chaque visite) rendait une erreur. Celui qui dépanne cherchait un `Restarting` qui
+  n'arrivait jamais. ⇒ **Si vous lisez une vieille note qui décrit ce comportement, elle est
+  périmée.**
+
+  ℹ️ **Hors production** (poste de dev, CI, construction de l'image), l'absence de
+  `DATABASE_URL` est **normale** : les migrations sont sautées avec un simple avertissement et
+  le serveur démarre. C'est ce qui permet à la CI de bâtir **sans aucun secret**.
 - La **vitrine** : si une variable de **build** change (ex. `NEXT_PUBLIC_SITE_URL`, pilotée
   par `VITRINE_HOST`), il faut `build` (le bundle est figé au build, cf. README §Deploy).
 - Toujours vérifier après coup : `$COMPOSE ps` (healthy) puis un smoke-test (§4).

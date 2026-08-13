@@ -71,11 +71,26 @@ function trouverDossierMigrations(): string | null {
  *
  * Trois comportements, et chacun est une décision :
  *
- * 1. **`DATABASE_URL` absente ⇒ on SAUTE, bruyamment.** C'est le Garde-fou n°2 de la
- *    Story 1.7 : `next build` et la CI tournent **sans secret**, et les portes visuelles
- *    lancent un serveur bâti sur des environnements incomplets. Lever ici transformerait un
- *    manque de configuration en **serveur qui ne démarre pas**, donc en régression pour tout
- *    le poste de dev. L'application, elle, échoue déjà clairement au premier appel base.
+ * 1. **`DATABASE_URL` absente ⇒ le comportement DÉPEND de `NODE_ENV`.**
+ *
+ *    · **Hors production** (dev, CI, build) ⇒ on SAUTE, bruyamment. C'est le Garde-fou n°2 de
+ *      la Story 1.7 : `next build` et la CI tournent **sans secret**. Lever ici transformerait
+ *      un manque de configuration en serveur qui ne démarre pas, donc en régression.
+ *
+ *    · 🔴 **En production ⇒ on SORT en code 1**, comme un échec de migration.
+ *      ⚠️ **Cette branche est née d'un finding de la revue de la 7.4** : la version d'origine
+ *      sautait *dans tous les cas*, alors que l'AC2 promettait un échec « BRUYANT et FERMÉ »
+ *      et que `docs/PASSATION.md` apprend à l'opérateur à chercher un `Restarting`. Ce
+ *      symptôme **n'existait pas** pour ce chemin : le conteneur restait `Up (healthy)`,
+ *      Traefik le servait, et **toute page qui lit la base** (dont `/`, à chaque requête
+ *      depuis la Story 3.2) rendait une erreur — pendant que le seul indice enseigné à
+ *      l'opérateur restait introuvable. C'est la famille **R21** : l'échec n'arrive pas au
+ *      démarrage, il arrive au premier usage réel.
+ *
+ *    ⚠️ **`NODE_ENV=production` inclut `next start` sur le poste, et c'est ASSUMÉ** : depuis
+ *    la Story 3.2 un serveur local sans base ne sert de toute façon pas `/`. Échouer au
+ *    démarrage y est **plus honnête** qu'échouer à la première page. Le build, lui, n'est pas
+ *    concerné — `register()` ne tourne pas au build (mesuré au dev de la 7.4).
  *
  * 2. **Migration en échec ⇒ le processus SORT en code 1.** Fail-closed, et c'est voulu :
  *    servir des pages sur un schéma faux est pire qu'un service arrêté. Sous Docker
@@ -97,9 +112,19 @@ function trouverDossierMigrations(): string | null {
 export async function migrerAuDemarrage(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[migrate] DATABASE_URL ABSENTE en production — le serveur ne démarrera pas. " +
+          "Démarrer sans base rendrait une erreur sur toute page qui la lit (dont `/`), " +
+          "derrière un conteneur affiché `Up (healthy)` : le symptôme le plus trompeur " +
+          "possible. Vérifier la ligne DATABASE_URL de apps/vitrine/.env.prod, puis " +
+          "`docker compose up -d vitrine` (JAMAIS `restart` : il ne relit pas env_file).",
+      );
+      process.exit(1);
+    }
     console.warn(
       "[migrate] DATABASE_URL absente — migrations SAUTÉES. " +
-        "Normal en CI, au build et sur un poste sans base ; ANORMAL en production.",
+        "Normal en CI, au build et sur un poste sans base.",
     );
     return;
   }
