@@ -17,6 +17,7 @@
  */
 import { z } from "zod";
 
+import { instantAvecFuseau } from "./instant";
 import { texteOptionnel, visiblementVide } from "./texte";
 
 /**
@@ -115,54 +116,21 @@ const optionalUuid = trimmedText
     message: "Identifiant de bar invalide.",
   });
 
-/** Une date sérialisée doit porter son fuseau : `…Z` ou `…+02:00`. */
-const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i;
-
 /**
  * Instant de début.
  *
- * 🔴 UNE CHAÎNE SANS FUSEAU EST REJETÉE, ET C'EST LE CŒUR DE LA GARDE.
- * `new Date('2026-08-06T19:00')` — le format exact que produit un
- * `<input type="datetime-local">` — s'interprète dans le fuseau du **process**. En
- * développement le poste est à Paris et le résultat tombe juste par coïncidence ; le
- * conteneur de production tourne en UTC et la même saisie glisse de deux heures. C'est
- * le piège `date-tz.md`, et un commentaire d'avertissement ne l'empêche pas : ici il est
- * refusé par le schéma. Construire la valeur avec `src/lib/date-paris.ts`, ou sérialiser
- * avec l'offset.
+ * 🔴 LA GARDE DE FUSEAU A DÉMÉNAGÉ — STORY 9.1, ET LE MOTIF COMPTE.
+ * Elle est née ici (Story 3.1, durcie en 6.3) parce qu'`event` était la seule table à porter
+ * une date saisie. La table `tournament` en porte une aussi (arbitrage A1 : le tournoi a sa
+ * PROPRE date, la Game'in Reims étant **un** événement portant **dix** animations à des heures
+ * différentes). Deux consommateurs, donc **une** définition : elle vit désormais dans
+ * `./instant.ts`, **déplacée verbatim**.
+ * ⚠️ Ne pas la redéclarer ici « pour éviter un import » — ce serait la 2ᵉ copie d'une règle de
+ * fuseau, et sa divergence serait **invisible en local** (le poste est à Paris, le conteneur
+ * de production est en UTC). C'est exactement le mécanisme de la dette **R37**, où
+ * `texteOptionnel` a vécu en trois exemplaires divergents pendant quatre stories.
  */
-const NO_TIMEZONE_MESSAGE =
-  "Date sans fuseau horaire. Sérialisez l'offset (ex. 2026-08-06T19:00:00+02:00) ou " +
-  "construisez la valeur avec parisWallClock() — sans quoi l'heure glisse en production.";
-
-// ⚠️ Volontairement PAS un `z.union([z.date(), z.string()…])` : quand toutes les branches
-// d'une union échouent, zod ne remonte que « Invalid input » et le message ci-dessus est
-// perdu. Or ici le message EST le garde-fou — il dit quoi faire. Mesuré à la revue.
-const startsAtSchema = z
-  .unknown()
-  .superRefine((value, ctx) => {
-    if (value instanceof Date) {
-      if (Number.isNaN(value.getTime())) {
-        ctx.addIssue({ code: "custom", message: "Date invalide." });
-      }
-      return;
-    }
-    if (typeof value !== "string") {
-      ctx.addIssue({
-        code: "custom",
-        message: "Date attendue : un objet Date, ou une chaîne ISO avec son fuseau.",
-      });
-      return;
-    }
-    const trimmed = value.trim();
-    if (!HAS_EXPLICIT_OFFSET.test(trimmed)) {
-      ctx.addIssue({ code: "custom", message: NO_TIMEZONE_MESSAGE });
-      return;
-    }
-    if (Number.isNaN(new Date(trimmed).getTime())) {
-      ctx.addIssue({ code: "custom", message: "Date invalide." });
-    }
-  })
-  .transform((value) => (value instanceof Date ? value : new Date(String(value).trim())));
+const startsAtSchema = instantAvecFuseau;
 
 export const eventInputSchema = z
   .object({

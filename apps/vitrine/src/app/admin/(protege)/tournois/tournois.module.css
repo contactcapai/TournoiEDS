@@ -1,0 +1,100 @@
+/* Ce qui est PROPRE aux écrans de tournois (Story 9.1) — le reste vient de
+   `styles/admin-page.module.css`, le vocabulaire de page du back-office.
+   Tokens uniquement, aucun hex de charte en dur (project-context.md §5).
+
+   ⚠️ Ce fichier ne redéclare RIEN du vocabulaire partagé : ni ligne, ni état, ni lien, ni
+   `.mention`. */
+
+/* ───────── Titre de groupe (« À venir » / « Déjà passés ») ─────────
+   Même rôle que `.famille` des ateliers et `.categorie` des partenaires : nommer un groupe
+   dans une liste d'inventaire. **Le compte passe donc de 2 à 3**, et c'est le seuil que le
+   commentaire d'`ateliers.module.css` s'était fixé pour réévaluer l'extraction.
+
+   🔴 VERDICT RENDU, ET IL EST DE NE PAS EXTRAIRE — avec son motif, pas par inertie. La règle
+   du projet est de COMPTER (leçon R9), pas d'extraire mécaniquement au 3ᵉ : ces trois blocs
+   font six lignes, ne portent aucune garde de correction, et leur divergence serait
+   **immédiatement visible** au gate visuel — c'est exactement le critère qui distingue
+   `texte.ts` (extrait au 2ᵉ, divergence silencieuse) d'une règle de présentation. Les
+   fusionner obligerait à nommer un concept (« titre de groupe d'inventaire ») que rien ne
+   réclame, et à le faire vivre dans `admin-page.module.css`, où le prochain écran devrait
+   s'y plier même si son groupe n'a rien à voir.
+   ⚠️ Le compte est de **3**, il est écrit, et il se réévalue au 4ᵉ. */
+.groupe {
+  margin-top: 34px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+
+.groupe:first-of-type {
+  margin-top: 0;
+}
+
+.groupeVide {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* ───────── Détails d'une ligne de tournoi ─────────
+   ⚠️ `--grey` est autorisé ICI et interdit sur le rendu public : ces écrans sont sur
+   `--navy-deep` (le fond le plus sombre du projet), qui est précisément le cas pour lequel
+   DESIGN.md §Contraste & AA réserve `--grey`. Sur la bande `--navy` d'une page publique, la
+   même couleur ne tiendrait qu'à 4,60:1 — c'est la leçon 4.2 (« un fond effectif n'est pas un
+   token »), payée deux fois sur ce projet. Les futures pages `/tournois` (9.2) et
+   `/tournois/<tournoi>` (9.3) ne doivent donc PAS recopier ces règles. */
+.rattachement {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.inscriptions {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Le podium d'un tournoi passé. Plus visible que les deux lignes ci-dessus : c'est le
+   résultat d'une compétition, et c'est ce qu'on vient chercher sur un tournoi terminé. */
+.podium {
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--gold);
+}
+
+/* ───────── Groupe de champs du formulaire ─────────
+   Le formulaire porte quinze champs — de loin le plus long du back-office (l'agenda en a
+   neuf). Sans regroupement, un bénévole ne sait plus où il en est, et surtout il ne voit pas
+   que le podium ne le concerne qu'après le tournoi. Les `<fieldset>` portent donc un titre et
+   une phrase qui dit QUAND remplir la section, pas seulement QUOI. */
+.bloc {
+  margin-top: 28px;
+  padding: 0;
+  border: none;
+}
+
+.bloc:first-of-type {
+  margin-top: 0;
+}
+
+.blocTitre {
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--gold);
+}
+
+.blocAide {
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
