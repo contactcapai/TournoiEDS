@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { parisWallClockFromInput, diagnostiquerHeureMurale } from "../../lib/date-paris";
 import { tournamentInputSchema } from "../../lib/schemas/tournament";
@@ -235,6 +235,15 @@ export async function enregistrerTournoi(
    * 🔴 `gate:tournois` la prouve **DANS LES DEUX SENS** — un brouillon dont l'identifiant
    * change, un publié dont il ne change pas. Un seul des deux sens ne prouverait rien.
    */
+  /** Message unique du gel — écrit une fois, servi par les DEUX contrôles ci-dessous. */
+  const MESSAGE_ADRESSE_FIGEE =
+    "Ce tournoi est publié : son adresse est figée, parce qu'elle a pu être partagée " +
+    "sur Discord, imprimée ou lue en direct. Pour la changer, retirez d'abord le " +
+    "tournoi du site — les visiteurs qui suivraient l'ancien lien tomberaient sinon " +
+    "sur une page introuvable.";
+
+  let changeDeSlug = false;
+
   if (idExistant !== null) {
     const actuel = await db.query.tournament.findFirst({
       columns: { slug: true, isPublished: true },
@@ -243,17 +252,13 @@ export async function enregistrerTournoi(
     if (!actuel) {
       return { ok: false, error: "Ce tournoi n'existe plus : il a été supprimé entre-temps." };
     }
-    if (actuel.isPublished && actuel.slug !== valeurs.slug) {
+    changeDeSlug = actuel.slug !== valeurs.slug;
+
+    if (actuel.isPublished && changeDeSlug) {
       return {
         ok: false,
         error: "L'adresse d'un tournoi publié ne peut plus changer.",
-        fieldErrors: {
-          slug:
-            "Ce tournoi est publié : son adresse est figée, parce qu'elle a pu être partagée " +
-            "sur Discord, imprimée ou lue en direct. Pour la changer, retirez d'abord le " +
-            "tournoi du site — les visiteurs qui suivraient l'ancien lien tomberaient sinon " +
-            "sur une page introuvable.",
-        },
+        fieldErrors: { slug: MESSAGE_ADRESSE_FIGEE },
       };
     }
   }
@@ -289,13 +294,59 @@ export async function enregistrerTournoi(
       return { ok: true, data: { id: ligne.id, avertissement } };
     }
 
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 CONCURRENCE OPTIMISTE SUR LE GEL D'ADRESSE — TROUVÉ EN REVUE, ET C'ÉTAIT UN TOCTOU
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Le contrôle ci-dessus lit `isPublished` dans une requête, et cet `UPDATE` s'exécute dans
+     * une **autre**. Entre les deux, rien ne tenait la valeur : un second administrateur qui
+     * cliquait « Publier » depuis la liste pendant qu'un premier avait le formulaire ouvert
+     * faisait passer le tournoi à `is_published = true` **après** la lecture et **avant**
+     * l'écriture. Résultat : **l'adresse d'un tournoi publié changeait quand même** — c'est-à-dire
+     * l'invariant exact que A3 déclare tenu, contourné par une course.
+     *
+     * ⚠️ **CE N'EST PLUS UN SCÉNARIO THÉORIQUE.** Le back-office a longtemps eu **un seul**
+     * compte ; il en compte **trois** sur staging depuis le 2026-08-13, ce qui est précisément
+     * le motif pour lequel la dette **R39** a été rouverte. Et ce projet a déjà payé la même
+     * classe de défaut en revue de la **6.4** : deux clics rapides partaient tous deux de
+     * l'état d'AVANT le premier, et le second annulait silencieusement le premier.
+     *
+     * 🔴 LA CONDITION N'EST POSÉE QUE SI L'ADRESSE CHANGE, ET C'EST DÉLIBÉRÉ. La poser
+     * systématiquement ferait échouer un enregistrement **parfaitement anodin** (corriger une
+     * faute de frappe dans les lots) simplement parce que quelqu'un a publié entre-temps —
+     * une porte qui refuse du légitime finit par être contournée. Ici elle ne se ferme que sur
+     * le geste qu'elle protège.
+     * ⚠️ `is_published = false` et non « la valeur lue » : c'est **plus fort**, et ça dit ce
+     * qu'on veut vraiment — *cette adresse ne change que sur un brouillon*.
+     */
     const [ligne] = await db
       .update(tournament)
       .set(valeurs)
-      .where(eq(tournament.id, idExistant))
+      .where(
+        changeDeSlug
+          ? and(eq(tournament.id, idExistant), eq(tournament.isPublished, false))
+          : eq(tournament.id, idExistant),
+      )
       .returning({ id: tournament.id });
 
     if (!ligne) {
+      // 🔴 DEUX CAUSES POSSIBLES, ET ON NE DEVINE PAS : la ligne a disparu, ou elle a été
+      // publiée entre la lecture et l'écriture. On relit pour le dire — un message faux sur un
+      // écran de saisie coûte plus cher que la requête supplémentaire.
+      if (changeDeSlug) {
+        const survivant = await db.query.tournament.findFirst({
+          columns: { isPublished: true },
+          where: (table, { eq: egal }) => egal(table.id, idExistant),
+        });
+        if (survivant?.isPublished) {
+          return {
+            ok: false,
+            error: "Ce tournoi vient d'être publié : son adresse ne peut plus changer.",
+            fieldErrors: { slug: MESSAGE_ADRESSE_FIGEE },
+          };
+        }
+      }
       return { ok: false, error: "Ce tournoi n'existe plus : il a été supprimé entre-temps." };
     }
     return { ok: true, data: { id: ligne.id, avertissement } };

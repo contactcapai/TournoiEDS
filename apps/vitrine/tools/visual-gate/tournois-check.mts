@@ -1099,7 +1099,17 @@ for (const cas of ECRITURES_EPROUVEES) {
     "lobby",
     "bracket",
     "inscri",
-    "registration_count",
+    // 🔴 « registration » EN ENTIER, ET NON `registration_count` EN LITTÉRAL — ÉLARGI LE
+    // 2026-08-13, ET C'EST LA CONTRE-ÉPREUVE DE L'EXEMPTION QUI L'A TROUVÉ.
+    // La liste disait `registration_count`, un nom précis parmi une famille infinie :
+    // `registration_total`, `registration_id`, `registrations` seraient tous passés. Une
+    // énumération à la main de ce qu'on redoute se désaligne à la première variante — c'est
+    // la même erreur que les listes nominatives que ce projet a déjà payées trois fois
+    // (`_sections.ts`, `CHAMPS_URL`, la couverture d'autotest de `gate:reseaux`).
+    // ⚠️ Les TROIS colonnes légitimes (`registration_mode`, `registration_url`,
+    // `registration_state`, A23 ②) sont exemptées NOMMÉMENT ci-dessous, et l'exemption est
+    // exacte : elle ne couvre pas la famille.
+    "registration",
     "participant",
     "engage",
     "player",
@@ -1114,13 +1124,119 @@ for (const cas of ECRITURES_EPROUVEES) {
     where table_schema = 'public' and table_name = 'tournament'`;
   const noms = colonnes.map((c) => c.nom);
 
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 EXEMPTION — ET ELLE A ÉTÉ PAYÉE PAR UN VERDICT ROUGE SUR UN PRODUIT SAIN
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * 🔬 MESURÉ le 2026-08-13, au premier lancement réel de cette porte : la garde a signalé
+   * `match_duration_minutes` comme « hors périmètre ». **C'était l'instrument qui avait tort.**
+   * Le motif `match` visait l'entité RENCONTRE de l'Epic 10 (`match`, `match_participant`) ;
+   * `match_duration_minutes` est la **durée ANNONCÉE d'un match**, exigée nommément par A23 ③
+   * et par l'AC2 de la story — une donnée éditoriale, pas une rencontre.
+   * ⇒ 18ᵉ instrument faux de ce projet, et il **accusait le produit**, comme les ~17 de
+   * l'Epic 6. La règle a été appliquée : prouver l'instrument AVANT de corriger le produit.
+   *
+   * 🔴 L'ASSOUPLISSEMENT SUIT LA PARADE n°6 DE `pieges/instrument-non-valide.md`, ses TROIS
+   * conditions comprises — une exclusion non bornée serait une **porte dérobée** :
+   *   ① **CONDITIONNELLE** — l'exemption porte sur un nom de colonne **EXACT**, jamais sur un
+   *      préfixe. `match_id`, `matches`, `match_count` restent donc attrapés. Une exemption
+   *      par `startsWith("match")` aurait éteint la garde sur toute la famille ;
+   *   ② **VISIBLE** — les exemptions retenues sont **comptées et rapportées** à chaque
+   *      exécution, pour qu'un abus se remarque ;
+   *   ③ **ÉPROUVÉE** — la garde de péremption ci-dessous refuse une exemption qui ne
+   *      correspond à AUCUNE colonne réelle. Une exemption qui survit à la suppression de sa
+   *      colonne est une porte dérobée qui dort.
+   */
+  const EXEMPTIONS_COLONNES: Record<string, string> = {
+    match_duration_minutes:
+      "durée ANNONCÉE d'un match (A23 ③, AC2) — une donnée éditoriale, pas une rencontre",
+    registration_mode:
+      "mode d'inscription (A23 ②) — une PORTE D'ENTRÉE, pas une inscription enregistrée",
+    registration_url: "adresse d'inscription (A23 ②) — un lien sortant, pas une inscription",
+    registration_state: "état des inscriptions (A23 ②) — un fait annoncé, pas un inscrit",
+  };
+
   const cherchees = AUTOTEST ? ["name"] : INTERDITS;
-  const trouves = noms.filter((n) => cherchees.some((i) => n.includes(i)));
+  const suspectes = noms.filter((n) => cherchees.some((i) => n.includes(i)));
+  const exemptees = suspectes.filter((n) => n in EXEMPTIONS_COLONNES);
+  const trouves = suspectes.filter((n) => !(n in EXEMPTIONS_COLONNES));
 
   if (trouves.length === 0) {
-    ok("⑫ périmètre A5", "colonnes de tournament", `aucune colonne de phase, d'inscrit ni d'engagé (${noms.length} colonnes)`);
+    ok(
+      "⑫ périmètre A5",
+      "colonnes de tournament",
+      `aucune colonne de phase, d'inscrit ni d'engagé (${noms.length} colonnes` +
+        `${exemptees.length > 0 ? `, ${exemptees.length} exemptée(s) : ${exemptees.join(", ")}` : ""})`,
+    );
   } else {
     ko("⑫ périmètre A5", "colonnes de tournament", `colonne(s) hors périmètre : ${trouves.join(", ")} — la racine minimale ne l'est plus`);
+  }
+
+  /**
+   * ③ (suite) LE CAS DE NON-RÉGRESSION DE L'EXEMPTION — sans lui, on ne saurait pas si
+   * l'assouplissement a rendu la garde aveugle sur toute la famille `match*`.
+   *
+   * 🔴 IL S'ÉVALUE SUR DES NOMS **FICTIFS**, et c'est le seul moyen : on ne va pas ajouter
+   * une vraie colonne `match_id` à la base pour éprouver une garde. Ce qu'on teste ici est
+   * donc le **prédicat**, exactement celui qu'utilise la garde trois lignes plus haut — pas
+   * une réimplémentation (`pieges/garde-nominale.md`).
+   */
+  {
+    const attrape = (nom: string) =>
+      INTERDITS.some((i) => nom.includes(i)) && !(nom in EXEMPTIONS_COLONNES);
+    // ⚠️ `registration_total` A TROUVÉ UN VRAI TROU le 2026-08-13 : la liste `INTERDITS`
+    // portait `registration_count` en LITTÉRAL, donc toute autre variante passait. La garde a
+    // été élargie (voir `INTERDITS`), pas la contre-épreuve affaiblie — c'est le sens de
+    // marche : quand le cas de non-régression rougit, c'est lui qui a raison.
+    const DOIVENT_ETRE_ATTRAPES = [
+      "match_id",
+      "matches",
+      "match_count",
+      "phase_id",
+      "registration_total",
+      "registration_id",
+      "registrations",
+    ];
+    const DOIT_ETRE_EXEMPTE = "match_duration_minutes";
+
+    const rates = DOIVENT_ETRE_ATTRAPES.filter((n) => !attrape(n));
+    const exempteOk = AUTOTEST ? attrape(DOIT_ETRE_EXEMPTE) : !attrape(DOIT_ETRE_EXEMPTE);
+
+    if (rates.length === 0 && exempteOk) {
+      ok(
+        "⑫ périmètre A5",
+        "portée de l'exemption",
+        `l'exemption est EXACTE : ${DOIVENT_ETRE_ATTRAPES.length} noms voisins restent attrapés`,
+      );
+    } else {
+      ko(
+        "⑫ périmètre A5",
+        "portée de l'exemption",
+        rates.length > 0
+          ? `l'exemption a rendu la garde aveugle sur : ${rates.join(", ")}`
+          : `« ${DOIT_ETRE_EXEMPTE} » n'est pas exempté alors qu'il devrait l'être`,
+      );
+    }
+  }
+
+  // ③ (fin) L'exemption ne doit pas survivre à sa colonne : une exemption périmée éteindrait
+  // la garde sur un nom que quelqu'un pourrait réintroduire des mois plus tard, en silence.
+  // ⚠️ En autotest on injecte une exemption qui ne correspond à AUCUNE colonne : la garde doit
+  // la voir. Le message affiche la liste RÉELLEMENT évaluée — un message qui afficherait autre
+  // chose que ce qui a été testé serait le 3ᵉ mode de `instrument-non-valide.md` (l'instrument
+  // est juste, mais ce qu'il publie n'est pas ce qu'on en lit).
+  const perimees = AUTOTEST
+    ? ["zz_colonne_qui_n_existe_pas"]
+    : Object.keys(EXEMPTIONS_COLONNES).filter((c) => !noms.includes(c));
+  if (perimees.length === 0) {
+    ok(
+      "⑫ périmètre A5",
+      "exemptions",
+      `${Object.keys(EXEMPTIONS_COLONNES).length} exemption(s), toutes adossées à une colonne réelle`,
+    );
+  } else {
+    ko("⑫ périmètre A5", "exemptions", `exemption(s) PÉRIMÉE(S) : ${perimees.join(", ")} — porte dérobée dormante`);
   }
 
   // Et AUCUNE TABLE de phase/inscription ne doit exister non plus : le périmètre A5 est fermé
@@ -1156,16 +1272,84 @@ for (const cas of ECRITURES_EPROUVEES) {
 {
   const source = readFileSync(join(RACINE_APP, "src/server/actions/tournois.ts"), "utf8");
   const MARQUEURS = [
-    "actuel.isPublished && actuel.slug !== valeurs.slug",
+    "actuel.isPublished && changeDeSlug",
+    "eq(tournament.isPublished, false)",
     "L'adresse d'un tournoi publié ne peut plus changer.",
   ];
   const cherches = AUTOTEST ? ["ZZ-CE-TEXTE-N-EXISTE-PAS"] : MARQUEURS;
   const manquants = cherches.filter((m) => !source.includes(m));
 
   if (manquants.length === 0) {
-    ok("⑬ gel d'adresse", "actions/tournois.ts", "la garde A3 est présente dans le source");
+    ok("⑬ gel d'adresse", "actions/tournois.ts", "les deux gardes A3 sont présentes dans le source");
   } else {
     ko("⑬ gel d'adresse", "actions/tournois.ts", `absent(s) du source : ${manquants.join(" · ")}`);
+  }
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 ET LE **MÉCANISME** EST MESURÉ PAR SON EFFET, PAS SEULEMENT LU — AJOUTÉ APRÈS REVUE
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * La revue (frontière d'authentification) a trouvé un **TOCTOU** : le contrôle applicatif
+   * lisait `is_published` dans une requête et écrivait dans une autre, sans rien entre les
+   * deux. Le correctif conditionne l'`UPDATE` sur `is_published = false` **quand l'adresse
+   * change**. Ce prédicat-là, contrairement au contrôle applicatif, **est mesurable sans
+   * session** : c'est du SQL.
+   *
+   * ⇒ On l'éprouve **DANS LES DEUX SENS**, ce qu'un `grep` ne fera jamais :
+   *   · sur un tournoi **PUBLIÉ**, l'`UPDATE` conditionné doit toucher **0 ligne** ;
+   *   · sur un **BROUILLON**, il doit en toucher **1**.
+   * Sans le second, une condition qui refuserait TOUT passerait le premier sans qu'on le voie
+   * — c'est la même dissymétrie que ⑥ sans ⑦.
+   * ⚠️ Ce n'est PAS l'action elle-même (elle exige une session, exemption déclarée) : c'est
+   * le prédicat sur lequel elle repose, exercé contre la vraie base.
+   */
+  try {
+    await sql.begin(async (tx) => {
+      const idEvenement = await evenementTemoin(tx);
+
+      const [publie] = await tx<{ id: string }[]>`
+        insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
+        values (${idEvenement}, 'Gel publie', 'CS2', 'gel-publie', now(), 'interne', true)
+        returning id`;
+      const [brouillon] = await tx<{ id: string }[]>`
+        insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
+        values (${idEvenement}, 'Gel brouillon', 'CS2', 'gel-brouillon', now(), 'interne', false)
+        returning id`;
+
+      // En autotest on retire la condition : l'`UPDATE` touche alors la ligne publiée, et la
+      // garde doit s'en apercevoir.
+      const surPublie = AUTOTEST
+        ? await tx`update tournament set slug = 'gel-publie-modifie' where id = ${publie.id} returning id`
+        : await tx`update tournament set slug = 'gel-publie-modifie'
+                   where id = ${publie.id} and is_published = false returning id`;
+
+      if (surPublie.length === 0) {
+        ok("⑬ gel d'adresse", "tournoi PUBLIÉ", "l'UPDATE conditionné touche 0 ligne — l'adresse est gelée");
+      } else {
+        ko("⑬ gel d'adresse", "tournoi PUBLIÉ", `l'UPDATE a touché ${surPublie.length} ligne(s) — le gel ne tient pas`);
+      }
+
+      const surBrouillon = await tx`update tournament set slug = 'gel-brouillon-modifie'
+                                    where id = ${brouillon.id} and is_published = false returning id`;
+
+      if (surBrouillon.length === 1) {
+        ok("⑬ gel d'adresse", "tournoi BROUILLON", "l'UPDATE conditionné touche 1 ligne — l'adresse reste modifiable");
+      } else {
+        ko(
+          "⑬ gel d'adresse",
+          "tournoi BROUILLON",
+          `l'UPDATE a touché ${surBrouillon.length} ligne(s) — la condition refuse du légitime`,
+        );
+      }
+
+      throw new Error("__ROLLBACK__");
+    });
+  } catch (erreur) {
+    const details = erreur as { message?: string };
+    if (details.message !== "__ROLLBACK__") {
+      ko("⑬ gel d'adresse", "mécanisme SQL", `la transaction a échoué : ${String(erreur)}`);
+    }
   }
 }
 
@@ -1273,10 +1457,15 @@ exemptions.add(
     "c'est le gate visuel de Brice, et la passe 1 ne s'outille pas (rétro Epic 5).",
 );
 exemptions.add(
-  "🔴 LE GEL DE L'ADRESSE À LA PUBLICATION (A3) N'EST PAS MESURÉ PAR SON EFFET. La garde ⑬ " +
-    "LIT le source de `actions/tournois.ts` : la règle vit dans une Server Action, dont " +
-    "l'effet exige une session Discord que cette porte n'a pas. Elle attrape une SUPPRESSION " +
-    "du bloc, pas une réécriture qui le rendrait inopérant.",
+  "🔴 DU GEL D'ADRESSE (A3), LA GARDE ⑬ MESURE LE **MÉCANISME** ET NON L'**ACTION**. Le " +
+    "prédicat SQL (`… and is_published = false`) est éprouvé par son EFFET, dans les deux " +
+    "sens — 0 ligne sur un publié, 1 ligne sur un brouillon. Ce qui reste NON couvert : le " +
+    "contrôle applicatif qui rend le message au bénévole, et l'ORDRE des deux (lecture puis " +
+    "écriture conditionnée). Ils vivent dans une Server Action, dont l'effet exige une " +
+    "session Discord que cette porte n'a pas ; seule leur PRÉSENCE est vérifiée, par lecture " +
+    "du source — ce qui attrape une suppression, pas une réécriture inopérante." +
+    " ⚠️ Cette exemption disait « N'EST PAS MESURÉ PAR SON EFFET » jusqu'à ce que la revue " +
+    "trouve le TOCTOU : elle était vraie au premier commit de la story et fausse au dernier.",
 );
 exemptions.add(
   "🔴 QUE LE RATTACHEMENT SOIT LE BON. La base garantit qu'un tournoi A UN événement (A4) ; " +
