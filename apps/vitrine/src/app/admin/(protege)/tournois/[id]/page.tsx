@@ -8,6 +8,7 @@ import { formatLongDate } from "@/lib/date-paris";
 import { lireAdmin } from "@/server/auth/guard";
 import {
   getEventsPourRattachement,
+  getPhotosPourVisuel,
   getTournamentById,
 } from "@/server/db/queries/tournaments";
 import styles from "@/styles/admin-page.module.css";
@@ -35,6 +36,9 @@ export const dynamic = "force-dynamic";
 /** Même borne que l'écran de création, et pour la même raison. */
 const EVENEMENTS_MAX = 200;
 
+/** Même doctrine pour les photos proposables en visuel (A2). */
+const PHOTOS_MAX = 200;
+
 export default async function ModifierTournoiPage({
   params,
 }: {
@@ -46,9 +50,10 @@ export default async function ModifierTournoiPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [tournoi, evenements] = await Promise.all([
+  const [tournoi, evenements, photos] = await Promise.all([
     getTournamentById(id),
     getEventsPourRattachement(EVENEMENTS_MAX),
+    getPhotosPourVisuel(PHOTOS_MAX),
   ]);
   if (!tournoi) notFound();
 
@@ -83,7 +88,7 @@ export default async function ModifierTournoiPage({
       </div>
 
       <div className={styles.section}>
-        <TournoiForm tournoi={tournoi} evenements={evenements} />
+        <TournoiForm tournoi={tournoi} evenements={evenements} photos={photos} />
       </div>
     </>
   );

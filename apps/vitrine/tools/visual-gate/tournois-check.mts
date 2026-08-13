@@ -54,7 +54,7 @@
 // Usage :  pnpm --filter vitrine gate:tournois [baseUrl]
 //          TOURNOIS_AUTOTEST=1 …  → auto-validation de l'instrument
 //          DATABASE_URL=…         → prioritaire sur `.env.local` (c'est ainsi qu'on vise staging)
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
@@ -415,6 +415,35 @@ const avantMenage = await compter();
       valeur: { ...BASE_VALIDE, venueName: "", prizes: "  ", formatText: "" },
       doitPasser: true,
     },
+    {
+      // 🔴 TROUVÉ EN REVUE : un classement ne désigne pas deux fois le même vainqueur.
+      quoi: "podium avec la MÊME équipe en 1ʳᵉ et 2ᵉ place",
+      valeur: { ...BASE_VALIDE, podiumFirst: "Team Alpha", podiumSecond: "Team Alpha" },
+      doitPasser: false,
+    },
+    {
+      quoi: "podium avec la MÊME équipe en 1ʳᵉ et 3ᵉ place",
+      valeur: { ...BASE_VALIDE, podiumFirst: "A", podiumSecond: "B", podiumThird: "A" },
+      doitPasser: false,
+    },
+    {
+      // La contre-épreuve : deux noms qui ne diffèrent QUE par la casse restent acceptés,
+      // et c'est assumé (« ALPHA » et « Alpha » peuvent être deux équipes distinctes).
+      quoi: "podium dont deux places ne diffèrent que par la CASSE",
+      valeur: { ...BASE_VALIDE, podiumFirst: "Alpha", podiumSecond: "ALPHA" },
+      doitPasser: true,
+    },
+    {
+      // 🔴 A2 — LE VISUEL VIENT DE LA GALERIE, et il est FACULTATIF.
+      quoi: "visuel absent (chaîne vide → null)",
+      valeur: { ...BASE_VALIDE, photoId: "" },
+      doitPasser: true,
+    },
+    {
+      quoi: "visuel qui n'est pas un identifiant",
+      valeur: { ...BASE_VALIDE, photoId: "pas-un-uuid" },
+      doitPasser: false,
+    },
   ];
 
   for (const c of cas) {
@@ -431,6 +460,29 @@ const avantMenage = await compter();
   // vide doit valoir `null` et jamais `''`. Sans cette garde, la chaîne vide arriverait à la
   // base, où le `CHECK` la refuserait — le bénévole recevrait une erreur de driver pour un
   // champ qu'il a simplement laissé vide.
+  /**
+   * 🔴 UN MESSAGE DE BIBLIOTHÈQUE N'EST PAS UN MESSAGE — TROUVÉ EN REVUE, ET MESURÉ.
+   * `entierOptionnel` rend `NaN` sur une saisie non numérique. Sans `error` posé sur le type
+   * de base, zod échoue AVANT `.int()`/`.min()`/`.max()` et rend son message natif —
+   * `« Invalid input: expected number, received NaN »`, **en anglais**, remonté tel quel au
+   * bénévole. C'est le symétrique exact de ce que `_commun.ts` fait pour la base.
+   * ⚠️ La garde teste l'ABSENCE d'anglais **et** la présence du mot du domaine : chercher
+   * seulement « chiffres » laisserait passer un message anglais qui le contiendrait par hasard.
+   */
+  for (const [champ, attendu] of [
+    ["matchDurationMinutes", "minutes"],
+    ["capacity", "places"],
+  ] as [string, string][]) {
+    const r = tournamentInputSchema.safeParse({ ...BASE_VALIDE, [champ]: Number.NaN });
+    const message = r.success ? "" : (r.error.issues[0]?.message ?? "");
+    const enFrancais = !/Invalid input|expected|received/i.test(message) && message.includes(attendu);
+    if (AUTOTEST ? !enFrancais : enFrancais) {
+      ok("③ contrat Zod", `${champ} non numérique`, `message en français : « ${message} »`);
+    } else {
+      ko("③ contrat Zod", `${champ} non numérique`, `message de bibliothèque : « ${message} »`);
+    }
+  }
+
   const vide = tournamentInputSchema.safeParse({ ...BASE_VALIDE, venueName: "" });
   if (vide.success && vide.data.venueName === null) {
     ok("③ contrat Zod", "champ facultatif vide", "transformé en null (et non en chaîne vide)");
@@ -712,6 +764,25 @@ const ECRITURES_REFUSEES: EcritureRefusee[] = [
     valeurs: `'T', 'CS2', 'a-b', now(), 'interne', 'Premier', 'Troisieme'`,
   },
   {
+    quoi: "podium en DOUBLON : même équipe en 1ʳᵉ et 2ᵉ",
+    contrainte: "tournament_podium_2_distinct",
+    colonnes: "name, game, slug, starts_at, registration_mode, podium_first, podium_second",
+    valeurs: `'T', 'CS2', 'a-b', now(), 'interne', 'Team Alpha', 'Team Alpha'`,
+  },
+  {
+    quoi: "podium en DOUBLON : même équipe en 1ʳᵉ et 3ᵉ",
+    contrainte: "tournament_podium_3_distinct",
+    colonnes:
+      "name, game, slug, starts_at, registration_mode, podium_first, podium_second, podium_third",
+    valeurs: `'T', 'CS2', 'a-b', now(), 'interne', 'A', 'B', 'A'`,
+  },
+  {
+    quoi: "visuel pointant une photo INEXISTANTE",
+    contrainte: "23503",
+    colonnes: "name, game, slug, starts_at, registration_mode, photo_id",
+    valeurs: `'T', 'CS2', 'a-b', now(), 'interne', '00000000-0000-4000-8000-000000000000'`,
+  },
+  {
     quoi: "registration_mode absent de l'enum",
     contrainte: "22P02",
     colonnes: "name, game, slug, starts_at, registration_mode",
@@ -830,6 +901,17 @@ for (const cas of ECRITURES_EPROUVEES) {
       colonnes:
         "name, game, slug, starts_at, registration_mode, podium_first, podium_second, podium_third",
       valeurs: `'T', 'CS2', 'a-b', now(), 'interne', 'A', 'B', 'C'`,
+    },
+    {
+      quoi: "podium dont deux places ne diffèrent que par la CASSE (assumé acceptable)",
+      colonnes:
+        "name, game, slug, starts_at, registration_mode, podium_first, podium_second",
+      valeurs: `'T', 'CS2', 'a-b', now(), 'interne', 'Alpha', 'ALPHA'`,
+    },
+    {
+      quoi: "visuel explicitement NULL (A2 : le visuel est FACULTATIF)",
+      colonnes: "name, game, slug, starts_at, registration_mode, photo_id",
+      valeurs: `'T', 'CS2', 'a-b', now(), 'interne', null`,
     },
     {
       quoi: "podium partiel : 1ʳᵉ place seule",
@@ -1417,6 +1499,58 @@ for (const cas of ECRITURES_EPROUVEES) {
     // écriture réellement commitée de cette porte (voir l'en-tête, précaution ②).
     await sql`delete from tournament where name like ${MARQUE + "%"}`;
     if (idEvenement) await sql`delete from event where id = ${idEvenement}`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// ⑯ LE VISUEL VIENT DE LA GALERIE — **AUCUNE 4ᵉ FAMILLE DE MÉDIAS** (arbitrage A2)
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 CETTE GARDE PROTÈGE UNE **ABSENCE**, ET C'EST LA SEULE CHOSE QUI LA TIENDRA DANS SIX MOIS.
+// Mesuré le 2026-08-13 : `src/app/medias/` porte **trois** familles (`[filename]`, `logos/`,
+// `portraits/`). Quelqu'un ajoutera un jour « juste une route pour les visuels de tournoi,
+// c'est plus propre » — et rouvrira le piège de la Story 6.5 : *les routes de médias ne
+// connaissent que leur propre table*, donc un fichier posé sans ligne correspondante rend
+// **404 EN SILENCE**. L'arbitrage A2 existe précisément pour éviter cette route.
+// ⚠️ La garde vérifie AUSSI que la clé étrangère pointe bien `photo` : une colonne `photo_id`
+// qui ne référencerait rien serait un identifiant orphelin, c'est-à-dire la même panne par un
+// autre chemin.
+{
+  const familles = readdirSync(join(RACINE_APP, "src/app/medias"), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+  const ATTENDUES = AUTOTEST ? ["logos"] : ["[filename]", "logos", "portraits"];
+
+  if (JSON.stringify(familles) === JSON.stringify(ATTENDUES)) {
+    ok("⑯ A2 — visuel", "src/app/medias/", `${familles.length} familles de médias, inchangé : ${familles.join(", ")}`);
+  } else {
+    ko(
+      "⑯ A2 — visuel",
+      "src/app/medias/",
+      `attendu [${ATTENDUES.join(", ")}], trouvé [${familles.join(", ")}] — une famille de plus rouvre le 404 silencieux de la 6.5`,
+    );
+  }
+
+  const [fk] = await sql<{ cible: string; action: string }[]>`
+    select ccu.table_name as cible, rc.delete_rule as action
+    from information_schema.table_constraints tc
+    join information_schema.key_column_usage kcu on kcu.constraint_name = tc.constraint_name
+    join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name
+    join information_schema.referential_constraints rc on rc.constraint_name = tc.constraint_name
+    where tc.table_name = 'tournament' and tc.constraint_type = 'FOREIGN KEY'
+      and kcu.column_name = ${AUTOTEST ? "event_id" : "photo_id"}`;
+
+  // 🔴 `SET NULL` ET NON `CASCADE` : supprimer une photo de la galerie ne doit pas effacer un
+  // tournoi, son podium et son adresse publique. Le tournoi perd son visuel, et c'est tout.
+  if (fk?.cible === "photo" && fk.action === "SET NULL") {
+    ok("⑯ A2 — visuel", "tournament.photo_id", "référence `photo` en ON DELETE SET NULL");
+  } else {
+    ko(
+      "⑯ A2 — visuel",
+      "tournament.photo_id",
+      `attendu photo/SET NULL, trouvé ${fk?.cible ?? "aucune FK"}/${fk?.action ?? "—"}`,
+    );
   }
 }
 

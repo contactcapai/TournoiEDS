@@ -71,6 +71,7 @@ import { db } from "../client";
 const COLONNES_ADMIN = {
   id: true,
   eventId: true,
+  photoId: true,
   name: true,
   game: true,
   slug: true,
@@ -196,3 +197,29 @@ export async function getEventsPourRattachement(limite: number) {
 export type EvenementRattachable = Awaited<
   ReturnType<typeof getEventsPourRattachement>
 >[number];
+
+/**
+ * Les photos proposables comme **visuel** de tournoi (arbitrage **A2**).
+ *
+ * 🔴 **FILTRÉE SUR `is_published`, ET C'EST L'INVERSE DE LA LISTE DES ÉVÉNEMENTS.** Le
+ * rattachement à un événement accepte un brouillon (on prépare la Game'in Reims des semaines à
+ * l'avance) ; le visuel, non — et le motif est **mesuré**, pas esthétique : la route
+ * `/medias/[filename]` ne sert **que** les photos publiées (garde de la Story 6.4). Proposer un
+ * brouillon reviendrait à laisser choisir un visuel qui ne s'afficherait **jamais**, sans que
+ * rien ne le dise. C'est l'« écart assumé » d'A2, refermé au point de saisie plutôt que subi.
+ *
+ * ⚠️ `alt` est le libellé montré au bénévole, et c'est le bon choix : il est **obligatoire**
+ * depuis la 4.3 (NFR3) et il **décrit** l'image, là où `caption` la **commente** et peut être
+ * absent. Confondre les deux livrerait une liste d'options vides.
+ */
+export async function getPhotosPourVisuel(limite: number) {
+  return db.query.photo.findMany({
+    columns: { id: true, filename: true, alt: true },
+    where: (table, { eq }) => eq(table.isPublished, true),
+    orderBy: (table, { asc, desc }) => [desc(table.createdAt), asc(table.alt), asc(table.id)],
+    limit: limite,
+  });
+}
+
+/** Une photo proposable en visuel, dérivée de la requête. */
+export type PhotoVisuel = Awaited<ReturnType<typeof getPhotosPourVisuel>>[number];

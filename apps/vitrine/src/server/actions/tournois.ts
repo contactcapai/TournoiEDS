@@ -133,17 +133,41 @@ export type TournoiEnregistre = {
 /**
  * Lit un entier facultatif d'un `FormData`.
  *
- * 🔴 LA CHAÎNE VIDE DOIT VALOIR `null` ET **JAMAIS `0`** — et c'est le piège de ce helper.
- * `Number("")` rend **`0`**, une valeur parfaitement plausible qui traverserait Zod (`.min(1)`
- * la refuserait ici, mais pas partout) et surtout qui **change le sens** : « aucune capacité
- * annoncée » deviendrait « zéro place ». On teste donc la chaîne AVANT de convertir.
- * ⚠️ `Number("12abc")` rend `NaN`, que `z.number()` refuse avec un message lisible : on ne le
- * transforme pas en `null`, sinon une faute de frappe **effacerait** silencieusement la valeur
- * déjà saisie au lieu de la signaler.
+ * 🔴 LA CHAÎNE VIDE DOIT VALOIR `null` ET **JAMAIS `0`** — et c'est le premier piège de ce
+ * helper. `Number("")` rend **`0`**, une valeur parfaitement plausible qui **change le sens** :
+ * « aucune capacité annoncée » deviendrait « zéro place ». On teste donc la chaîne AVANT de
+ * convertir.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 CHIFFRES SEULEMENT — ET CE BLOC A ÉTÉ CORRIGÉ APRÈS REVUE, PARCE QU'IL DÉCRIVAIT UNE
+ * GARDE QUI N'EXISTAIT PAS
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Il disait : *« `Number("12abc")` rend `NaN`, que `z.number()` refuse avec un message
+ * lisible »*. 🔬 **Mesuré, et c'est FAUX** : `z.number()` refuse bien, mais avec son message
+ * natif — **`« Invalid input: expected number, received NaN »`**, en anglais, remonté tel quel
+ * au bénévole par `erreursParChamp`. C'est-à-dire exactement ce que `_commun.ts` existe pour
+ * empêcher côté base (*« sans cette traduction, la garde la plus soignée du projet rend
+ * `violates check constraint` à quelqu'un qui veut juste publier »*), reproduit côté Zod.
+ * ⇒ Piège `pieges/avertissement-commentaire.md` : **un commentaire affirmatif et faux est un
+ * défaut à part entière, parce que quelqu'un s'y fiera.**
+ *
+ * 🔴 ET `Number()` EST TROP PERMISSIF POUR UN CHAMP DE SAISIE HUMAIN, ce que la même mesure a
+ * montré : `Number("1e2")` rend **100** et `Number("0x10")` rend **16**. Ni l'un ni l'autre
+ * n'est dangereux (les plafonds 600 et 4096 bornent largement), mais un bénévole qui tape
+ * `1e2` obtiendrait **100** sans jamais comprendre pourquoi. On exige donc des **chiffres**,
+ * avec un signe facultatif — et tout le reste est rendu à Zod sous une forme qu'il refuse avec
+ * **le message français du champ**.
+ *
+ * @returns `null` si le champ est vide · le nombre si la saisie est un entier littéral ·
+ *   `NaN` sinon, que le schéma refuse avec son propre message (voir `tournament.ts`).
  */
-function entierOptionnel(valeur: FormDataEntryValue | null): number | null | typeof Number.NaN {
+function entierOptionnel(valeur: FormDataEntryValue | null): number | null {
   const texte = String(valeur ?? "").trim();
   if (texte.length === 0) return null;
+  // ⚠️ On ne transforme PAS une saisie illisible en `null` : une faute de frappe **effacerait**
+  // alors silencieusement la valeur déjà enregistrée, au lieu d'être signalée.
+  if (!/^[+-]?\d+$/.test(texte)) return Number.NaN;
   return Number(texte);
 }
 
@@ -191,6 +215,7 @@ export async function enregistrerTournoi(
 
   const analyse = tournamentInputSchema.safeParse({
     eventId: String(formData.get("eventId") ?? ""),
+    photoId: formData.get("photoId"),
     name: formData.get("name"),
     game: formData.get("game"),
     slug: formData.get("slug"),

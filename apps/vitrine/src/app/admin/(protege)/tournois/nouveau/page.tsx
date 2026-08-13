@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 
 import { TournoiForm } from "@/components/admin/TournoiForm/TournoiForm";
 import { lireAdmin } from "@/server/auth/guard";
-import { getEventsPourRattachement } from "@/server/db/queries/tournaments";
+import {
+  getEventsPourRattachement,
+  getPhotosPourVisuel,
+} from "@/server/db/queries/tournaments";
 import styles from "@/styles/admin-page.module.css";
 
 // Création d'un tournoi (Story 9.1).
@@ -30,11 +33,17 @@ export const dynamic = "force-dynamic";
  */
 const EVENEMENTS_MAX = 200;
 
+/** Même doctrine pour les photos proposables en visuel (A2) : bornée, jamais non bornée. */
+const PHOTOS_MAX = 200;
+
 export default async function NouveauTournoiPage() {
   const admin = await lireAdmin();
   if (admin === null) redirect("/admin/login");
 
-  const evenements = await getEventsPourRattachement(EVENEMENTS_MAX);
+  const [evenements, photos] = await Promise.all([
+    getEventsPourRattachement(EVENEMENTS_MAX),
+    getPhotosPourVisuel(PHOTOS_MAX),
+  ]);
 
   return (
     <>
@@ -52,7 +61,7 @@ export default async function NouveauTournoiPage() {
       </div>
 
       <div className={styles.section}>
-        <TournoiForm evenements={evenements} />
+        <TournoiForm evenements={evenements} photos={photos} />
       </div>
     </>
   );

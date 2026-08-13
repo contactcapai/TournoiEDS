@@ -31,7 +31,7 @@ import {
   type TournamentRegistrationState,
 } from "@/lib/schemas/tournament";
 import { enregistrerTournoi } from "@/server/actions/tournois";
-import type { EvenementRattachable } from "@/server/db/queries/tournaments";
+import type { EvenementRattachable, PhotoVisuel } from "@/server/db/queries/tournaments";
 import styles from "@/styles/admin-form.module.css";
 import propre from "@/app/admin/(protege)/tournois/tournois.module.css";
 
@@ -74,6 +74,7 @@ const ORDRE_CHAMPS = [
   "slug",
   "startsAt",
   "venueName",
+  "photoId",
   "registrationMode",
   "registrationUrl",
   "registrationState",
@@ -115,14 +116,20 @@ export interface TournoiFormProps {
     podiumFirst: string | null;
     podiumSecond: string | null;
     podiumThird: string | null;
+    photoId: string | null;
     /** Décide si l'identifiant d'adresse est encore modifiable (A3). */
     isPublished: boolean;
   };
   /** Les événements d'agenda proposables au rattachement (A4 — le lien est obligatoire). */
   evenements: readonly EvenementRattachable[];
+  /**
+   * Les photos de la galerie proposables comme visuel (A2). **Publiées uniquement** — voir
+   * `getPhotosPourVisuel`, et l'écart assumé d'A2 qu'elle referme.
+   */
+  photos: readonly PhotoVisuel[];
 }
 
-export function TournoiForm({ tournoi, evenements }: TournoiFormProps) {
+export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   const router = useRouter();
   const creation = tournoi === undefined;
 
@@ -132,6 +139,7 @@ export function TournoiForm({ tournoi, evenements }: TournoiFormProps) {
   const [slug, setSlug] = useState(tournoi?.slug ?? "");
   const [startsAt, setStartsAt] = useState(tournoi ? toInputValue(tournoi.startsAt) : "");
   const [venueName, setVenueName] = useState(tournoi?.venueName ?? "");
+  const [photoId, setPhotoId] = useState(tournoi?.photoId ?? "");
   const [formatText, setFormatText] = useState(tournoi?.formatText ?? "");
   const [prizes, setPrizes] = useState(tournoi?.prizes ?? "");
   const [matchDuration, setMatchDuration] = useState(
@@ -359,6 +367,54 @@ export function TournoiForm({ tournoi, evenements }: TournoiFormProps) {
           aide="Seulement s'il faut préciser où, DANS le lieu de l'événement. Exemple : « Hall B, scène esport ». Le lieu général vient déjà de l'agenda."
           erreur={erreurs.venueName}
         />
+
+        {/* ── Le visuel ────────────────────────────────────────────────────────────────
+            🔴 UNE PHOTO DE LA **GALERIE**, PAS UN TÉLÉVERSEMENT (arbitrage A2). Une 4ᵉ
+            famille de médias coûterait une route, son schéma, sa garde, et rouvrirait le
+            piège du 404 silencieux de la Story 6.5. La galerie sait déjà téléverser,
+            décrire et publier.
+            ⚠️ SEULES LES PHOTOS **PUBLIÉES** SONT PROPOSÉES, et l'écran dit pourquoi : la
+            route qui sert les médias ne rend que du publié (garde de la 6.4). Proposer un
+            brouillon laisserait choisir un visuel qui ne s'afficherait jamais. */}
+        <div className={styles.champ}>
+          <label className={styles.label} htmlFor="tournoi-photoId">
+            Visuel (facultatif)
+          </label>
+          <select
+            id="tournoi-photoId"
+            name="photoId"
+            className={styles.saisie}
+            value={photoId}
+            onChange={(evenement) => setPhotoId(evenement.target.value)}
+            aria-invalid={erreurs.photoId ? "true" : undefined}
+            aria-describedby="tournoi-photoId-aide"
+          >
+            <option value="">Aucun visuel</option>
+            {photos.map((photo) => (
+              <option key={photo.id} value={photo.id}>
+                {photo.alt}
+              </option>
+            ))}
+          </select>
+          <p className={styles.sousChamp} id="tournoi-photoId-aide">
+            <span>
+              {photos.length > 0 ? (
+                <>
+                  Choisi parmi les photos de la <strong>galerie</strong> — il n&rsquo;y a rien
+                  à téléverser ici. Seules les photos <strong>publiées</strong> sont
+                  proposées : une photo en brouillon ne s&rsquo;afficherait nulle part.
+                </>
+              ) : (
+                <>
+                  Aucune photo publiée dans la galerie pour l&rsquo;instant. Téléversez-en une
+                  depuis la section <strong>Galerie</strong> et publiez-la : elle apparaîtra
+                  ici. Un tournoi sans visuel s&rsquo;affiche très bien.
+                </>
+              )}
+            </span>
+          </p>
+          {erreurs.photoId ? <p className={styles.erreur}>{erreurs.photoId}</p> : null}
+        </div>
       </fieldset>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════

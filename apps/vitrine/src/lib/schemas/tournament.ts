@@ -314,6 +314,24 @@ export const tournamentInputSchema = z
      */
     eventId: z.uuid("Choisissez l'événement d'agenda auquel ce tournoi est rattaché."),
     /**
+     * 🔴 LE VISUEL — **UNE PHOTO DE LA GALERIE**, ET FACULTATIF (arbitrage **A2**, question
+     * ouverte n°2 tranchée « non obligatoire »).
+     *
+     * Le raisonnement complet vit dans `server/db/schema.ts` : une **4ᵉ famille de médias**
+     * coûterait une route, son schéma, sa garde, et rouvrirait le piège du **404 silencieux**
+     * de la Story 6.5. La galerie sait déjà téléverser, décrire et publier.
+     * ⚠️ La chaîne vide vaut `null` **avant** la validation de format : un `<select>` dont
+     * l'option « aucun visuel » porte `value=""` doit produire « pas de photo », pas
+     * « identifiant invalide » — patron `optionalUuid` d'`event.ts`, repris tel quel.
+     */
+    photoId: trimmedText
+      .transform((value) => (value.length === 0 ? null : value))
+      .nullable()
+      .default(null)
+      .refine((value) => value === null || z.uuid().safeParse(value).success, {
+        message: "Cette photo n'existe pas. Rechargez la page et choisissez-en une autre.",
+      }),
+    /**
      * 🔴 LE TOURNOI PORTE SA **PROPRE** DATE DE DÉBUT (A1), en plus de celle de l'événement.
      * Même doctrine que `event.startsAt` : **un seul `timestamptz`**, jamais deux colonnes
      * date + heure (qui rouvriraient le piège de fuseau à chaque lecture), et la valeur se
@@ -368,7 +386,14 @@ export const tournamentInputSchema = z
      * repris depuis.
      */
     matchDurationMinutes: z
-      .number()
+      // 🔴 `error` SUR LE TYPE DE BASE, ET IL A ÉTÉ AJOUTÉ APRÈS REVUE. Sans lui, une saisie
+      // non numérique (`"12abc"`, convertie en `NaN` par `entierOptionnel`) échoue **avant**
+      // d'atteindre `.int()`/`.min()`/`.max()` — donc avec le message NATIF de zod,
+      // `« Invalid input: expected number, received NaN »`, **en anglais**, remonté tel quel au
+      // bénévole. 🔬 Mesuré. C'est le symétrique exact de ce que `_commun.ts` fait pour les
+      // erreurs de la base : un écran dont tout le reste soigne ses messages ne doit pas en
+      // laisser passer un de bibliothèque.
+      .number({ error: "La durée d'un match doit être un nombre de minutes, en chiffres." })
       .int("La durée d'un match doit être un nombre entier de minutes.")
       .min(1, "La durée d'un match doit être d'au moins 1 minute.")
       .max(
@@ -379,7 +404,8 @@ export const tournamentInputSchema = z
       .default(null),
     /** Le nombre de places annoncé (A23 ①). Facultatif — voir `PLACES_MAX` pour FR16. */
     capacity: z
-      .number()
+      // Même motif que `matchDurationMinutes` ci-dessus — voir son bloc.
+      .number({ error: "Le nombre de places doit être un nombre, en chiffres." })
       .int("Le nombre de places doit être un nombre entier.")
       .min(1, "Le nombre de places doit être d'au moins 1.")
       .max(PLACES_MAX, `Le nombre de places ne peut pas dépasser ${PLACES_MAX}.`)
@@ -473,6 +499,35 @@ export const tournamentInputSchema = z
         path: ["podiumSecond"],
         message: "Renseignez la deuxième place avant la troisième.",
       });
+    }
+    /**
+     * 🔴 UNE MÊME ÉQUIPE NE PEUT PAS OCCUPER DEUX PLACES — TROUVÉ EN REVUE, ET C'ÉTAIT UN TROU.
+     *
+     * 🔬 Mesuré : `podiumFirst = podiumSecond = "Team Alpha"` était **accepté**, par Zod comme
+     * par la base. Le `superRefine` ne vérifiait que l'**absence de trou**, et les `CHECK` que
+     * le non-vide et la longueur. Un podium n'est pas une liste : c'est un **classement**, et
+     * deux places identiques n'en est pas un.
+     * ⚠️ La comparaison est faite sur la valeur **déjà `trim`ée** (`texteOptionnel` a tourné
+     * avant ce `superRefine`) : `"Alpha"` et `" Alpha "` sont donc bien vus comme identiques.
+     * ⚠️ Elle reste **sensible à la casse et aux accents**, et c'est assumé : « ALPHA » et
+     * « Alpha » peuvent légitimement désigner deux équipes distinctes, et normaliser ici
+     * fabriquerait un refus que personne ne saurait corriger.
+     */
+    const places = [
+      ["podiumFirst", valeurs.podiumFirst],
+      ["podiumSecond", valeurs.podiumSecond],
+      ["podiumThird", valeurs.podiumThird],
+    ] as const;
+    for (let i = 1; i < places.length; i++) {
+      const [champ, valeur] = places[i];
+      if (valeur === null) continue;
+      if (places.slice(0, i).some(([, precedente]) => precedente === valeur)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [champ],
+          message: `« ${valeur} » occupe déjà une autre place du podium : un classement ne peut pas désigner deux fois le même vainqueur.`,
+        });
+      }
     }
   });
 

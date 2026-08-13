@@ -1341,8 +1341,18 @@ export const tournamentRegistrationState = pgEnum(
  * emblématique : la décision 1 du §8 le rend **obligatoire** (*« un tournoi peut se faire en
  * ligne mais on créera l'événement dans l'agenda pour l'y rattacher »*) ⇒ **aucune occasion de
  * refaire `event_has_venue`**, le `CHECK` qui valait `NULL`, passait, et est resté faux trois
- * epics. Les huit colonnes nullables restantes le sont toutes pour une raison ÉCRITE, et
- * chacune porte une branche `is null` **explicite** dans sa contrainte.
+ * epics. Les **DIX** colonnes nullables restantes le sont toutes pour une raison ÉCRITE, et
+ * chacune porte une branche `is null` **explicite** dans sa contrainte quand elle en a une.
+ *
+ * ⚠️ **CE COMPTE DISAIT « HUIT » — FAUX, TROUVÉ EN REVUE, ET LE MOTIF EST INSTRUCTIF.** Il y en
+ * avait **neuf** à l'écriture (`venue_name`, `format_text`, `prizes`, `match_duration_minutes`,
+ * `capacity`, `registration_url`, `podium_first`, `podium_second`, `podium_third`), et **dix**
+ * depuis que `photo_id` a été ajouté (A2). Sur un projet dont la doctrine est *« compter par
+ * exécution, jamais de mémoire »*, un nombre écrit à la main dans un commentaire est
+ * exactement ce qui se désaligne — c'est la 5ᵉ occurrence, après `_sections.ts`, `CHAMPS_URL`,
+ * la couverture d'autotest de `gate:reseaux` et la liste `INTERDITS` de `gate:tournois`.
+ * ⇒ **Le compte qui fait foi est celui de la porte**, qui le relit dans
+ * `information_schema.columns` ; celui-ci n'est qu'une aide à la lecture.
  */
 export const tournament = pgTable(
   "tournament",
@@ -1466,6 +1476,33 @@ export const tournament = pgTable(
     podiumFirst: text(),
     podiumSecond: text(),
     podiumThird: text(),
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 LE VISUEL RÉUTILISE UNE PHOTO DE LA **GALERIE** — ARBITRAGE A2, ET IL ÉVITE UNE ROUTE
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Mesuré le 2026-08-13 : `src/app/medias/` porte **trois** familles de routes
+     * (`[filename]`, `logos/`, `portraits/`). ⚠️ **Leçon de la Story 6.5, payée** : *les routes
+     * de médias ne connaissent que leur propre table* — un fichier posé sur le volume sans
+     * ligne correspondante rend **404 en silence**. Une **4ᵉ famille** « visuels de tournoi »
+     * coûterait donc une route, son schéma, sa garde, et rouvrirait ce piège pour rien.
+     * ⇒ On pointe une ligne de `photo`, que la galerie sait déjà **téléverser, décrire
+     * (`alt` obligatoire, NFR3) et publier**.
+     *
+     * ⚠️ **ÉCART ASSUMÉ, ET IL EST DIT À L'ÉCRAN** : la route `/medias/[filename]` ne sert que
+     * les photos **publiées**. Un visuel choisi parmi des brouillons ne s'afficherait donc pas
+     * — ce n'est pas un bug, c'est la garde de la 6.4, et le formulaire ne propose que des
+     * photos publiées.
+     *
+     * 🔴 `ON DELETE SET NULL`, jamais `CASCADE` : supprimer une photo de la galerie ne doit pas
+     * effacer un tournoi, son podium et son adresse publique. Le tournoi perd son visuel et se
+     * rend sans — même raisonnement que `photo.eventId`, et c'est pour cela que la colonne est
+     * **nullable par conception**, pas seulement par conséquence.
+     * ⚠️ Le visuel est **FACULTATIF** (question ouverte n°2 de la story, tranchée « non
+     * obligatoire ») : un tournoi sans photo est le cas **nominal** au démarrage de la saisie,
+     * et la fiche doit s'afficher correctement sans lui.
+     */
+    photoId: uuid().references(() => photo.id, { onDelete: "set null" }),
     /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`, `photo`). */
     isPublished: boolean().notNull().default(false),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -1620,6 +1657,36 @@ export const tournament = pgTable(
       sql`${table.podiumThird} is null or ${table.podiumSecond} is not null`,
     ),
     /**
+     * 🔴 UNE MÊME ÉQUIPE N'OCCUPE PAS DEUX PLACES — AJOUTÉ APRÈS REVUE (migration `0015`).
+     *
+     * 🔬 Mesuré : `podium_first = podium_second = 'Team Alpha'` était **accepté**, par Zod comme
+     * par la base. Les trois contraintes de longueur ne regardent qu'une colonne, et les deux
+     * « sans trou » ne regardent que la **présence**. Un podium n'est pas une liste : c'est un
+     * **classement**, et deux places identiques n'en est pas un.
+     *
+     * ⚠️ **UNE SECONDE MIGRATION DANS LA MÊME STORY, ET C'EST ÉCRIT PLUTÔT QUE MAQUILLÉ.** Le
+     * témoin déclaré au cadrage était « migrations 14 → 15 » ; il devient **14 → 16**. Régénérer
+     * la `0014` aurait donné un compte « conforme » — au prix d'une chirurgie DDL sur une base
+     * déjà migrée, pour cacher qu'une revue a trouvé quelque chose. Le projet préfère un témoin
+     * exact et expliqué à un témoin flatteur.
+     *
+     * 🔴 NULL-SAFE PAR CONSTRUCTION, ET LES DEUX BRANCHES SONT NÉCESSAIRES : `x <> y` vaut
+     * **`NULL`** dès que l'une des deux colonnes est nulle — donc **PASSE**, exactement comme
+     * `event_has_venue`. Les branches `is null` ne sont donc pas défensives ici, elles sont ce
+     * qui rend la contrainte évaluable. ⚠️ Ne pas les « simplifier » en s'appuyant sur
+     * `tournament_podium_sans_trou_*` : deux `CHECK` d'une même table sont **indépendants**, et
+     * rien ne garantit qu'ils soient tous les deux en vigueur au même moment (une migration
+     * peut en supprimer un).
+     */
+    check(
+      "tournament_podium_2_distinct",
+      sql`${table.podiumSecond} is null or ${table.podiumFirst} is null or ${table.podiumSecond} <> ${table.podiumFirst}`,
+    ),
+    check(
+      "tournament_podium_3_distinct",
+      sql`${table.podiumThird} is null or (${table.podiumFirst} is null or ${table.podiumThird} <> ${table.podiumFirst}) and (${table.podiumSecond} is null or ${table.podiumThird} <> ${table.podiumSecond})`,
+    ),
+    /**
      * Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERVIRA : la liste publique (Story 9.2) filtre
      * sur `is_published` puis ordonne par `starts_at` — patron exact de
      * `event_published_starts_at_idx`, et un seul index sert les deux sens de la dérivation
@@ -1768,6 +1835,9 @@ export const eventRelations = relations(event, ({ one, many }) => ({
 
 export const tournamentRelations = relations(tournament, ({ one }) => ({
   event: one(event, { fields: [tournament.eventId], references: [event.id] }),
+  // Le visuel vient de la GALERIE (A2) — pas d'une 4ᵉ famille de médias. Voir le bloc de
+  // `tournament.photoId` pour ce que cet arbitrage évite.
+  photo: one(photo, { fields: [tournament.photoId], references: [photo.id] }),
 }));
 
 export const photoRelations = relations(photo, ({ one }) => ({

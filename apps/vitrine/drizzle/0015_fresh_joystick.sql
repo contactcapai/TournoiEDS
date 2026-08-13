@@ -1,0 +1,4 @@
+ALTER TABLE "tournament" ADD COLUMN "photo_id" uuid;--> statement-breakpoint
+ALTER TABLE "tournament" ADD CONSTRAINT "tournament_photo_id_photo_id_fk" FOREIGN KEY ("photo_id") REFERENCES "public"."photo"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tournament" ADD CONSTRAINT "tournament_podium_2_distinct" CHECK ("tournament"."podium_second" is null or "tournament"."podium_first" is null or "tournament"."podium_second" <> "tournament"."podium_first");--> statement-breakpoint
+ALTER TABLE "tournament" ADD CONSTRAINT "tournament_podium_3_distinct" CHECK ("tournament"."podium_third" is null or ("tournament"."podium_first" is null or "tournament"."podium_third" <> "tournament"."podium_first") and ("tournament"."podium_second" is null or "tournament"."podium_third" <> "tournament"."podium_second"));
