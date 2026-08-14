@@ -288,7 +288,7 @@ async function getPastTournaments(limite: number, maintenant: Date) {
  * relevé des appelants : `/agenda` (`getUpcomingEvents` + `getPastEvents`), `/admin/agenda`,
  * `/admin/galerie/nouveau` et `/admin/galerie/[id]` (les paires `…ForAdmin`), plus
  * `/admin/tournois`. Elles ne sont **pas** corrigées ici : ce sont cinq surfaces mergées,
- * hors périmètre de cette story. Dette **R48**, consignée avec sa condition de réouverture.
+ * hors périmètre de cette story. Dette **R49**, consignée avec sa condition de réouverture.
  */
 export async function getPublicTournaments(aVenirMax: number, passesMax: number) {
   const maintenant = new Date();

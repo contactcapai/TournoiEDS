@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   // « Tournois · Esport des Sacres ».
   title: "Tournois",
   description:
-    "Les tournois d'Esport des Sacres : ceux qui arrivent, comment s'y inscrire, et ceux qui ont déjà eu lieu avec leur podium.",
+    "Les tournois d'Esport des Sacres : ceux qui arrivent, comment s'y inscrire, et ceux qui ont déjà eu lieu.",
   // ⚠️ DEUX pièges distincts, tous deux mesurés sur le HTML rendu en Story 2.6 :
   //  1. openGraph NE DÉRIVE PAS du `title` de la page quand le parent en déclare un ;
   //  2. Next REMPLACE l'objet `openGraph` du parent, il ne le fusionne PAS champ par champ.
@@ -54,8 +54,7 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     siteName: "Esport des Sacres",
     title: "Tournois · Esport des Sacres",
-    description:
-      "Ceux qui arrivent, comment s'y inscrire, et ceux qui ont déjà eu lieu avec leur podium.",
+    description: "Ceux qui arrivent, comment s'y inscrire, et ceux qui ont déjà eu lieu.",
   },
 };
 
@@ -119,7 +118,16 @@ export default async function Tournois() {
                 Nos <Brush>tournois</Brush>
               </>
             }
-            intro="On joue pour de vrai : des tournois ouverts, en bar comme sur les gros événements de la région. Vous trouverez ici ce qui arrive, comment s'y inscrire, et ce qui s'est déjà joué."
+            /* 🔴 AUCUNE AFFIRMATION QUI NE SOIT PAS TENUE PAR LA DONNÉE — dette **R48**, et ce
+               chapô y tombait. Une première version écrivait « des tournois OUVERTS, EN BAR
+               comme sur les gros événements de la région » : deux faits fixes, vrais du seul
+               tournoi en base et faux au premier tournoi **en ligne** ou **sur invitation** —
+               tous deux prévus (la note d'architecture décrit explicitement le tournoi en
+               ligne rattaché à un événement d'agenda). C'est
+               `pieges/patron-eprouve-une-seule-nature.md`, 3ᵉ occurrence.
+               ⇒ Tout ce qui reste ci-dessous est garanti par le SCHÉMA : `starts_at`, `game`
+               et `registration_mode` sont tous les trois `notNull`. */
+            intro="Ce qu'on organise, et ce qu'on a déjà joué. Chaque tournoi a sa date, son jeu et sa façon de s'y inscrire — tout est ici, sans compte et sans passer par Discord."
           />
         </Wrap>
       </section>
@@ -163,8 +171,7 @@ export default async function Tournois() {
                 <p className={styles.emptyText}>
                   Aucun tournoi annoncé pour l&rsquo;instant — le prochain apparaîtra ici dès
                   qu&rsquo;il est calé, avec sa date et la façon de s&rsquo;y inscrire. En
-                  attendant, on se retrouve tous les jeudis&nbsp;: c&rsquo;est dans
-                  l&rsquo;agenda.
+                  attendant, le reste du programme est dans l&rsquo;agenda.
                 </p>
                 <p className={styles.emptyCta}>
                   <Button variant="outline" href="/agenda">
@@ -231,9 +238,15 @@ export default async function Tournois() {
         <section className={`${editorial.section} ${motion.reveal}`}>
           <Wrap>
             <div className={styles.outro}>
+              {/* 🔴 CE QUI EST AFFIRMÉ ICI EST TENU PAR LE SCHÉMA, PAS PAR L'HABITUDE :
+                  `tournament.event_id` est `notNull` (arbitrage A4 de la 9.1), donc « chaque
+                  tournoi est rattaché à un rendez-vous » est vrai par construction et le
+                  restera. Une première version énumérait « une soirée en bar, un salon, un
+                  temps fort » — vrai des tournois d'aujourd'hui, faux au premier tournoi EN
+                  LIGNE, que la note d'architecture prévoit explicitement (dette R48). */}
               <p>
-                Un tournoi se joue toujours pendant un rendez-vous&nbsp;: une soirée en bar, un
-                salon, un temps fort. Le reste du programme est dans l&rsquo;agenda.
+                Chaque tournoi est rattaché à un rendez-vous de l&rsquo;agenda&nbsp;: c&rsquo;est
+                là qu&rsquo;on retrouve le programme complet.
               </p>
               <Button variant="outline" href="/agenda">
                 Voir l&rsquo;agenda

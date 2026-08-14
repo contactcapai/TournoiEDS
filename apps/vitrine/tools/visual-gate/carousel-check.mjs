@@ -111,14 +111,14 @@ const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
  * `insert into event` dans son source), contrairement à la garde ⑭ de `gate:tournois` qui
  * prouve la dérivation des TOURNOIS en committant deux témoins datés de part et d'autre de
  * `now()`.
- * ⇒ Dette **R48**, avec sa story d'absorption nommée. Le correctif est connu : doter
+ * ⇒ Dette **R50**, avec sa story d'absorption nommée. Le correctif est connu : doter
  * `gate:agenda` d'un volet-témoin analogue à la ⑭.
  */
 const EXEMPTION_DERIVATION =
   "    ⚠️  EXEMPTION DÉCLARÉE — CETTE SONDE NE COUVRE PAS LA DÉRIVATION SQL ELLE-MÊME.\n" +
   "       « Aucune section passés » est lu sur le RENDU, pas en base : une régression de\n" +
   "       `getPastEvents` produirait le même silence qu'une base sans événement passé.\n" +
-  "       Dette R48 → `gate:agenda` doit gagner un volet-témoin comme la ⑭ de gate:tournois.\n";
+  "       Dette R50 → `gate:agenda` doit gagner un volet-témoin comme la ⑭ de gate:tournois.\n";
 
 const sonde = await fetch(URL).catch(() => null);
 if (!sonde?.ok) {
