@@ -72,7 +72,7 @@ pnpm --filter vitrine gate:carousel      # carrousel des temps forts (3.3)
 pnpm --filter vitrine gate:marquee       # bandeau de logos (4.1)
 pnpm --filter vitrine gate:lightbox      # galerie scrapbook (4.3)
 pnpm --filter vitrine gate:images        # toutes les images servies répondent (4.3)
-pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ écrit en base, et nettoie
+pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⛔ REFUSE de s'exécuter hors boucle locale
 pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
 pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
 pnpm --filter vitrine gate:agenda        # surface de saisie « agenda » (6.3) — ⚠️ écrit en base, en transaction ANNULÉE
@@ -82,12 +82,41 @@ pnpm --filter vitrine gate:ateliers      # surface « ateliers » (6.9) — ⚠�
 pnpm --filter vitrine gate:membres       # surface « membres » (6.10) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
 pnpm --filter vitrine gate:sollicitations # surface « sollicitations » (6.11) — ⚠️ écrit en base, et nettoie
 pnpm --filter vitrine gate:reglages      # surface « réglages » (6.13) — ⚠️ écrit en base, et RESTAURE
+pnpm --filter vitrine gate:reseaux       # déclenchement n8n (6.7) — fabrique son PROPRE faux n8n
+pnpm --filter vitrine gate:contrat-env   # contrat des variables d'environnement (7.4)
+pnpm --filter vitrine gate:tournois      # surface « tournois » (9.1) — ⚠️ écrit en base, et nettoie
 ```
 
-> ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05** : les trois portes
-> livrées entre-temps avaient chacune leur section plus bas, mais aucune n'était remontée ici.
-> Une liste alignée une fois se désaligne à l'ajout suivant — **la relire contre
-> `package.json`**, qui est la seule source qui ne peut pas mentir.
+> ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05**, puis à
+> `gate:reglages` (6.13) **jusqu'au 2026-08-14** — trois portes de plus manquaient à l'appel
+> (`reseaux`, `contrat-env`, `tournois`). **Deuxième désalignement du même tableau**, ce qui
+> confirme le diagnostic au lieu de l'infirmer : une liste alignée à la main se désaligne à
+> l'ajout suivant. **La relire contre `package.json`**, seule source qui ne peut pas mentir :
+> `node -e "console.log(Object.keys(require('./apps/vitrine/package.json').scripts).filter(s=>/^gate/.test(s)))"`
+
+### ⛔ La seule porte qui a un effet SORTANT — et qui le refuse désormais
+
+`gate:solicitation` **soumet le formulaire public pour de vrai**, donc `submitSolicitation`
+appelle `notifySolicitation` : **3 e-mails réels par exécution** (garde ③ = 1 envoi valide,
+garde ④ = resoumissions jusqu'au rate-limit, `RATE_LIMIT_MAX = 3` / 60 s) vers l'adresse de
+contact **lue en base**. Mesuré le **2026-08-14** : **18 e-mails** dans la boîte de
+l'association, en 6 exécutions, plus **9 lignes** restées en base — son `finally` nettoie via
+`DATABASE_URL` de `.env.local`, qui pointe le Postgres local qu'on ne lance plus.
+
+🔴 **Aucune ligne de code n'a changé le jour où c'est devenu vrai.** En local,
+`GMAIL_APP_PASSWORD` est absente ⇒ le transport lève, et l'INSERT est **découplé** de l'envoi
+⇒ l'échec était **silencieux**. La règle du 2026-08-13 (« le rendu se regarde sur staging ») a
+pointé la même porte vers un hôte au SMTP configuré. ⇒ **Une porte à effet sortant doit
+refuser l'environnement qu'elle ne sait pas rendre muet**, sans quoi c'est la configuration
+d'exécution qui décide, en silence, si elle est inoffensive.
+
+Elle refuse donc toute cible dont le `hostname` n'est pas la boucle locale (égalité exacte —
+un `includes("localhost")` laisserait passer `localhost.attaquant.fr`). Dérogation explicite,
+volontairement absente de `package.json` :
+
+```bash
+SOLICITATION_AUTORISER_ENVOI_REEL=1 node tools/visual-gate/solicitation-check.mjs <url>
+```
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
 Le défaut R2 EST un défilement : le lire dans le DOM ne le mesure pas. Elle **clique

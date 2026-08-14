@@ -26,8 +26,25 @@
 // `GATE_MARKER` et sont SUPPRIMÉES en fin d'exécution (`finally`) — un test d'envoi réel,
 // pas un mock (`pieges/integration-tierce.md`), mais qui ne laisse rien derrière lui.
 //
+// 🔴 ET ELLE ENVOIE DE VRAIS E-MAILS — MESURÉ LE 2026-08-14, 18 DANS LA BOÎTE DE L'ASSO.
+// Ce que la ligne ci-dessus ne disait pas : « ne rien laisser derrière soi » ne vaut que
+// pour la BASE. `submitSolicitation` appelle `notifySolicitation`, et **un e-mail ne se
+// rappelle pas**. Le compte se DÉRIVE du contrat de cette porte : garde ③ = 1 envoi valide,
+// garde ④ = resoumissions jusqu'au rate-limit (`RATE_LIMIT_MAX = 3` / 60 s) ⇒ **3
+// notifications réelles par exécution**, vers l'adresse de contact lue en base.
+//
+// ⚠️ ET RIEN DANS CE FICHIER N'A CHANGÉ LE JOUR OÙ C'EST DEVENU VRAI. Tant que la cible
+// était locale, `GMAIL_APP_PASSWORD` était absente de `.env.local` ⇒ `getMailTransport()`
+// levait, et `submitSolicitation` DÉCOUPLE l'INSERT de l'envoi (à dessein : ne jamais perdre
+// une sollicitation parce que le SMTP tousse) ⇒ l'envoi échouait **en silence**. La règle du
+// 2026-08-13 (« le rendu se regarde sur staging ») a pointé la même porte vers un hôte dont
+// le SMTP est réellement configuré : effet de bord sortant, sans une ligne de diff.
+// ⇒ C'est le motif du refus ci-dessous : la seule façon de ne pas re-payer une bascule
+// d'environnement est que la porte REFUSE l'environnement qu'elle ne sait pas rendre muet.
+//
 // Usage :  node tools/visual-gate/solicitation-check.mjs [baseUrl]
-//          SOLICITATION_DEBRANCHER_PIEGE=1 …  → auto-validation de l'instrument
+//          SOLICITATION_DEBRANCHER_PIEGE=1 …       → auto-validation de l'instrument
+//          SOLICITATION_AUTORISER_ENVOI_REEL=1 …   → dérogation explicite (voir le refus)
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { config } from "dotenv";
@@ -67,6 +84,50 @@ const SEL = {
   honeypot: 'input[name="sujetSecondaire"]',
   submit: 'button[type="submit"]',
 };
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 REFUS D'EXÉCUTION HORS BOUCLE LOCALE — ARBITRAGE DE BRICE DU 2026-08-14
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// *« on peut juste arrêter les tests puisque ça fonctionne »* — la porte a fait son office
+// (elle a trouvé, entre autres, la réinitialisation des champs non contrôlés par React et
+// son propre `Escape` non déclaré). La rejouer contre un hôte qui sait envoyer coûte 3
+// e-mails à l'association pour zéro information neuve.
+//
+// ⚠️ ET UNE DÉCISION QUI NE VIT QUE DANS UNE NOTE N'ARRÊTE RIEN — c'est le motif exact de
+// `pieges/dette-differee-sans-porte.md`, et de R2 évaporée en quatre reports. La décision
+// s'écrit donc ICI, dans le seul endroit que la prochaine exécution est OBLIGÉE de lire.
+//
+// 🔴 LE TEST EST UNE ÉGALITÉ EXACTE DE `hostname`, ET CE N'EST PAS UN DÉTAIL. Un
+// `BASE.includes("localhost")` laisserait passer `https://localhost.attaquant.fr` et
+// `https://127.0.0.1.attaquant.fr` — les DEUX pièges de suffixe que la garde ⑥ de
+// `gate:reseaux` éprouve nommément. `new URL(...).hostname` ne rend que l'hôte, et
+// `Set.has` compare le tout, pas un fragment : les deux pièges tombent par construction.
+//
+// La dérogation existe pour ne pas rendre la porte INVÉRIFIABLE (règle ② de
+// `pieges/integration-tierce.md`, et la leçon payée par `gate:reseaux` : une garde qu'on ne
+// peut plus exercer n'est plus une garde). Elle est explicite, nominative, et hors de tout
+// script `package.json` — on ne la tape pas par distraction.
+const HOTES_MUETS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"]);
+const DEROGATION = process.env.SOLICITATION_AUTORISER_ENVOI_REEL === "1";
+const hote = (() => {
+  try {
+    return new globalThis.URL(BASE).hostname;
+  } catch {
+    return null;
+  }
+})();
+
+if (!DEROGATION && !HOTES_MUETS.has(hote ?? "")) {
+  console.error(`\n⛔ EXÉCUTION REFUSÉE sur ${BASE} — cette porte enverrait de VRAIS e-mails.`);
+  console.error(`   Hôte visé : ${hote ?? "(URL illisible)"} — hors boucle locale.`);
+  console.error("   Elle soumet le formulaire pour de vrai : 3 notifications réelles par");
+  console.error("   exécution vers l'adresse de contact lue en base (mesuré : 18 e-mails le");
+  console.error("   2026-08-14, en 6 exécutions). Un e-mail ne se rappelle pas.");
+  console.error("\n   Arbitrage du 2026-08-14 : on ne la rejoue plus. Si c'est délibéré :");
+  console.error("   SOLICITATION_AUTORISER_ENVOI_REEL=1 node tools/visual-gate/solicitation-check.mjs <url>\n");
+  process.exit(2);
+}
 
 const sonde = await fetch(URL).catch(() => null);
 if (!sonde?.ok) {
