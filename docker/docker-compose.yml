@@ -173,7 +173,27 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=tournoi-net"
       # Routeur 1 — les overlays OBS restent servis par l'app (regle la PLUS LONGUE, gagne).
-      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && PathPrefix(`/overlay`)"
+      #
+      # 🔴 `/assets` ET `/favicon.svg` SONT DANS L'EXEMPTION, ET CE N'EST PAS DU CONFORT —
+      # C'EST LA MOITIE MANQUANTE DU LIVRABLE. Une premiere version n'exemptait que
+      # `/overlay`, et elle etait FAUSSE : le document HTML de l'overlay passait bien en 200,
+      # mais il reference ses ressources en chemins ABSOLUS hors `/overlay` (sortie de build
+      # Vite) — `/assets/index-*.js`, `/assets/index-*.css`, `/favicon.svg`. Ces trois-la
+      # tombaient donc dans le routeur ci-dessous et partaient en 307 vers la vitrine.
+      # ⇒ MESURE DU 2026-08-14 (avant correctif) : le `<script type="module">` de l'overlay
+      # recevait une PAGE HTML au lieu de JavaScript, donc ne s'executait pas, donc `#root`
+      # restait vide : OVERLAY BLANC A L'ECRAN PENDANT LE DIRECT, avec un document en 200.
+      #
+      # ⚠️ CE QUI A RENDU CE DEFAUT INVISIBLE : la redirection avait ete prouvee par `curl` sur
+      # les DOCUMENTS (`/`, `/overlay`, `/overlay/finale`) — tous justes — et jamais sur ce que
+      # ces documents DEMANDENT. Prouver une redirection au niveau de la page ne dit RIEN de ses
+      # sous-ressources. Toute modification de ces regles se re-mesure donc en relevant les
+      # `src=`/`href=` du HTML servi et en verifiant CHACUN d'eux.
+      #
+      # ⚠️ Les polices viennent de `fonts.googleapis.com` (hote tiers) et le websocket de
+      # `api-tournoi.esportdessacres.fr` (autre hote) : ni l'un ni l'autre ne traverse ce
+      # routeur. Releve, pas suppose.
+      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && (PathPrefix(`/overlay`) || PathPrefix(`/assets`) || Path(`/favicon.svg`))"
       - "traefik.http.routers.tournoi-tft-overlay.entrypoints=websecure"
       - "traefik.http.routers.tournoi-tft-overlay.tls=true"
       - "traefik.http.routers.tournoi-tft-overlay.tls.certresolver=letsencrypt"
