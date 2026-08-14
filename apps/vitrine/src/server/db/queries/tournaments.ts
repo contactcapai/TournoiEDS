@@ -132,6 +132,184 @@ export type AdminTournament = Awaited<
   ReturnType<typeof getUpcomingTournamentsForAdmin>
 >[number];
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LECTURES PUBLIQUES (Story 9.2)
+
+   🔴 ELLES VIVENT ICI, DANS LA MÊME FAMILLE QUE CELLES DU BACK-OFFICE, ET C'EST LE
+   PATRON DÉJÀ ÉCRIT DANS `queries/events.ts` : `architecture.md` l.508 pose une
+   famille de requêtes **par domaine**, pas par public. Un `queries/public-tournaments.ts`
+   parallèle serait une **seconde définition** de « un tournoi » — au premier changement
+   de schéma, les deux divergeraient.
+
+   ⚠️ LA DIFFÉRENCE TIENT EN UNE LIGNE, ET C'EST TOUTE LA FRONTIÈRE : les deux lectures
+   ci-dessous filtrent sur `is_published`, celles du back-office **ne filtrent pas**.
+   Ne JAMAIS relâcher ce filtre « pour réutiliser » — ce serait une fuite de brouillons
+   sur une page publique, et **aucune porte visuelle ne la verrait** (une page qui
+   affiche un tournoi de plus n'a pas l'air cassée). C'est la garde ⑭ de `gate:tournois`,
+   RETOURNÉE par cette story, qui la mesure — avec un témoin **brouillon** dont
+   l'attendu est l'absence, et un témoin **publié** dont l'attendu est la présence.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Colonnes remontées à la **liste publique** — EXPLICITES, et **strictement** celles que
+ * la carte rend (AC4 de la Story 9.2).
+ *
+ * 🔴 CE QUI N'EST PAS ICI EST UN PÉRIMÈTRE, PAS UN OUBLI — arbitrage **A6** :
+ *   · `slug` — la 9.2 ne rend **aucun lien** (arbitrage **A1** : la fiche
+ *     `/tournois/<slug>` n'existe pas avant la 9.3, et `CLAUDE.md` §5 interdit
+ *     autant la page *stub* que le `href="#"`). Une colonne remontée que personne ne
+ *     rend ferait croire au type dérivé qu'une destination existe ;
+ *   · `formatText`, `prizes`, `matchDurationMinutes`, `capacity`, `registrationMode`,
+ *     `registrationUrl` — c'est le **détail du format** et le **comment s'inscrire**
+ *     d'A23 ③ ②, donc le livrable de la **fiche** (Story 9.3). La liste montre ce
+ *     qu'il faut pour **choisir**, la fiche montrera le reste.
+ * ⚠️ Les ajouter ici avant leur consommateur serait la 3ᵉ prop « au cas où » que ce
+ * projet refuse depuis `SectionHead`.
+ */
+const COLONNES_PUBLIQUES = {
+  id: true,
+  name: true,
+  game: true,
+  startsAt: true,
+  venueName: true,
+  registrationState: true,
+  podiumFirst: true,
+  podiumSecond: true,
+  podiumThird: true,
+} as const;
+
+/**
+ * Le **visuel** du tournoi, remonté avec lui (arbitrage **A2** : une photo de la galerie,
+ * pas une 4ᵉ famille de médias).
+ *
+ * 🔴 `isPublished` EST REMONTÉ, ET CE N'EST PAS DÉCORATIF — C'EST LA SEULE CHOSE QUI
+ * EMPÊCHE UNE IMAGE MORTE. La route `/medias/[filename]` ne sert **que** les photos
+ * publiées (garde de la Story 6.4, qui répond **404 et jamais 403** pour ne pas
+ * confirmer l'existence d'un brouillon). Le formulaire d'admin ne propose, lui, que des
+ * photos publiées (`getPhotosPourVisuel`) — mais **rien n'empêche de dépublier ensuite
+ * une photo déjà choisie**, et `photo_id` reste alors intact (la dépublication n'est pas
+ * une suppression, donc `ON DELETE SET NULL` ne joue pas).
+ * ⇒ Sans ce booléen, la carte rendrait un `<img>` vers une URL qui répond **404**, avec
+ * un cadre vide à la place du visuel. Le rendu **DÉCIDE** donc, il ne suppose pas.
+ * ⚠️ `gate:images` le verrait (elle exige 200 + octets d'image sur toute URL référencée
+ * par une page) — mais seulement **après** qu'un bénévole ait dépublié la photo. Le
+ * traiter à la lecture, c'est ne jamais servir l'URL morte.
+ */
+const RELATION_VISUEL = {
+  photo: { columns: { filename: true, alt: true, isPublished: true } },
+} as const;
+
+/**
+ * Les `limite` prochains tournois **PUBLIÉS**, du plus proche au plus lointain.
+ *
+ * 🔴 LA DÉRIVATION EST REPRISE DE `queries/events.ts`, PAS RÉINVENTÉE — `gt` ici, `lte`
+ * dans la jumelle : un tournoi **pile à `now()`** appartient donc à « passés », et à
+ * exactement **une** des deux listes. Avec `lt` des deux côtés il disparaîtrait des deux,
+ * avec `gte` il apparaîtrait dans les deux. Le cas est d'une probabilité infime, et c'est
+ * justement pour ça qu'il ne serait jamais diagnostiqué. Même frontière que l'agenda,
+ * même frontière que les deux lectures d'admin juste au-dessus : **une seule définition
+ * de « à venir » dans le dépôt** (note d'architecture §6 ①).
+ *
+ * 🔴 ET L'ORDRE EST **TOTAL** — le raisonnement complet est en tête de fichier, mais
+ * l'enjeu devient réel ICI : `/tournois` est `force-dynamic`, donc cette requête est
+ * rejouée **à chaque visite**. Un ordre partiel ferait se réordonner la liste d'une
+ * visite à l'autre, sur un scintillement que personne ne saurait reproduire.
+ *
+ * ⚠️ L'horloge est lue **dans cette couche** et jamais pendant le rendu : lire l'heure
+ * dans un composant est une impureté que `react-hooks/purity` refuse, et deux rendus du
+ * même arbre pourraient répondre différemment.
+ *
+ * @param limite borne EXPLICITE, jamais de lecture non bornée — une page dont le temps de
+ *   rendu dépend du volume saisi est un défaut qui n'apparaîtrait qu'en production, chez
+ *   quelqu'un d'autre. **« Généreux » n'est pas « non borné ».**
+ */
+async function getUpcomingTournaments(limite: number, maintenant: Date) {
+  return db.query.tournament.findMany({
+    columns: COLONNES_PUBLIQUES,
+    where: (table, { and, eq, gt }) =>
+      and(eq(table.isPublished, true), gt(table.startsAt, maintenant)),
+    orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
+    with: RELATION_VISUEL,
+    limit: limite,
+  });
+}
+
+/**
+ * Les `limite` derniers tournois **PUBLIÉS** déjà passés, du plus récent au plus ancien.
+ *
+ * Jumelle exacte de `getUpcomingTournaments` : même table, même relation, même index
+ * (`tournament_published_starts_at_idx`), même comparaison brute à `now()`. La borne
+ * s'inverse et le **premier** terme de l'ordre aussi — les deux suivants restent
+ * ascendants, ils ne servent qu'à **départager** et les inverser ne rendrait pas l'ordre
+ * « plus décroissant », seulement différent, sans raison.
+ *
+ * ⚠️ **LES TOURNOIS PASSÉS RESTENT LISTÉS, ET NE DISPARAISSENT JAMAIS TOUT SEULS**
+ * (arbitrage **A3**) : c'est l'**historique de l'association**, et c'est ce que le
+ * back-office promet déjà au bénévole (« un tournoi descend ici tout seul une fois sa
+ * date franchie »). La bascule « à venir » → « passés » **n'est pas un geste** : elle se
+ * dérive de la date, ici, à chaque requête.
+ */
+async function getPastTournaments(limite: number, maintenant: Date) {
+  return db.query.tournament.findMany({
+    columns: COLONNES_PUBLIQUES,
+    where: (table, { and, eq, lte }) =>
+      and(eq(table.isPublished, true), lte(table.startsAt, maintenant)),
+    orderBy: (table, { asc, desc }) => [desc(table.startsAt), asc(table.name), asc(table.id)],
+    with: RELATION_VISUEL,
+    limit: limite,
+  });
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LES DEUX LISTES DE `/tournois`, ET **UNE SEULE LECTURE D'HORLOGE POUR LES DEUX**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * C'est le point d'entrée public unique : les deux fonctions ci-dessus ne sont pas exportées,
+ * et l'instant leur est **passé**, jamais relu.
+ *
+ * 🔬 POURQUOI — DÉFAUT TROUVÉ EN REVUE (angle données), ET IL EST RÉEL BIEN QU'INFIME.
+ * La version précédente appelait `new Date()` **dans chacune** des deux fonctions, lancées en
+ * `Promise.all`. Si les deux appels tombent de part et d'autre d'une frontière de milliseconde,
+ * on obtient deux instants `T1 < T2`, et un tournoi dont `starts_at` vaut exactement un point
+ * de `]T1, T2]` satisfait **les deux** conditions (`> T1` **et** `<= T2`) : il sort dans les
+ * DEUX listes, donc s'affiche deux fois — sur une visite, et jamais sur la suivante.
+ * ⚠️ Le symptôme est **irreproductible par construction**, ce qui est précisément ce qui rend
+ * ce genre de défaut coûteux : il ne se diagnostique pas, il s'explique.
+ * ⇒ Avec un instant unique, la frontière est la MÊME des deux côtés (`gt` / `lte`) : un tournoi
+ * appartient à **exactement une** des deux listes, quelle que soit sa date. La propriété
+ * devient structurelle au lieu d'être probable.
+ *
+ * ⚠️ **ET L'HORLOGE RESTE LUE DANS LA COUCHE DONNÉES**, pas dans le rendu : c'est ici, et non
+ * dans `page.tsx`, que `new Date()` est appelé. Faire lire l'heure à la page aurait fermé la
+ * fenêtre en rouvrant l'impureté que `react-hooks/purity` refuse.
+ *
+ * 🔴 **LA MÊME FENÊTRE EXISTE SUR QUATRE SURFACES ANTÉRIEURES** — mesuré le 2026-08-14 par
+ * relevé des appelants : `/agenda` (`getUpcomingEvents` + `getPastEvents`), `/admin/agenda`,
+ * `/admin/galerie/nouveau` et `/admin/galerie/[id]` (les paires `…ForAdmin`), plus
+ * `/admin/tournois`. Elles ne sont **pas** corrigées ici : ce sont cinq surfaces mergées,
+ * hors périmètre de cette story. Dette **R49**, consignée avec sa condition de réouverture.
+ */
+export async function getPublicTournaments(aVenirMax: number, passesMax: number) {
+  const maintenant = new Date();
+  const [aVenir, passes] = await Promise.all([
+    getUpcomingTournaments(aVenirMax, maintenant),
+    getPastTournaments(passesMax, maintenant),
+  ]);
+  return { aVenir, passes };
+}
+
+/**
+ * Une carte de la liste publique, **dérivée de la requête** et non réécrite à la main :
+ * ajouter une colonne à `COLONNES_PUBLIQUES` met ce type à jour tout seul.
+ *
+ * ⚠️ Nommé d'après son PUBLIC et non d'après l'une de ses deux listes : `/tournois` rend
+ * les à venir **et** les passés avec exactement la même forme. Un type nommé
+ * `UpcomingTournament` aurait poussé à en déclarer un second, identique — c'est la leçon
+ * de `AgendaEvent`, écrite dans `queries/events.ts`.
+ */
+export type PublicTournament = Awaited<ReturnType<typeof getUpcomingTournaments>>[number];
+
 /**
  * Un tournoi par son identifiant, pour la fiche d'édition. `undefined` s'il n'existe plus.
  *

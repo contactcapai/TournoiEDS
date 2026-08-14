@@ -1,0 +1,289 @@
+/* Cards de la liste publique des tournois (Story 9.2) — rendues dans les deux sections de
+   `/tournois` : « À venir » sur `background: var(--navy)`, « Déjà joués » sur le fond par
+   défaut `var(--navy-deep)`.
+
+   AUCUNE MAQUETTE ne décrit les pages dédiées (.decision-log.md l.96). Ce fichier ne
+   transcrit donc rien : il COMPOSE, à partir de la forme déjà arbitrée par Brice au gate
+   visuel du 2026-08-04 pour `WorkshopCatalog` (« la forme MSL, la charte EDS ») — grille
+   responsive, coins arrondis, fond détaché, filet or, survol qui soulève. On ne réinvente pas
+   une deuxième grammaire de card pour la seule surface publique qui en manquait.
+
+   🔬 CONTRASTES **RECALCULÉS POUR CETTE CARTE**, ET PAS RECOPIÉS DE `WorkshopCatalog`. Cette
+   grille est la première du site à vivre sur DEUX fonds de page différents (`--navy` pour « À
+   venir », `--navy-deep` pour « Déjà joués »), et `motion.module.css` l'exige explicitement :
+   *« avant d'animer l'opacité d'un bloc, vérifier le plancher sur les combinaisons présentes
+   dans ce bloc »*. Un inventaire recopié serait faux au chiffre près, et sur ce projet un
+   inventaire inexact est pire qu'absent — il fait croire au lecteur qu'on a compté (leçon 2.7).
+
+   🔴 CE SONT LES VALEURS **SOUS FONDU** QUI DÉCIDENT, PAS CELLES À PLEINE OPACITÉ. Les deux
+   sections vivent sous `motion.reveal`, dont l'animation part d'`opacity: 0.75` — et une
+   `opacity` sur un conteneur mélange TOUT ce qu'il contient (le fond de la carte ET son texte)
+   avec le fond de la page. Le plancher du projet est **0,747** (resserré par la Story 4.1 —
+   ne plus lire 0,68). Mesuré au plancher, sur le fond EFFECTIF de la carte — leçon 4.2, « un
+   fond effectif n'est pas un token » :
+
+     texte      carte sur --navy (o=1 / o=0,747)   carte sur --navy-deep (o=1 / o=0,747)
+     --light          10,49  /  6,66  ✅                 10,49  /  6,78  ✅
+     --cream          10,43  /  6,63  ✅                 10,43  /  6,74  ✅
+     --gold            6,02  /  4,07  ❌ texte            6,02  /  4,10  ❌ texte
+     --grey            4,00  /  2,89  ❌❌                4,00  /  2,90  ❌❌
+
+   ⇒ **AUCUN texte en or dans ce fichier, et aucun `--grey` du tout.** L'accent or est porté
+   par les FILETS, dont le seuil est 3:1 et non 4,5 : ils tiennent à 4,07 même au plancher.
+   C'est exactement le défaut réel qu'a attrapé Lighthouse sur `WorkshopCatalog` après son
+   passage en cards (**4,12:1** mesuré sur une étiquette en or, avec des couleurs qui ne sont
+   aucun de nos tokens) — ne pas le refaire.
+   ⚠️ Le fond `--navy-deep` est le plus FAVORABLE des deux : il est plus sombre, donc le mélange
+   assombrit davantage la carte et écarte les textes clairs. La colonne qui contraint est celle
+   de `--navy`, et c'est elle qu'il faut relire avant d'ajouter une couleur ici.
+
+   Tokens-only, à quelques px structurels près (sans token dans l'échelle du projet), tous
+   commentés sur place, plus deux `rgba()` de filets sans token — exception tolérée par
+   `project-context.md` §5, documentée ici. */
+
+/* ───────── La grille ─────────
+   🔴 `auto-fill` + `minmax` ET AUCUNE `@media` sur le nombre de colonnes : la convention du
+   projet impose d'écrire **880px en littéral** dans toute `@media`, et une grille de cards en
+   aurait demandé deux ou trois (1 → 2 → 3 colonnes), donc autant d'occasions de diverger du
+   reste du site. Ici le nombre de colonnes découle de la largeur disponible.
+
+   ⚠️ 280px de minimum, et pas les 260 de `WorkshopCatalog` : cette carte porte une ligne de
+   plus (le lieu) et surtout un VISUEL, dont le cadre « tirage » a besoin de largeur pour ne
+   pas devenir un timbre. À 320px de viewport — la largeur la plus tendue du projet — la
+   colonne utile fait ~268px, donc UNE carte pleine largeur : c'est le comportement voulu, le
+   `minmax` ne force jamais au-delà de `1fr`.
+
+   `list-style: none` est ici sans risque : le `role="list"` explicite du markup rétablit la
+   sémantique que Safari retire dans ce cas (voir le commentaire du composant). */
+.grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* ───────── La carte ─────────
+   Fond `--surface` : le même écart de valeur que les cards d'ateliers, la tuile de
+   `/partenaires` et les encadrés du back-office. La carte se détache sans devenir un bloc
+   coloré.
+
+   🔴 `overflow-wrap: anywhere` PORTÉ ICI ET HÉRITÉ PAR TOUS LES ENFANTS — voir le bloc dédié
+   en bas de fichier : c'est un défaut RÉEL, mesuré sur une autre surface de ce projet, et rien
+   n'oblige un nom de tournoi à contenir un espace.
+
+   ⚠️ La carte n'est PAS cliquable (arbitrage **A1**) : aucun `cursor: pointer`, et le survol ne
+   change ni la couleur du nom ni rien qui ressemble à une affordance de lien. Le soulèvement
+   est un accusé de lecture — même raisonnement, écrit, que `WorkshopCatalog`. */
+.carte {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 22px;
+  border: 1px solid rgba(218, 178, 101, 0.28); /* --gold à 28 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  overflow-wrap: anywhere;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+.carte:hover {
+  transform: translateY(-4px);
+  border-color: rgba(218, 178, 101, 0.55);
+}
+
+/* ⚠️ OBLIGATOIRE, et le projet le paie partout : sous `prefers-reduced-motion: reduce`, aucun
+   mouvement. On garde le changement de filet, qui n'en est pas un. */
+@media (prefers-reduced-motion: reduce) {
+  .carte {
+    transition: border-color 180ms ease;
+  }
+
+  .carte:hover {
+    transform: none;
+  }
+}
+
+.corps {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ───────── La date ─────────
+   Elle ouvre la carte, comme sur la vignette d'`/agenda` et sur la ligne du back-office : c'est
+   la première question qu'on se pose devant un tournoi. `--light` et non `--grey` (voir
+   l'en-tête : `--grey` échoue AA sur ce fond).
+   13px = `--fs-eyebrow`, le plus petit token typographique du projet. */
+.date {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--light);
+}
+
+/* ───────── Le nom ─────────
+   `--font-display` (Bebas) comme tous les titres du site, à 20px : subordonné au `<h2>` de
+   section (`--fs-block-heading`, 44px). L'échelle du projet s'arrête à 24px vers le bas côté
+   titres, d'où ce px structurel — même valeur que le titre de card d'atelier, pour que les
+   deux grilles publiques du site aient la même voix.
+   `line-height: 1.1` : Bebas est une capitale étroite, l'interligne de corps creuserait un
+   titre sur deux lignes. */
+.nom {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: var(--ls-display);
+  color: var(--cream);
+}
+
+/* ───────── Le jeu, puis le lieu ─────────
+   Le jeu est en `--cream` : c'est la deuxième information qui fait choisir (« on y joue à
+   quoi ? »), juste derrière le nom. Le lieu, facultatif, reste en `--light`. */
+.jeu {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--cream);
+}
+
+.lieu {
+  margin-top: 4px;
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── L'état des inscriptions (tournois À VENIR uniquement) ─────────
+   `margin-top: auto` : le filet est collé EN BAS du corps de la carte, quelle que soit la
+   longueur du nom et du lieu. Sans cela, deux cartes voisines de hauteurs de texte différentes
+   auraient leurs filets à des hauteurs différentes — c'est le défaut le plus visible d'une
+   grille de cards, et il ne se voit qu'avec des données réelles de longueurs inégales.
+   ⚠️ Le bloc entier disparaît sur un tournoi passé (voir le composant, arbitrage A7) : il n'y a
+   donc jamais de filet orphelin ni d'étiquette sans valeur. */
+.inscriptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(218, 178, 101, 0.22); /* --gold à 22 %, filet sans token */
+}
+
+/* 🔴 `--cream` ET NON `--gold` : au plancher de fondu, l'or tombe à 4,06:1 sur ce fond — voir
+   l'en-tête. C'est un défaut réel déjà payé sur `WorkshopCatalog`. */
+.inscriptionsLabel {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.inscriptionsValeur {
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── Le podium (tournois PASSÉS uniquement) ─────────
+   Même construction que le bloc d'inscriptions — filet or, `margin-top: auto`, étiquette en
+   capitales : les deux occupent la même place dans la carte et ne coexistent jamais, donc ils
+   doivent se ressembler. Ce qui change est ce qu'ils disent.
+   ⚠️ Le bloc entier disparaît quand aucune place n'est saisie : un tournoi passé sans podium
+   reste affiché (il prouve l'activité de l'association, A3) mais sans étiquette vide. */
+.podium {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(218, 178, 101, 0.22); /* --gold à 22 %, filet sans token */
+}
+
+.podiumLabel {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.podiumListe {
+  margin-top: 6px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.podiumPlace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+
+.podiumPlace + .podiumPlace {
+  margin-top: 2px;
+}
+
+/* Le rang est en Bebas : c'est un chiffre de classement, pas du texte courant. 15px pour qu'il
+   pèse autant que le nom qu'il ordonne sans le dominer.
+   ⚠️ `flex: 0 0 auto` : sans lui, « 1ᵉʳ » se replierait sur deux lignes dans une carte étroite,
+   puisque `overflow-wrap: anywhere` est hérité de `.carte`. */
+.podiumRang {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: var(--ls-display);
+  color: var(--cream);
+}
+
+.podiumNom {
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ───────── Le visuel ─────────
+   FACULTATIF, et son absence est le cas NOMINAL (AC4) : le bloc entier n'est pas rendu quand
+   il n'y a pas de photo publiée. Aucun placeholder ici, contrairement à la vignette
+   d'`/agenda` — le raisonnement est écrit dans le composant.
+
+   `margin-top: 18px` et pas `auto` : c'est le bloc d'inscriptions / de podium qui porte déjà
+   l'alignement bas du corps. Le cadre vient après lui.
+   ⚠️ 240px de large au plus : le cadre est tourné de −2°, ce qui fait grandir sa boîte
+   englobante de quelques pixels de chaque côté. Les 22px de padding de la carte absorbent ce
+   débordement à la largeur la plus tendue du projet (320px de viewport) — vérifié par
+   `pnpm --filter vitrine gate`, dont le contrôle ① balaie CHAQUE boîte contre le viewport. */
+.media {
+  align-self: center;
+  width: 100%;
+  max-width: 240px;
+  margin-top: 18px;
+  /* Filet de sécurité en profondeur : `overflow-wrap` est HÉRITÉ, il atteindrait donc un
+     éventuel `figcaption` de la primitive `PhotoFrame`. Ce composant n'en passe aucun (voir
+     le commentaire du composant), mais la garde ne coûte rien et survit à un ajout. */
+  overflow-wrap: break-word;
+}
+
+/* ───────── 🔴 REPLI DE LIGNE — DÉFAUT RÉEL, MESURÉ AILLEURS, QU'ON NE REFAIT PAS ─────────
+   (Porté par `.carte` ci-dessus ; ce bloc en garde le raisonnement.)
+
+   Les champs rendus par cette carte sont bornés — nom 80, jeu 120, lieu 120, podium 120 — mais
+   **rien n'exige un espace** : ni Zod (`lib/schemas/tournament.ts`), ni les `CHECK` de la
+   migration `0014`. Un nom de tournoi de 80 caractères d'un seul tenant est une saisie
+   parfaitement valide, et un copier-coller d'URL en produit une sans y penser.
+
+   🔬 MESURÉ EN STORY 6.9 sur le rendu servi, témoin de 80 caractères réellement insécables : à
+   **320px de viewport**, l'élément faisait **248px de boîte pour 2006px de texte** — soit
+   **1758px de débordement**. À 412px : 1666px. Après correctif : **0**.
+
+   🔴 ET AUCUNE PORTE NE LE VOYAIT AVANT LE CONTRÔLE ④ :
+     · `globals.css` pose `overflow-x: clip` → rogné **en silence**, ni scrollbar ni alerte ;
+     · le contrôle ① de `gate` balaie les **boîtes** contre le viewport, or la boîte ne grandit
+       pas — c'est le **texte** qui déborde d'elle. Le témoin juste est
+       `element.scrollWidth > element.clientWidth`, et c'est le contrôle ④ (dette R38) ;
+     · Lighthouse n'a aucun audit de largeur au périmètre retenu (a11y + SEO).
+
+   ⚠️ `anywhere` et non `break-word`, comme sur les quatre autres surfaces du projet qui portent
+   cette garde — on ne diverge pas : `break-word` ne contribue PAS à la largeur minimale
+   intrinsèque de la boîte, donc un mot très long imposerait toujours sa largeur à la colonne
+   de grille. */

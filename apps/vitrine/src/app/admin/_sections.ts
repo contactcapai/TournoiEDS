@@ -102,21 +102,23 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     // DEUX fois. La règle réelle est donc CONDITIONNELLE : la phrase n'est due que si la
     // section a un rendu à montrer.
     //
-    // 🔴 ET ICI IL N'Y EN A AUCUN, PAR CONSTRUCTION. L'arbitrage A6 ferme le périmètre :
-    // cette story n'ajoute **aucune page publique**. `/tournois` (Story 9.2) et
-    // `/tournois/<tournoi>` (Story 9.3) n'existent pas encore, donc un tournoi publié
-    // aujourd'hui **n'est visible nulle part**. Un aperçu ne pourrait que **préfigurer** un
-    // rendu non écrit — c'est-à-dire diverger de lui le jour où il existera, et « mentir
-    // exactement au moment où on lui demande de dire la vérité » (commentaire d'en-tête de
-    // l'aperçu des ateliers). La route `apercu/` et la phrase arrivent avec la 9.3.
+    // 🔴 ET LA PHRASE RESTE DUE — MAIS PAS ENCORE PAYABLE. **Mis à jour par la Story 9.2**,
+    // qui a livré `/tournois` : un tournoi publié est désormais **visible**, ce qui n'était
+    // pas vrai à la 9.1 (arbitrage A6, périmètre fermé). Ce qui n'existe toujours pas, c'est
+    // ce que la phrase promet précisément : une route `apercu/` permettant de voir le rendu
+    // **AVANT** de publier. La page publique ne sert que le publié (c'est son filtre
+    // `is_published`, mesuré par la garde ⑭ de `gate:tournois`), donc écrire « Voir le rendu
+    // avant de publier » aujourd'hui promettrait une porte sans pièce — le défaut exact que
+    // ce fichier existe pour empêcher, et qui s'est produit DEUX fois.
+    // ⇒ La route `apercu/` et la phrase arrivent toujours avec la **Story 9.3**.
     //
-    // ⚠️ Ce fait n'est pas seulement écrit ici : l'écran de liste le DIT au bénévole, parce
-    // que « publier » y est un geste dont l'effet est aujourd'hui **invisible** — règle ①
-    // de `00 référence/pieges/integration-tierce.md` (un maillon jamais exercé se consigne
-    // AVEC son mode de défaillance écrit).
+    // ⚠️ La description ci-dessous a été RÉÉCRITE pour la même raison : elle annonçait « la
+    // page publique qui les affichera arrive juste après », ce qui est faux depuis que cette
+    // page existe. Une phrase datée qu'on ne relit pas est un cadrage périmé de plus
+    // (`00 référence/pieges/cadrage-perime.md`) — et celle-ci était écrite dans l'interface
+    // que lisent les bénévoles.
     description:
       "Les tournois de l'association : jeu, date, inscriptions, lots et podium. " +
-      "Ils se préparent ici dès maintenant ; la page publique qui les affichera arrive " +
-      "juste après.",
+      "Ils s'affichent sur la page publique des tournois dès qu'ils sont publiés.",
   },
 ] as const;
