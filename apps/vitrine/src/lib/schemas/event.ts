@@ -17,7 +17,7 @@
  */
 import { z } from "zod";
 
-import { instantAvecFuseau } from "./instant";
+import { instantAvecFuseau, instantAvecFuseauOptionnel } from "./instant";
 import { texteOptionnel, visiblementVide } from "./texte";
 
 /**
@@ -80,6 +80,27 @@ const texteVisible = (message: string) =>
  */
 export const TITRE_MAX = 80;
 export const RECAP_MAX = 240;
+/**
+ * Le tarif annoncé, **en toutes lettres** (Story 9.6, dette R55). Aligné sur `TITRE_MAX`.
+ *
+ * 🔴 UN TEXTE ET NON UN NOMBRE, exactement le raisonnement de `tournament.formatText` : « 5 €
+ * sur place, 3 € en prévente » n'est pas un décimal, et un montant typé obligerait à inventer
+ * une devise, un arrondi et une règle d'affichage pour un fait qui s'écrit en trois mots.
+ *
+ * ⚠️ LA BORNE A UN MOTIF DE **RENDU**, et il est vérifiable : la valeur se rend **sur la même
+ * ligne** que les autres faits de la carte d'accueil, dont la plus longue — « Gratuit · ouvert à
+ * tous, même sans matériel » — fait **43** caractères. 80 laisse de la marge sans ouvrir la porte
+ * à un paragraphe. C'est le contrôle ④ de `gate` (débordement de TEXTE, balayé jusqu'à 320px) qui
+ * le **prouve**, pas ce commentaire.
+ *
+ * ⚠️ **FR16 NE S'Y OPPOSE PAS**, et l'argument est déjà écrit deux fois dans ce dépôt (voir
+ * `tournament.PLACES_MAX`) : FR16 interdit les **chiffres de communauté** (membres, audience).
+ * Un droit d'entrée est une **condition de venue**, que le visiteur doit connaître pour décider.
+ * ⚠️ Ne pas « harmoniser » avec `workshop`, dont `gate:ateliers` ⑩ interdit toute colonne de
+ * tarif : un atelier est une **offre d'utilité sociale** aux collectivités (FR10), dont le prix
+ * se négocie et ne s'affiche pas. Les deux règles ne parlent pas du même objet.
+ */
+export const TARIF_MAX = 80;
 export const DESCRIPTION_MAX = 600;
 export const JEUX_MAX = 120;
 export const LIEU_NOM_MAX = 120;
@@ -144,9 +165,28 @@ export const eventInputSchema = z
     venueName: texteOptionnel(LIEU_NOM_MAX, "Le nom du lieu"),
     venueAddress: texteOptionnel(LIEU_ADRESSE_MAX, "L'adresse du lieu"),
     startsAt: startsAtSchema,
+    /**
+     * 🔴 L'HEURE DE FIN — **FACULTATIVE, ET C'EST LE LIVRABLE** (Story 9.6, dette R56, A5).
+     *
+     * Un jeudi en bar n'a pas de fin annoncée (« on reste tant qu'on veut ») ; un temps fort ou
+     * un tournoi en ont une. La rendre obligatoire forcerait le bénévole à **inventer** une
+     * heure — c'est-à-dire le défaut qu'on corrige, retourné.
+     *
+     * ⚠️ **`null` VEUT DIRE « ABSENT », ET SEULEMENT ÇA.** La distinction « champ vide » /
+     * « saisie illisible » se fait **avant**, à la frontière d'écriture
+     * (`parisWallClockOptionnelFromInput`) : sans elle, une faute de frappe **effacerait** en
+     * silence une fin déjà enregistrée. Le raisonnement complet vit sur cette fonction.
+     */
+    endsAt: instantAvecFuseauOptionnel,
     games: texteOptionnel(JEUX_MAX, "La liste des jeux"),
     description: texteOptionnel(DESCRIPTION_MAX, "La description"),
     recap: texteOptionnel(RECAP_MAX, "Le compte-rendu"),
+    /**
+     * Le tarif annoncé (Story 9.6, dette R55). Facultatif : **absent ⇒ la ligne disparaît**,
+     * jamais « Gratuit » par défaut — le site ne doit pas déduire une gratuité qu'on ne lui a
+     * pas dite. Voir `TARIF_MAX` pour le « pourquoi un texte » et pour FR16.
+     */
+    priceText: texteOptionnel(TARIF_MAX, "Le tarif"),
     isPublished: z.boolean().default(false),
   })
   .refine((value) => value.barId !== null || value.venueName !== null, {
@@ -154,6 +194,23 @@ export const eventInputSchema = z
     // `''` à `null`, un lieu vide est bien traité comme absent des deux côtés.
     message: "Indiquez un bar du roulement ou le nom d'un lieu.",
     path: ["venueName"],
+  })
+  /**
+   * 🔴 LA FIN EST APRÈS LE DÉBUT — jumelle exacte du `CHECK` `event_fin_apres_debut` (Story 9.6).
+   *
+   * ⚠️ L'**égalité** est refusée aussi : un rendez-vous qui finit à la minute où il commence
+   * n'est pas un rendez-vous, c'est une saisie ratée (le plus souvent la date recopiée telle
+   * quelle). Le dire ici évite qu'il soit publié.
+   * ⚠️ Ici la null-safety ne se pose pas : JavaScript n'a pas de logique ternaire, et `null` est
+   * écarté par la garde de gauche. C'est **côté SQL seulement** que la question se pose — et là
+   * non plus il n'y a pas de `coalesce` à mettre, `starts_at` étant `notNull` (voir le bloc du
+   * `CHECK` dans `server/db/schema.ts`, qui explique où est, et où n'est pas, le danger).
+   */
+  .refine((value) => value.endsAt === null || value.endsAt > value.startsAt, {
+    message:
+      "L'heure de fin doit être après le début. Vérifiez le jour autant que l'heure : une fin " +
+      "après minuit tombe le lendemain.",
+    path: ["endsAt"],
   });
 
 export type EventInput = z.infer<typeof eventInputSchema>;

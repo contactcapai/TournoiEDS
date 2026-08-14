@@ -87,10 +87,16 @@ import {
   PODIUM_MAX,
   REGISTRATION_MODES,
   REGISTRATION_STATES,
+  TARIF_MAX,
   URL_MAX,
   fabriquerIdentifiant,
   tournamentInputSchema,
 } from "../../src/lib/schemas/tournament";
+// ⚠️ IMPORTÉE, JAMAIS RÉIMPLÉMENTÉE (`pieges/garde-nominale.md`) : c'est la fonction que les
+// quatre surfaces appellent réellement. Une porte qui recopierait sa logique validerait sa
+// propre copie et resterait verte le jour où le produit diverge. Ses CAS, eux, sont écrits à la
+// main juste en dessous — c'est ce qui permet d'attraper un défaut DANS la fonction.
+import { formatPlageHoraire } from "../../src/lib/date-paris";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 const AUTOTEST = process.env.TOURNOIS_AUTOTEST === "1";
@@ -1019,6 +1025,10 @@ for (const cas of ECRITURES_EPROUVEES) {
     { contrainte: "tournament_venue_name_valide", borne: LIEU_MAX, nullable: true },
     { contrainte: "tournament_format_text_valide", borne: FORMAT_MAX, nullable: true },
     { contrainte: "tournament_prizes_valide", borne: LOTS_MAX, nullable: true },
+    // Story 9.6 — la borne ET la null-safety du tarif tombent dans la garde qui existait
+    // déjà : une contrainte de texte nullable de plus, donc rien de neuf à écrire. Ce qui
+    // serait neuf, et faux, serait de la mesurer par une écriture (voir ⑤).
+    { contrainte: "tournament_price_text_valide", borne: TARIF_MAX, nullable: true },
     { contrainte: "tournament_match_duration_valide", borne: DUREE_MATCH_MAX, nullable: true },
     { contrainte: "tournament_capacity_valide", borne: PLACES_MAX, nullable: true },
     { contrainte: "tournament_registration_url_valide", borne: URL_MAX, nullable: true },
@@ -2172,6 +2182,230 @@ for (const cas of ECRITURES_EPROUVEES) {
   }
   if (!AUTOTEST && total === 0) {
     ok("㉑ ancien hôte", "total", "0 ancre sur l'ensemble du site — il y en avait 29 avant la Story 9.4");
+  }
+}
+
+// ── ㉒  « LA FIN EST APRÈS LE DÉBUT » — LE TEXTE DE LA CONTRAINTE, PUIS L'ÉCRITURE (9.6) ──
+//
+// 🔴 DEUX MESURES QUI NE SE REMPLACENT PAS, ET C'EST TOUT L'INTÉRÊT DE CETTE GARDE.
+//
+// ① **LE TEXTE EST LU** (`pg_get_constraintdef`). C'est la leçon `gate:ateliers` ⑧, prouvée
+//    rouge : la null-safety d'un `CHECK` ne se mesure **PAS** par une écriture, parce qu'un
+//    `CHECK` qui vaut `NULL` **PASSE** — la contre-épreuve reste donc VERTE sur une contrainte
+//    cassée, aveugle par construction.
+//    ⚠️ ICI LE DANGER N'EST PAS OÙ ON CROIT, ET LA GARDE LE DIT : `starts_at` est `notNull`,
+//    donc `ends_at > starts_at` ne peut valoir `NULL` que si `ends_at` l'est — cas déjà
+//    court-circuité par la branche de gauche. La contrainte est null-safe **par construction**,
+//    comme `tournament_podium_sans_trou_2`, et un `coalesce` ajouté par mimétisme avec
+//    `tournament_a_un_lieu` serait une garde qui ne garde rien. Ce qu'on vérifie ici est donc
+//    la **présence de la branche `is null`** et la **stricte** inégalité, pas un `coalesce`.
+//
+// ② **L'ÉCRITURE EST ÉPROUVÉE DANS LES DEUX SENS**, parce que lire un texte ne prouve pas que
+//    la contrainte soit **en vigueur** (elle pourrait être `NOT VALID`, ou avoir été droppée sur
+//    la base réelle sans que le fichier bouge). Trois cas, et le troisième est le livrable :
+//    une fin **absente** doit être ACCEPTÉE (A5 — le facultatif EST la story ; une garde qui ne
+//    prouverait que le refus laisserait passer un `notNull` posé par erreur).
+{
+  const NOM = "㉒ fin > début";
+  const lignes = await sql<{ definition: string }[]>`
+    select pg_get_constraintdef(oid) as definition from pg_constraint
+    where conrelid = 'tournament'::regclass and conname = 'tournament_fin_apres_debut'`;
+
+  if (lignes.length === 0) {
+    ko(NOM, "texte de la contrainte", "`tournament_fin_apres_debut` N'EXISTE PAS en base");
+  } else {
+    const definition = lignes[0].definition;
+    // En autotest on exige une formule qui n'y est pas : la garde doit le voir.
+    const brancheNull = AUTOTEST ? /coalesce/i.test(definition) : /IS NULL/i.test(definition);
+    const stricte = AUTOTEST ? />=/.test(definition) : />(?!=)/.test(definition);
+
+    if (brancheNull) {
+      ok(NOM, "texte", `branche \`is null\` explicite — ${definition}`);
+    } else {
+      ko(NOM, "texte", `pas de branche \`is null\` : une fin absente serait REFUSÉE — ${definition}`);
+    }
+    if (stricte) {
+      ok(NOM, "texte", "inégalité STRICTE : une fin égale au début est refusée");
+    } else {
+      ko(NOM, "texte", `inégalité non stricte — une fin égale au début passerait : ${definition}`);
+    }
+  }
+
+  // ── L'écriture, dans les trois sens ──
+  const slugFin = `zz-gate-fin-${MARQUE.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const CAS_ECRITURE = [
+    { libelle: "fin APRÈS le début", decalage: "+2 hours", doitPasser: true },
+    { libelle: "fin ÉGALE au début", decalage: "+0 hours", doitPasser: false },
+    { libelle: "fin AVANT le début", decalage: "-2 hours", doitPasser: false },
+  ];
+
+  for (const cas of CAS_ECRITURE) {
+    let passe = false;
+    try {
+      await sql.begin(async (tx) => {
+        await tx`insert into tournament (name, game, slug, venue_name, starts_at, ends_at, registration_mode, is_published)
+                 values (${MARQUE + "-FIN"}, 'CS2', ${slugFin}, 'Salle temoin',
+                         now(), now() + ${cas.decalage}::interval, 'interne', false)`;
+        passe = true;
+        // 🔴 ANNULATION SYSTÉMATIQUE : cette garde ne laisse RIEN derrière elle (garde ⑮), y
+        // compris sur le cas qui RÉUSSIT — c'est justement celui qui polluerait.
+        throw new Error("ROLLBACK VOULU");
+      });
+    } catch (erreur) {
+      if (!(erreur instanceof Error) || erreur.message !== "ROLLBACK VOULU") passe = false;
+    }
+    // En autotest on inverse l'attendu : la garde doit voir la divergence.
+    const attendu = AUTOTEST ? !cas.doitPasser : cas.doitPasser;
+    if (passe === attendu) {
+      ok(NOM, cas.libelle, cas.doitPasser ? "acceptée, comme il se doit" : "refusée par la base");
+    } else {
+      ko(NOM, cas.libelle, `attendu ${attendu ? "acceptée" : "refusée"}, la base a ${passe ? "accepté" : "refusé"}`);
+    }
+  }
+
+  // 🔴 LE CAS QUI EST LE LIVRABLE (A5) : **aucune fin** doit être ACCEPTÉE. Sans lui, un
+  // `notNull` posé par erreur sur `ends_at` laisserait les trois cas ci-dessus verts.
+  {
+    let passe = false;
+    try {
+      await sql.begin(async (tx) => {
+        await tx`insert into tournament (name, game, slug, venue_name, starts_at, registration_mode, is_published)
+                 values (${MARQUE + "-SANS-FIN"}, 'CS2', ${slugFin + "-sans"}, 'Salle temoin',
+                         now(), 'interne', false)`;
+        passe = true;
+        throw new Error("ROLLBACK VOULU");
+      });
+    } catch (erreur) {
+      if (!(erreur instanceof Error) || erreur.message !== "ROLLBACK VOULU") passe = false;
+    }
+    const attendu = !AUTOTEST;
+    if (passe === attendu) {
+      ok(NOM, "AUCUNE fin (le livrable)", "acceptée — la colonne est bien FACULTATIVE");
+    } else {
+      ko(NOM, "AUCUNE fin (le livrable)", "REFUSÉE — `ends_at` est devenue obligatoire, ce qui annule A5");
+    }
+  }
+}
+
+// ── ㉓  L'HORAIRE ET LE TARIF, SUR LE RENDU RÉEL (Story 9.6) ───────────────────────────
+//
+// 🔴 DEUX VOLETS, ET ILS NE MESURENT PAS LA MÊME CHOSE — les séparer est le point.
+//   ⓐ **LA FONCTION**, sur des instants FIXES et des attendus écrits À LA MAIN. C'est le seul
+//      volet capable d'attraper un défaut DANS `formatPlageHoraire` — notamment le cas « la fin
+//      tombe un AUTRE jour », qui est une **affirmation fausse** s'il rate (famille R48), et
+//      qu'aucune mesure sur le rendu ne saurait distinguer d'une donnée mal saisie.
+//      ⚠️ Instants **avec offset explicite** : `new Date('2026-11-21T14:00')` s'interpréterait
+//      dans le fuseau du process — c'est le piège que tout ce dépôt refuse.
+//   ⓑ **LE CÂBLAGE** : la page sert-elle réellement ce que la fonction produit ? Elle exerce la
+//      FONCTION RÉELLE et non une copie (`pieges/garde-nominale.md`) : une porte qui
+//      réimplémenterait le format validerait sa propre copie et resterait verte le jour où la
+//      page cesse d'appeler la fonction.
+{
+  const NOM = "㉓ horaire & tarif";
+
+  // ⓐ ── Les cas de la fonction, écrits à la main ──
+  const CAS_FORMAT = [
+    {
+      libelle: "sans fin",
+      debut: "2026-11-21T14:00:00+01:00",
+      fin: null,
+      attendu: "14h00",
+    },
+    {
+      libelle: "fin le MÊME jour",
+      debut: "2026-11-21T14:00:00+01:00",
+      fin: "2026-11-21T18:30:00+01:00",
+      attendu: "14h00 → 18h30",
+    },
+    {
+      // 🔴 LE CAS QUI COMPTE : sans le jour, « 21h00 → 02h00 » dit que c'est fini le soir même.
+      libelle: "fin le LENDEMAIN (le jour DOIT être dit)",
+      debut: "2026-11-21T21:00:00+01:00",
+      fin: "2026-11-22T02:00:00+01:00",
+      attendu: "21h00 → Dim. 22/11 à 2h00",
+    },
+  ];
+
+  for (const cas of CAS_FORMAT) {
+    const obtenu = formatPlageHoraire(
+      new Date(cas.debut),
+      cas.fin === null ? null : new Date(cas.fin),
+    );
+    // En autotest on exige un attendu volontairement faux : la garde doit le voir.
+    const attendu = AUTOTEST ? cas.attendu + "-faux" : cas.attendu;
+    if (obtenu === attendu) {
+      ok(NOM, cas.libelle, `« ${obtenu} »`);
+    } else {
+      ko(NOM, cas.libelle, `attendu « ${attendu} », obtenu « ${obtenu} »`);
+    }
+  }
+
+  // 🔴 ET LE CAS « AUTRE JOUR » EST RE-PROUVÉ PAR SA PROPRIÉTÉ, pas seulement par sa chaîne :
+  // un attendu littéral casserait au premier ajustement de forme (que le gate visuel peut très
+  // bien demander), et on remplacerait alors une garde par un chiffre à maintenir. Ce qui ne
+  // doit JAMAIS changer, c'est que le jour soit DIT.
+  {
+    const memeJour = formatPlageHoraire(
+      new Date("2026-11-21T14:00:00+01:00"),
+      new Date("2026-11-21T18:30:00+01:00"),
+    );
+    const autreJour = formatPlageHoraire(
+      new Date("2026-11-21T21:00:00+01:00"),
+      new Date("2026-11-22T02:00:00+01:00"),
+    );
+    const ditLeJour = AUTOTEST ? /22/.test(memeJour) : /22/.test(autreJour) && !/21\/11/.test(memeJour);
+    if (ditLeJour) {
+      ok(NOM, "propriété « le jour est dit »", `« ${autreJour} » — et « ${memeJour} » ne l'encombre pas`);
+    } else {
+      ko(
+        NOM,
+        "propriété « le jour est dit »",
+        `une fin le lendemain rend « ${autreJour} » sans nommer le jour — le visiteur lira « fini le soir même »`,
+      );
+    }
+  }
+
+  // ⓑ ── Le câblage : la page sert-elle ce que la fonction produit ? ──
+  {
+    const ligne = await sql<{ starts_at: Date; ends_at: Date | null; price_text: string | null; slug: string }[]>`
+      select starts_at, ends_at, price_text, slug from tournament
+      where is_published = true and (ends_at is not null or price_text is not null)
+      order by starts_at desc limit 1`;
+
+    if (ligne.length === 0) {
+      // 🔴 « RIEN À MESURER » N'EST PAS « TOUT VA BIEN » — leçon R46, et c'est la sonde de
+      // données que `gate:carousel` a dû apprendre à faire. La garde se TAIT et le DÉCLARE,
+      // plutôt que d'accuser un produit sain sur une base qui ne porte pas encore le cas.
+      exemptions.add(
+        "㉓ⓑ — AUCUN tournoi publié ne porte de tarif ni d'heure de fin dans cette base : le " +
+          "CÂBLAGE du rendu (la page sert-elle ce que `formatPlageHoraire` produit ?) N'EST PAS " +
+          "COUVERT par cette exécution. Le volet ⓐ, lui, reste mesuré. Pour couvrir ⓑ, saisir " +
+          "l'un des deux sur un tournoi publié.",
+      );
+      ok(NOM, "câblage", "GARDE SANS OBJET — aucun témoin en base, et ce n'est PAS un succès");
+    } else {
+      const t = ligne[0];
+      const attendu = formatPlageHoraire(t.starts_at, t.ends_at);
+      const r = await demander(`/tournois/${t.slug}`);
+      if (r.statut !== 200) {
+        ko(NOM, "câblage", `/tournois/${t.slug} rend ${r.statut} — rien à mesurer`);
+      } else {
+        const cherche = AUTOTEST ? attendu + "-faux" : attendu;
+        if (r.corps.includes(cherche)) {
+          ok(NOM, "câblage", `la fiche sert « ${attendu} », produit par la fonction elle-même`);
+        } else {
+          ko(NOM, "câblage", `la fiche ne sert PAS « ${attendu} » — le rendu n'appelle pas la dérivation partagée`);
+        }
+        if (t.price_text !== null) {
+          const tarif = AUTOTEST ? t.price_text + "-faux" : t.price_text;
+          if (r.corps.includes(tarif)) {
+            ok(NOM, "tarif", `la fiche sert le tarif saisi (« ${t.price_text} »)`);
+          } else {
+            ko(NOM, "tarif", `« ${t.price_text} » est en base et N'APPARAÎT PAS sur la fiche`);
+          }
+        }
+      }
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 import { Button } from "@repo/ui";
-import { formatBigDate, formatTime } from "@/lib/date-paris";
+import { formatBigDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { estJeudiJeux } from "@/lib/rendez-vous";
 import { cleanText } from "@/lib/text";
@@ -34,9 +34,29 @@ import styles from "./NextEventCard.module.css";
 // donnée », « copie fixe, JAMAIS data-dépendante »). Ces commentaires étaient **JUSTES** tant
 // que tout rendez-vous était un jeudi en bar. Ils sont devenus faux par **ÉLARGISSEMENT DU
 // DOMAINE**, pas par erreur — `pieges/patron-eprouve-une-seule-nature.md`.
-// ⚠️ Le correctif n'est PAS de rendre ces phrases saisissables : ce serait rouvrir la
-// frontière Q6 et faire porter au modèle « ni prix ni jauge » ce que son commentaire lui
-// interdit. C'est de **dériver de la nature** et de **MASQUER** ce qu'on ne garantit pas.
+// ⚠️ Le correctif de la 9.5 n'était PAS de rendre ces phrases saisissables : c'était de
+// **dériver de la nature** et de **MASQUER** ce qu'on ne garantit pas.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 STORY 9.6 — LA COPIE FIXE DEVIENT UN **REPLI**, PARCE QUE LE MODÈLE PORTE MAINTENANT LE FAIT
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// Les deux phrases de cette carte — « **Gratuit** · ouvert à tous, même sans matériel » et
+// « on reste **tant qu'on veut** » — disent **en dur** exactement ce que `price_text` et
+// `ends_at` portent depuis la 9.6. Elles n'étaient sûres que pour une raison, écrite ici même :
+// *« le modèle ne porte ni prix ni jauge, et il ne doit pas commencer à en porter par ce
+// biais »*. **Il en porte.** Un jeudi jeux payant rendrait donc « Gratuit » — un mensonge à
+// l'écran, c'est-à-dire R48 refaite au même endroit, un mois plus tard.
+//
+// ⇒ Règle **« un seul propriétaire par fait »** (note d'archi §5), et elle tranche seule :
+// **la valeur SAISIE l'emporte, la copie fixe est le REPLI quand rien n'est saisi.**
+//
+// ⚠️ **LA FRONTIÈRE Q6 TIENT, ET IL FAUT VOIR POURQUOI** : ce qui devient saisissable est le
+// **tarif**, jamais la phrase. « ouvert à tous, même sans matériel » n'entre dans aucune
+// colonne — c'est un fait **distinct** d'un prix, et il **survit** au remplacement du mot
+// « Gratuit ». Découper la phrase est le livrable ; la rendre éditable serait le défaut.
+// ⚠️ Et `null` ne veut **jamais** dire « gratuit » : sans tarif saisi, on ne déduit rien — on
+// retombe sur ce que la NATURE du rendez-vous garantit, et sur rien d'autre.
 
 export interface NextEventCardProps {
   rendezVous: RendezVous;
@@ -102,6 +122,15 @@ export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
   const venueAddress = cleanText(evenement?.venueAddress ?? null);
   const games = cleanText(evenement?.games ?? tournoi?.game ?? null);
 
+  // Story 9.6 — les deux faits neufs, lus des DEUX natures sous leur propre nom.
+  // ⚠️ `cleanText` sur le tarif : dernier filet du rendu contre une écriture qui contournerait
+  // Zod ET le `CHECK` (`UPDATE` direct, restauration de sauvegarde), `btrim` ne retirant pas
+  // U+200B (dette R41). Un tarif fait uniquement d'invisible doit compter comme ABSENT — sans
+  // quoi la carte rendrait un fait vide à la place de sa copie fixe, c'est-à-dire une ligne
+  // muette là où il y avait une phrase juste.
+  const tarif = cleanText(evenement?.priceText ?? tournoi?.priceText ?? null);
+  const fin = evenement?.endsAt ?? tournoi?.endsAt ?? null;
+
   return (
     <div className={styles.next}>
       <div className={styles.bigDate}>
@@ -145,19 +174,28 @@ export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
           {/* Heure : formatée en horloge de Paris, jamais avec getHours().
               🔴 LA QUEUE DE PHRASE EST CONDITIONNELLE DEPUIS LA 9.5 (R48 ③). « on reste tant
               qu'on veut » décrit la soirée hebdomadaire, qui n'a pas d'heure de fin annoncée.
-              Un tournoi a un format et une fin ; un temps fort peut en avoir une aussi. Hors
-              jeudi jeux, l'heure se rend donc SEULE — une absence, jamais une affirmation. */}
+              Hors jeudi jeux, l'heure se rendait donc SEULE — une absence, jamais une
+              affirmation.
+              🔴 ET DEPUIS LA 9.6, LA FIN SAISIE PASSE DEVANT (A3). Les deux disent la même
+              chose et ne peuvent pas cohabiter : « 19h00 → 23h00 — on reste tant qu'on veut »
+              se contredirait dans la même ligne. La donnée l'emporte, la phrase est le repli.
+              ⚠️ `formatPlageHoraire` NOMME LE JOUR quand la fin n'est pas le même — la Game'in
+              Reims tient sur deux jours, et « 14h00 → 02h00 » dirait que c'est fini le soir
+              même. Le raisonnement complet vit sur la fonction. */}
           <div>
             <ClockIcon />
             <span>
-              {formatTime(rendezVous.startsAt)}
-              {jeudiJeux ? <> — on reste tant qu&apos;on veut</> : null}
+              {formatPlageHoraire(rendezVous.startsAt, fin)}
+              {fin === null && jeudiJeux ? <> — on reste tant qu&apos;on veut</> : null}
             </span>
           </div>
 
-          {/* 🔴 TROISIÈME FAIT — TROIS CAS, ET AUCUN N'AFFIRME CE QU'IL NE SAIT PAS (R48 ④).
-              · jeudi jeux ⇒ la copie fixe d'origine, qui reste vraie : gratuit, matériel sur
-                place. Elle n'est PAS rendue saisissable (frontière Q6) ;
+          {/* 🔴 TROISIÈME FAIT — ET DEPUIS LA 9.6, LE TARIF SAISI PASSE DEVANT LA COPIE FIXE (A3).
+              · **tarif saisi** ⇒ il l'emporte, quelle que soit la nature. Sur un jeudi jeux il
+                remplace le seul mot « Gratuit » et « ouvert à tous, même sans matériel »
+                SURVIT : ce n'est pas un prix, c'est un autre fait, et il reste vrai ;
+              · jeudi jeux SANS tarif ⇒ la copie fixe d'origine, qui reste vraie. Elle n'est
+                toujours PAS saisissable (frontière Q6) — c'est le TARIF qui l'est ;
               · tournoi ⇒ l'ÉTAT DES INSCRIPTIONS, seule promesse qu'on puisse tenir, et le
                 libellé vient de `LIBELLES_ETAT_INSCRIPTION` — jamais recopié ici (patron
                 `lib/libelles-tournoi.ts`, un seul exemplaire pour toutes les surfaces).
@@ -165,20 +203,38 @@ export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
                 la base autorise un tournoi passé resté « ouvertes » et que personne ne les
                 referme. Ici la garantie est STRUCTURELLE — cette carte ne rend que des
                 rendez-vous à venir (`getUpcomingRendezVous`) ;
-              · temps fort ⇒ RIEN. Ni prix ni jauge dans le modèle, donc rien à dire. */}
+              · temps fort SANS tarif ⇒ RIEN. On ne déduit toujours aucune gratuité d'une
+                absence.
+              ⚠️ **DEUX LIGNES ET NON UNE SUR UN TOURNOI PAYANT** : l'état des inscriptions et le
+              prix répondent à deux questions différentes (« puis-je m'inscrire » / « combien »),
+              et les coudre sur une seule ligne les ferait lire comme une seule condition. Point
+              porté au gate visuel. */}
           {jeudiJeux ? (
             <div>
               <TicketIcon />
-              <span>Gratuit · ouvert à tous, même sans matériel</span>
-            </div>
-          ) : tournoi ? (
-            <div>
-              <TicketIcon />
               <span>
-                Inscriptions : {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState].toLowerCase()}
+                {tarif ?? "Gratuit"} · ouvert à tous, même sans matériel
               </span>
             </div>
-          ) : null}
+          ) : (
+            <>
+              {tournoi ? (
+                <div>
+                  <TicketIcon />
+                  <span>
+                    Inscriptions :{" "}
+                    {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState].toLowerCase()}
+                  </span>
+                </div>
+              ) : null}
+              {tarif ? (
+                <div>
+                  <TicketIcon />
+                  <span>{tarif}</span>
+                </div>
+              ) : null}
+            </>
+          )}
 
           {/* 4ᵉ fait, CONDITIONNEL : ligne masquée plutôt que placeholder vide
               (UX-DR10). Le jeudi `thursday2` du seed, semé SANS `games`, existe

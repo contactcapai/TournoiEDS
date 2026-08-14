@@ -25,6 +25,8 @@
  */
 import { z } from "zod";
 
+import { diagnostiquerHeureMurale, parisWallClockOptionnelFromInput } from "../../lib/date-paris";
+
 /**
  * Retour discriminé commun à toutes les actions d'administration (AR-API1).
  *
@@ -46,6 +48,61 @@ export type ResultatAction<T> =
  * `requireAdmin()`, donc sans risque, mais incohérent avec la doctrine du projet.
  */
 export const identifiant = z.uuid();
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 L'HEURE DE FIN SAISIE — DEUX ACTIONS, **UNE** LECTURE (Story 9.6)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `agenda.ts` et `tournois.ts` lisent le même champ facultatif, avec la même règle, dès le
+ * premier jour (arbitrage A1 : les deux colonnes arrivent ensemble). Deux copies d'une règle de
+ * fuseau divergent **en silence** et **invisiblement en local** — le poste est à Paris, le
+ * conteneur de production tourne en UTC. C'est le mécanisme de la dette **R37**, où
+ * `texteOptionnel` a vécu en trois exemplaires divergents pendant quatre stories.
+ *
+ * 🔴 **CE QU'ELLE PROTÈGE : QU'UNE FAUTE DE FRAPPE N'EFFACE PAS UNE FIN DÉJÀ ENREGISTRÉE.**
+ * `parisWallClockFromInput` rend `null` sur une chaîne **vide** comme sur une saisie
+ * **invalide** (mesuré). Traiter les deux pareil ferait passer `"2026-13-45T99:99"` pour « pas
+ * renseigné », et la mise à jour **viderait la colonne** sans un mot. C'est très exactement le
+ * motif déjà écrit sur `entierOptionnel` (`actions/tournois.ts`) : *« On ne transforme PAS une
+ * saisie illisible en `null` : une faute de frappe effacerait alors silencieusement la valeur
+ * déjà enregistrée, au lieu d'être signalée. »*
+ *
+ * ⚠️ Elle rend aussi l'**avertissement de changement d'heure** (dette R23) : une fin saisie dans
+ * l'heure inexistante de fin mars ou dans l'heure ambiguë de fin octobre doit être signalée, au
+ * même titre que le début l'est depuis la 6.3. L'oublier laisserait glisser une heure d'un cran
+ * une fois par an, sur la moitié des rendez-vous.
+ * ⚠️ **La règle « la fin est après le début » n'est PAS ici** : elle regarde DEUX champs, donc
+ * elle vit dans les schémas Zod (et dans les `CHECK`), là où le formulaire sait poser le focus.
+ */
+export function lireHeureDeFin(
+  formData: FormData,
+  champ = "endsAt",
+):
+  | { ok: true; fin: Date | null; avertissement: string | null }
+  | { ok: false; error: string; fieldErrors: Record<string, string> } {
+  const saisie = String(formData.get(champ) ?? "");
+  const lecture = parisWallClockOptionnelFromInput(saisie);
+
+  if (lecture.cas === "absent") return { ok: true, fin: null, avertissement: null };
+
+  if (lecture.cas === "invalide") {
+    return {
+      ok: false,
+      error: "Cette heure de fin n'existe pas.",
+      fieldErrors: {
+        [champ]: "Vérifiez le jour, le mois et l'heure : cette date n'existe pas.",
+      },
+    };
+  }
+
+  const diagnostic = diagnostiquerHeureMurale(saisie);
+  return {
+    ok: true,
+    fin: lecture.instant,
+    avertissement: diagnostic.cas === "ok" ? null : diagnostic.message,
+  };
+}
 
 /** Première erreur par champ, dans la forme attendue par les formulaires. */
 export function erreursParChamp(

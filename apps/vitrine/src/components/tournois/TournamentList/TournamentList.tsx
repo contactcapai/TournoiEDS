@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PhotoFrame } from "@repo/ui";
 
-import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { formatLongDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
@@ -82,6 +82,7 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   // `CHECK` (`UPDATE` direct, restauration de sauvegarde) — `btrim` ne retire pas U+200B, la
   // limite est déclarée dans `schema.ts` (dette R41, Story 7.8). Jamais un fragment vide.
   const salle = cleanText(tournoi.venueName);
+  const tarif = cleanText(tournoi.priceText);
   const passe = variante === "passe";
 
   /**
@@ -117,8 +118,12 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   return (
     <li className={styles.carte}>
       <div className={styles.corps}>
+        {/* 🔴 L'HORAIRE PASSE PAR `formatPlageHoraire` DEPUIS LA 9.6 : il rend l'heure seule
+            sans fin annoncée, la plage avec, et il NOMME LE JOUR quand la fin tombe un autre
+            jour — un tournoi du soir qui finit après minuit est le cas nominal, pas un cas
+            limite, et « 21h00 → 01h00 » dirait que c'est fini le soir même. */}
         <p className={styles.date}>
-          {formatLongDate(tournoi.startsAt)} · {formatTime(tournoi.startsAt)}
+          {formatLongDate(tournoi.startsAt)} · {formatPlageHoraire(tournoi.startsAt, tournoi.endsAt)}
         </p>
 
         {/* `<h3>` : sous le `<h2>` de la section, lui-même sous le `<h1>` de la page. Aucun
@@ -139,6 +144,15 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
         {/* La salle est FACULTATIVE et disparaît entièrement quand elle est absente — jamais
             une ligne vide, jamais une étiquette orpheline (NFR8, UX-DR10). */}
         {salle ? <p className={styles.lieu}>{salle}</p> : null}
+
+        {/* Le tarif (Story 9.6), même règle : absent ⇒ la ligne DISPARAÎT.
+            ⚠️ Surtout pas de « Gratuit » par défaut — `null` veut dire « on ne l'a pas dit »,
+            pas « c'est gratuit », et le déduire serait affirmer un fait qu'on n'a pas (famille
+            de la dette R48).
+            ⚠️ Rendu SUR LES DEUX VARIANTES, contrairement à l'état des inscriptions : le prix
+            d'un tournoi joué reste un fait vrai et daté, là où « inscriptions ouvertes » serait
+            une promesse impossible (A7 de la 9.2). Les deux ne sont pas de même nature. */}
+        {tarif ? <p className={styles.tarif}>{tarif}</p> : null}
 
         {/* ══════════════════════════════════════════════════════════════════════════════
             🔴 L'ÉTAT DES INSCRIPTIONS NE SE REND QUE SUR UN TOURNOI **À VENIR** — A7

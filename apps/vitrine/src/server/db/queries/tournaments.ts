@@ -78,6 +78,11 @@ const COLONNES_ADMIN = {
   game: true,
   slug: true,
   startsAt: true,
+  // Story 9.6 : la fiche d'édition écrit les deux, donc elle doit d'abord les LIRE — sans quoi
+  // le formulaire s'ouvrirait vide sur une valeur existante et la première soumission
+  // l'effacerait, en silence et sans erreur.
+  endsAt: true,
+  priceText: true,
   venueName: true,
   formatText: true,
   prizes: true,
@@ -178,6 +183,15 @@ const COLONNES_PUBLIQUES = {
   game: true,
   slug: true,
   startsAt: true,
+  /**
+   * 🔴 `endsAt` ET `priceText` REJOIGNENT LA LISTE À LA STORY 9.6, ET CE N'EST PAS UN ÉLARGISSEMENT
+   * DE CONFORT. La règle écrite ci-dessus tient — *« la liste montre ce qu'il faut pour CHOISIR,
+   * la fiche montre le reste »* — et ces deux-là sont précisément **ce qu'il faut pour choisir** :
+   * combien ça coûte et jusqu'à quelle heure, c'est-à-dire ce qui décide qu'on se déplace ou non.
+   * C'est le motif littéral de la story (dettes R55 et R56).
+   */
+  endsAt: true,
+  priceText: true,
   venueName: true,
   registrationState: true,
   podiumFirst: true,
@@ -340,6 +354,10 @@ const COLONNES_FICHE = {
   game: true,
   slug: true,
   startsAt: true,
+  // Story 9.6 — contenu d'A23 ①, ÉTENDU par cette story (tarif et horaire de fin), et la note
+  // d'architecture §13 est corrigée à la source plutôt que contournée ici.
+  endsAt: true,
+  priceText: true,
   venueName: true,
   formatText: true,
   prizes: true,
@@ -586,6 +604,12 @@ const COLONNES_RENDEZ_VOUS = {
   name: true,
   game: true,
   startsAt: true,
+  // Story 9.6 : un tournoi SANS événement **est** le rendez-vous — c'est lui que l'accueil et
+  // `/agenda` rendent, et il doit donc porter les mêmes faits qu'un événement y porterait.
+  // Les omettre ici ferait qu'un tournoi payant serait muet sur les deux surfaces où le visiteur
+  // décide de venir, alors que sa fiche l'annoncerait : deux réponses à la même question.
+  endsAt: true,
+  priceText: true,
   venueName: true,
   registrationState: true,
 } as const;

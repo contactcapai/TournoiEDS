@@ -81,3 +81,26 @@ export const instantAvecFuseau = z
     }
   })
   .transform((value) => (value instanceof Date ? value : new Date(String(value).trim())));
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * LE MÊME INSTANT, **FACULTATIF** — Story 9.6, deux consommateurs dès le premier jour
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `event.endsAt` et `tournament.endsAt` arrivent **ensemble** (arbitrage A1) : la règle a donc
+ * deux consommateurs à la seconde où elle naît, et le critère d'extraction de ce module — *« sa
+ * divergence serait-elle SILENCIEUSE ? »* — répond oui **doublement**, exactement comme pour
+ * `instantAvecFuseau` : le piège de fuseau est **invisible en local** et **bidirectionnel**.
+ *
+ * 🔴 `z.nullable()` COURT-CIRCUITE L'INNER SUR `null`, ET C'EST CE QUI REND LA COMPOSITION SÛRE.
+ * `instantAvecFuseau` part d'un `z.unknown()` : sans le court-circuit, un `null` y serait jugé
+ * *« Date attendue »*, c'est-à-dire qu'un champ **facultatif** refuserait d'être vide. On ne
+ * réécrit donc **rien** — on enveloppe. Redéclarer la garde ici en serait la 2ᵉ copie, et
+ * `texteOptionnel` a vécu en **trois** exemplaires divergents pendant quatre stories (dette R37).
+ *
+ * ⚠️ **CE SCHÉMA NE VOIT JAMAIS UNE CHAÎNE DE `<input type="datetime-local">`**, et c'est le
+ * partage de responsabilité qu'il faut connaître : la distinction « champ vide » / « saisie
+ * illisible » se fait **avant**, à la frontière d'écriture, par `parisWallClockOptionnelFromInput`
+ * (`lib/date-paris.ts`). Ici, `null` veut dire **absent**, et rien d'autre.
+ */
+export const instantAvecFuseauOptionnel = instantAvecFuseau.nullable().default(null);
