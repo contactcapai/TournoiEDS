@@ -331,10 +331,43 @@ const avantMenage = await compter();
       valeur: { ...BASE_VALIDE, slug: "a".repeat(IDENTIFIANT_MAX + 1) },
       doitPasser: false,
     },
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 CE CAS ÉTAIT DEVENU VRAI POUR LA MAUVAISE RAISON — TROUVÉ EN REVUE (Story 9.5)
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Il s'écrivait `{ ...BASE_VALIDE, eventId: "" }`, `doitPasser: false`, sous l'étiquette
+     * *« événement de rattachement ABSENT (A4 : obligatoire) »*. Depuis la 9.5, `eventId: ""`
+     * vaut `null` et n'est **plus** un refus — mais `BASE_VALIDE` ne porte **aucun**
+     * `venueName`, donc le `superRefine` neuf refusait la ligne pour « lieu manquant ». Le
+     * booléen observé restait `false` : **le même verdict, par un mécanisme entièrement
+     * différent.**
+     * ⇒ Le cas ne discriminait plus rien. Si quelqu'un remettait `eventId: z.uuid()`
+     * obligatoire — c'est-à-dire annulait le livrable de cette story — il serait resté
+     * **VERT**. C'est `pieges/garde-nominale.md` par vieillissement : l'étiquette décrivait
+     * encore la règle d'hier, le code mesurait celle d'aujourd'hui.
+     *
+     * ⇒ Il est remplacé par **DEUX** cas qui, ensemble, décident : l'un prouve que
+     * l'optionalité EXISTE (contre-épreuve **positive**, la seule qui rougirait si on
+     * remettait l'obligation), l'autre que la règle « pas d'événement ⇒ un lieu » MORD.
+     */
     {
-      quoi: "événement de rattachement ABSENT (A4 : obligatoire)",
+      quoi: "sans événement MAIS avec un lieu (l'optionalité de la 9.5)",
+      valeur: { ...BASE_VALIDE, eventId: "", venueName: "En ligne" },
+      doitPasser: true,
+    },
+    {
+      quoi: "sans événement ET sans lieu (jumeau Zod de `tournament_a_un_lieu`)",
       valeur: { ...BASE_VALIDE, eventId: "" },
       doitPasser: false,
+    },
+    {
+      // ⚠️ Et le rattachement reste possible SANS lieu propre : c'est le cas nominal de la
+      // Game'in Reims, où le lieu vient de l'événement. Sans ce troisième cas, une règle
+      // « TOUJOURS un lieu » passerait les deux précédents.
+      quoi: "AVEC événement et sans lieu (le lieu vient de l'événement)",
+      valeur: BASE_VALIDE,
+      doitPasser: true,
     },
     {
       // 🔴 LE PIÈGE `date-tz.md`, ÉPROUVÉ : la forme exacte que rend un `datetime-local`.
@@ -1797,7 +1830,11 @@ for (const cas of ECRITURES_EPROUVEES) {
     // ⚠️ Le membre `event_id is not null` doit être là, sinon la règle ne dit plus « PAS
     // d'événement ⇒ un lieu » mais « toujours un lieu » — ce qui refuserait les tournois
     // rattachés dont le lieu vient de leur événement (cas nominal de la Game'in Reims).
-    if (/event_id IS NOT NULL/i.test(definition)) {
+    // ⚠️ En autotest on exige `IS NULL` (jamais présent) : sans cette inversion, cette
+    // sous-assertion serait la seule de la garde à ne recevoir AUCUN cas d'échec — elle
+    // resterait verte quoi qu'il arrive, et la couverture calculée ne le dirait pas, puisque
+    // celle-ci se compte par ÉTIQUETTE de garde et que les deux autres rougissent déjà.
+    if (new RegExp(AUTOTEST ? "event_id IS NULL" : "event_id IS NOT NULL", "i").test(definition)) {
       ok(
         "⑰ pas d'événement ⇒ un lieu",
         "tournament_a_un_lieu",
@@ -1978,9 +2015,12 @@ exemptions.add(
     "trouve le TOCTOU : elle était vraie au premier commit de la story et fausse au dernier.",
 );
 exemptions.add(
-  "🔴 QUE LE RATTACHEMENT SOIT LE BON. La base garantit qu'un tournoi A UN événement (A4) ; " +
-    "elle ne peut rien contre un tournoi rattaché au MAUVAIS événement. C'est l'écran qui le " +
-    "couvre, en affichant l'événement sur chaque ligne — et le gate visuel qui le voit.",
+  "🔴 QUE LE RATTACHEMENT SOIT LE BON. La base garantit qu'un tournoi non rattaché a un LIEU " +
+    "(garde ⑰) ; elle ne peut rien contre un tournoi rattaché au MAUVAIS événement. C'est " +
+    "l'écran qui le couvre, en affichant l'événement — ou son absence — sur chaque ligne, et " +
+    "le gate visuel qui le voit. ⚠️ CETTE EXEMPTION DISAIT « la base garantit qu'un tournoi A " +
+    "UN événement (A4) » : vraie jusqu'au 2026-08-13, FAUSSE depuis la Story 9.5, qui rend " +
+    "`event_id` facultatif. Une exemption est un fait daté comme un autre.",
 );
 exemptions.add(
   "🔴 QUE `ON DELETE RESTRICT` PRODUISE UN MESSAGE UTILISABLE. La contrainte est éprouvée " +

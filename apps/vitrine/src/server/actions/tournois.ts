@@ -64,7 +64,10 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
   tournament_name_valide: "le nom du tournoi",
   tournament_game_valide: "le jeu",
   tournament_slug_valide: "l'identifiant de l'adresse",
-  tournament_venue_name_valide: "la salle ou l'espace",
+  // ⚠️ « la salle ou l'espace » jusqu'à la 9.5 : le champ ne précisait alors QUE l'intérieur
+  // du lieu de l'événement. Détaché, il EST le lieu — et l'écran l'appelle « Lieu du tournoi ».
+  // Un message qui nomme un autre concept que l'étiquette du champ fait chercher.
+  tournament_venue_name_valide: "le lieu du tournoi",
   tournament_format_text_valide: "le déroulé annoncé",
   tournament_prizes_valide: "les lots",
   tournament_match_duration_valide: "la durée d'un match",

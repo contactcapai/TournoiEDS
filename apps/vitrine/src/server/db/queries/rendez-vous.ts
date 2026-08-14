@@ -85,8 +85,14 @@ export type RendezVous =
  * `starts_at` se saisit à la **minute** (`datetime-local`), donc les égalités sont fréquentes.
  *
  * ⚠️ LE TRI SE FAIT **EN MÉMOIRE, ET C'EST INÉVITABLE** : les deux moitiés viennent de deux
- * tables. Chacune sort déjà triée de Postgres (borne appliquée **en base**, jamais après
- * coup) ; il ne reste ici qu'une **fusion** de deux listes courtes et bornées.
+ * tables. Il ne reste ici qu'une **fusion** de deux listes courtes et déjà bornées **en base**.
+ *
+ * 🔴 MAIS CE PARAGRAPHE AFFIRMAIT AUSSI QUE « CHACUNE SORT DÉJÀ TRIÉE » — ET C'ÉTAIT FAUX,
+ * TROUVÉ EN REVUE. `getUpcomingEvents` ne triait que sur `starts_at` : à égalité de minute,
+ * **lequel des deux événements tombait dans le `LIMIT` n'était pas déterminé**. Trier ici n'y
+ * pouvait rien — la ligne écartée l'est **en base**, avant que cette fonction ne la voie.
+ * ⇒ Le tie-break a été posé **dans les deux lectures sources**, pas ici. Ce qui suit ne
+ * garantit l'ordre total de la fusion **que parce que** chaque moitié est elle-même totale.
  * ⚠️ `localeCompare` avec un **locale explicite** et non `<`/`>` : sur des titres accentués,
  * la comparaison de codepoints classerait « Été » après « Zoo ».
  * ⚠️ Dernier terme `cle` (un UUID) : c'est lui qui rend l'ordre **total** — deux rendez-vous
