@@ -5,6 +5,7 @@ import { PhotoFrame } from "@repo/ui";
 
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
 import type { PublicTournament } from "@/server/db/queries/tournaments";
 import styles from "./TournamentList.module.css";
@@ -86,23 +87,17 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   /**
    * 🔴 LE PODIUM N'APPARAÎT QUE SUR UN TOURNOI PASSÉ, ET C'EST LA RÈGLE QU'AUCUN `CHECK` NE
    * POUVAIT TENIR (AC4 de la Story 9.1) : une contrainte doit être IMMUABLE, or « passé » se
-   * compare à `now()`. Postgres refuse — et une ligne valide aujourd'hui qui deviendrait
-   * invalide demain ferait **échouer toute restauration de sauvegarde**, le jour précis où
-   * l'on en a le plus besoin. La règle se tient donc **ici**, à l'affichage, et une garde de
-   * porte la mesure.
+   * compare à `now()`. Une ligne valide aujourd'hui qui deviendrait invalide demain ferait
+   * **échouer toute restauration de sauvegarde**, le jour précis où l'on en a le plus besoin.
    *
-   * ⚠️ Les trois rangs sont filtrés un par un : les `CHECK` `tournament_podium_sans_trou_*`
-   * interdisent déjà les trous, mais ils ne voient pas un `podium_second` fait uniquement de
-   * caractères sans largeur — que `cleanText` ramène à `null`. Filtrer après nettoyage est ce
-   * qui garantit qu'on ne rend jamais « 2ᵉ — » suivi de rien.
+   * ⚠️ **UNE SEULE DÉFINITION DU PODIUM VISIBLE, PARTAGÉE AVEC LA FICHE** (`lib/podium.ts`,
+   * Story 9.3). Ce composant en portait une copie qui filtrait les trois rangs
+   * **indépendamment** : un `podium_first` fait de caractères sans largeur — que les `CHECK`
+   * laissent passer, puisqu'ils ne gardent que la PRÉSENCE — produisait un podium commençant à
+   * la 2ᵉ place. Un podium qui se lirait différemment d'une page à l'autre serait un défaut,
+   * pas une nuance.
    */
-  const podium: { rang: string; nom: string }[] = passe
-    ? [
-        { rang: "1ᵉʳ", nom: cleanText(tournoi.podiumFirst) },
-        { rang: "2ᵉ", nom: cleanText(tournoi.podiumSecond) },
-        { rang: "3ᵉ", nom: cleanText(tournoi.podiumThird) },
-      ].filter((place): place is { rang: string; nom: string } => place.nom !== null)
-    : [];
+  const podium = passe ? podiumVisible(tournoi) : [];
 
   /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE** — la décision se prend ici, pas à

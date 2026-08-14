@@ -166,8 +166,26 @@
    texte n'y est plus SÉLECTIONNABLE. L'alternative (un `onClick` sur la carte) imposerait un
    `'use client'` à un composant qui n'a aucune autre raison d'en être un, et fabriquerait un
    élément cliquable invisible au clavier.
-   ⚠️ Il est posé APRÈS le contenu dans l'ordre de peinture ; le visuel (`.media`) reste donc
-   dessous, ce qui est voulu : cliquer la photo mène à la fiche, comme le reste. */
+   🔴 **`z-index: 1` N'EST PAS UNE PRÉCAUTION, C'EST LE CORRECTIF D'UN DÉFAUT MESURÉ.** Ce bloc
+   affirmait : *« Il est posé APRÈS le contenu dans l'ordre de peinture ; le visuel (`.media`)
+   reste donc dessous, ce qui est voulu : cliquer la photo mène à la fiche, comme le reste. »*
+   **C'était FAUX, et c'est le rendu qui l'a dit** — pas la relecture.
+   🔬 Mesuré sur staging le 2026-08-14, sur une carte fabriquée avec un visuel publié :
+   `document.elementFromPoint` au centre de la photo rendait `<img>`, et son `closest("a")`
+   valait `null` ⇒ **le clic sur la photo ne menait nulle part**, sur la moitié de la surface
+   d'une carte dont le livrable est justement d'être cliquable.
+   **Le mécanisme** : `PhotoFrame` pose `position: relative` sur son cadre (sans `z-index`), et
+   `.media` vient **après** `.corps` dans le DOM. Deux descendants positionnés à `z-index: auto`
+   se peignent **dans l'ordre de l'arbre** — la photo passe donc au-dessus de l'overlay. Le
+   commentaire raisonnait sur l'ordre de peinture du **pseudo-élément** en oubliant que le cadre
+   photo est, lui aussi, un élément **positionné**.
+   ⚠️ Le survol, lui, continuait de fonctionner (il remonte la chaîne des ancêtres, indépendante
+   de l'empilement) : **la carte réagissait sans être cliquable**, ce qui rendait le défaut
+   parfaitement invisible à l'œil.
+   ⚠️ Et **aucune porte ne pouvait le voir** : `gate:links` clique par `el.click()` sur l'ancre
+   elle-même, ce qui court-circuite le test de recouvrement, et la garde ⑲a de `gate:tournois`
+   ne lit qu'un `href` dans le HTML servi. Le seul témoin possible est `elementFromPoint`, sur
+   une carte **portant réellement une photo** — or aucun tournoi de staging n'en a. */
 .lien {
   color: inherit;
   text-decoration: none;
@@ -178,6 +196,8 @@
   position: absolute;
   inset: 0;
   border-radius: var(--radius-card);
+  /* Prime sur tout descendant positionné à `z-index: auto` — dont le cadre `PhotoFrame`. */
+  z-index: 1;
 }
 
 /* ───────── Le jeu, puis le lieu ─────────

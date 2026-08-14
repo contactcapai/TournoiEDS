@@ -2,6 +2,8 @@
 // requêtes (garde-fou n°1 de la Story 1.7) : ce module lit la base, il ne doit jamais être
 // atteint depuis un composant client.
 import "server-only";
+import { cache } from "react";
+
 import { db } from "../client";
 
 /**
@@ -386,8 +388,22 @@ const COLONNES_FICHE = {
  * d'agenda — et **aucune porte visuelle ne le verrait** : une page qui affiche une ligne de
  * plus n'a pas l'air cassée. Le rendu **DÉCIDE**, il ne suppose pas (même raisonnement,
  * mot pour mot, que `RELATION_VISUEL` sur les photos dépubliées).
+ *
+ * 🔴 **`cache()` — MÉMOÏSATION PAR REQUÊTE, ET UN CONSOMMATEUR RÉEL L'EXIGE** (défaut trouvé en
+ * revue). La page `/tournois/<slug>` appelle cette lecture **deux fois** pour une seule visite :
+ * une fois dans `generateMetadata` (pour le `<title>` et les `og:*`), une fois dans le corps de
+ * la page. Sans mémoïsation, c'est **deux requêtes SQL identiques**, relations comprises, à
+ * chaque affichage d'une page `force-dynamic`.
+ * ⚠️ Next ne déduplique **que** les appels à `fetch()` : une fonction Drizzle quelconque n'en
+ * bénéficie pas, seul `cache()` de React le fait, et à l'intérieur d'un seul rendu de requête.
+ * ⇒ Le patron existait **déjà** dans ce dépôt et pour la même raison : `lireReglages`
+ * (`queries/settings.ts`) est enveloppée ainsi parce que le layout et la page l'appellent tous
+ * les deux. Ce n'est donc pas une optimisation inventée ici, c'est une convention interne qui
+ * manquait à cette lecture.
+ * ⚠️ **CE N'EST PAS UN CACHE APPLICATIF** : la mémoïsation ne vit que le temps d'une requête, et
+ * ne survit à aucune visite suivante. Le raisonnement complet est écrit sur `lireReglages`.
  */
-export async function getTournamentBySlug(slug: string) {
+export const getTournamentBySlug = cache(async function getTournamentBySlug(slug: string) {
   const ligne = await db.query.tournament.findFirst({
     columns: COLONNES_FICHE,
     where: (table, { and, eq }) => and(eq(table.isPublished, true), eq(table.slug, slug)),
@@ -398,7 +414,7 @@ export async function getTournamentBySlug(slug: string) {
   });
   if (!ligne) return undefined;
   return { ...ligne, estPasse: ligne.startsAt <= new Date() };
-}
+});
 
 /**
  * Ce qu'il faut pour rendre une fiche, dérivé de la requête.

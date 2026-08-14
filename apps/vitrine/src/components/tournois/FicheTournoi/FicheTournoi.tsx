@@ -7,6 +7,7 @@ import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
+import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
 import type { FicheTournoiData } from "@/server/db/queries/tournaments";
 import editorial from "@/styles/editorial.module.css";
@@ -66,22 +67,15 @@ export function FicheTournoi({
    * 🔴 LE PODIUM NE SE REND QUE SUR UN TOURNOI PASSÉ — RÈGLE QU'AUCUN `CHECK` NE POUVAIT TENIR
    * (AC4 de la 9.1) : une contrainte doit être IMMUABLE, or « passé » se compare à `now()`. Une
    * ligne valide aujourd'hui et invalide demain ferait échouer **toute restauration de
-   * sauvegarde**, le jour précis où l'on en a le plus besoin.
+   * sauvegarde**, le jour précis où l'on en a le plus besoin. La règle se tient donc ICI, à
+   * l'affichage.
    *
-   * ⚠️ Les trois rangs sont filtrés **après** `cleanText` : les `CHECK`
-   * `tournament_podium_sans_trou_*` interdisent déjà les trous, mais ils ne voient pas un
-   * `podium_second` fait uniquement de caractères sans largeur — que `cleanText` ramène à
-   * `null`. Filtrer après nettoyage est ce qui garantit qu'on ne rend jamais « 2ᵉ — » suivi de
-   * rien. Patron repris **tel quel** de `TournamentCard` : deux façons de rendre un podium
-   * divergeraient au premier ajustement de vocabulaire.
+   * ⚠️ **CE QUI EST RENDU VISIBLE SE DÉRIVE DANS `lib/podium.ts`, PARTAGÉ AVEC LA CARTE.** Les
+   * deux surfaces en portaient une copie identique, et toutes deux filtraient les trois rangs
+   * **indépendamment** — ce qui laissait sortir un podium commençant à la 2ᵉ place. Le
+   * raisonnement complet, et le défaut qu'il corrige, vivent sur la fonction.
    */
-  const podium: { rang: string; nom: string }[] = tournoi.estPasse
-    ? [
-        { rang: "1ᵉʳ", nom: cleanText(tournoi.podiumFirst) },
-        { rang: "2ᵉ", nom: cleanText(tournoi.podiumSecond) },
-        { rang: "3ᵉ", nom: cleanText(tournoi.podiumThird) },
-      ].filter((place): place is { rang: string; nom: string } => place.nom !== null)
-    : [];
+  const podium = tournoi.estPasse ? podiumVisible(tournoi) : [];
 
   /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE**, et la décision se prend ici.
@@ -109,8 +103,17 @@ export function FicheTournoi({
    * ⚠️ Et **aucune porte visuelle ne le verrait** : une page qui affiche une ligne de plus n'a
    * pas l'air cassée. C'est la même famille que la fuite de brouillons que le filtre
    * `is_published` de la liste interdit — dite ici parce qu'elle passe par une RELATION.
+   *
+   * ⚠️ **`cleanText` SUR LE TITRE, ET C'ÉTAIT LE SEUL TEXTE LIBRE DE CETTE FICHE À NE PAS L'AVOIR**
+   * (défaut trouvé en revue). `event.title` est `notNull` avec un `CHECK` bâti sur `btrim` — qui
+   * **ne retire pas** U+200B (dette R41). Un titre fait uniquement de caractères sans largeur
+   * aurait donc rendu l'étiquette « Dans le cadre de » suivie de **rien** : exactement
+   * l'étiquette orpheline que le reste de ce fichier s'applique à ne jamais produire.
+   * ⇒ Le précédent existait déjà dans le dépôt, sur **ce champ précis** :
+   * `server/actions/reseaux.ts` écrit `cleanText(evenement.title) ?? evenement.title`.
    */
-  const evenement = tournoi.event?.isPublished ? tournoi.event : null;
+  const titreEvenement = tournoi.event?.isPublished ? cleanText(tournoi.event.title) : null;
+  const evenement = titreEvenement === null ? null : { ...tournoi.event, title: titreEvenement };
 
   /**
    * 🔴 LE BOUTON « S'INSCRIRE » EST UN **CONTRAT DÉJÀ ÉCRIT AU BÉNÉVOLE**, mot pour mot.
@@ -297,16 +300,35 @@ export function FicheTournoi({
                   </Button>
                 ) : (
                   /* ⚠️ AUCUN BOUTON INERTE ICI. Un `<Button inactive>` porterait
-                     l'apparence d'un CTA sans destination : le projet l'a prévu pour les
-                     cas où le CTA doit RESTER visible (Story 5.5), ce qui n'est pas le
-                     nôtre — il n'y a rien à promettre. La phrase ci-dessous DIT pourquoi,
-                     ce qu'un bouton grisé ne fait pas. */
+                     l'apparence d'un CTA sans destination : le projet l'a prévu pour les cas
+                     où le CTA doit RESTER visible (Story 5.5), ce qui n'est pas le nôtre — il
+                     n'y a rien à promettre. La phrase ci-dessous DIT pourquoi, ce qu'un bouton
+                     grisé ne fait pas.
+
+                     🔴 ELLE SE DÉRIVE DE L'ÉTAT **D'ABORD**, DU MODE ENSUITE — ET L'ORDRE
+                     INVERSE ÉTAIT UN DÉFAUT RÉEL, TROUVÉ EN REVUE. La première version testait
+                     `completes`, puis le **mode** : un tournoi `interne` dont les inscriptions
+                     étaient `fermees` rendait donc « Inscriptions : Fermées » suivi de « Les
+                     inscriptions se prennent directement avec nous » — une invitation à
+                     s'inscrire sous une étiquette qui dit l'inverse.
+                     ⚠️ Et ce n'est pas un cas tordu : `fermees` est la valeur **par défaut**
+                     (`schema.ts` : *« rien ne s'ouvre par accident »*), et le mode `interne`
+                     n'offre aucun bouton — donc un bénévole qui choisit « Sur notre site » et
+                     ne touche jamais l'état tombe **exactement** dans ce cas.
+                     ⇒ `ouvertes` est la SEULE branche où l'on dit comment s'y prendre ; les
+                     deux autres états disent ce qui est, et rien de plus.
+                     ⚠️ Le cas « `ouvertes` sans porte » (mode `mately` dont l'URL n'est pas
+                     exploitable) ne dit PAS « ce n'est pas ouvert » — ce serait contredire
+                     l'étiquette juste au-dessus. Il dit la seule chose vraie : on ne peut pas
+                     s'inscrire **d'ici**. */
                   <p className={styles.etatAide}>
                     {tournoi.registrationState === "completes"
                       ? "Toutes les places annoncées sont prises."
-                      : tournoi.registrationMode === "interne"
-                        ? "Les inscriptions se prennent directement avec nous — sur place ou sur notre Discord."
-                        : "Les inscriptions ne sont pas ouvertes pour le moment."}
+                      : tournoi.registrationState === "fermees"
+                        ? "Les inscriptions ne sont pas ouvertes pour le moment."
+                        : tournoi.registrationMode === "interne"
+                          ? "Les inscriptions se prennent directement avec nous — sur place ou sur notre Discord."
+                          : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
                   </p>
                 )}
               </div>
