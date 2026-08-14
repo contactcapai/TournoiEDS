@@ -152,6 +152,14 @@ try {
           a.setAttribute("data-inerte", "");
           a.innerHTML = 'Piege injecte <span class="sr-only"> (nouvel onglet)</span>';
           document.querySelector("footer")?.appendChild(a);
+          // 🔴 SECOND DÉFAUT INJECTÉ, POUR ⑧a (Story 9.4) : on RETIRE le marqueur de page
+          // courante. Sans lui, l'auto-validation ne prouvait rien de cette garde-là — le
+          // piège du footer ne touche que ①③⑤. Une contre-épreuve qui ne couvre pas la
+          // garde qu'on vient d'écrire laisse croire qu'elle est éprouvée alors qu'elle
+          // n'a jamais été vue rougir.
+          for (const el of document.querySelectorAll('nav[aria-label="Navigation principale"] a[aria-current]')) {
+            el.removeAttribute("aria-current");
+          }
           return true;
         })()`);
       }
@@ -707,7 +715,27 @@ if (AUTOTEST) {
     console.log("   L'instrument ne mesure rien : ne pas se fier à ses verdicts.");
     process.exit(1);
   }
-  console.log(`✅ INSTRUMENT VALIDE — défaut injecté, ${echecs.length} garde(s) l'ont vu.`);
+  // 🔴 ON DIT **QUELLES** GARDES ONT CRIÉ, PAS SEULEMENT COMBIEN (Story 9.4). Un compte
+  // global laisse croire que toutes les gardes sont éprouvées : il suffit qu'UNE crie pour
+  // que l'autotest passe. C'est la leçon de `gate:ateliers`, dont l'autotest déclare les
+  // gardes qu'il ne prouve PAS — une auto-validation muette sur sa propre couverture laisse
+  // croire qu'elle couvre tout.
+  const crie = [...new Set(echecs.map((e) => e.split(" ")[0]))].sort();
+  console.log(`✅ INSTRUMENT VALIDE — défauts injectés, ${echecs.length} verdict(s) rouge(s).`);
+  console.log(`   Gardes qui ont CRIÉ : ${crie.join(", ")}`);
+  // 🔴 ⑧b S'AUTO-VALIDE PAR UN ✅, ET NON PAR UN ❌ — elle est la SEULE de ce fichier dans ce
+  // cas, et ça se mesure plutôt que se supposer. En autotest, on lui injecte un `<a>` nu : le
+  // témoin JS disparaît RÉELLEMENT, donc l'attendu inversé est SATISFAIT et elle rend un ✅.
+  // ⚠️ ⑦, elle, a aussi un attendu inversé mais rend un ❌ (le centre de l'image atteint bien
+  // le lien, ce que l'autotest déclare fautif) : elle apparaît donc dans la ligne ci-dessus.
+  // Une première version de ce bloc rangeait ⑦ ICI — c'était faux, et le dire faux aurait
+  // laissé croire que ⑦ n'était pas comptée dans les gardes qui ont crié.
+  const inversees = [...new Set(succes.map((s) => s.split(" ")[0]))].filter((g) => g === "⑧b");
+  console.log(
+    inversees.length > 0
+      ? `   Garde à ATTENDU INVERSÉ rendant un ✅ (sa preuve EST sa ligne verte) : ${inversees.join(", ")}`
+      : "   ⚠️ ⑧b N'A RENDU AUCUN VERDICT — elle n'a donc PAS été éprouvée par cette exécution.",
+  );
   console.log("   Un « PORTE VERTE » de links-check.mjs a donc du contenu.");
   process.exit(0);
 }
