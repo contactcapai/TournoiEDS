@@ -1126,8 +1126,10 @@ export const member = pgTable(
  *
  * Jusqu'à cette story, ces six valeurs étaient des constantes de `src/lib/links.ts`, qui s'y
  * déclarait « SOURCE UNIQUE des cibles externes ». Elles vivent désormais **ici**, et
- * `lib/links.ts` ne garde que ce qui ne se saisit pas : `TOURNOI_URL` (domaine réel et stable)
- * et les utilitaires de classement (`classerDestination`, `isExternalUrl`, `NEW_TAB_SR`).
+ * `lib/links.ts` ne garde que ce qui ne se saisit pas : `TOURNOI_URL` — ⚠️ **qui n'est plus une
+ * destination du tout depuis la Story 9.4, mais la route interne `/tournois`** ; cette ligne
+ * disait « domaine réel et stable », motif devenu faux — et les utilitaires de classement
+ * (`classerDestination`, `isExternalUrl`, `NEW_TAB_SR`).
  *
  * ══════════════════════════════════════════════════════════════════════════════════════
  * 🔴 UNE SEULE LIGNE, ET C'EST LA CONTRAINTE QUI LE GARANTIT — ÉCART DÉCLARÉ À AR-DB2

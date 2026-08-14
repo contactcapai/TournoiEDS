@@ -53,14 +53,42 @@
 export const DESTINATION_ABSENTE = "";
 
 /**
- * Plateforme tournoi. **Stable, et délibérément PAS un réglage.**
+ * La page des tournois. **C'est une ROUTE INTERNE — Story 9.4.**
  *
- * ⚠️ Ne pas la déplacer dans `site_setting` « par symétrie » : `tournoi.esportdessacres.fr` est
- * un domaine RÉEL confirmé (`architecture.md`), il n'a jamais été un placeholder, et l'AC de
- * FR38 ne le liste pas. La rendre saisissable ajouterait un moyen de casser une passerelle qui
- * marche, sans rien résoudre.
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 ELLE VALAIT `"https://tournoi.esportdessacres.fr"` JUSQU'AU 2026-08-14
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce n'était pas un choix mais une **absence** : la vitrine n'avait pas de page tournois, donc
+ * elle envoyait ailleurs. Depuis les Stories 9.2 et 9.3, `/tournois` et `/tournois/<slug>`
+ * existent — et l'ancienne plateforme n'est plus maintenue (arbitrage **A18** de la note
+ * d'architecture : *« il n'y a plus rien dessus depuis ce fameux tournoi »*).
+ *
+ * 🔴 **CE CHANGEMENT DE VALEUR SUFFIT À RETIRER LES TROIS ATTRIBUTS DE LIEN SORTANT**
+ * (`target="_blank"`, `ExternalIcon`, mention `NEW_TAB_SR`) chez **tous** ses consommateurs,
+ * parce qu'aucun d'eux ne les décide : ils les DÉRIVENT de `classerDestination()` ci-dessous.
+ * C'est exactement ce pour quoi la Story 5.5 a créé ce classificateur.
+ * ⚠️ **MAIS ÇA NE SUFFIT PAS POUR LE LIEN DE NAVIGATION**, et c'est le piège de la 9.4 :
+ * `SiteHeader` portait `external: true` **en littéral**, un drapeau qui n'est PAS dérivé et qui
+ * choisit la branche de rendu de `MobileMenu.renderNavLink`. L'oublier aurait laissé un `<a>`
+ * nu — sans `next/link`, sans `aria-current` — pendant que le témoin « plus d'icône sortante »
+ * passait au vert. Mesuré avant/après : `aria-current="page"` sur `/tournois` valait **0**, il
+ * vaut **2** (barre desktop + panneau mobile). La garde **⑧** de `gate:links` le tient.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 ELLE N'ENTRE JAMAIS DANS `site_setting`, ET LE MOTIF A CHANGÉ
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * La Story 6.13 l'avait déjà exclue, avec ce motif : *« c'est un domaine RÉEL et stable, il n'a
+ * jamais été un placeholder »*. **Ce motif est mort avec cette story** — ce n'est plus un
+ * domaine du tout. Le motif actuel est plus fort : c'est une **route de ce site**, donc un fait
+ * du code, au même titre que `/agenda` ou `/partenaires`. La rendre saisissable au back-office
+ * offrirait à un bénévole un moyen de casser la navigation du site depuis un formulaire.
+ * ⚠️ La garde ⑪ de `gate:reglages` ne la surveille pas et n'a pas à le faire : elle vérifie que
+ * les **six destinations saisissables** ont bien quitté ce fichier. `TOURNOI_URL` n'en a jamais
+ * fait partie, et n'est plus une « destination » au sens de cette garde.
  */
-export const TOURNOI_URL = "https://tournoi.esportdessacres.fr";
+export const TOURNOI_URL = "/tournois";
 
 /**
  * Phrasé lecteur d'écran unifié pour un lien ouvrant un nouvel onglet.

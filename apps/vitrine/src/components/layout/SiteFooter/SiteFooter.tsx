@@ -23,7 +23,11 @@ interface FooterLink {
   href: string;
 }
 
-// Colonne « Naviguer » : mêmes cibles que le header (Tournois = sortant).
+// Colonne « Naviguer » : mêmes cibles que le header.
+// 🔴 PLUS AUCUNE N'EST SORTANTE — STORY 9.4. Cette ligne disait « (Tournois = sortant) » : la
+// valeur de `TOURNOI_URL` est passée à `/tournois`, donc `classerDestination` classe les quatre
+// entrées en `interne` et `FooterColumnLink` les rend toutes par `next/link`. Aucune ligne de
+// ce fichier n'a eu à changer — c'est le classificateur de la Story 5.5 qui a payé.
 const NAV_LINKS: FooterLink[] = [
   { label: "Agenda", href: "/agenda" },
   { label: "L'asso", href: "/l-asso" },
@@ -34,6 +38,10 @@ const NAV_LINKS: FooterLink[] = [
 // Colonne « Participer » : adhésion + porte partenaires + plateforme tournoi.
 // ⚠️ FABRIQUÉE À CHAQUE RENDU depuis les réglages (Story 6.13) et non plus constante : seule
 // « Adhérer » en dépend, mais l'ordre des trois entrées appartient à la colonne, pas au réglage.
+// ⚠️ « Plateforme tournoi » DÉSIGNE DÉSORMAIS UNE PAGE DE CE SITE (Story 9.4), et fait donc
+// doublon de destination avec « Tournois » de la colonne voisine. Le libellé n'est PAS réécrit
+// ici : les libellés de ce site sont contractuels (UX-DR18), et le point est porté au gate
+// visuel de la 9.4. ⇒ Ne pas le « corriger » au passage d'une autre story.
 const participerLinks = (helloassoUrl: string): FooterLink[] => [
   { label: "Adhérer (HelloAsso)", href: helloassoUrl },
   { label: "Devenir partenaire", href: "/partenaires" },

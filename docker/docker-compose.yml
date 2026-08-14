@@ -126,13 +126,109 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # 🔴 DEUX ROUTEURS SUR LE MEME HOST — STORY 9.4. L'ancien hote REDIRIGE vers /tournois.
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # Motif (arbitrage A19 de la note d'architecture) : la vitrine sert desormais /tournois
+    # (Story 9.2) et sa fiche (9.3), et cette app-ci n'est plus maintenue (A18). Les liens
+    # partages, les favoris et les descriptions de stream doivent continuer de fonctionner.
+    #
+    # 🔴 LA CIBLE SE DERIVE DE VITRINE_HOST, ELLE N'EST JAMAIS ECRITE EN DUR.
+    # Mesure du 2026-08-14 qui l'impose : `https://esportdessacres.fr/tournois` rend **404
+    # Website Builder** — l'apex pointe TOUJOURS sur Hostinger, la bascule DNS est la Story
+    # 7.5. Une cible en dur enverrait donc AUJOURD'HUI tous les liens partages d'une page qui
+    # MARCHE vers un 404 : strictement pire que l'etat actuel. Derivee, elle vise staging
+    # maintenant et l'apex TOUT SEUL apres la 7.5 — meme mecanisme qu'AUTH_URL (Story 7.4),
+    # « elle ne peut donc pas diverger de la regle Traefik ».
+    #
+    # 🔴 TEMPORAIRE ET SURTOUT PAS PERMANENT (`permanent=false`).
+    #
+    # ⚠️ LE CODE EMIS DEPEND DE LA METHODE, ET CE COMMENTAIRE S EST TROMPE DEUX FOIS :
+    #   · **GET  -> 302 Found**            <- ce que voit un VRAI VISITEUR qui clique un lien
+    #   · HEAD / POST / OPTIONS / PUT -> 307 Temporary Redirect
+    # Mesure du 2026-08-14, deterministe sur 5 iterations, meme `Location` dans les deux cas.
+    # 🔴 D ABORD ecrit « 302 » (juste, mais non mesure), puis « CORRIGE » en « 307 » sur la foi
+    # d un `curl -sI` — c est-a-dire d un HEAD, la seule methode qu un visiteur n emploie jamais.
+    # La « correction » a donc rendu ce commentaire MOINS vrai pour le trafic reel. Trouve en
+    # revue (Edge Case Hunter). ⇒ **Mesurer une redirection avec `-I` mesure autre chose que ce
+    # que vit un visiteur** — utiliser `curl -s -D - -o /dev/null` (un vrai GET).
+    #
+    # Ce qui compte ici n est de toute facon pas le chiffre mais le fait qu il ne soit pas MIS EN
+    # CACHE — 302 et 307 sont tous deux temporaires. Un 301 est mis en cache PAR LE NAVIGATEUR,
+    # souvent sans expiration : pose aujourd'hui vers staging, il SURVIVRAIT a la bascule 7.5
+    # dans le navigateur de chaque personne ayant suivi le lien entre-temps, et aucun changement
+    # cote serveur ne pourrait les rattraper. Le passage en 301 est un geste SEPARE, a faire
+    # apres la 7.5 quand la cible est stable — route dans cette story-la, pas espere.
+    #
+    # 🔴 EXEMPTION DECLAREE : `/overlay` NE REDIRIGE PAS. Mesure du 2026-08-14 : /overlay et
+    # /overlay/finale rendent 200, et ce sont les sources navigateur OBS du stream (README
+    # §Overlays). Leur reecriture est le livrable de la Story 10.6 — d'ici la, elles restent
+    # servies par cette app. ⚠️ L'exemption a une FIN NOMMEE : la retirer est un geste de la
+    # 10.6, pas un menage opportuniste.
+    # ⚠️ /qualifications, elle, REDIRIGE (elle n'est pas sous /overlay) : assume (A18, aucune
+    # contrainte de non-regression) et DIT, pas decouvert.
+    #
+    # Priorite : Traefik departage par LONGUEUR de regle — la regle overlay, plus longue, gagne
+    # sur /overlay* sans priorite explicite. Patron deja eprouve sur n8n (Story 7.1).
+    # ⚠️ DEUX ROUTEURS SUR UN SEUL CONTENEUR ⇒ chacun DOIT nommer son `.service` (idem n8n),
+    # sans quoi Traefik ne sait pas lequel servir.
+    #
+    # ⚠️ LA REDIRECTION VIT SUR LE CONTENEUR DE L'ANCIENNE APP : l'arreter tuerait AUSSI la
+    # redirection. C'est coherent avec A7 (l'app continue de tourner, son retrait est la Story
+    # 10.7) — et c'est la 10.7 qui devra DEPLACER ces trois labels sur le service `vitrine`
+    # avant de supprimer celui-ci, sinon l'ancien hote tombera en NXDOMAIN silencieux.
+    # ─────────────────────────────────────────────────────────────────────────────────
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=tournoi-net"
+      # Routeur 1 — les overlays OBS restent servis par l'app (regle la PLUS LONGUE, gagne).
+      #
+      # 🔴 `/assets` ET `/favicon.svg` SONT DANS L'EXEMPTION, ET CE N'EST PAS DU CONFORT —
+      # C'EST LA MOITIE MANQUANTE DU LIVRABLE. Une premiere version n'exemptait que
+      # `/overlay`, et elle etait FAUSSE : le document HTML de l'overlay passait bien en 200,
+      # mais il reference ses ressources en chemins ABSOLUS hors `/overlay` (sortie de build
+      # Vite) — `/assets/index-*.js`, `/assets/index-*.css`, `/favicon.svg`. Ces trois-la
+      # tombaient donc dans le routeur ci-dessous et partaient en 307 vers la vitrine.
+      # ⇒ MESURE DU 2026-08-14 (avant correctif) : le `<script type="module">` de l'overlay
+      # recevait une PAGE HTML au lieu de JavaScript, donc ne s'executait pas, donc `#root`
+      # restait vide : OVERLAY BLANC A L'ECRAN PENDANT LE DIRECT, avec un document en 200.
+      #
+      # ⚠️ CE QUI A RENDU CE DEFAUT INVISIBLE : la redirection avait ete prouvee par `curl` sur
+      # les DOCUMENTS (`/`, `/overlay`, `/overlay/finale`) — tous justes — et jamais sur ce que
+      # ces documents DEMANDENT. Prouver une redirection au niveau de la page ne dit RIEN de ses
+      # sous-ressources. Toute modification de ces regles se re-mesure donc en relevant les
+      # `src=`/`href=` du HTML servi et en verifiant CHACUN d'eux.
+      #
+      # ⚠️ Les polices viennent de `fonts.googleapis.com` (hote tiers) et le websocket de
+      # `api-tournoi.esportdessacres.fr` (autre hote) : ni l'un ni l'autre ne traverse ce
+      # routeur. Releve, pas suppose.
+      #
+      # 🔴 `PathRegexp` AVEC `(?i)`, ET NON `PathPrefix` — L'EXEMPTION DOIT ETRE INSENSIBLE A LA
+      # CASSE. `PathPrefix` matche LITTERALEMENT : avec lui, `/OVERLAY` partait en redirection.
+      # ⚠️ ON A CRU QUE C ETAIT SANS CONSEQUENCE (« cette URL n a jamais du marcher »), ET LA
+      # MESURE A DIT L INVERSE : le routeur du SPA tournoi est INSENSIBLE A LA CASSE — mesure du
+      # 2026-08-14, `/overlay/FINALE` chargee dans un vrai navigateur rend « Finale EDS ». Donc
+      # `/OVERLAY` FONCTIONNAIT avant cette story, et `PathPrefix` en faisait une REGRESSION.
+      # ⇒ Trouve en revue (Edge Case Hunter), et l hypothese qui le minimisait a ete REFUTEE par
+      # la mesure au lieu d etre crue.
+      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && PathRegexp(`(?i)^/(overlay|assets|favicon\\.svg)`)"
+      - "traefik.http.routers.tournoi-tft-overlay.entrypoints=websecure"
+      - "traefik.http.routers.tournoi-tft-overlay.tls=true"
+      - "traefik.http.routers.tournoi-tft-overlay.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tournoi-tft-overlay.service=tournoi-tft-web"
+      # Routeur 2 — tout le reste de l'hote redirige vers la page des tournois du site.
       - "traefik.http.routers.tournoi-tft-web.rule=Host(`tournoi.esportdessacres.fr`)"
       - "traefik.http.routers.tournoi-tft-web.entrypoints=websecure"
       - "traefik.http.routers.tournoi-tft-web.tls=true"
       - "traefik.http.routers.tournoi-tft-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tournoi-tft-web.middlewares=tournoi-legacy-redirect"
+      - "traefik.http.routers.tournoi-tft-web.service=tournoi-tft-web"
+      # ⚠️ AUCUN `$` DANS CETTE REGEX (pas d'ancre de fin) : docker compose tenterait de
+      # l'interpoler comme une variable, et il faudrait l'echapper en `$$`. Sans ancre de fin,
+      # le motif couvre deja tout l'hote — plus simple, donc moins de facons de se tromper.
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.regex=^https://tournoi\\.esportdessacres\\.fr/(.*)"
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.replacement=https://${VITRINE_HOST}/tournois"
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.permanent=false"
       - "traefik.http.services.tournoi-tft-web.loadbalancer.server.port=80"
     networks:
       - tournoi-net

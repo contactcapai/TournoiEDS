@@ -63,12 +63,19 @@ const arrowIcon = (
 );
 
 export function TournamentBridge() {
-  // CALCULÉ, jamais présumé — patron de `DoubleDoor` (l.26-31) et de
-  // `MobileMenu.renderCta()`. `TOURNOI_URL` est aujourd'hui une vraie URL https, mais
-  // la Story 6.13 la rendra MODIFIABLE au back-office (`lib/links.ts` devient un
-  // lecteur de `site_setting`) : un `target="_blank"` littéral deviendrait faux le jour
-  // où la valeur change, et un placeholder ne doit JAMAIS annoncer « nouvel onglet »
-  // (review 1.4 #1 / 1.5 #4).
+  // CALCULÉ, jamais présumé — patron de `DoubleDoor` (l.26-31) et de `MobileMenu.renderCta()`.
+  //
+  // 🔴 ET CETTE LIGNE VIENT DE PAYER, SANS ÊTRE MODIFIÉE — STORY 9.4. `TOURNOI_URL` vaut
+  // désormais `/tournois` : `external` bascule à `false` TOUT SEUL, et les trois attributs de
+  // lien sortant disparaissent du CTA sans qu'une seule ligne de logique change ici. C'est le
+  // bénéfice exact pour lequel la Story 5.5 a créé `classerDestination` — un `target="_blank"`
+  // littéral aurait dû être traqué dans trois fichiers.
+  //
+  // ⚠️ CE COMMENTAIRE ANNONÇAIT *« la Story 6.13 rendra TOURNOI_URL modifiable au back-office
+  // (lib/links.ts devient un lecteur de site_setting) »*. **C'était faux depuis le 2026-08-06** :
+  // la 6.13 a décidé l'INVERSE et l'a écrit noir sur blanc (`schemas/site-setting.ts` : *« elle
+  // N'EST PAS ICI, et ce n'est pas un oubli »*). Un commentaire qui annonce un avenir déjà
+  // démenti fait chercher la panne au mauvais endroit (`pieges/cadrage-perime.md`).
   const external = classerDestination(TOURNOI_URL) === "externe";
 
   return (
@@ -123,30 +130,37 @@ export function TournamentBridge() {
                 résultats en temps réel — le tout chez nous, à notre image.
               </p>
 
-              {/* L'URL vient de `lib/links.ts`, JAMAIS en dur : c'est la source unique
-                  des cibles externes, et la Story 6.13 en fera un lecteur de
-                  `site_setting`. 3ᵉ consommateur de TOURNOI_URL après SiteHeader
-                  (nav « Tournois ») et MobileMenu — le libellé diffère volontairement,
-                  EXPERIENCE.md (l.65) fige « Accéder à la plateforme » pour ce bloc.
-                  ✅ INDICATION VISIBLE DE LIEN SORTANT (Story 5.5, dette R12 soldée) —
-                  `ExternalIcon` est désormais une primitive `@repo/ui`.
+              {/* L'URL vient de `lib/links.ts`, JAMAIS en dur : c'est la source unique de
+                  cette destination. 3ᵉ consommateur de TOURNOI_URL après SiteHeader
+                  (nav « Tournois ») et SiteFooter (deux colonnes) — le libellé diffère
+                  volontairement, EXPERIENCE.md (l.65) fige « Accéder à la plateforme »
+                  pour ce bloc.
+                  ⚠️ CE LIBELLÉ N'EST PAS MODIFIÉ PAR LA STORY 9.4, et il reste vrai : la
+                  plateforme, c'est désormais nous. Les formulations de ce bloc sont
+                  CONTRACTUELLES (UX-DR18) — le retoucher se porte au gate visuel, pas au
+                  passage d'un changement d'URL.
 
-                  🔴 ELLE REMPLACE `arrowIcon`, ELLE NE S'Y AJOUTE PAS, et c'est une
-                  MESURE qui l'a tranché, pas un goût. Les deux icônes côte à côte
-                  élargissaient le CTA de ~27px (`.btn svg` impose 18px + 9px de `gap`),
-                  ce qui suffisait à faire DÉBORDER la grille du bloc tournoi de 4,28px
-                  à 320px — `gate` est passée ROUGE dessus. Sur le fond, la flèche est un
-                  ornement de la MAQUETTE qui ne dit rien de la destination, là où
-                  l'icône sortante est EXIGÉE par `EXPERIENCE.md` l.199 : entre les deux,
-                  celle qui informe l'emporte. La flèche reste rendue si la destination
-                  cessait d'être sortante. ⚠️ Écart assumé à la maquette, à présenter au
-                  gate visuel — même famille que « cash prize » retiré en Story 5.4.
+                  🔴 LA FLÈCHE EST REVENUE LE 2026-08-14, ET CE COMMENTAIRE L'AVAIT ANNONCÉ.
+                  De la Story 5.5 à la 9.4, `ExternalIcon` REMPLAÇAIT `arrowIcon` — jamais
+                  ne s'y ajoutait —, et c'est une MESURE qui l'avait tranché : les deux
+                  icônes côte à côte élargissaient le CTA de ~27px (`.btn svg` impose 18px
+                  + 9px de `gap`), ce qui suffisait à faire DÉBORDER la grille du bloc
+                  tournoi de 4,28px à 320px, et `gate` passait ROUGE dessus. La ligne
+                  disait : « la flèche reste rendue si la destination cessait d'être
+                  sortante ». C'est arrivé — `TOURNOI_URL` est une route interne.
+                  ⚠️ IL Y A DONC TOUJOURS EXACTEMENT UNE ICÔNE, et le débordement de 4,28px
+                  ne peut pas revenir. Ne JAMAIS rendre les deux : `icon={external ? … : …}`
+                  est un ternaire et doit le rester.
+                  ⚠️ Le retour de la flèche est un CHANGEMENT VISIBLE sur l'accueil — porté
+                  au gate visuel de la 9.4, pas découvert dessus.
 
                   ⚠️ C'est aussi cette flèche qui a fait rendre un FAUX NÉGATIF à la
                   première version de `gate:links`, laquelle cherchait « un svg décoratif
                   quelconque » et la trouvait — porte VERTE sur un vrai défaut R12. La
                   porte cible depuis `[data-external-icon]`, porté par la seule
-                  primitive partagée. */}
+                  primitive partagée. ⇒ Le retour de `arrowIcon` ne peut donc PAS faire
+                  croire à la porte qu'un lien sortant est signalé : les deux svg sont
+                  distincts pour elle, et c'est ce qui rend ce basculement mesurable. */}
               <Button
                 variant="gold"
                 href={TOURNOI_URL}
