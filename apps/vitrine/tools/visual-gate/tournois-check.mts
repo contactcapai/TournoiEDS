@@ -2405,15 +2405,23 @@ for (const cas of ECRITURES_EPROUVEES) {
       if (r.statut !== 200) {
         ko(NOM, "câblage", `/tournois/${t.slug} rend ${r.statut} — rien à mesurer`);
       } else {
+        // ⚠️ MÊME NORMALISATION QUE ㉔, ET POUR LA MÊME RAISON : React insère des séparateurs
+        // `<!-- -->` entre deux nœuds de texte adjacents dès qu'une valeur est interpolée. Ici
+        // la plage est produite par UNE seule expression, donc elle sort contiguë — mais s'en
+        // remettre à ça rendrait la garde fragile au premier ajustement du JSX, et sa rougeur
+        // accuserait alors le produit. Mesuré sur staging le 2026-08-14 (voir le bloc de ㉔).
+        const servi = r.corps
+          .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+          .replace(/<!--[\s\S]*?-->/g, "");
         const cherche = AUTOTEST ? attendu + "-faux" : attendu;
-        if (r.corps.includes(cherche)) {
+        if (servi.includes(cherche)) {
           ok(NOM, "câblage", `la fiche sert « ${attendu} », produit par la fonction elle-même`);
         } else {
           ko(NOM, "câblage", `la fiche ne sert PAS « ${attendu} » — le rendu n'appelle pas la dérivation partagée`);
         }
         if (t.price_text !== null) {
           const tarif = AUTOTEST ? t.price_text + "-faux" : t.price_text;
-          if (r.corps.includes(tarif)) {
+          if (servi.includes(tarif)) {
             ok(NOM, "tarif", `la fiche sert le tarif saisi (« ${t.price_text} »)`);
           } else {
             ko(NOM, "tarif", `« ${t.price_text} » est en base et N'APPARAÎT PAS sur la fiche`);
@@ -2458,10 +2466,33 @@ for (const cas of ECRITURES_EPROUVEES) {
 
   const titreAvec = `${MARQUE}-JEUDI-PAYANT`;
   const titreSans = `${MARQUE}-JEUDI-GRATUIT`;
-  // ⚠️ Le markup SEUL : un `grep` sur le HTML de Next compte AUSSI la charge RSC, qui duplique
-  // le texte. Un témoin qui compte deux fois la même chose bouge pour une raison qui n'est pas
-  // la sienne (mesuré en Story 9.4 : 24 occurrences contre 15 en markup).
-  const sansScripts = (html: string) => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 LE TEXTE **VISIBLE**, ET LES DEUX NETTOYAGES SONT INDISPENSABLES POUR DES RAISONS
+   *    DIFFÉRENTES — LE SECOND A ÉTÉ TROUVÉ EN MESURANT L'INSTRUMENT AVANT DE CONCLURE
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * ① **La charge RSC** : un `grep` sur le HTML de Next compte AUSSI le `<script>` qui rejoue
+   *    l'arbre. Un témoin qui compte deux fois la même chose bouge pour une raison qui n'est
+   *    pas la sienne (mesuré en 9.4 : 24 occurrences contre 15 en markup).
+   *
+   * ② 🔴 **LES SÉPARATEURS `<!-- -->` DE REACT**, et sans eux cette garde aurait été **ROUGE
+   *    SUR UN PRODUIT PARFAITEMENT SAIN**. 🔬 Mesuré sur staging le 2026-08-14 : depuis que la
+   *    phrase est **composée** (`{tarif ?? "Gratuit"} · ouvert à tous…`) au lieu d'être un
+   *    littéral, React sépare les deux nœuds de texte adjacents et le HTML servi rend :
+   *
+   *        <span>Gratuit<!-- --> · ouvert à tous, même sans matériel</span>
+   *
+   *    Le texte **visible est identique au caractère près** — c'est la non-régression même que
+   *    cette garde existe pour prouver —, mais `includes("Gratuit · ouvert à tous…")` échoue.
+   *    ⇒ La porte aurait accusé le produit d'un défaut qui n'existe pas : c'est **exactement**
+   *    le mode de défaillance chiffré de l'Epic 6 (~17 instruments faux, TOUS accusant le
+   *    produit), et il a été évité en mesurant l'instrument **avant** de conclure.
+   * ⚠️ On retire les commentaires HTML et **rien d'autre** : retirer les balises fusionnerait
+   *    des textes sans rapport et fabriquerait des correspondances qui n'existent pas à l'écran.
+   */
+  const texteVisible = (html: string) =>
+    html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<!--[\s\S]*?-->/g, "");
 
   for (const cas of [
     { libelle: "jeudi jeux AVEC tarif", titre: titreAvec, tarif: TARIF_TEMOIN },
@@ -2484,7 +2515,7 @@ for (const cas of ECRITURES_EPROUVEES) {
         ko(NOM, cas.libelle, `l'accueil rend ${r.statut} — rien à mesurer`);
         continue;
       }
-      const markup = sansScripts(r.corps);
+      const markup = texteVisible(r.corps);
 
       // ── Cas de vérité connue (leçon 4.2, parade n°8) ──
       if (!markup.includes(cas.titre)) {
