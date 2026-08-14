@@ -151,29 +151,25 @@ export default async function AdminTournoisPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════
-          🔴 CE QUE « PUBLIER » FAIT — RÉÉCRIT PAR LA STORY 9.2, QUI A RENDU L'ANCIEN FAUX
+          CE QUE « PUBLIER » FAIT — 2ᵉ RÉÉCRITURE, PAR LA STORY 9.4
           ══════════════════════════════════════════════════════════════════════════════
-          Cette phrase disait *« rien de visible sur le site — la page publique des tournois
-          n'est pas encore en ligne »*, et elle portait sa date de péremption écrite : *« elle
-          doit disparaître avec la 9.2 »*. `/tournois` existe désormais, donc la laisser
-          serait envoyer un bénévole chercher une panne qui n'existe pas — au moment précis
-          où le geste marche.
-
-          🔴 CE QUI RESTE VRAI, ET QUI DOIT DONC ÊTRE DIT : la NAVIGATION du site ne mène pas
-          encore à cette page. Le lien « Tournois » du menu, du pied de page et de l'accueil
-          pointe toujours vers l'ancienne plateforme (`TOURNOI_URL`) — c'est le livrable de la
-          Story 9.4, et le changer ici aurait modifié le rendu de quatre surfaces déjà
-          mergées. Règle ① de `00 référence/pieges/integration-tierce.md` appliquée à un
-          maillon interne : un maillon incomplet se consigne AVEC son mode de défaillance
-          écrit, sur l'écran de celui qui le subirait.
-          ⚠️ CETTE PHRASE A ELLE AUSSI UNE DATE DE PÉREMPTION : elle doit disparaître avec la
-          Story 9.4, qui fait pointer le menu ici. */}
+          Cette phrase a porté DEUX avertissements successifs, chacun avec sa date de
+          péremption ÉCRITE, et chacune est échue :
+            · 9.1 → *« rien de visible sur le site, la page publique n'existe pas encore »*,
+              périmé par la 9.2 qui a livré `/tournois` ;
+            · 9.2 → *« le menu du site mène encore à l'ancienne plateforme, tapez l'adresse »*,
+              périmé par la 9.4 : `TOURNOI_URL` vaut `/tournois`, les 29 ancres du chrome
+              mènent ici, et l'ancien hôte redirige.
+          ⇒ Il ne reste que le fait NU, sans avertissement — c'est le but : chaque report avait
+          son mode de défaillance écrit sur l'écran de celui qui le subissait (règle ① de
+          `00 référence/pieges/integration-tierce.md`), et il n'y a plus de report.
+          ⚠️ NE PAS ré-ajouter d'avertissement « au cas où » : une mise en garde sans cause
+          envoie un bénévole chercher une panne qui n'existe pas. */}
       <p className={styles.mention} role="note">
         <strong>Ce que « publier » fait :</strong> le tournoi apparaît aussitôt sur la{" "}
         <strong>page publique des tournois</strong>, à l&rsquo;adresse{" "}
-        <code>/tournois</code>. ⚠️ Le menu du site, lui, mène encore à l&rsquo;ancienne
-        plateforme de tournoi&nbsp;: ce sera changé prochainement. En attendant, tapez
-        l&rsquo;adresse pour vérifier votre saisie.
+        <code>/tournois</code> — celle vers laquelle mènent le menu et le pied de page du
+        site.
       </p>
 
       {total > 0 ? (

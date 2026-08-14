@@ -478,6 +478,207 @@ try {
           }
         }
       }
+
+      // ══════════════════════════════════════════════════════════════════════════════════
+      // ⑧a UN LIEN DE NAV INTERNE SE MARQUE ACTIF — ET SEULEMENT SUR SA PAGE (Story 9.4)
+      // ══════════════════════════════════════════════════════════════════════════════════
+      //
+      // 🔴 GARDE NÉE DU PIÈGE CENTRAL DE LA STORY 9.4, ET CE PIÈGE EST D'UNE FORME RARE :
+      // le témoin annoncé passait au VERT en même temps que le défaut naissait.
+      // `SiteHeader` portait `{ href: TOURNOI_URL, external: true }` — un drapeau écrit EN
+      // LITTÉRAL, qui n'est PAS dérivé de l'URL, et qui choisit la branche de rendu de
+      // `MobileMenu.renderNavLink`. En basculant `TOURNOI_URL` de l'ancienne plateforme vers
+      // `/tournois`, les trois attributs de lien sortant disparaissaient TOUT SEULS (ils se
+      // dérivent de `classerDestination`) — donc « plus aucune icône sortante sur Tournois »
+      // était vrai. Mais si le drapeau restait, le lien demeurait un `<a>` NU : rechargement
+      // complet à chaque clic, et JAMAIS d'`aria-current`.
+      //
+      // ⚠️ AUCUNE AUTRE GARDE DE CE DOSSIER NE VOYAIT ÇA : ① regarde les ancres mortes,
+      // ② la sûreté des sortants, ③ la remontée au clic, ④ le focus des inertes, ⑤ l'annonce
+      // trompeuse, ⑥ le survol, ⑦ le recouvrement. `gate` ne mesure que des largeurs de boîte
+      // et Lighthouse n'exige pas `aria-current`.
+      //
+      // ⚠️ GÉNÉRIQUE, ET PAS ÉCRITE POUR « TOURNOIS » : elle vise TOUT lien de la nav dont
+      // l'`href` commence par `/`. Le jour où un 7ᵉ lien s'ajoute, il est couvert sans geste.
+      // ⚠️ Le panneau mobile est TOUJOURS monté (review 1.4 #2) : chaque lien apparaît donc
+      // DEUX fois dans ce relevé, à toutes les largeurs — et c'est voulu, les deux rendus
+      // doivent être justes.
+      //
+      // 🔴 MESURÉE DANS LES DEUX SENS, et c'est le point : `aria-current="page"` doit être
+      // PRÉSENT sur le lien de la page courante ET ABSENT sur tous les autres. Une garde qui
+      // n'exigerait que la présence serait satisfaite par un `aria-current` posé partout,
+      // c'est-à-dire par un repère qui ne repère plus rien.
+      {
+        const liens = await chrome.eval(`(() => {
+          const n = document.querySelector('nav[aria-label="Navigation principale"]');
+          if (!n) return null;
+          return [...n.querySelectorAll("a[href]")]
+            .map((a) => ({
+              href: a.getAttribute("href"),
+              actif: a.getAttribute("aria-current") === "page",
+              nom: (a.textContent || "").replace(/\\s+/g, " ").trim().slice(0, 30),
+            }))
+            .filter((l) => l.href && l.href.startsWith("/"));
+        })()`);
+
+        if (liens === null) {
+          ko("⑧a", ou, "aucune `nav[aria-label=\"Navigation principale\"]` — RIEN À MESURER, et ce n'est pas un succès");
+        } else if (liens.length === 0) {
+          ko("⑧a", ou, "la nav ne porte AUCUN lien interne — la garde serait vide, donc muette");
+        } else {
+          // `page` est le chemin demandé ; pour la fiche dérivée c'est aussi un chemin.
+          const fautes = liens.filter((l) => l.actif !== (l.href === page));
+          if (fautes.length > 0) {
+            ko(
+              "⑧a",
+              ou,
+              fautes
+                .map((f) =>
+                  f.href === page
+                    ? `"${f.nom}" (${f.href}) est la page courante mais N'A PAS aria-current="page"`
+                    : `"${f.nom}" (${f.href}) porte aria-current="page" alors qu'on est sur ${page}`,
+                )
+                .join(" · "),
+            );
+          } else {
+            const actifs = liens.filter((l) => l.actif).length;
+            ok("⑧a", ou, `${liens.length} lien(s) de nav interne(s), ${actifs} marqué(s) actif(s) — et c'est le bon`);
+          }
+        }
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // ⑧b UN LIEN DE NAV INTERNE EST GÉRÉ PAR LE ROUTEUR CLIENT — MESURÉ PAR L'EFFET
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // 🔴 RIEN DANS LE DOM NE DISTINGUE UN `next/link` D'UN `<a>` NU. `<Link>` rend un `<a>`
+  // ordinaire, sans attribut ni classe qui le trahisse. Une garde par lecture d'attribut est
+  // donc IMPOSSIBLE ici — et c'est précisément la doctrine de cette porte : *elle mesure des
+  // EFFETS, pas des attributs*.
+  //
+  // 🔬 LE TÉMOIN : on pose une valeur sur `window`, on clique, on attend, on la relit.
+  //   · navigation CLIENT (next/link) ⇒ le contexte JS survit ⇒ le témoin est TOUJOURS LÀ ;
+  //   · navigation DURE (`<a>` nu)    ⇒ le document est remplacé ⇒ le témoin a DISPARU.
+  // ⚠️ Et l'on exige que le CHEMIN AIT CHANGÉ : sans ça, « le témoin a survécu » serait aussi
+  // vrai d'un clic qui n'a rien fait du tout. Un témoin qui répond « présent » pour une raison
+  // qui n'est pas celle qu'on croit, c'est `pieges/faux-succes.md`.
+  //
+  // 🔴 ON ATTEND L'HYDRATATION, ET ON LA MESURE — leçon R40, payée DANS CE FICHIER. Un clic
+  // envoyé avant hydratation navigue en DUR même sur un `next/link` : la garde accuserait
+  // alors le produit pour un défaut d'instrument. Le témoin d'hydratation est le même que
+  // celui du panneau mobile (clés internes de React 19 sur le nœud).
+  //
+  // ⚠️ COUVERTURE BORNÉE ET DÉCLARÉE : la mesure part de `/` à 1440px et éprouve CHAQUE lien
+  // interne de la nav, un rechargement par lien. Le défaut visé est STATIQUE (un drapeau dans
+  // un tableau de données rendu par le même composant sur les 7 pages) : l'éprouver depuis une
+  // page suffit à le voir. Le balayer depuis les 7 pages coûterait ~70 chargements pour la
+  // même information. ⑧a, elle, couvre bien les 7 pages × 2 largeurs.
+  {
+    const DEPUIS = "/";
+    const SEL = 'nav[aria-label="Navigation principale"]';
+    await chrome.setViewport(1440);
+    await chrome.goto(BASE + DEPUIS);
+
+    const candidats = await chrome.eval(`(() => {
+      const n = document.querySelector('${SEL}');
+      if (!n) return [];
+      const vus = new Set();
+      for (const a of n.querySelectorAll("a[href]")) {
+        const h = a.getAttribute("href");
+        if (h && h.startsWith("/") && h !== "${DEPUIS}") vus.add(h);
+      }
+      return [...vus];
+    })()`);
+
+    if (candidats.length === 0) {
+      ko("⑧b", DEPUIS, "aucun lien de nav interne à éprouver depuis `/` — RIEN À MESURER");
+    }
+
+    for (const href of candidats) {
+      await chrome.goto(BASE + DEPUIS);
+
+      // 🔴 AUTO-VALIDATION : on REMPLACE le lien par un `<a>` nu, hors de tout gestionnaire
+      // React. C'est exactement le défaut que la garde existe pour voir — un lien de nav qui
+      // ressemble en tout point au bon et qui recharge la page.
+      if (AUTOTEST) {
+        await chrome.eval(`(() => {
+          const a = document.querySelector('${SEL} a[href="${href}"]');
+          if (!a) return false;
+          const nu = document.createElement("a");
+          nu.setAttribute("href", "${href}");
+          nu.textContent = a.textContent;
+          a.replaceWith(nu);
+          return true;
+        })()`);
+      }
+
+      const pret = await chrome.eval(`(async () => {
+        const a = document.querySelector('${SEL} a[href="${href}"]');
+        if (!a) return { impossible: "lien introuvable dans la nav" };
+        // Le lien du panneau mobile peut être masqué à 1440px : on prend celui qui est rendu.
+        const rendu = [...document.querySelectorAll('${SEL} a[href="${href}"]')]
+          .find((el) => el.getBoundingClientRect().width > 0) ?? a;
+        rendu.setAttribute("data-lc-nav", "1");
+        const hydrate = () => Object.keys(rendu).some(
+          (k) => k.startsWith("__reactFiber$") || k.startsWith("__reactProps$"),
+        );
+        for (let i = 0; i < 60 && !hydrate(); i++) await new Promise(r => setTimeout(r, 50));
+        // ⚠️ En autotest le lien injecté n'est PAS hydraté, et c'est normal : c'est ce qu'on
+        // mesure. On ne bloque donc pas là-dessus, on le DIT.
+        window.__gateNavTemoin = "EDS-9-4";
+        return { hydrate: hydrate(), depart: location.pathname };
+      })()`, true);
+
+      if (pret.impossible) {
+        ko("⑧b", `${DEPUIS} → ${href}`, `MESURE IMPOSSIBLE — ${pret.impossible}`);
+        continue;
+      }
+      if (!pret.hydrate && !AUTOTEST) {
+        ko("⑧b", `${DEPUIS} → ${href}`, "MESURE IMPOSSIBLE — le lien n'est pas hydraté, un clic ne prouverait rien (leçon R40)");
+        continue;
+      }
+
+      // Le clic peut détruire le contexte d'exécution avant que la valeur de retour ne soit
+      // sérialisée : on tolère l'exception, elle n'est pas un verdict.
+      try {
+        await chrome.eval(`(() => { document.querySelector('[data-lc-nav]').click(); return true; })()`);
+      } catch {
+        /* contexte détruit par une navigation dure — le relevé ci-dessous tranchera */
+      }
+      await new Promise((r) => setTimeout(r, 900));
+
+      const apres = await chrome.eval(`(() => ({
+        chemin: location.pathname,
+        temoin: window.__gateNavTemoin === "EDS-9-4",
+      }))()`);
+
+      if (apres.chemin === pret.depart) {
+        ko("⑧b", `${DEPUIS} → ${href}`, `MESURE IMPOSSIBLE — le clic n'a pas changé le chemin (toujours ${apres.chemin})`);
+        continue;
+      }
+
+      // En autotest on exige l'INVERSE de la vérité : le témoin doit avoir disparu.
+      const attendu = !AUTOTEST;
+      if (apres.temoin === attendu) {
+        ok(
+          "⑧b",
+          `${DEPUIS} → ${href}`,
+          AUTOTEST
+            ? `clic réel : le témoin a DISPARU (rechargement complet) — la garde voit bien le \`<a>\` nu qu'on lui présente`
+            : `clic réel → ${apres.chemin}, le témoin JS a survécu : navigation gérée par le routeur client`,
+        );
+      } else {
+        ko(
+          "⑧b",
+          `${DEPUIS} → ${href}`,
+          AUTOTEST
+            ? "attendu inversé (autotest) : le témoin a SURVÉCU alors qu'un `<a>` nu vient d'être injecté — la garde ne mesure rien"
+            : `clic réel → ${apres.chemin}, mais le témoin JS a DISPARU : la page a été RECHARGÉE. ` +
+              "Ce lien de nav n'est pas un `next/link` — vérifier le drapeau `external` de `NAV_LINKS` (Story 9.4)",
+        );
+      }
     }
   }
 } finally {

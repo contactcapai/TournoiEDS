@@ -23,20 +23,15 @@ import styles from "./page.module.css";
 // du 2026-08-04 — validée au gate visuel, seul filet de la passe 1 (rétro Epic 5).
 //
 // ══════════════════════════════════════════════════════════════════════════════════════
-// 🔴 CETTE PAGE EST **ORPHELINE** JUSQU'À LA STORY 9.4, ET C'EST UNE ÉTAPE, PAS UNE PANNE
+// ✅ LA NAVIGATION MÈNE ICI DEPUIS LA STORY 9.4 (2026-08-14)
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
-// Mesuré : le lien « Tournois » du header vaut `{ href: TOURNOI_URL, external: true }`, avec
-// `TOURNOI_URL = "https://tournoi.esportdessacres.fr"`. Le pied de page l'utilise DEUX fois et
-// `TournamentBridge` (l'accueil) une fois. **Aucun de ces quatre liens ne change ici**
-// (arbitrage **A4**) : les faire pointer vers `/tournois` change le rendu de surfaces DÉJÀ
-// MERGÉES — le lien cesse d'être sortant, donc perd son `target="_blank"`, son `ExternalIcon`
-// et sa mention `NEW_TAB_SR` chez ses consommateurs. C'est un livrable à part entière, avec son
-// propre gate visuel et son témoin inversé : c'est la **Story 9.4**.
-// ⇒ D'ici là, `/tournois` ne s'atteint qu'en tapant l'URL, y compris pour le gate visuel.
-// ⚠️ Le dire ici évite qu'on le lise comme un défaut : une page publique que la navigation
-// n'atteint pas *ressemble* à une panne. C'en est une si personne ne l'a écrit ; c'est une
-// étape si quelqu'un l'a écrit.
+// Ce bloc déclarait cette page **ORPHELINE** — « elle ne s'atteint qu'en tapant l'URL » — et
+// portait sa date de péremption écrite. Elle est échue : `TOURNOI_URL` vaut `/tournois`, et les
+// **29 ancres** du chrome (en-tête ×2 par page, pied de page ×2, passerelle d'accueil) mènent
+// ici. Mesuré sur le HTML servi : 29 liens vers `tournoi.esportdessacres.fr` → **0**.
+// ⚠️ Laisser un avertissement dont la cause a disparu est le défaut que `pieges/cadrage-perime.md`
+// recense : il envoie chercher une panne au moment précis où le geste marche.
 
 export const metadata: Metadata = {
   // Le root layout pose `title.template: "%s · Esport des Sacres"` → le <title> rendu est

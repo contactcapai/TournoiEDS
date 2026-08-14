@@ -410,6 +410,17 @@ try {
     const encoreDeclarees = DISPARUES.filter((n) =>
       new RegExp(`export\\s+const\\s+${n}\\b`).test(links),
     );
+    // ⚠️ `TOURNOI_URL` EST LE TÉMOIN D'AUTOTEST, ET SON STATUT A CHANGÉ EN 9.4 — relu, pas
+    // modifié. La chaîne est injectée EN LITTÉRAL, sans être cherchée dans le source : c'est
+    // ce qui fait que l'autotest rougit de façon déterministe, quoi que devienne le fichier.
+    // 🔴 CE QUE CETTE GARDE MESURE N'A PAS CHANGÉ : les SIX destinations saisissables ont bien
+    // quitté `lib/links.ts` pour `site_setting`. `TOURNOI_URL` n'a jamais fait partie des six,
+    // et depuis la Story 9.4 elle n'est même plus une « destination » — c'est une ROUTE INTERNE
+    // (`/tournois`), donc un fait du code, comme `/agenda`. Elle reste dans `lib/links.ts` et
+    // doit y rester : la rendre saisissable offrirait un moyen de casser la navigation du site
+    // depuis un formulaire.
+    // ⚠️ Ne pas la retirer d'ici « puisqu'elle a changé de nature » : ce serait retirer le seul
+    // témoin qui prouve que cette garde SAIT rougir.
     const eprouvees = AUTOTEST ? [...encoreDeclarees, "TOURNOI_URL"] : encoreDeclarees;
     if (eprouvees.length === 0) {
       ok("⑪", "lib/links.ts", "ne déclare AUCUNE des 6 destinations — elles vivent en base");

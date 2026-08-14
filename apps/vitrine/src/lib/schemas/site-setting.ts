@@ -41,9 +41,14 @@ import { urlHttpOptionnelle, visiblementVide } from "./texte";
  * ⇒ **Ne pas « compléter » ce schéma par symétrie avec `partner` ou `member`.** L'absence est
  * intentionnelle, et la garde ⑧ de `gate:reglages` la tient.
  *
- * ⚠️ **`TOURNOI_URL` N'EST PAS ICI, ET CE N'EST PAS UN OUBLI** : `tournoi.esportdessacres.fr`
- * est un domaine **réel et stable** (architecture.md), il n'a jamais été un placeholder, et
- * l'AC de FR38 ne le liste pas. Il reste une constante de `lib/links.ts`.
+ * ⚠️ **`TOURNOI_URL` N'EST PAS ICI, ET CE N'EST PAS UN OUBLI.** Le motif de la Story 6.13 était
+ * *« c'est un domaine réel et stable, jamais un placeholder »* — **il est mort avec la Story
+ * 9.4** : ce n'est plus un domaine du tout, mais la **route interne `/tournois`**. Le motif
+ * actuel est plus fort : c'est un fait du code, au même titre que `/agenda`. La rendre
+ * saisissable offrirait à un bénévole un moyen de **casser la navigation du site** depuis un
+ * formulaire. Elle reste une constante de `lib/links.ts`, et la garde ⑪ de `gate:reglages` ne
+ * la surveille pas — elle vérifie que les **six destinations saisissables** ont quitté ce
+ * fichier, et `TOURNOI_URL` n'en a jamais fait partie.
  */
 
 /**

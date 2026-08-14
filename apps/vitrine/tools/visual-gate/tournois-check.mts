@@ -2113,6 +2113,68 @@ for (const cas of ECRITURES_EPROUVEES) {
   }
 }
 
+// ── ㉑  AUCUNE PAGE PUBLIQUE N'ENVOIE PLUS VERS L'ANCIENNE PLATEFORME (Story 9.4) ──────
+//
+// 🔴 CE QUE CETTE GARDE TIENT, ET POURQUOI ELLE EXISTE. Jusqu'au 2026-08-14, le chrome du
+// site servait **29 ancres** vers `https://tournoi.esportdessacres.fr` — 5 sur `/`, 4 sur
+// chacune des six autres pages —, c'est-à-dire vers une application que plus personne ne
+// maintient (arbitrage A18) et qui affiche un tournoi TFT terminé. `/tournois` elle-même en
+// portait quatre, dans son propre en-tête et son propre pied de page.
+//
+// ⚠️ LE COMPTE DE 29 N'ÉTAIT PAS CELUI DES DOCUMENTS. `epics.md` et la note d'architecture
+// annonçaient « 6 consommateurs », avec une ellipse qui trahissait un compte jamais fermé. Le
+// vrai relevé : 3 fichiers, 5 sites de code — et **deux ancres rendues par site d'en-tête**,
+// parce que `MobileMenu` rend `NAV_LINKS` DEUX fois (barre desktop + panneau mobile, toujours
+// monté et seulement `hidden`). Cet écart n'est visible dans AUCUN fichier : il ne se voit que
+// sur le HTML servi. D'où cette garde, qui compte là où la vérité est.
+//
+// 🔴 ELLE MESURE LE MARKUP SEUL. Un `grep` sur le HTML de Next compte AUSSI la charge RSC
+// (`<script>self.__next_f.push(…)`) : mesuré le 2026-08-14, 24 occurrences de « nouvel onglet »
+// sur `/` contre 15 dans le markup. Un témoin qui compte deux fois la même chose bouge pour une
+// raison qui n'est pas la sienne.
+//
+// ⚠️ CE QU'ELLE NE COUVRE PAS, ET ELLE LE DIT : la fiche `/tournois/<slug>` n'est pas dans
+// `PAGES` (route dynamique, résolue ailleurs). Son chrome est le MÊME composant — le risque
+// couvert ici est donc le même —, et `gate:links` ⑧a la balaie, elle. Ce n'est pas une raison
+// de croire cette garde exhaustive.
+{
+  // En autotest on cherche une chaîne que toute page contient forcément : la garde doit crier.
+  const CIBLE = AUTOTEST ? 'href="/' : 'href="https://tournoi.esportdessacres.fr"';
+  const sansScripts = (html: string) =>
+    html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+
+  if (PAGES.length === 0) {
+    ko("㉑ ancien hôte", "périmètre", "`GATE_PAGES` est vide — RIEN À MESURER, et ce n'est pas un succès");
+  } else {
+    ok("㉑ ancien hôte", "périmètre", `${PAGES.length} page(s) publique(s) balayée(s)`);
+  }
+
+  let total = 0;
+  for (const page of PAGES) {
+    const r = await demander(page);
+    if (r.statut !== 200) {
+      ko("㉑ ancien hôte", page, `attendu 200, obtenu ${r.statut} — rien à mesurer sur cette page`);
+      continue;
+    }
+    const n = (sansScripts(r.corps).match(new RegExp(CIBLE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length;
+    total += n;
+    if (n === 0) {
+      ok("㉑ ancien hôte", page, "aucune ancre vers `tournoi.esportdessacres.fr`");
+    } else {
+      ko(
+        "㉑ ancien hôte",
+        page,
+        AUTOTEST
+          ? `attendu inversé (autotest) : ${n} ancre(s) trouvée(s) pour « ${CIBLE} » — la garde voit donc bien ce qu'on lui présente`
+          : `${n} ancre(s) mènent encore à l'ancienne plateforme (abandonnée, A18) — le chrome doit pointer vers /tournois`,
+      );
+    }
+  }
+  if (!AUTOTEST && total === 0) {
+    ok("㉑ ancien hôte", "total", "0 ancre sur l'ensemble du site — il y en avait 29 avant la Story 9.4");
+  }
+}
+
 // ── ⑮  MÉNAGE : LA PORTE NE LAISSE RIEN DERRIÈRE ELLE ─────────────────────────────────
 //
 // 🔴 GARDE NÉE D'UN DÉFAUT RÉEL DE `gate:partenaires` : elle POLLUAIT le volume qu'elle

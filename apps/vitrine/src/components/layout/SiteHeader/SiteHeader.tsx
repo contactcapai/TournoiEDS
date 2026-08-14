@@ -13,13 +13,37 @@ import styles from "./SiteHeader.module.css";
 //
 // Ordre nav imposé (EXPERIENCE.md / AC, ≠ maquette qui omet « Accueil ») :
 // Accueil · Agenda · Animations · Tournois · L'asso · Partenaires.
-// Seul « Tournois » est sortant ici (Discord + CTA « Nous rejoindre » sont
-// rendus à part dans MobileMenu, eux aussi sortants).
+//
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 PLUS AUCUN LIEN DE CETTE BARRE N'EST SORTANT — STORY 9.4
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// « Tournois » portait `external: true` **en littéral**, et c'était le seul. Depuis que
+// `TOURNOI_URL` vaut `/tournois` (Story 9.4), ce drapeau devait partir AVEC la valeur, et pas
+// après : c'est LUI, et non l'URL, qui choisit la branche de rendu de `renderNavLink`.
+//
+// 🔴 CE QUE SON OUBLI AURAIT PRODUIT, ET POURQUOI ÇA SERAIT PASSÉ INAPERÇU : les trois
+// attributs de lien sortant (onglet, icône, mention SR) se DÉRIVENT de `classerDestination`,
+// donc ils auraient bien disparu — le témoin annoncé par `epics.md` serait passé au vert. Mais
+// le lien serait resté un `<a>` NU : rechargement complet de la page à chaque clic, sur les
+// 7 pages, et JAMAIS d'`aria-current="page"`. ⚠️ Aucune porte ne voyait ça — `gate:links` ne
+// distingue pas un `<a>` d'un `next/link`, `gate` ne mesure que des largeurs, et Lighthouse ne
+// l'exige pas. Le témoin annoncé passait donc au vert EN MÊME TEMPS que le défaut naissait.
+// ⇒ La garde ⑧ de `gate:links` existe exactement pour ça, et elle est GÉNÉRIQUE : tout lien de
+// cette liste dont l'`href` commence par `/` doit être géré par le routeur client.
+//
+// ⚠️ LE CHAMP `external?` RESTE DANS `NavLink`, ET C'EST DÉLIBÉRÉ : il est la seule chose qui
+// distingue les deux branches de `renderNavLink`, et un lien de nav pourra redevenir sortant.
+// Le supprimer « puisque plus personne ne s'en sert » retirerait la branche, donc obligerait à
+// la réécrire — c'est le patron de l'exemption qu'on ne retire pas (garde ② de `gate:links`).
+//
+// Discord et le CTA « Nous rejoindre », eux, restent sortants : ils sont rendus à part dans
+// MobileMenu, depuis les réglages du site (Story 6.13).
 const NAV_LINKS: NavLink[] = [
   { label: "Accueil", href: "/" },
   { label: "Agenda", href: "/agenda" },
   { label: "Animations", href: "/animations" },
-  { label: "Tournois", href: TOURNOI_URL, external: true },
+  { label: "Tournois", href: TOURNOI_URL },
   { label: "L'asso", href: "/l-asso" },
   { label: "Partenaires", href: "/partenaires" },
 ];

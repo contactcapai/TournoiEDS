@@ -126,13 +126,67 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # 🔴 DEUX ROUTEURS SUR LE MEME HOST — STORY 9.4. L'ancien hote REDIRIGE vers /tournois.
+    # ─────────────────────────────────────────────────────────────────────────────────
+    # Motif (arbitrage A19 de la note d'architecture) : la vitrine sert desormais /tournois
+    # (Story 9.2) et sa fiche (9.3), et cette app-ci n'est plus maintenue (A18). Les liens
+    # partages, les favoris et les descriptions de stream doivent continuer de fonctionner.
+    #
+    # 🔴 LA CIBLE SE DERIVE DE VITRINE_HOST, ELLE N'EST JAMAIS ECRITE EN DUR.
+    # Mesure du 2026-08-14 qui l'impose : `https://esportdessacres.fr/tournois` rend **404
+    # Website Builder** — l'apex pointe TOUJOURS sur Hostinger, la bascule DNS est la Story
+    # 7.5. Une cible en dur enverrait donc AUJOURD'HUI tous les liens partages d'une page qui
+    # MARCHE vers un 404 : strictement pire que l'etat actuel. Derivee, elle vise staging
+    # maintenant et l'apex TOUT SEUL apres la 7.5 — meme mecanisme qu'AUTH_URL (Story 7.4),
+    # « elle ne peut donc pas diverger de la regle Traefik ».
+    #
+    # 🔴 302 ET SURTOUT PAS 301 (`permanent=false`). Un 301 est mis en cache PAR LE NAVIGATEUR,
+    # souvent sans expiration : pose aujourd'hui vers staging, il SURVIVRAIT a la bascule 7.5
+    # dans le navigateur de chaque personne ayant suivi le lien entre-temps, et aucun changement
+    # cote serveur ne pourrait les rattraper. Le passage en 301 est un geste SEPARE, a faire
+    # apres la 7.5 quand la cible est stable — route dans cette story-la, pas espere.
+    #
+    # 🔴 EXEMPTION DECLAREE : `/overlay` NE REDIRIGE PAS. Mesure du 2026-08-14 : /overlay et
+    # /overlay/finale rendent 200, et ce sont les sources navigateur OBS du stream (README
+    # §Overlays). Leur reecriture est le livrable de la Story 10.6 — d'ici la, elles restent
+    # servies par cette app. ⚠️ L'exemption a une FIN NOMMEE : la retirer est un geste de la
+    # 10.6, pas un menage opportuniste.
+    # ⚠️ /qualifications, elle, REDIRIGE (elle n'est pas sous /overlay) : assume (A18, aucune
+    # contrainte de non-regression) et DIT, pas decouvert.
+    #
+    # Priorite : Traefik departage par LONGUEUR de regle — la regle overlay, plus longue, gagne
+    # sur /overlay* sans priorite explicite. Patron deja eprouve sur n8n (Story 7.1).
+    # ⚠️ DEUX ROUTEURS SUR UN SEUL CONTENEUR ⇒ chacun DOIT nommer son `.service` (idem n8n),
+    # sans quoi Traefik ne sait pas lequel servir.
+    #
+    # ⚠️ LA REDIRECTION VIT SUR LE CONTENEUR DE L'ANCIENNE APP : l'arreter tuerait AUSSI la
+    # redirection. C'est coherent avec A7 (l'app continue de tourner, son retrait est la Story
+    # 10.7) — et c'est la 10.7 qui devra DEPLACER ces trois labels sur le service `vitrine`
+    # avant de supprimer celui-ci, sinon l'ancien hote tombera en NXDOMAIN silencieux.
+    # ─────────────────────────────────────────────────────────────────────────────────
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=tournoi-net"
+      # Routeur 1 — les overlays OBS restent servis par l'app (regle la PLUS LONGUE, gagne).
+      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && PathPrefix(`/overlay`)"
+      - "traefik.http.routers.tournoi-tft-overlay.entrypoints=websecure"
+      - "traefik.http.routers.tournoi-tft-overlay.tls=true"
+      - "traefik.http.routers.tournoi-tft-overlay.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tournoi-tft-overlay.service=tournoi-tft-web"
+      # Routeur 2 — tout le reste de l'hote redirige vers la page des tournois du site.
       - "traefik.http.routers.tournoi-tft-web.rule=Host(`tournoi.esportdessacres.fr`)"
       - "traefik.http.routers.tournoi-tft-web.entrypoints=websecure"
       - "traefik.http.routers.tournoi-tft-web.tls=true"
       - "traefik.http.routers.tournoi-tft-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.tournoi-tft-web.middlewares=tournoi-legacy-redirect"
+      - "traefik.http.routers.tournoi-tft-web.service=tournoi-tft-web"
+      # ⚠️ AUCUN `$` DANS CETTE REGEX (pas d'ancre de fin) : docker compose tenterait de
+      # l'interpoler comme une variable, et il faudrait l'echapper en `$$`. Sans ancre de fin,
+      # le motif couvre deja tout l'hote — plus simple, donc moins de facons de se tromper.
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.regex=^https://tournoi\\.esportdessacres\\.fr/(.*)"
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.replacement=https://${VITRINE_HOST}/tournois"
+      - "traefik.http.middlewares.tournoi-legacy-redirect.redirectregex.permanent=false"
       - "traefik.http.services.tournoi-tft-web.loadbalancer.server.port=80"
     networks:
       - tournoi-net
