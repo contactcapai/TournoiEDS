@@ -83,6 +83,30 @@ import {
 import { EXTENSIONS } from "../../lib/schemas/photo";
 import { EMAIL_MAX, MOTIF_EMAIL_SQL, URL_MAX } from "../../lib/schemas/site-setting";
 import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
+// ✅ AUCUN ALIAS ICI, ET C'EST UNE MESURE — contrairement à `partner`, `member` et `workshop`
+// ci-dessus. Les noms de bornes du domaine « tournoi » ont été choisis **après** avoir vérifié
+// qu'aucun n'entre en collision avec ceux déjà importés dans ce fichier : `NOM_MAX` cohabite
+// avec `TITRE_MAX`/`BAR_NOM_MAX`/`PRENOM_MAX`, `JEU_MAX` avec `JEUX_MAX`, `LIEU_MAX` avec
+// `LIEU_NOM_MAX`. Le jour où une collision apparaîtra, la parade est celle des trois blocs
+// ci-dessus — **aliaser**, jamais fusionner deux bornes de domaines différents.
+// ⚠️ `URL_MAX` n'est PAS réimportée : `tournament.ts` consomme et ré-exporte celle de
+// `site-setting.ts` (une URL saisie par un bénévole est le même objet des deux côtés), et elle
+// est déjà importée quelques lignes plus haut. Deux imports du même symbole seraient une
+// collision inutile ; deux bornes distinctes seraient bien pire.
+import {
+  DUREE_MATCH_MAX,
+  FORMAT_MAX,
+  IDENTIFIANT_MAX,
+  JEU_MAX,
+  LIEU_MAX,
+  LOTS_MAX,
+  MOTIF_IDENTIFIANT_SQL,
+  NOM_MAX,
+  PLACES_MAX,
+  PODIUM_MAX,
+  REGISTRATION_MODES,
+  REGISTRATION_STATES,
+} from "../../lib/schemas/tournament";
 // ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` CI-DESSUS : `event.ts` exporte déjà un
 // `TITRE_MAX` (celui d'un événement, 80 lui aussi — mais par COÏNCIDENCE d'alignement sur son
 // propre rendu, pas parce que ce serait la même règle). Les importer nus ferait une collision
@@ -1249,6 +1273,432 @@ export const siteSetting = pgTable(
 );
 
 // ════════════════════════════════════════════════════════════════════════════════
+// TOURNOIS — LA RACINE QUI N'EXISTAIT NULLE PART (Story 9.1, A21)
+// ════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Comment on s'inscrit à un tournoi (A23 ②).
+ *
+ * Les valeurs viennent de `src/lib/schemas/tournament.ts` — **une seule liste**, même sens de
+ * dépendance que les quatre autres enums et pour la même raison (le module Zod est bundlé côté
+ * client par le formulaire d'admin ; l'inverse y ferait entrer tout Drizzle).
+ *
+ * ⚠️ L'ORDRE DE LA LISTE EST L'ORDRE DE L'ENUM POSTGRES, donc celui d'un éventuel
+ * `ORDER BY registration_mode` (leçon `partner_category` : un `ORDER BY` sur une colonne
+ * d'enum trie par ordre de **DÉCLARATION**, pas alphabétiquement).
+ */
+export const tournamentRegistrationMode = pgEnum(
+  "tournament_registration_mode",
+  REGISTRATION_MODES,
+);
+
+/**
+ * L'état des inscriptions (A23 ②).
+ *
+ * 🔴 CE N'EST **PAS** « À VENIR / PASSÉ », ET LES CONFONDRE EST LE PIÈGE QUE LA NOTE
+ * D'ARCHITECTURE DÉSAMORCE D'EMBLÉE (§6 ①) : *« les mélanger produirait un tournoi "à venir"
+ * dont les inscriptions sont closes, ou l'inverse »*. Cette colonne dit **uniquement** si l'on
+ * peut s'inscrire maintenant. « À venir » et « passé » se **dérivent de `starts_at`**
+ * (Story 9.2), exactement comme `queries/events.ts` le fait déjà par `gt`/`lte` — patron
+ * **mesuré** le 2026-08-13, à reprendre et non à réinventer.
+ * ⚠️ **Il n'y a donc aucune colonne `is_past`, et il ne faut pas en ajouter.** Un drapeau tenu
+ * à la main dérive : ce projet l'a payé en 6.13 sur un sous-total recalculé à la main.
+ */
+export const tournamentRegistrationState = pgEnum(
+  "tournament_registration_state",
+  REGISTRATION_STATES,
+);
+
+/**
+ * Un tournoi (Story 9.1 — A21, A23).
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA RACINE MANQUANTE DU MODÈLE — ELLE N'EXISTAIT **NULLE PART**, ET C'EST MESURÉ
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Relevé le 2026-08-13 dans `apps/tournoi-api/prisma/schema.prisma` : les modèles sont
+ * `Player`, `Day`, `Round`, `Lobby`, `LobbyPlayer`, `Admin` — **aucun `Tournament`**.
+ * L'application tournoi gère **un seul tournoi, implicite**. Côté vitrine, rien non plus.
+ * ⇒ *« Une page qui liste les tournois à venir et passés »* n'est donc pas une fonctionnalité
+ * à ajouter : c'est **la racine manquante**, et c'est pour cela que sa création est un epic.
+ * ⚠️ Cette table ne **migre rien** : arbitrage **A17**, on repart de zéro. La base
+ * `tournoi_tft` (27 joueurs, 4 journées, 8 lobbies, 64 participations) reste **intacte** et
+ * cesse simplement d'être alimentée — sa suppression est un geste séparé, postérieur à la
+ * Story 7.10 (les sauvegardes), routé en Story 10.7.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 CE QUE CETTE TABLE N'A PAS EST SON LIVRABLE — PÉRIMÈTRE **A5**, NE PAS LA « COMPLÉTER »
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Aucune colonne de **phase**, de **match**, de **participant**, d'**inscrit** ni de
+ * **score**. Ce n'est pas un modèle inachevé : c'est la racine **minimale** (A21), que les
+ * Epics 10 et 11 **étendront** au lieu de la remplacer. Mélanger la racine et les phases
+ * referait le mécanisme **R2** — une grosse story qui bloque ou évapore ses volets.
+ * ⚠️ L'absence est gardée par `gate:tournois`, qui lit le **schéma réel de la base** : un
+ * commentaire ne tient pas une règle six mois (leçon de la garde ⑩ de `gate:ateliers`).
+ *
+ * ⚠️ **AUCUNE COLONNE NULLABLE N'EST AJOUTÉE SANS NÉCESSITÉ**, et `event_id` est le cas
+ * emblématique : la décision 1 du §8 le rend **obligatoire** (*« un tournoi peut se faire en
+ * ligne mais on créera l'événement dans l'agenda pour l'y rattacher »*) ⇒ **aucune occasion de
+ * refaire `event_has_venue`**, le `CHECK` qui valait `NULL`, passait, et est resté faux trois
+ * epics. Les **DIX** colonnes nullables restantes le sont toutes pour une raison ÉCRITE, et
+ * chacune porte une branche `is null` **explicite** dans sa contrainte quand elle en a une.
+ *
+ * ⚠️ **CE COMPTE DISAIT « HUIT » — FAUX, TROUVÉ EN REVUE, ET LE MOTIF EST INSTRUCTIF.** Il y en
+ * avait **neuf** à l'écriture (`venue_name`, `format_text`, `prizes`, `match_duration_minutes`,
+ * `capacity`, `registration_url`, `podium_first`, `podium_second`, `podium_third`), et **dix**
+ * depuis que `photo_id` a été ajouté (A2). Sur un projet dont la doctrine est *« compter par
+ * exécution, jamais de mémoire »*, un nombre écrit à la main dans un commentaire est
+ * exactement ce qui se désaligne — c'est la 5ᵉ occurrence, après `_sections.ts`, `CHAMPS_URL`,
+ * la couverture d'autotest de `gate:reseaux` et la liste `INTERDITS` de `gate:tournois`.
+ * ⇒ **Le compte qui fait foi est celui de la porte**, qui le relit dans
+ * `information_schema.columns` ; celui-ci n'est qu'une aide à la lecture.
+ */
+export const tournament = pgTable(
+  "tournament",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /**
+     * 🔴 `ON DELETE RESTRICT`, ET C'EST LE SEUL DES TROIS COMPORTEMENTS QUI SOIT HONNÊTE ICI.
+     *
+     * Les deux autres clés étrangères de ce fichier (`event.barId`, `photo.eventId`) sont en
+     * `SET NULL`, parce que leur colonne est **nullable** et que l'orphelin garde un sens (un
+     * jeudi sans bar reste un jeudi ; une photo sans occasion reste une photo). Ici la colonne
+     * est **`notNull`** (décision 1 du §8) : `SET NULL` est donc **impossible**, et il ne reste
+     * que deux options.
+     *   · `CASCADE` **détruirait les tournois** d'un événement supprimé — or la suppression
+     *     d'un événement est une opération **banale** du back-office depuis la 6.3, et un
+     *     tournoi porte son podium, son URL d'inscription et son adresse publique partagée.
+     *     Une perte muette, déclenchée par un geste de routine.
+     *   · `RESTRICT` fait **refuser** la suppression par Postgres, et c'est **le bon signal** —
+     *     exactement le raisonnement déjà écrit sur `event.barId`.
+     *
+     * ⚠️ CONSÉQUENCE **HORS DE CETTE TABLE**, ET ELLE EST PAYÉE : `actions/agenda.ts`
+     * traduisait tout `23503` par « Le bar choisi n'existe plus », parce que le bar était sa
+     * seule clé étrangère. Ce n'est plus vrai. Sans correction, un bénévole qui supprime un
+     * événement portant un tournoi lirait un message parlant d'un **bar** — faux, et
+     * impossible à corriger. Le message y distingue désormais les deux cas.
+     */
+    eventId: uuid()
+      .notNull()
+      .references(() => event.id, { onDelete: "restrict" }),
+    /** Le nom du tournoi, rendu en titre de la fiche (A23 ①). */
+    name: text().notNull(),
+    /**
+     * Le ou les jeux, en texte libre — **volontairement pas un enum**. Le dossier GIR 2026 en
+     * compte déjà **dix** (CS2, Valorant, LoL, Rocket League, 2XKO, TFT, Speedrunners,
+     * Boomerang Fu, VR, Clone Hero) : un enum imposerait une migration à chaque nouveau jeu,
+     * c'est-à-dire à chaque tournoi. Même arbitrage que `event.games`.
+     */
+    game: text().notNull(),
+    /**
+     * 🔴 L'IDENTIFIANT LISIBLE DE L'URL — **UNIQUE**, ET AUCUN ÉQUIVALENT N'EXISTAIT DANS LE
+     * PROJET (mesuré le 2026-08-13 : le mot « slug » n'y désignait que des noms de fichiers de
+     * logos statiques). C'est vers `/tournois/<slug>` que pointeront MATELY, les réseaux, les
+     * flyers et les descriptions de stream (A20 : *« les URLs sont stables dès le premier
+     * jour »*) — d'où l'unicité **en base** et non seulement dans le formulaire.
+     * ⚠️ Sa **fixation à la publication** (A3) n'est PAS ici : elle compare la valeur nouvelle
+     * à la précédente, ce qu'un `CHECK` de ligne ne voit pas. Elle se tient à la frontière
+     * d'écriture (`actions/tournois.ts`) et `gate:tournois` la prouve dans les deux sens.
+     */
+    slug: text().notNull().unique(),
+    /**
+     * 🔴 LE TOURNOI PORTE SA **PROPRE** DATE (A1), et ce n'est pas une redondance avec
+     * `event.startsAt` : la Game'in Reims est **UN** événement portant **DIX** animations à des
+     * heures différentes, sur deux jours. Sans date propre, on ne pourrait ni les ordonner, ni
+     * dériver « à venir / passés » à l'échelle du tournoi.
+     * ⚠️ `timestamptz`, et UNE SEULE colonne — jamais date + heure séparées, qui rouvriraient
+     * le piège de fuseau à chaque lecture. Construire la valeur avec `parisWallClockFromInput`,
+     * jamais avec `new Date('…')`.
+     * ⚠️ **Aucune date de FIN** : aucun critère ne la demande, et elle se **déduira** des phases
+     * quand elles existeront (Story 10.1). Une colonne sans consommateur est une migration
+     * qu'il faudra défaire (règle de tête de fichier).
+     */
+    startsAt: timestamp({ withTimezone: true }).notNull(),
+    /**
+     * La salle ou l'espace, **en plus** du lieu de l'événement (qui porte déjà le sien).
+     * Absent → la ligne est masquée à l'affichage, jamais rendue vide (NFR8, UX-DR10).
+     */
+    venueName: text(),
+    /**
+     * 🔴 LE FORMAT ANNONCÉ EST **ÉDITORIAL** — ET LES PHASES FERONT FOI (A23 ③).
+     * Le raisonnement complet vit dans `lib/schemas/tournament.ts` ; ici il suffit de savoir
+     * que le jour où les phases existeront (Story 10.1), il y aura **deux descriptions du même
+     * format**, que **les phases l'emportent**, et que la fiche devra alors **DÉRIVER** ce
+     * qu'elle affiche au lieu de lire deux sources.
+     */
+    formatText: text(),
+    /** Les lots (A23 ③). Une ligne, pas un règlement. */
+    prizes: text(),
+    /**
+     * Durée estimée d'un match, **en minutes** (A23 ③).
+     * Un entier et non du texte : c'est la seule des données d'A23 ③ que la Story 11.1 devra
+     * **envoyer à MATELY**, et que l'assistance au choix de format consommera (§7 ③, qui a
+     * besoin du « temps disponible »). Une chaîne obligerait chacun à re-parser du français.
+     */
+    matchDurationMinutes: integer(),
+    /**
+     * Le nombre de places annoncé (A23 ①).
+     *
+     * 🔴 CE N'EST **PAS** UN CHIFFRE DE COMMUNAUTÉ — DISTINCTION À NE PAS « HARMONISER ».
+     * **FR16** interdit les chiffres de communauté (membres, audience), et c'est pourquoi
+     * `workshop` et `member` n'ont **aucune** colonne d'effectif — `gate:ateliers` ⑩ interdit
+     * même qu'on leur en ajoute une. Une **capacité de tournoi** est autre chose : une
+     * contrainte d'organisation que le visiteur doit connaître pour décider de s'inscrire,
+     * explicitement demandée par **A23 ①**, et que la Story 11.1 doit transmettre à MATELY.
+     */
+    capacity: integer(),
+    /**
+     * Comment on s'inscrit. **`notNull`**, et c'est ce qui rend le `CHECK` ci-dessous
+     * structurellement null-safe (voir son bloc).
+     */
+    registrationMode: tournamentRegistrationMode().notNull(),
+    /** L'adresse d'inscription. **Obligatoire en mode `mately`** — voir le `CHECK`. */
+    registrationUrl: text(),
+    /**
+     * Défaut `fermees` : **rien n'est ouvert par accident**, exactement comme `is_published`
+     * naît à `false` partout dans ce fichier. Annoncer des inscriptions ouvertes qui ne le
+     * sont pas est le seul des trois états qui fasse perdre quelqu'un.
+     */
+    registrationState: tournamentRegistrationState().notNull().default("fermees"),
+    /**
+     * 🔴 LE PODIUM — **UNE** DONNÉE, ÉCRITE TANTÔT À LA MAIN, TANTÔT PAR LE MOTEUR (A23 ①).
+     *
+     * Le moteur n'existe pas encore : le podium se **saisit** dans la 8ᵉ section. Le jour où
+     * il arrivera, **il écrira le même fait, au même endroit**. Règle « un seul propriétaire
+     * par fait » (§5) ⇒ **jamais deux colonnes**, jamais un « podium annoncé » à côté d'un
+     * « podium calculé ». Deux podiums finiraient par diverger, et c'est le résultat d'une
+     * compétition.
+     * ⚠️ Trois colonnes de **RANG** ne sont pas deux colonnes du même fait : elles décrivent
+     * trois places distinctes d'un seul podium. C'est la décision 4 du §8 appliquée — colonnes
+     * typées pour ce qui est **commun à tous les formats**, et un podium l'est.
+     */
+    podiumFirst: text(),
+    podiumSecond: text(),
+    podiumThird: text(),
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 LE VISUEL RÉUTILISE UNE PHOTO DE LA **GALERIE** — ARBITRAGE A2, ET IL ÉVITE UNE ROUTE
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Mesuré le 2026-08-13 : `src/app/medias/` porte **trois** familles de routes
+     * (`[filename]`, `logos/`, `portraits/`). ⚠️ **Leçon de la Story 6.5, payée** : *les routes
+     * de médias ne connaissent que leur propre table* — un fichier posé sur le volume sans
+     * ligne correspondante rend **404 en silence**. Une **4ᵉ famille** « visuels de tournoi »
+     * coûterait donc une route, son schéma, sa garde, et rouvrirait ce piège pour rien.
+     * ⇒ On pointe une ligne de `photo`, que la galerie sait déjà **téléverser, décrire
+     * (`alt` obligatoire, NFR3) et publier**.
+     *
+     * ⚠️ **ÉCART ASSUMÉ, ET IL EST DIT À L'ÉCRAN** : la route `/medias/[filename]` ne sert que
+     * les photos **publiées**. Un visuel choisi parmi des brouillons ne s'afficherait donc pas
+     * — ce n'est pas un bug, c'est la garde de la 6.4, et le formulaire ne propose que des
+     * photos publiées.
+     *
+     * 🔴 `ON DELETE SET NULL`, jamais `CASCADE` : supprimer une photo de la galerie ne doit pas
+     * effacer un tournoi, son podium et son adresse publique. Le tournoi perd son visuel et se
+     * rend sans — même raisonnement que `photo.eventId`, et c'est pour cela que la colonne est
+     * **nullable par conception**, pas seulement par conséquence.
+     * ⚠️ Le visuel est **FACULTATIF** (question ouverte n°2 de la story, tranchée « non
+     * obligatoire ») : un tournoi sans photo est le cas **nominal** au démarrage de la saisie,
+     * et la fiche doit s'afficher correctement sans lui.
+     */
+    photoId: uuid().references(() => photo.id, { onDelete: "set null" }),
+    /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`, `photo`). */
+    isPublished: boolean().notNull().default(false),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 LA CONTRAINTE DU MODE D'INSCRIPTION — ÉCRITE NULL-SAFE **DEUX FOIS**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Un tournoi en mode `mately` **doit** porter une URL : sans elle, la fiche annoncerait des
+     * inscriptions ouvertes avec **aucun moyen de s'inscrire**.
+     *
+     * 🔴 LA FORME NAÏVE EST EXACTEMENT LE DÉFAUT `event_has_venue` :
+     *     `registration_mode <> 'mately' or registration_url is not null`
+     * vaut `NULL OR FALSE` = **`NULL`** dès que `registration_mode` est `NULL` — et **un
+     * `CHECK` qui vaut `NULL` PASSE** (logique ternaire SQL : il n'échoue que sur `FALSE`).
+     * `event_has_venue` a survécu **trois epics et sept portes vertes** sur ce mécanisme.
+     *
+     * **Deux verrous, et ils sont indépendants :**
+     *   ① `registration_mode` est **`notNull`** — la doctrine de ce fichier accepte ce motif
+     *      seul (« soit leur colonne est `notNull`, soit elles portent une branche `is null`
+     *      explicite ») ;
+     *   ② la branche `is null` est écrite **quand même**. Elle est aujourd'hui inatteignable,
+     *      et c'est le but : le jour où quelqu'un relâcherait le `NOT NULL` de la colonne, la
+     *      contrainte ne se dégraderait pas en silence.
+     * ⚠️ `registration_url is not null` ne peut **jamais** valoir `NULL` (`IS NOT NULL` rend
+     * toujours un booléen) : la colonne nullable de cette règle n'est donc pas la source du
+     * danger, et c'est contre-intuitif — d'où ce paragraphe.
+     *
+     * 🔴 ET LA NULL-SAFETY NE SE MESURE **PAS** PAR UNE ÉCRITURE — leçon `gate:ateliers` ⑧,
+     * prouvée rouge : avec la branche retirée, la contre-épreuve « colonne à `NULL` » reste
+     * **VERTE**, parce que le défaut la rend aveugle **par construction**. Le seul témoin est
+     * une garde qui **LIT le texte de la contrainte** (`pg_get_constraintdef`), et
+     * `gate:tournois` en porte une, plus une qui vérifie que la colonne est bien `NOT NULL`.
+     */
+    check(
+      "tournament_mately_a_son_url",
+      sql`${table.registrationMode} is null or ${table.registrationMode} <> 'mately' or ${table.registrationUrl} is not null`,
+    ),
+    /**
+     * 🔴 GARDES DE TEXTE — MÊME DOCTRINE QUE PARTOUT DANS CE FICHIER : **la base est le
+     * garde-fou qu'on ne peut pas contourner** (`UPDATE` direct, restauration de sauvegarde,
+     * migration de données), **Zod est celui qui parle au bénévole**
+     * (`lib/schemas/tournament.ts`, d'où viennent ces bornes — jamais recopiées ici).
+     *
+     * `notNull` ne suffit pas : `'' IS NOT NULL` est **vrai** en SQL, donc un
+     * `UPDATE tournament SET name = ''` produirait un tournoi sans nom, annoncé en toutes
+     * lettres sur une page publique.
+     *
+     * 🔴 TOUTES NULL-SAFE : les colonnes nullables portent une branche `is null` **explicite**,
+     * les `notNull` n'en ont pas besoin. Vérifié une par une, et **mesuré** par la porte.
+     *
+     * 🔴 `sql.raw()` EST OBLIGATOIRE POUR CES NOMBRES : dans un gabarit `sql``, une valeur
+     * interpolée devient un PARAMÈTRE LIÉ, et la contrainte sortirait dans le `.sql` sous la
+     * forme `length(...) <= $1` — un DDL versionné **invalide**, puisque personne n'est là pour
+     * lier `$1`. Défaut mesuré à la génération en Story 4.3 ; ni le typecheck ni le build ne le
+     * voient. **Le seul témoin est le SQL généré, qu'il faut donc LIRE.**
+     *
+     * ⚠️ LIMITE DÉCLARÉE ET ASSUMÉE : `btrim` ne retire que les blancs ASCII, pas U+200B
+     * (leçon 6.3). Zod le refuse (`visiblementVide`). **Les contraintes des `0006`, `0008`,
+     * `0009`, `0010`, `0011` et `0012` ont exactement la même limite** — à rouvrir pour TOUTES
+     * les tables ensemble (dette **R41**, Story 7.8), jamais pour une seule.
+     */
+    check(
+      "tournament_name_valide",
+      sql`length(btrim(${table.name})) > 0 and length(${table.name}) <= ${sql.raw(String(NOM_MAX))}`,
+    ),
+    check(
+      "tournament_game_valide",
+      sql`length(btrim(${table.game})) > 0 and length(${table.game}) <= ${sql.raw(String(JEU_MAX))}`,
+    ),
+    /**
+     * 🔴 LE MOTIF EST CELUI DE `MOTIF_IDENTIFIANT`, ÉCRIT EN ERE POSIX — deux expressions de
+     * la même règle, jamais deux copies (patron `MOTIF_EMAIL` / `MOTIF_EMAIL_SQL`). La porte
+     * les confronte **aux mêmes valeurs**, pour que la parité soit **mesurée** et non affirmée.
+     * ✅ Aucun point dans ce motif ⇒ le piège d'échappement à deux étages (`\.` qui s'évalue en
+     * point nu dans un gabarit JS, mesuré en 6.5 puis 6.10) **ne s'applique pas ici**. Ne pas
+     * ajouter de point sans relire ce paragraphe.
+     */
+    check(
+      "tournament_slug_valide",
+      sql`${table.slug} ~ ${sql.raw(MOTIF_IDENTIFIANT_SQL)} and length(${table.slug}) <= ${sql.raw(String(IDENTIFIANT_MAX))}`,
+    ),
+    check(
+      "tournament_venue_name_valide",
+      sql`${table.venueName} is null or (length(btrim(${table.venueName})) > 0 and length(${table.venueName}) <= ${sql.raw(String(LIEU_MAX))})`,
+    ),
+    check(
+      "tournament_format_text_valide",
+      sql`${table.formatText} is null or (length(btrim(${table.formatText})) > 0 and length(${table.formatText}) <= ${sql.raw(String(FORMAT_MAX))})`,
+    ),
+    check(
+      "tournament_prizes_valide",
+      sql`${table.prizes} is null or (length(btrim(${table.prizes})) > 0 and length(${table.prizes}) <= ${sql.raw(String(LOTS_MAX))})`,
+    ),
+    /**
+     * Bornes NUMÉRIQUES, mêmes des deux côtés que Zod. Le plafond n'est pas de la préciosité :
+     * sans lui, une valeur hors plage `int4` remonterait au bénévole sous la forme brute du
+     * driver (« value out of range for type integer »), dans un écran dont tout le reste soigne
+     * ses messages.
+     */
+    check(
+      "tournament_match_duration_valide",
+      sql`${table.matchDurationMinutes} is null or (${table.matchDurationMinutes} >= 1 and ${table.matchDurationMinutes} <= ${sql.raw(String(DUREE_MATCH_MAX))})`,
+    ),
+    check(
+      "tournament_capacity_valide",
+      sql`${table.capacity} is null or (${table.capacity} >= 1 and ${table.capacity} <= ${sql.raw(String(PLACES_MAX))})`,
+    ),
+    check(
+      "tournament_registration_url_valide",
+      sql`${table.registrationUrl} is null or (length(${table.registrationUrl}) <= ${sql.raw(String(URL_MAX))} and ${table.registrationUrl} ~ '^https?://')`,
+    ),
+    check(
+      "tournament_podium_first_valide",
+      sql`${table.podiumFirst} is null or (length(btrim(${table.podiumFirst})) > 0 and length(${table.podiumFirst}) <= ${sql.raw(String(PODIUM_MAX))})`,
+    ),
+    check(
+      "tournament_podium_second_valide",
+      sql`${table.podiumSecond} is null or (length(btrim(${table.podiumSecond})) > 0 and length(${table.podiumSecond}) <= ${sql.raw(String(PODIUM_MAX))})`,
+    ),
+    check(
+      "tournament_podium_third_valide",
+      sql`${table.podiumThird} is null or (length(btrim(${table.podiumThird})) > 0 and length(${table.podiumThird}) <= ${sql.raw(String(PODIUM_MAX))})`,
+    ),
+    /**
+     * 🔴 UN PODIUM NE SAUTE PAS DE PLACE — et ces deux-là sont null-safe **par construction**,
+     * pas par une branche ajoutée : `x is null` et `y is not null` rendent **toujours** un
+     * booléen, jamais `NULL`. C'est la seule famille de contraintes de ce fichier qui n'a pas
+     * eu à se poser la question, et le dire évite qu'on « complète » ces deux lignes par
+     * mimétisme avec les douze précédentes.
+     *
+     * ⚠️ **AUCUN `CHECK` « podium seulement si le tournoi est passé » N'EST TENTÉ**, et ce
+     * choix est ÉCRIT plutôt que découvert (AC4). La date qui déterminerait « passé » vit bien
+     * sur cette ligne (`starts_at`), mais la comparer à `now()` dans un `CHECK` est **refusé
+     * par Postgres** : une contrainte doit être IMMUABLE. Une ligne valide aujourd'hui
+     * deviendrait invalide demain, et **toute restauration de sauvegarde échouerait** — le
+     * jour précis où l'on en a le plus besoin. La règle est donc tenue **à l'affichage** (la
+     * fiche ne montre le podium que d'un tournoi passé) et par une **garde de porte**.
+     */
+    check(
+      "tournament_podium_sans_trou_2",
+      sql`${table.podiumSecond} is null or ${table.podiumFirst} is not null`,
+    ),
+    check(
+      "tournament_podium_sans_trou_3",
+      sql`${table.podiumThird} is null or ${table.podiumSecond} is not null`,
+    ),
+    /**
+     * 🔴 UNE MÊME ÉQUIPE N'OCCUPE PAS DEUX PLACES — AJOUTÉ APRÈS REVUE (migration `0015`).
+     *
+     * 🔬 Mesuré : `podium_first = podium_second = 'Team Alpha'` était **accepté**, par Zod comme
+     * par la base. Les trois contraintes de longueur ne regardent qu'une colonne, et les deux
+     * « sans trou » ne regardent que la **présence**. Un podium n'est pas une liste : c'est un
+     * **classement**, et deux places identiques n'en est pas un.
+     *
+     * ⚠️ **UNE SECONDE MIGRATION DANS LA MÊME STORY, ET C'EST ÉCRIT PLUTÔT QUE MAQUILLÉ.** Le
+     * témoin déclaré au cadrage était « migrations 14 → 15 » ; il devient **14 → 16**. Régénérer
+     * la `0014` aurait donné un compte « conforme » — au prix d'une chirurgie DDL sur une base
+     * déjà migrée, pour cacher qu'une revue a trouvé quelque chose. Le projet préfère un témoin
+     * exact et expliqué à un témoin flatteur.
+     *
+     * 🔴 NULL-SAFE PAR CONSTRUCTION, ET LES DEUX BRANCHES SONT NÉCESSAIRES : `x <> y` vaut
+     * **`NULL`** dès que l'une des deux colonnes est nulle — donc **PASSE**, exactement comme
+     * `event_has_venue`. Les branches `is null` ne sont donc pas défensives ici, elles sont ce
+     * qui rend la contrainte évaluable. ⚠️ Ne pas les « simplifier » en s'appuyant sur
+     * `tournament_podium_sans_trou_*` : deux `CHECK` d'une même table sont **indépendants**, et
+     * rien ne garantit qu'ils soient tous les deux en vigueur au même moment (une migration
+     * peut en supprimer un).
+     */
+    check(
+      "tournament_podium_2_distinct",
+      sql`${table.podiumSecond} is null or ${table.podiumFirst} is null or ${table.podiumSecond} <> ${table.podiumFirst}`,
+    ),
+    check(
+      "tournament_podium_3_distinct",
+      sql`${table.podiumThird} is null or (${table.podiumFirst} is null or ${table.podiumThird} <> ${table.podiumFirst}) and (${table.podiumSecond} is null or ${table.podiumThird} <> ${table.podiumSecond})`,
+    ),
+    /**
+     * Colonnes DANS L'ORDRE OÙ LA REQUÊTE S'EN SERVIRA : la liste publique (Story 9.2) filtre
+     * sur `is_published` puis ordonne par `starts_at` — patron exact de
+     * `event_published_starts_at_idx`, et un seul index sert les deux sens de la dérivation
+     * « à venir » (`gt`) et « passés » (`lte`).
+     */
+    index("tournament_published_starts_at_idx").on(table.isPublished, table.startsAt),
+    /** Sert la fiche `/tournois/<slug>` (Story 9.3) : lecture par identifiant lisible. */
+    index("tournament_event_starts_at_idx").on(table.eventId, table.startsAt),
+  ],
+);
+
+// ════════════════════════════════════════════════════════════════════════════════
 // AUTHENTIFICATION BACK-OFFICE — Auth.js v5 + adaptateur Drizzle (Story 6.1)
 // ════════════════════════════════════════════════════════════════════════════════
 //
@@ -1376,6 +1826,18 @@ export const eventRelations = relations(event, ({ one, many }) => ({
   // événement passé, R25). Le sens inverse sert la galerie si elle veut un jour nommer
   // l'occasion ; il ne coûte rien à déclarer et évite de rouvrir ce fichier.
   photos: many(photo),
+  // 🔴 `event → tournaments` : **UN événement peut en porter N** (A4). C'est le cas exact de
+  // la Game'in Reims — un `event` de type `special`, dix animations. Le sens inverse
+  // (`tournament → event`) est déclaré juste en dessous : c'est celui dont la fiche a besoin
+  // pour nommer le lieu et l'occasion sans seconde requête.
+  tournaments: many(tournament),
+}));
+
+export const tournamentRelations = relations(tournament, ({ one }) => ({
+  event: one(event, { fields: [tournament.eventId], references: [event.id] }),
+  // Le visuel vient de la GALERIE (A2) — pas d'une 4ᵉ famille de médias. Voir le bloc de
+  // `tournament.photoId` pour ce que cet arbitrage évite.
+  photo: one(photo, { fields: [tournament.photoId], references: [photo.id] }),
 }));
 
 export const photoRelations = relations(photo, ({ one }) => ({
@@ -1418,6 +1880,18 @@ export type Member = typeof member.$inferSelect;
 export type NewMember = typeof member.$inferInsert;
 export type SiteSetting = typeof siteSetting.$inferSelect;
 export type NewSiteSetting = typeof siteSetting.$inferInsert;
+export type Tournament = typeof tournament.$inferSelect;
+export type NewTournament = typeof tournament.$inferInsert;
+/**
+ * 🔴 RÉ-EXPORTS, PAS DE SECONDES DÉFINITIONS — même montage que `PartnerCategory` (6.5) et
+ * `WorkshopFamily` (6.9), et pour la même raison : le formulaire d'admin est un composant
+ * CLIENT, et un type venu d'ici y ferait entrer Drizzle. Le type naît là où naissent les
+ * valeurs (`lib/schemas/tournament.ts`).
+ */
+export type {
+  TournamentRegistrationMode,
+  TournamentRegistrationState,
+} from "../../lib/schemas/tournament";
 export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Account = typeof account.$inferSelect;

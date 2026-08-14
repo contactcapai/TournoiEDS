@@ -93,14 +93,44 @@ const CAS_PARTICULIERS: Record<string, string> = {
     "Indiquez un bar du roulement ou le nom d'un lieu : un événement doit avoir un lieu.",
 };
 
-/** Traducteur partagé (`_commun.ts`), appliqué à la table de CE domaine. */
+/**
+ * Traducteur partagé (`_commun.ts`), appliqué à la table de CE domaine.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 `23503` NE DÉSIGNE PLUS UN SEUL CAS — CORRIGÉ PAR LA STORY 9.1, ET C'ÉTAIT DEVENU FAUX
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce bloc renvoyait **inconditionnellement** « Le bar choisi n'existe plus », et le commentaire
+ * qui le justifiait disait : *« ici la seule clé étrangère est le bar »*. C'était vrai jusqu'au
+ * 2026-08-13. La Story 9.1 crée `tournament.event_id`, **`NOT NULL` et `ON DELETE RESTRICT`**
+ * (décision 1 du §8 de la note d'architecture) : supprimer un événement qui porte un tournoi
+ * lève désormais un `23503` **entrant**, sur une contrainte qui n'a rien à voir avec un bar.
+ *
+ * ⚠️ Sans cette distinction, un bénévole qui tente de supprimer un événement de la Game'in
+ * Reims lirait « Le bar choisi n'existe plus » — une phrase **fausse**, qui parle d'un objet
+ * absent de son écran, et qu'il n'aurait **aucun moyen** de corriger. C'est exactement le
+ * défaut trouvé en revue de la 6.3, où huit contraintes sur dix rendaient un message qui ne
+ * nommait aucun champ.
+ *
+ * 🔴 ON DISCRIMINE SUR LE **NOM DE LA CONTRAINTE**, PAS SUR LE CODE : les deux cas partagent
+ * `23503` et rien d'autre ne les sépare. `constraint_name` avant `constraint`, même ordre
+ * qu'`_commun.ts` — **mesuré** le 2026-08-03 : postgres.js remplit `constraint_name`, et
+ * `constraint` y est `undefined`.
+ */
 function messageErreurBase(erreur: unknown): string {
   const message = traduireErreurBase(erreur, CHAMP_PAR_CONTRAINTE, CAS_PARTICULIERS);
-  // ⚠️ Le message générique de `23503` parle d'« élément » (il sert deux domaines) ; ici
-  // la seule clé étrangère est le bar, et le nommer évite de faire chercher.
-  return (erreur as { code?: string }).code === "23503"
-    ? "Le bar choisi n'existe plus. Rechargez la page et choisissez-en un autre."
-    : message;
+  const details = erreur as { code?: string; constraint_name?: string; constraint?: string };
+  if (details.code !== "23503") return message;
+
+  const contrainte = details.constraint_name ?? details.constraint ?? "";
+  if (contrainte.startsWith("tournament_")) {
+    return (
+      "Cet événement porte au moins un tournoi : il ne peut pas être supprimé tant qu'un " +
+      "tournoi y est rattaché. Ouvrez la section Tournois, supprimez ou rattachez ailleurs " +
+      "les tournois concernés, puis revenez ici. (Rien n'a été supprimé.)"
+    );
+  }
+  return "Le bar choisi n'existe plus. Rechargez la page et choisissez-en un autre.";
 }
 
 /**

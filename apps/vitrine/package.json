@@ -28,7 +28,8 @@
     "gate:sollicitations": "tsx --conditions=react-server tools/visual-gate/sollicitations-check.mts",
     "gate:reglages": "tsx --conditions=react-server tools/visual-gate/reglages-check.mts",
     "gate:reseaux": "tsx --conditions=react-server tools/visual-gate/reseaux-check.mts",
-    "gate:contrat-env": "tsx tools/visual-gate/contrat-env-check.mts"
+    "gate:contrat-env": "tsx tools/visual-gate/contrat-env-check.mts",
+    "gate:tournois": "tsx tools/visual-gate/tournois-check.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",

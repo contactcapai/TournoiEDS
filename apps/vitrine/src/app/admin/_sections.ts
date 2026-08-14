@@ -87,4 +87,36 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les adresses de vos comptes (Discord, réseaux, HelloAsso) et l'e-mail de contact. " +
       "Elles s'appliquent à tout le site dès l'enregistrement, sans brouillon.",
   },
+  {
+    href: "/admin/tournois",
+    libelle: "Tournois",
+    // ══════════════════════════════════════════════════════════════════════════════════
+    // 🔴 NI « Voir le rendu avant de publier », NI ROUTE `apercu/` — ET C'EST MESURÉ
+    // ══════════════════════════════════════════════════════════════════════════════════
+    //
+    // La story 9.1 affirmait au cadrage que « CHAQUE description se termine par "Voir le
+    // rendu avant de publier." ». **Faux, relevé le 2026-08-13 par lecture de ce fichier :
+    // CINQ sur sept.** `sollicitations` et `reglages` ne la portent pas, et le bloc 🔴 de
+    // tête dit pourquoi : recopier la phrase par mimétisme **promettrait une porte sans
+    // pièce** — le défaut exact que ce fichier existe pour empêcher, et qui s'est produit
+    // DEUX fois. La règle réelle est donc CONDITIONNELLE : la phrase n'est due que si la
+    // section a un rendu à montrer.
+    //
+    // 🔴 ET ICI IL N'Y EN A AUCUN, PAR CONSTRUCTION. L'arbitrage A6 ferme le périmètre :
+    // cette story n'ajoute **aucune page publique**. `/tournois` (Story 9.2) et
+    // `/tournois/<tournoi>` (Story 9.3) n'existent pas encore, donc un tournoi publié
+    // aujourd'hui **n'est visible nulle part**. Un aperçu ne pourrait que **préfigurer** un
+    // rendu non écrit — c'est-à-dire diverger de lui le jour où il existera, et « mentir
+    // exactement au moment où on lui demande de dire la vérité » (commentaire d'en-tête de
+    // l'aperçu des ateliers). La route `apercu/` et la phrase arrivent avec la 9.3.
+    //
+    // ⚠️ Ce fait n'est pas seulement écrit ici : l'écran de liste le DIT au bénévole, parce
+    // que « publier » y est un geste dont l'effet est aujourd'hui **invisible** — règle ①
+    // de `00 référence/pieges/integration-tierce.md` (un maillon jamais exercé se consigne
+    // AVEC son mode de défaillance écrit).
+    description:
+      "Les tournois de l'association : jeu, date, inscriptions, lots et podium. " +
+      "Ils se préparent ici dès maintenant ; la page publique qui les affichera arrive " +
+      "juste après.",
+  },
 ] as const;
