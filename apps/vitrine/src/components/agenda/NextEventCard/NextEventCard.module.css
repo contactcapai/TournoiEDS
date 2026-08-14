@@ -108,6 +108,33 @@
   font-size: 15px;
 }
 
+/* 🔴 GARDE DE LONGUEUR SUR LE TEXTE DES FAITS — AJOUTÉE PAR LA STORY 9.6, ET C'ÉTAIT UN
+   TROU RÉEL (trouvé en revue, Edge Case Hunter).
+
+   Jusqu'ici les quatre faits de cette carte étaient soit de la copie FIXE, soit des valeurs
+   déjà bornées court (heure, nom de bar, quartier). La 9.6 y fait entrer un **texte libre
+   saisi au back-office** : le tarif, jusqu'à 80 caractères. Un tarif de 80 caractères SANS
+   ESPACE — une faute de frappe, un collage — déborderait la carte à 320px, et
+   `overflow-x: clip` (globals.css) le **rognerait en silence** : ni scrollbar, ni
+   avertissement. C'est le mécanisme exact de la dette **R38**.
+
+   ⚠️ ET CE COMPOSANT A DÉJÀ PAYÉ CE DÉFAUT, sur son PROPRE titre (`.nextTitle`, plus haut,
+   qui porte `overflow-wrap: anywhere` pour cette raison précise). Les trois autres surfaces
+   qui reçoivent le même tarif ont chacune leur garde — `EventList` (`.rowText`),
+   `TournamentList` (`.carte`), `FicheTournoi` (`.valeur`). Cette carte était la SEULE à ne
+   pas l'avoir.
+
+   ⚠️ `min-width: 0` est nécessaire EN PLUS : un enfant flex ne descend pas sous la largeur
+   de son contenu sans lui, et `overflow-wrap` ne casse un mot que si la boîte a le droit de
+   rétrécir. Les deux vont ensemble ou ne servent à rien (leçon `EventList.module.css`).
+   ⚠️ `break-word` et non `anywhere` : `anywhere` modifie la taille min-content intrinsèque,
+   donc la géométrie de la carte — dont le rendu est prouvé inchangé sur le cas nominal.
+   `break-word` ne casse que si le mot déborderait réellement. */
+.facts div span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
 .facts svg {
   width: 19px;
   height: 19px;

@@ -7,7 +7,7 @@ import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import {
-  diagnostiquerHeureMurale,
+  avertissementHeuresMurales,
   parisWallClockFromInput,
   parisWallClockOptionnelFromInput,
   toInputValue,
@@ -213,8 +213,14 @@ export function EventForm({ bars, evenement }: EventFormProps) {
   const erreurs = etat.fieldErrors ?? {};
   /** Identifiant de l'événement une fois créé — décide du libellé du bouton. */
   const idCourant = etat.idEnregistre ?? evenement?.id ?? null;
-  const diagnostic = startsAt ? diagnostiquerHeureMurale(startsAt) : { cas: "ok" as const };
-  const avertissementHeure = diagnostic.cas === "ok" ? null : diagnostic.message;
+  // 🔴 LES DEUX BORNES, PAS SEULEMENT LE DÉBUT — CORRIGÉ EN REVUE (Story 9.6).
+  // Cet avertissement EN DIRECT ne regardait que `startsAt`. Depuis que le formulaire porte une
+  // heure de fin, une fin saisie dans l'heure inexistante de fin mars ou dans l'heure ambiguë de
+  // fin octobre n'était signalée **ni pendant la frappe, ni à l'envoi** — la Server Action
+  // portait le même défaut. La composition (et le préfixage, sans lequel « L'événement sera
+  // enregistré à 3h00 » serait faux appliqué à une fin) vit dans `lib/date-paris.ts`, en un seul
+  // endroit pour les trois consommateurs.
+  const avertissementHeure = avertissementHeuresMurales(startsAt, endsAt);
 
   return (
     <form action={soumettre} className={styles.form} noValidate>
@@ -336,9 +342,17 @@ export function EventForm({ bars, evenement }: EventFormProps) {
         erreur={erreurs.endsAt}
       />
 
-      {/* Le tarif (Story 9.6). ⚠️ L'aide dit explicitement que le vide n'affiche RIEN, et
-          surtout pas « Gratuit » : c'est la règle la plus facile à supposer de travers, et
-          celle dont l'erreur serait publique. */}
+      {/* 🔴 L'AIDE SE DÉRIVE DE LA NATURE, ET C'EST UN CORRECTIF DE REVUE (Acceptance Auditor).
+          Elle disait, pour les deux types : *« Laissé vide, le site n'affiche aucun tarif — il
+          n'annonce pas la gratuité à votre place »*. **Faux pour un jeudi jeux**, qui est le
+          type le plus fréquent du site : sans tarif, sa carte rend « **Gratuit** · ouvert à
+          tous, même sans matériel » — c'est le REPLI d'A3, et c'est voulu. L'aide promettait
+          donc l'inverse de ce que le visiteur verrait, sur la nature majoritaire.
+          ⚠️ Le formulaire est UNIQUE pour les deux types (le sélecteur est en haut de cet
+          écran) : une aide fixe est nécessairement fausse pour l'un des deux. Elle suit donc
+          `type`, comme le rendu suit la nature — c'est la même règle, dite des deux côtés.
+          ⚠️ Et l'AC exige que l'aide dise **ce que le visiteur verra**, pas le format attendu du
+          champ (patron `AIDES_MODE_INSCRIPTION`). */}
       <ChampTexte
         id="evenement-priceText"
         name="priceText"
@@ -347,8 +361,12 @@ export function EventForm({ bars, evenement }: EventFormProps) {
         onChange={setPriceText}
         max={TARIF_MAX}
         aide={
-          "En toutes lettres : « 5 € », « Gratuit », « 3 € adhérents ». Laissé vide, le site " +
-          "n'affiche aucun tarif — il n'annonce pas la gratuité à votre place."
+          type === "thursday"
+            ? "En toutes lettres : « 5 € », « 3 € adhérents ». Laissé vide, un jeudi jeux " +
+              "annonce « Gratuit · ouvert à tous, même sans matériel » — ne le renseignez que " +
+              "si la soirée est payante."
+            : "En toutes lettres : « 5 € », « Gratuit », « 3 € adhérents ». Laissé vide, le " +
+              "site n'affiche aucun tarif — il n'annonce pas la gratuité à votre place."
         }
         erreur={erreurs.priceText}
       />

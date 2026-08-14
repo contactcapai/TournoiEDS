@@ -2324,6 +2324,21 @@ for (const cas of ECRITURES_EPROUVEES) {
       fin: "2026-11-22T02:00:00+01:00",
       attendu: "21h00 → Dim. 22/11 à 2h00",
     },
+    {
+      /**
+       * 🔴 LE RÉVEILLON — AJOUTÉ APRÈS REVUE (Edge Case Hunter), ET LA GARDE NE LE COUVRAIT PAS.
+       * `formatRowDate` ne porte **jamais** l'année : en densité courte, une fin le 1ᵉʳ janvier
+       * rendait « Ven. 01/01 » — sans rien qui dise que c'est l'année **suivante**. C'est
+       * l'ambiguïté que `formatLongDate` existe pour éviter, et que son propre commentaire
+       * qualifie : *« elle ne se verrait qu'en janvier, c'est-à-dire trop tard »*.
+       * ⇒ L'année force la forme longue, **même en densité courte**. Une nuit par an, et c'est
+       * précisément pour ça que personne ne l'aurait diagnostiquée.
+       */
+      libelle: "fin l'ANNÉE SUIVANTE (l'année DOIT apparaître)",
+      debut: "2026-12-31T23:00:00+01:00",
+      fin: "2027-01-01T02:00:00+01:00",
+      attendu: "23h00 → Vendredi 1 janvier 2027 à 2h00",
+    },
   ];
 
   for (const cas of CAS_FORMAT) {
@@ -2405,6 +2420,115 @@ for (const cas of ECRITURES_EPROUVEES) {
           }
         }
       }
+    }
+  }
+}
+
+// ── ㉔  LA COPIE FIXE EST UN **REPLI**, PAS UNE AFFIRMATION (A3, Story 9.6) ────────────
+//
+// 🔴 C'EST LA GARDE QUE RIEN D'AUTRE NE PEUT RENDRE, ET ELLE A ÉTÉ OUBLIÉE AU PREMIER JET —
+// trouvée en revue (Acceptance Auditor), qui a relevé qu'elle était **nommée dans l'AC** et
+// **absente du diff**. Elle mesure le cœur même de la story : « Gratuit · ouvert à tous, même
+// sans matériel » est une copie FIXE qui dit EN DUR ce que `price_text` porte désormais. Un
+// jeudi jeux payant qui rendrait quand même « Gratuit » serait un **mensonge à l'écran** —
+// c'est la dette **R48** refaite au même endroit.
+// ⚠️ Aucune autre porte ne le voit : une carte qui affiche un mot de plus n'a pas l'air cassée.
+//
+// 🔴 ELLE MESURE LES **DEUX SENS**, ET LE SECOND EST LE VRAI LIVRABLE :
+//   ⓐ témoin AVEC tarif      ⇒ le tarif apparaît, « Gratuit » **disparaît**, et « même sans
+//                               matériel » **SURVIT** (ce n'est pas un prix — c'est le
+//                               découpage de la phrase qui est le livrable) ;
+//   ⓑ témoin SANS tarif      ⇒ « Gratuit · ouvert à tous, même sans matériel » revient, **au
+//                               caractère près**. Sans ce volet, on ne saurait pas si le repli
+//                               fonctionne encore — une garde qui ne mesure que le cas neuf
+//                               laisse mourir le cas majoritaire en silence.
+//
+// 🔴 ET ELLE NE PEUT PAS SUPPOSER QUE SON TÉMOIN EST LE PROCHAIN RENDEZ-VOUS. La carte de
+// l'accueil ne rend QUE le plus proche : si une donnée réelle est plus proche que le témoin, la
+// mesure ne porterait sur rien — et la porte crierait sur un produit sain. C'est très exactement
+// la dette **R46** (une base sans le cas devient un réquisitoire) et le mode de défaillance
+// chiffré de l'Epic 6 (~17 instruments faux, TOUS accusant le produit).
+// ⇒ Elle lit d'abord un **cas de vérité connue** — le titre du témoin est-il servi ? — et, s'il
+// ne l'est pas, elle DÉCLARE une exemption au lieu de conclure.
+{
+  const NOM = "㉔ repli de la copie fixe";
+  const COPIE_FIXE = "Gratuit";
+  const QUEUE_QUI_SURVIT = "ouvert à tous, même sans matériel";
+  const TARIF_TEMOIN = "7,50 € (temoin de porte)";
+
+  const titreAvec = `${MARQUE}-JEUDI-PAYANT`;
+  const titreSans = `${MARQUE}-JEUDI-GRATUIT`;
+  // ⚠️ Le markup SEUL : un `grep` sur le HTML de Next compte AUSSI la charge RSC, qui duplique
+  // le texte. Un témoin qui compte deux fois la même chose bouge pour une raison qui n'est pas
+  // la sienne (mesuré en Story 9.4 : 24 occurrences contre 15 en markup).
+  const sansScripts = (html: string) => html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+
+  for (const cas of [
+    { libelle: "jeudi jeux AVEC tarif", titre: titreAvec, tarif: TARIF_TEMOIN },
+    { libelle: "jeudi jeux SANS tarif (le repli)", titre: titreSans, tarif: null },
+  ]) {
+    let idTemoin: string | null = null;
+    try {
+      // 🔴 `type = 'thursday'` : c'est `estJeudiJeux` qui autorise la copie fixe, et il ne
+      // regarde que ça. Daté au plus proche possible pour être le PROCHAIN rendez-vous — mais
+      // la garde ne le SUPPOSE pas, elle le vérifie juste en dessous.
+      const [ligne] = await sql<{ id: string }[]>`
+        insert into event (type, title, venue_name, starts_at, price_text, is_published)
+        values ('thursday', ${cas.titre}, 'Salle temoin', now() + interval '90 seconds',
+                ${cas.tarif}, true)
+        returning id`;
+      idTemoin = ligne.id;
+
+      const r = await demander("/");
+      if (r.statut !== 200) {
+        ko(NOM, cas.libelle, `l'accueil rend ${r.statut} — rien à mesurer`);
+        continue;
+      }
+      const markup = sansScripts(r.corps);
+
+      // ── Cas de vérité connue (leçon 4.2, parade n°8) ──
+      if (!markup.includes(cas.titre)) {
+        exemptions.add(
+          `㉔ — le témoin « ${cas.titre} » n'est pas le prochain rendez-vous de cette base : un ` +
+            "événement réel est plus proche. Le REPLI de la copie fixe (A3) n'est donc PAS " +
+            "couvert par cette exécution. Ce n'est pas un succès — et ce n'est pas un défaut du " +
+            "produit non plus.",
+        );
+        ok(NOM, cas.libelle, "GARDE SANS OBJET — le témoin n'est pas le prochain rendez-vous");
+        continue;
+      }
+
+      const rendGratuit = markup.includes(COPIE_FIXE);
+      const rendQueue = markup.includes(QUEUE_QUI_SURVIT);
+      const rendTarif = cas.tarif !== null && markup.includes(cas.tarif);
+
+      if (cas.tarif !== null) {
+        // ⓐ AVEC tarif : le tarif remplace le mot, la queue survit.
+        // En autotest on inverse l'attendu sur le point central : la garde doit le voir.
+        const attenduGratuit = AUTOTEST;
+        if (rendTarif && rendGratuit === attenduGratuit && rendQueue) {
+          ok(NOM, cas.libelle, `« ${TARIF_TEMOIN} » servi, « ${COPIE_FIXE} » absent, la queue survit`);
+        } else {
+          ko(
+            NOM,
+            cas.libelle,
+            `tarif servi=${rendTarif}, « ${COPIE_FIXE} » présent=${rendGratuit} (attendu ${attenduGratuit}), ` +
+              `queue « ${QUEUE_QUI_SURVIT} » présente=${rendQueue} — un jeudi PAYANT qui annonce « Gratuit » ment à l'écran`,
+          );
+        }
+      } else {
+        // ⓑ SANS tarif : la phrase entière revient, au caractère près.
+        const attendue = `${COPIE_FIXE} · ${QUEUE_QUI_SURVIT}`;
+        const cherchee = AUTOTEST ? attendue + "-faux" : attendue;
+        if (markup.includes(cherchee)) {
+          ok(NOM, cas.libelle, `« ${attendue} » servi au caractère près — le repli tient`);
+        } else {
+          ko(NOM, cas.libelle, `« ${attendue} » N'EST PAS servi — le cas MAJORITAIRE a été cassé`);
+        }
+      }
+    } finally {
+      // 🔴 Dans un `finally` : le ménage a lieu même si la porte lève (garde ⑮).
+      if (idTemoin !== null) await sql`delete from event where id = ${idTemoin}`;
     }
   }
 }

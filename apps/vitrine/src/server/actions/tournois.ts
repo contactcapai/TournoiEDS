@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 
-import { parisWallClockFromInput, diagnostiquerHeureMurale } from "../../lib/date-paris";
+import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { tournamentInputSchema } from "../../lib/schemas/tournament";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
@@ -351,11 +351,14 @@ export async function enregistrerTournoi(
     };
   }
 
-  const diagnostic = diagnostiquerHeureMurale(saisieDate);
-  // ⚠️ LES DEUX AVERTISSEMENTS, LE DÉBUT D'ABORD (Story 9.6). Un tournoi à cheval sur la bascule
-  // d'heure peut voir SES DEUX bornes concernées ; n'en signaler qu'une laisserait le bénévole
-  // corriger la première et repartir avec la seconde décalée d'une heure.
-  const avertissement = diagnostic.cas === "ok" ? lectureFin.avertissement : diagnostic.message;
+  // 🔴 LES DEUX BORNES, ET LA COMPOSITION VIT DANS `lib/date-paris.ts` (Story 9.6, corrigé en
+  // revue). Ce code écrivait un TERNAIRE sous un commentaire qui affirmait montrer les deux
+  // messages — il n'en rendait jamais qu'un. Le défaut était COPIÉ À L'IDENTIQUE dans
+  // `actions/agenda.ts`, commentaire compris : deux exemplaires d'une même affirmation fausse.
+  const avertissement = avertissementHeuresMurales(
+    saisieDate,
+    String(formData.get("endsAt") ?? ""),
+  );
 
   try {
     if (idExistant === null) {

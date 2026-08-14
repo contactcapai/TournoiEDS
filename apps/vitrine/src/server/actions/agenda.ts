@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 
-import { diagnostiquerHeureMurale, parisWallClockFromInput } from "../../lib/date-paris";
+import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
 import { requireAdmin } from "../auth/guard";
 import { countEventsBlockingBarDeletion } from "../db/queries/events";
@@ -223,12 +223,15 @@ export async function enregistrerEvenement(
   }
 
   const valeurs = analyse.data;
-  const diagnostic = diagnostiquerHeureMurale(saisieDate);
-  // ⚠️ LES DEUX AVERTISSEMENTS, ET LE DÉBUT D'ABORD (Story 9.6). Un rendez-vous à cheval sur la
-  // bascule d'heure peut voir SES DEUX bornes concernées ; n'en signaler qu'une laisserait le
-  // bénévole corriger la première et repartir avec la seconde décalée. Le début passe devant
-  // parce que c'est lui qui porte le rendez-vous — la fin sans lui n'aurait aucun sens.
-  const avertissement = diagnostic.cas === "ok" ? lectureFin.avertissement : diagnostic.message;
+  // 🔴 LES DEUX BORNES, ET LA COMPOSITION VIT DANS `lib/date-paris.ts` (Story 9.6, corrigé en
+  // revue). Ce code écrivait un TERNAIRE sous un commentaire qui affirmait montrer les deux
+  // messages : il n'en rendait jamais qu'un, et jetait celui de la fin dès que le début en avait
+  // un. ⚠️ Et concaténer les deux messages bruts aurait menti autrement — « L'événement sera
+  // enregistré à 3h00 » est faux appliqué à une FIN. Le préfixage vit donc avec la règle.
+  const avertissement = avertissementHeuresMurales(
+    saisieDate,
+    String(formData.get("endsAt") ?? ""),
+  );
 
   try {
     if (idExistant === null) {

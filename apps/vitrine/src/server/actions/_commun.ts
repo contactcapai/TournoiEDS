@@ -25,7 +25,7 @@
  */
 import { z } from "zod";
 
-import { diagnostiquerHeureMurale, parisWallClockOptionnelFromInput } from "../../lib/date-paris";
+import { parisWallClockOptionnelFromInput } from "../../lib/date-paris";
 
 /**
  * Retour discriminé commun à toutes les actions d'administration (AR-API1).
@@ -68,23 +68,28 @@ export const identifiant = z.uuid();
  * saisie illisible en `null` : une faute de frappe effacerait alors silencieusement la valeur
  * déjà enregistrée, au lieu d'être signalée. »*
  *
- * ⚠️ Elle rend aussi l'**avertissement de changement d'heure** (dette R23) : une fin saisie dans
- * l'heure inexistante de fin mars ou dans l'heure ambiguë de fin octobre doit être signalée, au
- * même titre que le début l'est depuis la 6.3. L'oublier laisserait glisser une heure d'un cran
- * une fois par an, sur la moitié des rendez-vous.
- * ⚠️ **La règle « la fin est après le début » n'est PAS ici** : elle regarde DEUX champs, donc
- * elle vit dans les schémas Zod (et dans les `CHECK`), là où le formulaire sait poser le focus.
+ * ⚠️ **ELLE NE REND PAS L'AVERTISSEMENT DE CHANGEMENT D'HEURE** (dette R23), et c'est une
+ * correction née de la revue : elle le rendait, ce qui donnait **deux propriétaires** au même
+ * message — celui du début vivait dans l'action, celui de la fin ici, et l'action les
+ * assemblait par un ternaire qui en jetait un. Le message des **deux** bornes se compose
+ * désormais en un seul endroit, `avertissementHeuresMurales` (`lib/date-paris.ts`), qui sait
+ * aussi préfixer chaque moitié — sans quoi *« L'événement sera enregistré à 3h00 »* serait faux
+ * appliqué à une fin.
+ * ⚠️ **La règle « la fin est après le début » n'est PAS ici** non plus : elle regarde DEUX
+ * champs, donc elle vit dans les schémas Zod (et dans les `CHECK`), là où le formulaire sait
+ * poser le focus.
+ * ⇒ Cette fonction ne décide plus que d'**une** chose : lire la fin, ou dire pourquoi elle est
+ * illisible.
  */
 export function lireHeureDeFin(
   formData: FormData,
   champ = "endsAt",
 ):
-  | { ok: true; fin: Date | null; avertissement: string | null }
+  | { ok: true; fin: Date | null }
   | { ok: false; error: string; fieldErrors: Record<string, string> } {
-  const saisie = String(formData.get(champ) ?? "");
-  const lecture = parisWallClockOptionnelFromInput(saisie);
+  const lecture = parisWallClockOptionnelFromInput(String(formData.get(champ) ?? ""));
 
-  if (lecture.cas === "absent") return { ok: true, fin: null, avertissement: null };
+  if (lecture.cas === "absent") return { ok: true, fin: null };
 
   if (lecture.cas === "invalide") {
     return {
@@ -96,12 +101,7 @@ export function lireHeureDeFin(
     };
   }
 
-  const diagnostic = diagnostiquerHeureMurale(saisie);
-  return {
-    ok: true,
-    fin: lecture.instant,
-    avertissement: diagnostic.cas === "ok" ? null : diagnostic.message,
-  };
+  return { ok: true, fin: lecture.instant };
 }
 
 /** Première erreur par champ, dans la forme attendue par les formulaires. */
