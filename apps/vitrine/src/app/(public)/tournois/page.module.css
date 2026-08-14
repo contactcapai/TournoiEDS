@@ -1,0 +1,95 @@
+/* Page « Tournois » (Story 9.2).
+
+   AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96). Ce fichier ne transcrit donc
+   rien : il COMPOSE, à partir du vocabulaire éditorial partagé (`editorial.module.css`) et du
+   composant `components/tournois/TournamentList/`. Les valeurs sont des décisions de la story,
+   validées au gate visuel.
+
+   ⚠️ Les CARTES ne sont PAS habillées ici : elles portent leur propre CSS, jumelé à leur
+   composant. Rien de ce qui les concerne ne doit apparaître dans ce fichier — ce serait une
+   seconde source de vérité sur leur rendu (leçon R34, payée sur les neuf règles `.past*`
+   d'`/agenda` qu'il a fallu ré-extraire à la Story 6.4).
+
+   🔴 CE FICHIER EST DÉLIBÉRÉMENT LE JUMEAU DE `(public)/agenda/page.module.css` : mêmes noms de
+   classes, mêmes valeurs, mêmes fonds. Les deux pages sont la même promesse à deux échelles (ce
+   qui arrive / ce qui a eu lieu), et un visiteur qui passe de l'une à l'autre ne doit pas
+   changer de site.
+   ⚠️ Il n'y a PAS d'extraction vers `editorial.module.css` pour autant : la règle du projet est
+   qu'on extrait au **deuxième consommateur réel**, et `.empty` diverge déjà ici (elle porte un
+   CTA, celle d'/agenda porte une phrase). Extraire une classe dont les deux usages divergent
+   fabriquerait exactement l'inertie que ce fichier-là décrit sur `.facts` / `.publics`.
+
+   Tokens-only. EXCEPTION documentée sur place : `#262359` (extrémité sombre du dégradé, valeur
+   propre à la maquette reprise d'/agenda, pas un token) et les px structurels. */
+
+/* ───────── ② Section « À venir » ─────────
+   Fond relevé --navy : procédé de la maquette pour ses sections d'agenda (DESIGN.md l.171,
+   « navy = fond des sections relevées »). Le padding vertical vient d'`editorial.section` ; on
+   ajoute seulement celui du HAUT, qu'`editorial.section` ne pose pas — une bande colorée a
+   besoin de sa propre respiration intérieure, sinon le titre colle au bord coloré. */
+.upcoming {
+  padding-top: var(--section-y);
+  background: var(--navy);
+}
+
+/* ───────── État vide de « À venir » ─────────
+   Reprend la signature de l'état vide d'/agenda (filet or à gauche, même dégradé) : l'absence
+   de tournoi reste un bloc CHALEUREUX et habité, pas un trou ni un message d'erreur (UX-DR20).
+   🔴 C'est l'état que le gate visuel doit voir EXPRÈS (AC9) : il s'obtient en dépubliant le
+   tournoi depuis le back-office, sans rien supprimer. */
+.empty {
+  padding: 40px 34px;
+  border-radius: var(--radius-card);
+  border-left: 5px solid var(--gold);
+  background: linear-gradient(135deg, var(--surface), #262359);
+}
+
+/* --fs-lead + --cream : mêmes valeurs que l'état vide d'/agenda. `--cream` sur le dégradé donne
+   le même contraste que là-bas (le fond effectif est identique), et `--grey` y échouerait. */
+.emptyText {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  max-width: 620px;
+}
+
+/* --block-gap (30px) : même respiration que le renvoi sous les trois axes (`.more`) et que le
+   CTA de fin des pages dédiées (`editorial.cta`).
+   ⚠️ Le CTA vit DANS le bloc et pas après : hors du cadre, il aurait l'air de commenter la
+   section entière plutôt que de répondre à la phrase qui le précède. */
+.emptyCta {
+  margin-top: var(--block-gap);
+}
+
+/* ───────── ③ Section « Déjà joués » ─────────
+   Fond par défaut (--navy-deep, posé sur body) : le contraste des textes clairs y est encore
+   meilleur que sur --navy. Comme pour `.upcoming`, seul le padding du HAUT est ajouté. */
+.pastSection {
+  padding-top: var(--section-y);
+}
+
+/* ───────── ④ Renvoi de fin ─────────
+   Mêmes valeurs que le renvoi d'/agenda : les deux pages se répondent, elles doivent se
+   ressembler jusque dans leur bas de page. */
+.outro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--block-gap);
+}
+
+.outro p {
+  font-size: 15.5px; /* px structurel, valeur reprise d'/agenda */
+  color: var(--light);
+  max-width: 560px;
+}
+
+/* ───────── Responsive (< 880px) ─────────
+   880px en LITTÉRAL : une custom property CSS n'est pas lisible dans une @media
+   (`--bp-mobile` est documentaire). Largeurs éprouvées par la porte outillée :
+   320 / 412 / 768 / 880 / 1024 / 1440 / 1920. */
+@media (max-width: 880px) {
+  .empty {
+    padding: 30px 20px;
+  }
+}

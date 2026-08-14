@@ -132,21 +132,29 @@ export default async function AdminTournoisPage() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════
-          🔴 CE QUE « PUBLIER » FAIT AUJOURD'HUI : RIEN DE VISIBLE — ET ON LE DIT
+          🔴 CE QUE « PUBLIER » FAIT — RÉÉCRIT PAR LA STORY 9.2, QUI A RENDU L'ANCIEN FAUX
           ══════════════════════════════════════════════════════════════════════════════
-          Règle ① de `00 référence/pieges/integration-tierce.md` : *« un maillon jamais
-          exercé est de statut inconnu, et il se consigne AVEC son mode de défaillance
-          écrit »*. Ici le maillon manquant n'est pas une intégration, c'est la page
-          publique : `/tournois` (Story 9.2) et `/tournois/<tournoi>` (Story 9.3) n'existent
-          pas encore. Un bénévole qui publie et va vérifier sur le site ne trouverait rien,
-          et chercherait la panne. Il n'y en a pas — la page n'est pas encore écrite.
-          ⚠️ CETTE PHRASE A UNE DATE DE PÉREMPTION : elle doit disparaître avec la 9.2. */}
+          Cette phrase disait *« rien de visible sur le site — la page publique des tournois
+          n'est pas encore en ligne »*, et elle portait sa date de péremption écrite : *« elle
+          doit disparaître avec la 9.2 »*. `/tournois` existe désormais, donc la laisser
+          serait envoyer un bénévole chercher une panne qui n'existe pas — au moment précis
+          où le geste marche.
+
+          🔴 CE QUI RESTE VRAI, ET QUI DOIT DONC ÊTRE DIT : la NAVIGATION du site ne mène pas
+          encore à cette page. Le lien « Tournois » du menu, du pied de page et de l'accueil
+          pointe toujours vers l'ancienne plateforme (`TOURNOI_URL`) — c'est le livrable de la
+          Story 9.4, et le changer ici aurait modifié le rendu de quatre surfaces déjà
+          mergées. Règle ① de `00 référence/pieges/integration-tierce.md` appliquée à un
+          maillon interne : un maillon incomplet se consigne AVEC son mode de défaillance
+          écrit, sur l'écran de celui qui le subirait.
+          ⚠️ CETTE PHRASE A ELLE AUSSI UNE DATE DE PÉREMPTION : elle doit disparaître avec la
+          Story 9.4, qui fait pointer le menu ici. */}
       <p className={styles.mention} role="note">
-        <strong>Ce que « publier » fait pour l&rsquo;instant :</strong> ça marque le tournoi
-        comme prêt à paraître, et <strong>rien de visible sur le site</strong> — la page
-        publique des tournois n&rsquo;est pas encore en ligne. Vous pouvez saisir dès
-        maintenant : tout ce qui est ici s&rsquo;affichera le jour où elle arrivera, sans
-        rien re-saisir.
+        <strong>Ce que « publier » fait :</strong> le tournoi apparaît aussitôt sur la{" "}
+        <strong>page publique des tournois</strong>, à l&rsquo;adresse{" "}
+        <code>/tournois</code>. ⚠️ Le menu du site, lui, mène encore à l&rsquo;ancienne
+        plateforme de tournoi&nbsp;: ce sera changé prochainement. En attendant, tapez
+        l&rsquo;adresse pour vérifier votre saisie.
       </p>
 
       {total > 0 ? (

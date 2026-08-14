@@ -10,7 +10,9 @@
 //   le motif d'adresse JS et le motif SQL qui divergent                   ❌        ❌      ❌  ❌
 //   🔴 une colonne de PHASE / d'INSCRIT ajoutée (périmètre A5 rompu)      ❌        ❌      ❌  ❌
 //   une liste qui se RÉORDONNE d'une visite à l'autre (tri partiel)       ❌        ❌      ❌  ⚠️
-//   un tournoi servi sur une page publique alors qu'AUCUNE ne le doit     ❌        ❌      ❌  ⚠️
+//   🔴 un tournoi BROUILLON servi sur la page publique (Story 9.2)        ❌        ❌      ❌  ❌
+//   🔴 les deux sections « à venir » / « passés » INTERVERTIES (9.2)      ❌        ❌      ❌  ⚠️
+//   un tournoi servi sur une page publique qui ne doit pas en servir      ❌        ❌      ❌  ⚠️
 //   l'adresse d'un tournoi PUBLIÉ redevenue modifiable                    ❌        ❌      ❌  ❌
 //
 // 🔴 DEUX MOITIÉS, PARCE QUE LES DEUX RISQUES NE SE MESURENT PAS AU MÊME ENDROIT :
@@ -30,9 +32,14 @@
 // ⇒ Trois précautions en découlent, et elles ne sont PAS négociables :
 //   ① **tout ce qui peut vivre dans une transaction ROLLBACK y vit.** Les gardes ⑥, ⑦, ⑧, ⑨
 //      et ⑫ n'engagent donc rien du tout — leurs écritures sont annulées par construction ;
-//   ② **une seule chose est réellement COMMITÉE** : le trio témoin (1 événement + 2 tournois)
-//      dont la garde ⑩ a besoin pour être visible en HTTP. Il est supprimé dans un `finally`,
-//      donc y compris si la porte échoue ou lève ;
+//   ② **une seule chose est réellement COMMITÉE** : le lot témoin (1 événement + 3 tournois)
+//      dont la garde ⑭ a besoin pour être visible en HTTP. Il est supprimé dans un `finally`,
+//      donc y compris si la porte échoue ou lève.
+//      🔴 **NOUVEAU DEPUIS LA STORY 9.2, ET ÇA SE DIT** : deux de ces témoins sont PUBLIÉS et
+//      `/tournois` existe désormais — ils sont donc **réellement affichés sur la page publique
+//      de staging** pendant les quelques secondes de la mesure. À la 9.1, l'attendu était leur
+//      absence partout, et rien n'était visible. C'est précisément ce que la garde ⑭ retournée
+//      doit prouver, donc ce n'est pas évitable ; ce qui l'est, c'est de le taire ;
 //   ③ **le décompte de ménage porte sur `tournament` ET sur `event`** — la porte fabrique un
 //      événement, donc elle doit prouver qu'elle ne l'a pas laissé. C'est la garde née d'un
 //      défaut réel de `gate:partenaires`, qui polluait le volume qu'elle mesurait EN RESTANT
@@ -96,6 +103,16 @@ const RACINE_APP = join(ICI, "..", "..");
 
 /** Préfixe de TOUS les témoins de cette porte — reconnaissable par un humain (voir l'en-tête). */
 const MARQUE = `ZZ-GATE-${Date.now().toString(36).toUpperCase()}`;
+
+/**
+ * La SEULE page publique qui sert des tournois (Story 9.2, arbitrage A20).
+ *
+ * ⚠️ Elle est nommée **une fois**, ici, et la garde ⑭ l'exclut de son balayage de `PAGES` par
+ * cette constante — de sorte que les cinq autres pages restent découvertes par la
+ * configuration et pas énumérées à la main. La 9.3 ajoutera `/tournois/<slug>` : cette
+ * constante deviendra alors une liste, et c'est le seul endroit à changer.
+ */
+const PAGE_TOURNOIS = "/tournois";
 
 async function demander(chemin: string) {
   const reponse = await fetch(BASE + chemin, { redirect: "manual" });
@@ -1436,24 +1453,52 @@ for (const cas of ECRITURES_EPROUVEES) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════
-// ⑭ AUCUNE PAGE PUBLIQUE NE SERT UN TOURNOI — LE SEUL BLOC QUI **COMMITE**
+// ⑭ CE QUE LES PAGES PUBLIQUES SERVENT — **GARDE RETOURNÉE PAR LA STORY 9.2**
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 LE TÉMOIN DE L'ARBITRAGE **A6**, ET IL S'INVERSERA À LA STORY 9.2. Cette story n'ajoute
-// AUCUNE page publique : ni `/tournois`, ni `/tournois/<slug>`. La garde vérifie donc que les
-// **cinq** pages publiques existantes ne servent **aucun** tournoi — publié comme brouillon.
-// ⚠️ **Le témoin publié est le plus important des deux** : sans lui, la garde serait
-// tautologique (« un brouillon n'apparaît pas » est vrai même si le rendu est cassé). Un état
-// « tout à zéro » ressemble à « tout va bien » — leçon 4.2, et elle exige au moins un cas dont
-// l'attendu est NON NUL. Ici l'attendu non nul est en base : les deux lignes DOIVENT exister au
-// moment de la mesure, et la garde le vérifie avant de conclure.
-// 🔴 À LA STORY 9.2, CETTE GARDE DOIT ÊTRE **RETOURNÉE** : le témoin publié devra apparaître
-// sur `/tournois`, et le brouillon devra rester absent. Ne pas la supprimer — la retourner.
+// 🔴 ELLE N'A PAS ÉTÉ SUPPRIMÉE, ELLE A ÉTÉ RETOURNÉE — c'est ce que son propre commentaire
+// exigeait à la Story 9.1 : *« À la Story 9.2, cette garde doit être RETOURNÉE : le témoin
+// publié devra apparaître sur `/tournois`, et le brouillon devra rester absent. Ne pas la
+// supprimer. »* La supprimer aurait fait disparaître **la seule garde** qui prouve qu'un
+// brouillon ne fuit pas sur une page publique.
+//
+// Ce qu'elle mesure désormais, en trois volets indissociables :
+//   ① sur `/tournois`, les DEUX témoins **publiés** apparaissent ;
+//   ② le témoin **BROUILLON** n'apparaît **nulle part** — c'est le volet le plus important,
+//      parce que sans lui le volet ① serait satisfait même si le filtre `is_published` avait
+//      sauté. Un « le publié s'affiche » est vrai d'une page qui affiche TOUT ;
+//   ③ la **dérivation** est mesurée sur le rendu, et pas seulement en SQL : le témoin daté
+//      dans le FUTUR doit se trouver AVANT la section « Déjà joués », celui daté dans le
+//      PASSÉ après. C'est la seule mesure qui prouve qu'un tournoi tombe dans la bonne
+//      section — une garde qui se contenterait de « il apparaît » resterait verte si les deux
+//      listes étaient interverties.
+// ⚠️ Les cinq AUTRES pages publiques ne doivent servir **aucun** tournoi : `/tournois` est la
+// seule surface publique de cette donnée avant la fiche (Story 9.3).
+//
+// 🔴 ET C'EST TOUJOURS LE SEUL BLOC QUI **COMMITE**. Nouveauté de cette story, à dire : le
+// temps de la mesure, les deux témoins publiés sont **réellement visibles** sur la page
+// publique de staging — ce qui n'était pas le cas à la 9.1, où l'attendu était leur absence
+// partout. Le préfixe `ZZ-GATE-` reste donc ce qui permet à un humain de les reconnaître d'un
+// coup d'œil, et le ménage vit dans un `finally`.
 {
-  const slugPublie = `zz-gate-publie-${MARQUE.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  const slugBrouillon = `zz-gate-brouillon-${MARQUE.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-  const nomPublie = `${MARQUE}-PUBLIE`;
+  const marqueSlug = MARQUE.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const slugAVenir = `zz-gate-a-venir-${marqueSlug}`;
+  const slugPasse = `zz-gate-passe-${marqueSlug}`;
+  const slugBrouillon = `zz-gate-brouillon-${marqueSlug}`;
+  const nomAVenir = `${MARQUE}-A-VENIR`;
+  const nomPasse = `${MARQUE}-PASSE`;
   const nomBrouillon = `${MARQUE}-BROUILLON`;
+
+  /**
+   * Marqueur de la SECTION « Déjà joués » dans le HTML servi. C'est l'`id` que la page pose
+   * sur son `<h2>` et que sa `<section>` référence en `aria-labelledby` : il est donc porté
+   * par l'accessibilité, pas seulement par la porte — le supprimer casserait le rendu bien
+   * avant de casser cette mesure.
+   * ⚠️ Volontairement PAS un nom de classe CSS Module : celui-là porte un hash qui change à
+   * chaque édition du fichier.
+   */
+  const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
+
   let idEvenement: string | null = null;
 
   try {
@@ -1463,34 +1508,129 @@ for (const cas of ECRITURES_EPROUVEES) {
       returning id`;
     idEvenement = evt.id;
 
+    // 🔴 LES DATES SONT DÉCALÉES DE 30 JOURS DE PART ET D'AUTRE, ET C'EST CE QUI REND LE
+    // VOLET ③ DÉCIDABLE. À `now()`, un témoin tombe dans « passés » (la frontière est `lte`
+    // d'un côté, `gt` de l'autre) — mais à une seconde près, ce qui rendrait la mesure
+    // dépendante du temps de trajet HTTP. Trente jours ne laissent aucune ambiguïté.
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
-              values (${idEvenement}, ${nomPublie}, 'CS2', ${slugPublie}, now(), 'interne', true)`;
+              values (${idEvenement}, ${nomAVenir}, 'CS2', ${slugAVenir}, now() + interval '30 days', 'interne', true)`;
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
-              values (${idEvenement}, ${nomBrouillon}, 'CS2', ${slugBrouillon}, now(), 'interne', false)`;
+              values (${idEvenement}, ${nomPasse}, 'CS2', ${slugPasse}, now() - interval '30 days', 'interne', true)`;
+    await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
+              values (${idEvenement}, ${nomBrouillon}, 'CS2', ${slugBrouillon}, now() + interval '31 days', 'interne', false)`;
 
-    // Le cas de vérité connue, LU EN PREMIER (leçon 4.2, parade n°8) : si les deux lignes ne
+    // Le cas de vérité connue, LU EN PREMIER (leçon 4.2, parade n°8) : si les trois lignes ne
     // sont pas là, la mesure qui suit ne dit rien du tout.
     const [{ n }] = await sql<{ n: number }[]>`
       select count(*)::int as n from tournament where name like ${MARQUE + "%"}`;
-    if (n !== 2) {
-      ko("⑭ rien de public", "témoins", `${n} témoin(s) en base au lieu de 2 — la mesure ne dit rien`);
+    if (n !== 3) {
+      ko("⑭ pages publiques", "témoins", `${n} témoin(s) en base au lieu de 3 — la mesure ne dit rien`);
     } else {
-      ok("⑭ rien de public", "témoins", "2 témoins en base (1 publié, 1 brouillon) — la mesure est décidable");
+      ok(
+        "⑭ pages publiques",
+        "témoins",
+        "3 témoins en base (1 publié à venir, 1 publié passé, 1 brouillon) — la mesure est décidable",
+      );
 
+      // ── ⑭a  LES CINQ AUTRES PAGES NE SERVENT AUCUN TOURNOI ─────────────────────────
+      //
       // ⚠️ On balaie `PAGES` de la configuration, JAMAIS une liste en dur : un instrument qui
       // liste son périmètre à la main RÉTRÉCIT tout seul à mesure que le projet grandit
       // (défaut mesuré en 5.5 — une sonde prouvait « invisible » sur 3 pages et rien du tout
-      // sur les 2 autres, en silence, pendant deux epics).
-      for (const page of PAGES) {
+      // sur les 2 autres, en silence, pendant deux epics). `/tournois` en est retiré ICI, par
+      // son nom, et traité juste en dessous : c'est le seul endroit du fichier où une page est
+      // nommée, et l'exclure de la boucle est le contraire d'une liste en dur.
+      for (const page of PAGES.filter((p) => p !== PAGE_TOURNOIS)) {
         const r = await demander(page);
         // En autotest, on cherche une chaîne que la page contient forcément : la garde doit
         // alors crier.
-        const cherches = AUTOTEST ? ["<html"] : [nomPublie, nomBrouillon, slugPublie, slugBrouillon];
+        const cherches = AUTOTEST
+          ? ["<html"]
+          : [nomAVenir, nomPasse, nomBrouillon, slugAVenir, slugPasse, slugBrouillon];
         const vus = cherches.filter((c) => r.corps.includes(c));
         if (vus.length === 0) {
-          ok("⑭ rien de public", page, "aucun tournoi servi (A6 : cette story n'ajoute aucune page publique)");
+          ok("⑭ pages publiques", page, "aucun tournoi servi (la seule surface publique est /tournois)");
         } else {
-          ko("⑭ rien de public", page, `sert un tournoi : ${vus.join(", ")}`);
+          ko("⑭ pages publiques", page, `sert un tournoi : ${vus.join(", ")}`);
+        }
+      }
+
+      // ── ⑭b  SUR `/tournois` : LE PUBLIÉ APPARAÎT, LE BROUILLON NON ──────────────────
+      const r = await demander(PAGE_TOURNOIS);
+      if (r.statut !== 200) {
+        ko("⑭ pages publiques", PAGE_TOURNOIS, `attendu 200, obtenu ${r.statut} — rien à mesurer`);
+      } else {
+        // En autotest, on cherche des noms qui ne peuvent PAS être servis : la garde doit
+        // conclure « absent » alors qu'elle attend « présent », donc crier.
+        const attendusPresents = AUTOTEST
+          ? [`${MARQUE}-INEXISTANT-1`, `${MARQUE}-INEXISTANT-2`]
+          : [nomAVenir, nomPasse];
+        const manquants = attendusPresents.filter((c) => !r.corps.includes(c));
+        if (manquants.length === 0) {
+          ok(
+            "⑭ pages publiques",
+            PAGE_TOURNOIS,
+            "les DEUX témoins publiés sont servis (à venir + passé)",
+          );
+        } else {
+          ko(
+            "⑭ pages publiques",
+            PAGE_TOURNOIS,
+            `témoin(s) publié(s) ABSENT(S) : ${manquants.join(", ")} — le filtre is_published ou la dérivation les écarte`,
+          );
+        }
+
+        // 🔴 LE VOLET LE PLUS IMPORTANT : le brouillon ne doit apparaître ni par son nom, ni
+        // par son adresse. Sans lui, le volet ci-dessus serait satisfait par une page qui
+        // affiche TOUT — « un publié s'affiche » est vrai d'une fuite complète.
+        // En autotest, on lui présente une chaîne que la page contient forcément.
+        const interdits = AUTOTEST ? ["<html"] : [nomBrouillon, slugBrouillon];
+        const fuites = interdits.filter((c) => r.corps.includes(c));
+        if (fuites.length === 0) {
+          ok("⑭ pages publiques", PAGE_TOURNOIS, "le témoin BROUILLON reste absent du HTML servi");
+        } else {
+          ko(
+            "⑭ pages publiques",
+            PAGE_TOURNOIS,
+            `FUITE DE BROUILLON : ${fuites.join(", ")} — le filtre is_published a sauté`,
+          );
+        }
+
+        // ── ⑭c  LA DÉRIVATION EST MESURÉE SUR LE RENDU, PAS SEULEMENT EN SQL ──────────
+        //
+        // 🔴 CE QU'AUCUNE AUTRE GARDE NE VOIT : que chaque tournoi tombe dans la BONNE
+        // section. Les deux listes sortent de deux requêtes jumelles (`gt` / `lte`) ; les
+        // intervertir dans la page ne casserait ni le typecheck, ni le build, ni aucune des
+        // gardes ci-dessus — la page afficherait simplement les tournois à venir sous le
+        // titre « Déjà joués ». C'est un défaut que seul l'œil verrait, et seulement s'il
+        // connaissait les dates.
+        const iSection = r.corps.indexOf(MARQUEUR_SECTION_PASSES);
+        const iAVenir = r.corps.indexOf(nomAVenir);
+        const iPasse = r.corps.indexOf(nomPasse);
+
+        if (iSection < 0 || iAVenir < 0 || iPasse < 0) {
+          ko(
+            "⑭ pages publiques",
+            `${PAGE_TOURNOIS} (dérivation)`,
+            `marqueur de section=${iSection}, à venir=${iAVenir}, passé=${iPasse} — indécidable`,
+          );
+        } else {
+          // En autotest, on inverse l'attendu : la garde doit voir que l'ordre observé ne
+          // correspond plus à ce qu'on lui demande.
+          const correct = iAVenir < iSection && iPasse > iSection;
+          if (AUTOTEST ? !correct : correct) {
+            ok(
+              "⑭ pages publiques",
+              `${PAGE_TOURNOIS} (dérivation)`,
+              `le témoin +30j est AVANT « Déjà joués » (${iAVenir} < ${iSection}) et le témoin −30j APRÈS (${iPasse} > ${iSection})`,
+            );
+          } else {
+            ko(
+              "⑭ pages publiques",
+              `${PAGE_TOURNOIS} (dérivation)`,
+              `sections interverties ou témoin mal classé — à venir=${iAVenir}, section « Déjà joués »=${iSection}, passé=${iPasse}`,
+            );
+          }
         }
       }
     }
@@ -1587,8 +1727,27 @@ await sql.end();
 // EXEMPTIONS — CE QUE CETTE PORTE NE COUVRE PAS, DIT EN SORTIE
 // ══════════════════════════════════════════════════════════════════════════════════════
 exemptions.add(
-  "L'APPARENCE des écrans de tournois (ton, rythme, hiérarchie, longueur du formulaire) — " +
-    "c'est le gate visuel de Brice, et la passe 1 ne s'outille pas (rétro Epic 5).",
+  "L'APPARENCE des écrans de tournois — back-office ET page publique `/tournois` (ton, " +
+    "rythme, hiérarchie, lisibilité des cartes, rendu sans visuel) — c'est le gate visuel de " +
+    "Brice, et la passe 1 ne s'outille pas (rétro Epic 5).",
+);
+exemptions.add(
+  "🔴 DE LA PAGE `/tournois`, LA GARDE ⑭ MESURE **QUI EST SERVI** ET **DANS QUELLE " +
+    "SECTION** — pas ce que chaque carte MONTRE. Que le jeu, le lieu, l'état des " +
+    "inscriptions ou le podium soient rendus au bon endroit et au bon moment (podium sur " +
+    "les passés seulement, état des inscriptions sur les à venir seulement) n'est vérifié " +
+    "par aucune garde : le contenu d'une carte se lit à l'œil, sur staging. " +
+    "⚠️ Ce qui EST couvert malgré tout : qu'un nom de tournoi publié soit servi, qu'un " +
+    "brouillon ne le soit pas, et que les deux sections ne soient pas interverties.",
+);
+exemptions.add(
+  "🔴 LE VOLET ③ DE LA GARDE ⑭ S'APPUIE SUR UN MARQUEUR NOMINAL — `id=\"passes-title\"` dans " +
+    "le HTML servi. C'est une garde de NOM, pas de contrat (`pieges/garde-nominale.md`) : " +
+    "elle serait aveugle si la page rendait ce même id ailleurs. Le choix est assumé et " +
+    "borné — cet `id` est porté par l'`aria-labelledby` de la section, donc le supprimer " +
+    "casse l'accessibilité bien avant de casser la mesure, et Lighthouse le verrait. " +
+    "L'alternative (mesurer par nom de classe CSS Module) serait PIRE : son hash change à " +
+    "chaque édition du fichier.",
 );
 exemptions.add(
   "🔴 DU GEL D'ADRESSE (A3), LA GARDE ⑬ MESURE LE **MÉCANISME** ET NON L'**ACTION**. Le " +
