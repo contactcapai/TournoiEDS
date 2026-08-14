@@ -73,10 +73,16 @@
    en bas de fichier : c'est un défaut RÉEL, mesuré sur une autre surface de ce projet, et rien
    n'oblige un nom de tournoi à contenir un espace.
 
-   ⚠️ La carte n'est PAS cliquable (arbitrage **A1**) : aucun `cursor: pointer`, et le survol ne
-   change ni la couleur du nom ni rien qui ressemble à une affordance de lien. Le soulèvement
-   est un accusé de lecture — même raisonnement, écrit, que `WorkshopCatalog`. */
+   🔴 LA CARTE EST CLIQUABLE DEPUIS LA STORY 9.3 — ARBITRAGE **A1, INVERSÉ**. Ce paragraphe
+   disait : *« La carte n'est PAS cliquable : aucun `cursor: pointer`, et le survol ne change ni
+   la couleur du nom ni rien qui ressemble à une affordance de lien. »* C'était juste tant que
+   `/tournois/<slug>` n'existait pas ; la fiche existe, et le soulèvement au survol cesse d'être
+   un simple accusé de lecture pour devenir une vraie affordance — qui mène quelque part.
+   ⚠️ `position: relative` n'est PAS décoratif ici : c'est lui qui fait de la carte l'ancêtre
+   positionné de l'overlay `.lien::after`. Le retirer rendrait l'overlay relatif au `<body>`,
+   c'est-à-dire une plaque cliquable sur toute la page — défaut silencieux et spectaculaire. */
 .carte {
+  position: relative;
   display: flex;
   flex-direction: column;
   padding: 20px 22px;
@@ -89,7 +95,12 @@
     border-color 180ms ease;
 }
 
-.carte:hover {
+/* `:focus-within` À ÉGALITÉ AVEC `:hover`, et ce n'est pas de la symétrie gratuite : le lien
+   réel est le `<a>` du titre, donc sans cette règle le clavier n'obtiendrait AUCUN retour sur la
+   carte alors que la souris en a un. L'anneau de focus global reste posé sur le `<a>` lui-même —
+   on ne le supprime jamais (project-context §5), on ajoute seulement le halo de la carte. */
+.carte:hover,
+.carte:focus-within {
   transform: translateY(-4px);
   border-color: rgba(218, 178, 101, 0.55);
 }
@@ -101,7 +112,8 @@
     transition: border-color 180ms ease;
   }
 
-  .carte:hover {
+  .carte:hover,
+  .carte:focus-within {
     transform: none;
   }
 }
@@ -137,6 +149,35 @@
   line-height: 1.1;
   letter-spacing: var(--ls-display);
   color: var(--cream);
+}
+
+/* ───────── Le lien de la carte (Story 9.3, A1 inversé) ─────────
+   🔴 IL HÉRITE DE LA COULEUR DU TITRE ET NE SE SOULIGNE PAS : la carte entière est déjà
+   l'affordance (filet, soulèvement), et un titre souligné en or ferait de la grille un mur de
+   liens. Le contraste reste donc celui, déjà mesuré, de `.nom` en `--cream` — c'est la seule
+   raison pour laquelle on peut se permettre `color: inherit` ici sans recalculer l'inventaire de
+   tête de fichier.
+
+   🔴 L'OVERLAY EST CE QUI REND TOUTE LA CARTE CLIQUABLE, et il tient en trois propriétés :
+   `position: absolute` + `inset: 0` le fait couvrir l'ancêtre positionné (`.carte`), et
+   `content: ""` le fait exister. Le `<a>` reste dans le flux du titre — c'est son `::after` qui
+   déborde, pas lui.
+   ⚠️ **CE QU'IL COÛTE, ET C'EST ASSUMÉ** : il capte le pointeur sur toute la carte, donc le
+   texte n'y est plus SÉLECTIONNABLE. L'alternative (un `onClick` sur la carte) imposerait un
+   `'use client'` à un composant qui n'a aucune autre raison d'en être un, et fabriquerait un
+   élément cliquable invisible au clavier.
+   ⚠️ Il est posé APRÈS le contenu dans l'ordre de peinture ; le visuel (`.media`) reste donc
+   dessous, ce qui est voulu : cliquer la photo mène à la fiche, comme le reste. */
+.lien {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lien::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
 }
 
 /* ───────── Le jeu, puis le lieu ─────────

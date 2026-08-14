@@ -20,7 +20,7 @@
 // Usage :  node tools/visual-gate/links-check.mjs [baseUrl]
 //          LINKS_DEBRANCHER_PIEGE=1 …  → auto-validation de l'instrument
 import { launchChrome } from "./cdp.mjs";
-import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
+import { PAGES, BASE as BASE_DEFAUT, resoudreFicheTournoi } from "./config.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 const AUTOTEST = process.env.LINKS_DEBRANCHER_PIEGE === "1";
@@ -123,7 +123,19 @@ if (!sonde?.ok) {
 const chrome = await launchChrome(9358);
 
 try {
-  for (const page of PAGES) {
+  // 🔴 [AJOUTÉ le 2026-08-14, Story 9.3.] LA 7ᵉ PAGE EST DYNAMIQUE, ET SON URL SE DÉRIVE.
+  // `/tournois/<slug>` n'est pas une URL concrète : elle est résolue depuis le site lui-même
+  // (premier lien de fiche rendu par `/tournois`). Écrire un slug en dur ferait rougir cette
+  // porte sur un produit sain le jour d'une dépublication — c'est la dette R46. Aucun tournoi
+  // publié est un état LÉGITIME : la porte le DÉCLARE alors, et ne crie pas.
+  // ⚠️ L'enjeu est double ici : cette porte clique VRAIMENT les liens, donc elle est aussi celle
+  // qui prouve que les nouveaux liens de carte (arbitrage A1 inversé) mènent à un 200.
+  const fiche = await resoudreFicheTournoi(BASE);
+  if (fiche.url) console.log(`   ✅ Fiche de tournoi couverte : ${fiche.url}.`);
+  else console.log(`   ⚠️ Fiche de tournoi NON couverte — ${fiche.raison}. Ce n'est pas un succès.`);
+  const pagesBalayees = fiche.url ? [...PAGES, fiche.url] : PAGES;
+
+  for (const page of pagesBalayees) {
     for (const largeur of LARGEURS) {
       await chrome.setViewport(largeur);
       await chrome.goto(BASE + page);

@@ -39,7 +39,7 @@
 //          (le serveur de PRODUCTION doit tourner : `pnpm build && pnpm start`)
 import { launchChrome } from "./cdp.mjs";
 import { PROBE, STICKY } from "./probe.mjs";
-import { BASE as BASE_DEFAUT, PAGES, WIDTHS } from "./config.mjs";
+import { BASE as BASE_DEFAUT, PAGES, WIDTHS, resoudreFicheTournoi } from "./config.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 
@@ -52,6 +52,12 @@ if (!sonde?.ok) {
   process.exit(2);
 }
 
+// 🔴 LA 7ᵉ PAGE EST DYNAMIQUE : son URL se DÉRIVE de la donnée servie (voir
+// `resoudreFicheTournoi`). Absente, on balaie 6 pages et on le DÉCLARE — un slug écrit en dur
+// ferait rougir cette porte sur un produit sain le jour d'une dépublication (dette R46).
+const fiche = await resoudreFicheTournoi(BASE);
+const pages = fiche.url ? [...PAGES, fiche.url] : PAGES;
+
 const chrome = await launchChrome();
 // Mouvement réduit émulé : sans ça, une animation d'entrée encore en vol rend la
 // mesure non déterministe (`pieges/instrument-non-valide.md`).
@@ -61,7 +67,7 @@ const echecs = [];
 let controles = 0;
 
 try {
-  for (const page of PAGES) {
+  for (const page of pages) {
     for (const width of WIDTHS) {
       await chrome.setViewport(width);
       await chrome.goto(BASE + page);
@@ -108,17 +114,29 @@ try {
   await chrome.close();
 }
 
-const combinaisons = PAGES.length * WIDTHS.length;
+const combinaisons = pages.length * WIDTHS.length;
 if (echecs.length === 0) {
   console.log(
     `\n✅ PORTE VERTE — ${controles} contrôles sur ${combinaisons} combinaisons ` +
-      `(${PAGES.length} pages × ${WIDTHS.length} largeurs).`,
+      `(${pages.length} pages × ${WIDTHS.length} largeurs).`,
   );
   console.log(
     "   ① aucun débordement de boîte · ② header sticky partout · ③ aucune classe fantôme · " +
       "④ aucun débordement de texte dans sa boîte",
   );
   // 🔴 EXEMPTIONS DÉCLARÉES — une porte verte ne veut PAS dire « tout est couvert ».
+  // La première est CONDITIONNELLE et vaut d'être lue : la 7ᵉ page est dynamique, et son
+  // absence du balayage n'est PAS un succès. La dire à chaque exécution est ce qui empêche un
+  // « ✅ PORTE VERTE — 168 contrôles » de se lire comme une couverture complète.
+  if (fiche.url) {
+    console.log(`   ✅ Fiche de tournoi COUVERTE : ${fiche.url} (${fiche.raison}).`);
+  } else {
+    console.log(
+      `   ⚠️ FICHE DE TOURNOI **NON COUVERTE** par cette exécution — ${fiche.raison}.\n` +
+        "      Ce n'est PAS un succès : la 7ᵉ page publique n'a été regardée par personne ici.\n" +
+        "      Publier un tournoi depuis /admin/tournois suffit à la rendre mesurable.",
+    );
+  }
   console.log(
     "   ⚠️ Périmètre du contrôle ④ : les FEUILLES DE TEXTE (éléments sans enfant élément).\n" +
       "      Un ancêtre hérite mécaniquement du scrollWidth de ses descendants — le signaler\n" +

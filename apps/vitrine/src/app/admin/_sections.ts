@@ -102,23 +102,22 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     // DEUX fois. La règle réelle est donc CONDITIONNELLE : la phrase n'est due que si la
     // section a un rendu à montrer.
     //
-    // 🔴 ET LA PHRASE RESTE DUE — MAIS PAS ENCORE PAYABLE. **Mis à jour par la Story 9.2**,
-    // qui a livré `/tournois` : un tournoi publié est désormais **visible**, ce qui n'était
-    // pas vrai à la 9.1 (arbitrage A6, périmètre fermé). Ce qui n'existe toujours pas, c'est
-    // ce que la phrase promet précisément : une route `apercu/` permettant de voir le rendu
-    // **AVANT** de publier. La page publique ne sert que le publié (c'est son filtre
-    // `is_published`, mesuré par la garde ⑭ de `gate:tournois`), donc écrire « Voir le rendu
-    // avant de publier » aujourd'hui promettrait une porte sans pièce — le défaut exact que
-    // ce fichier existe pour empêcher, et qui s'est produit DEUX fois.
-    // ⇒ La route `apercu/` et la phrase arrivent toujours avec la **Story 9.3**.
+    // ✅ **LA DETTE EST PAYÉE — STORY 9.3.** Ce bloc disait : *« la phrase reste due — mais
+    // pas encore payable […] Ce qui n'existe toujours pas, c'est ce que la phrase promet
+    // précisément : une route `apercu/` permettant de voir le rendu AVANT de publier […] ⇒ La
+    // route `apercu/` et la phrase arrivent toujours avec la Story 9.3. »*
+    // La route existe (`/admin/tournois/[id]/apercu`, le composant public RÉEL), donc la
+    // phrase est **payable** et elle est posée — dans le MÊME commit, jamais avant. C'est
+    // toute la règle de ce fichier : la phrase n'est due que si la section a un rendu à
+    // montrer, et elle n'est écrite que si la porte existe. L'écrire d'avance aurait été
+    // « une porte sans pièce », le défaut qui s'est déjà produit DEUX fois ici.
     //
-    // ⚠️ La description ci-dessous a été RÉÉCRITE pour la même raison : elle annonçait « la
-    // page publique qui les affichera arrive juste après », ce qui est faux depuis que cette
-    // page existe. Une phrase datée qu'on ne relit pas est un cadrage périmé de plus
-    // (`00 référence/pieges/cadrage-perime.md`) — et celle-ci était écrite dans l'interface
-    // que lisent les bénévoles.
+    // ⚠️ Cette description a déjà été RÉÉCRITE une fois (Story 9.2) parce qu'elle annonçait
+    // « la page publique qui les affichera arrive juste après » — faux dès que cette page a
+    // existé. Une phrase datée qu'on ne relit pas est un cadrage périmé de plus
+    // (`00 référence/pieges/cadrage-perime.md`), et celle-ci est lue par les bénévoles.
     description:
       "Les tournois de l'association : jeu, date, inscriptions, lots et podium. " +
-      "Ils s'affichent sur la page publique des tournois dès qu'ils sont publiés.",
+      "Voir le rendu avant de publier.",
   },
 ] as const;

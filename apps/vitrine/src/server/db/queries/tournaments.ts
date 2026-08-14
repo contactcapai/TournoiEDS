@@ -155,21 +155,26 @@ export type AdminTournament = Awaited<
  * la carte rend (AC4 de la Story 9.2).
  *
  * 🔴 CE QUI N'EST PAS ICI EST UN PÉRIMÈTRE, PAS UN OUBLI — arbitrage **A6** :
- *   · `slug` — la 9.2 ne rend **aucun lien** (arbitrage **A1** : la fiche
- *     `/tournois/<slug>` n'existe pas avant la 9.3, et `CLAUDE.md` §5 interdit
- *     autant la page *stub* que le `href="#"`). Une colonne remontée que personne ne
- *     rend ferait croire au type dérivé qu'une destination existe ;
  *   · `formatText`, `prizes`, `matchDurationMinutes`, `capacity`, `registrationMode`,
  *     `registrationUrl` — c'est le **détail du format** et le **comment s'inscrire**
- *     d'A23 ③ ②, donc le livrable de la **fiche** (Story 9.3). La liste montre ce
- *     qu'il faut pour **choisir**, la fiche montrera le reste.
+ *     d'A23 ③ ②, donc le livrable de la **fiche** (`COLONNES_FICHE`, plus bas). La
+ *     liste montre ce qu'il faut pour **choisir**, la fiche montre le reste.
  * ⚠️ Les ajouter ici avant leur consommateur serait la 3ᵉ prop « au cas où » que ce
  * projet refuse depuis `SectionHead`.
+ *
+ * 🔴 **`slug` A REJOINT CETTE LISTE À LA STORY 9.3, ET LE MOTIF DE SON ABSENCE EST MORT
+ * AVEC ELLE.** Il disait : *« la 9.2 ne rend aucun lien (arbitrage A1) […] une colonne
+ * remontée que personne ne rend ferait croire au type dérivé qu'une destination
+ * existe »*. **A1 s'est inversé** : la fiche `/tournois/<slug>` existe, et chaque carte
+ * est désormais un lien vers elle. Le raisonnement était juste — il n'a simplement plus
+ * d'objet, et le laisser écrit ferait chercher une règle qui n'existe plus
+ * (`pieges/cadrage-perime.md`).
  */
 const COLONNES_PUBLIQUES = {
   id: true,
   name: true,
   game: true,
+  slug: true,
   startsAt: true,
   venueName: true,
   registrationState: true,
@@ -309,6 +314,138 @@ export async function getPublicTournaments(aVenirMax: number, passesMax: number)
  * de `AgendaEvent`, écrite dans `queries/events.ts`.
  */
 export type PublicTournament = Awaited<ReturnType<typeof getUpcomingTournaments>>[number];
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LA FICHE PUBLIQUE (Story 9.3, A20/A23)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Colonnes de la **fiche** — le contenu complet d'**A23**, et rien de plus.
+ *
+ * 🔴 UNE LECTURE À PART, ET PAS `COLONNES_PUBLIQUES` ÉLARGIE. La liste et la fiche ne
+ * montrent pas la même chose, et c'était déjà écrit sur `COLONNES_PUBLIQUES` : *« la liste
+ * montre ce qu'il faut pour choisir, la fiche montre le reste »*. Élargir la liste ferait
+ * remonter **six** colonnes à chaque carte de `/tournois` — jusqu'à cinquante par visite,
+ * sur une page `force-dynamic` — pour un rendu qui n'en consomme aucune.
+ *
+ * ⚠️ `isPublished` n'est **pas** remonté : la lecture le **filtre** (voir plus bas). Le
+ * remonter laisserait croire au rendu qu'il a une décision à prendre, alors que la ligne
+ * qui arrive ici est publiée **par construction**.
+ */
+const COLONNES_FICHE = {
+  id: true,
+  name: true,
+  game: true,
+  slug: true,
+  startsAt: true,
+  venueName: true,
+  formatText: true,
+  prizes: true,
+  matchDurationMinutes: true,
+  capacity: true,
+  registrationMode: true,
+  registrationUrl: true,
+  registrationState: true,
+  podiumFirst: true,
+  podiumSecond: true,
+  podiumThird: true,
+} as const;
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA FICHE D'UN TOURNOI **PUBLIÉ**, PAR SON ADRESSE LISIBLE — `undefined` SINON
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 **LE FILTRE `is_published` EST LA FRONTIÈRE PUBLIQUE, ET IL NE SE RELÂCHE JAMAIS.**
+ * C'est la règle écrite en tête de cette section (« ne JAMAIS relâcher ce filtre pour
+ * réutiliser ») : sans lui, `/tournois/<slug>` servirait les **brouillons** à qui devine
+ * une adresse. ⚠️ Et l'appelant rend alors **404, jamais 403** — patron de
+ * `/medias/[filename]` (Story 6.4) : un 403 **confirme l'existence** de ce qu'il refuse,
+ * donc il dit au curieux qu'un tournoi se prépare sous ce nom.
+ *
+ * 🔴 **LA CLÉ EST LE `slug`, PAS L'`uuid` (A3).** Il est **unique en base**
+ * (`tournament_slug_unique`) et **gelé à la publication** (garde ⑬ de `gate:tournois`) :
+ * une adresse partagée par MATELY, un flyer ou une description de stream **ne se casse
+ * pas**. Servir la même fiche sous `/tournois/<uuid>` créerait une seconde adresse pour
+ * le même contenu — deux vérités, et du contenu dupliqué pour les moteurs.
+ * ⚠️ Aucune validation de forme n'est faite ici et **ce n'est pas un oubli** : contrairement
+ * à `getTournamentById`, un `slug` malformé est une comparaison de `text` parfaitement
+ * légale pour Postgres. Il ne rend donc aucune ligne — pas une erreur 500.
+ *
+ * 🔴 **`estPasse` EST CALCULÉ ICI, JAMAIS DANS LE RENDU** — patron `getEventById`, repris
+ * tel quel : lire l'horloge pendant le rendu est l'impureté que `react-hooks/purity`
+ * refuse. Et la frontière est **la même que partout ailleurs dans ce dépôt** (`<=`, donc
+ * un tournoi pile à `now()` est passé) : il n'y a **qu'une seule définition de « à venir »
+ * dans le dépôt**, et une fiche qui divergerait de sa propre carte serait indiagnosticable.
+ *
+ * ⚠️ **L'ÉVÉNEMENT EST REMONTÉ AVEC SON `isPublished`, ET C'EST UNE GARDE.** Mesuré le
+ * 2026-08-14 : `getEventsPourRattachement` **ne filtre pas** sur la publication (à dessein
+ * — on prépare la Game'in Reims des semaines à l'avance), et `actions/tournois.ts` ne
+ * **couple pas** les deux publications. Un tournoi publié peut donc être rattaché à un
+ * événement **brouillon**. Sans ce booléen, la fiche publierait le titre d'un brouillon
+ * d'agenda — et **aucune porte visuelle ne le verrait** : une page qui affiche une ligne de
+ * plus n'a pas l'air cassée. Le rendu **DÉCIDE**, il ne suppose pas (même raisonnement,
+ * mot pour mot, que `RELATION_VISUEL` sur les photos dépubliées).
+ */
+export async function getTournamentBySlug(slug: string) {
+  const ligne = await db.query.tournament.findFirst({
+    columns: COLONNES_FICHE,
+    where: (table, { and, eq }) => and(eq(table.isPublished, true), eq(table.slug, slug)),
+    with: {
+      ...RELATION_VISUEL,
+      event: { columns: { id: true, title: true, startsAt: true, isPublished: true } },
+    },
+  });
+  if (!ligne) return undefined;
+  return { ...ligne, estPasse: ligne.startsAt <= new Date() };
+}
+
+/**
+ * Ce qu'il faut pour rendre une fiche, dérivé de la requête.
+ *
+ * ⚠️ `…Data` et non `FicheTournoi` tout court : `components/tournois/FicheTournoi/` porte le
+ * COMPOSANT de ce nom, et deux exports homonymes dans le même import se seraient renommés à
+ * l'usage — c'est-à-dire deux noms pour la même chose, au premier fichier venu.
+ */
+export type FicheTournoiData = NonNullable<Awaited<ReturnType<typeof getTournamentBySlug>>>;
+
+/**
+ * La même fiche, **par identifiant et SANS filtre de publication** — pour l'aperçu du bénévole.
+ *
+ * 🔴 ELLE REND **EXACTEMENT LA MÊME FORME** QUE `getTournamentBySlug`, ET C'EST LE LIVRABLE.
+ * L'aperçu doit montrer *« le tournoi tel qu'il apparaîtra sur le site »* : il rend donc le
+ * composant public RÉEL, qui exige ce type. Une forme approchante obligerait l'aperçu à
+ * fabriquer les champs manquants — c'est-à-dire à **affirmer** un rendu au lieu de le montrer,
+ * dans l'écran dont le métier est précisément de dire la vérité sur le rendu public.
+ *
+ * ⚠️ **PAS DE FILTRE `is_published`, ET C'EST TOUT SON INTÉRÊT** : on prévisualise surtout des
+ * brouillons. La contrepartie est que **cette lecture ne doit JAMAIS être appelée depuis une
+ * surface publique** — l'appelant est un écran d'admin dont la garde est la première
+ * instruction. C'est la même contrepartie, écrite au même endroit, que `getTournamentById`.
+ * ⚠️ L'`id` doit être **validé** par l'appelant : un `uuid` malformé fait lever Postgres
+ * (`invalid input syntax for type uuid`) → une 500 là où la réponse juste est un 404.
+ *
+ * ⚠️ **L'ÉVÉNEMENT RATTACHÉ GARDE SON FILTRE**, lui : le composant masque un événement non
+ * publié, et l'aperçu doit montrer **ce que le public verra** — donc le masquer aussi. Le
+ * bénévole qui ne voit pas apparaître son événement en apprend la raison au bon moment.
+ */
+export async function getTournamentApercuById(id: string) {
+  const ligne = await db.query.tournament.findFirst({
+    // ⚠️ `isPublished` EN PLUS des colonnes de la fiche, et **d'un seul côté** : la lecture
+    // publique n'en a pas besoin (elle FILTRE dessus, donc la réponse est toujours `true` et
+    // le rendu n'a aucune décision à prendre), l'aperçu si — il doit dire au bénévole si ce
+    // qu'il regarde est déjà en ligne. Une colonne de plus rend l'objet assignable au type de
+    // la fiche sans le modifier : le composant ne la voit pas, l'écran d'admin oui.
+    columns: { ...COLONNES_FICHE, isPublished: true },
+    where: (table, { eq }) => eq(table.id, id),
+    with: {
+      ...RELATION_VISUEL,
+      event: { columns: { id: true, title: true, startsAt: true, isPublished: true } },
+    },
+  });
+  if (!ligne) return undefined;
+  return { ...ligne, estPasse: ligne.startsAt <= new Date() };
+}
 
 /**
  * Un tournoi par son identifiant, pour la fiche d'édition. `undefined` s'il n'existe plus.

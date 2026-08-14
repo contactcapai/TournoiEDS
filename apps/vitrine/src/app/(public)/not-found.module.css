@@ -1,0 +1,23 @@
+/* 404 du groupe public (Story 9.3).
+
+   Rien de neuf ici : la page emprunte `editorial.head` pour sa tête et ne pose que la
+   respiration de son texte et de ses deux boutons. Une 404 qui aurait sa propre grammaire
+   visuelle donnerait l'impression d'avoir quitté le site — c'est exactement l'inverse de ce
+   qu'on veut d'elle. Tokens-only. */
+
+.texte {
+  margin-top: var(--block-gap);
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  max-width: 620px;
+}
+
+/* `flex-wrap` : à 320px les deux boutons passent l'un sous l'autre plutôt que de déborder —
+   le contrôle ① de `gate` mesure ce cas sur sept largeurs. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--block-gap);
+  margin-top: var(--block-gap);
+}

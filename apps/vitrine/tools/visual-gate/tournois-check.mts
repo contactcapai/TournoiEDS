@@ -1524,6 +1524,13 @@ for (const cas of ECRITURES_EPROUVEES) {
   const nomAVenir = `${MARQUE}-A-VENIR`;
   const nomPasse = `${MARQUE}-PASSE`;
   const nomBrouillon = `${MARQUE}-BROUILLON`;
+  // 🔴 QUATRIÈME TÉMOIN, AJOUTÉ PAR LA STORY 9.3 — il sert la garde ⑳ et rien d'autre : un
+  // tournoi **publié** rattaché à un événement **BROUILLON**. Cet état est atteignable et rien
+  // ne l'interdit (mesuré : `getEventsPourRattachement` ne filtre pas sur `is_published`, et
+  // `actions/tournois.ts` ne couple pas les deux publications).
+  const slugEvtCache = `zz-gate-evt-cache-${marqueSlug}`;
+  const nomEvtCache = `${MARQUE}-EVT-CACHE`;
+  const titreEvtBrouillon = `${MARQUE}-EVT-BROUILLON`;
 
   /**
    * Marqueur de la SECTION « Déjà joués » dans le HTML servi. C'est l'`id` que la page pose
@@ -1536,6 +1543,7 @@ for (const cas of ECRITURES_EPROUVEES) {
   const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
 
   let idEvenement: string | null = null;
+  let idEvenementBrouillon: string | null = null;
 
   try {
     const [evt] = await sql<{ id: string }[]>`
@@ -1568,17 +1576,33 @@ for (const cas of ECRITURES_EPROUVEES) {
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
               values (${idEvenement}, ${nomBrouillon}, 'CS2', ${slugBrouillon}, now() + interval '2 days', 'interne', false)`;
 
-    // Le cas de vérité connue, LU EN PREMIER (leçon 4.2, parade n°8) : si les trois lignes ne
-    // sont pas là, la mesure qui suit ne dit rien du tout.
+    // 🔴 LE 4ᵉ TÉMOIN (Story 9.3) : un événement BROUILLON, et un tournoi PUBLIÉ qui lui est
+    // rattaché. Le titre de cet événement ne doit apparaître **nulle part** côté public — c'est
+    // ce que garde ⑳. ⚠️ Le tournoi est daté à +3 jours : assez proche pour rester dans le
+    // `LIMIT` de la liste (même raisonnement que ci-dessus), assez loin des deux autres pour
+    // que l'ordre de la page reste lisible à l'œil quand on la regarde pendant la mesure.
+    const [evtCache] = await sql<{ id: string }[]>`
+      insert into event (title, venue_name, starts_at, is_published)
+      values (${titreEvtBrouillon}, 'Salle temoin', now(), false)
+      returning id`;
+    idEvenementBrouillon = evtCache.id;
+    await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
+              values (${idEvenementBrouillon}, ${nomEvtCache}, 'CS2', ${slugEvtCache}, now() + interval '3 days', 'interne', true)`;
+
+    // Le cas de vérité connue, LU EN PREMIER (leçon 4.2, parade n°8) : si les lignes ne sont
+    // pas là, la mesure qui suit ne dit rien du tout.
+    // ⚠️ LE COMPTE ATTENDU EST PASSÉ DE 3 À 4 À LA STORY 9.3, avec l'ajout du témoin
+    // « rattaché à un événement brouillon ». Un compte laissé à 3 aurait fait crier la garde
+    // sur ses propres témoins — l'instrument accusant le produit, une fois de plus.
     const [{ n }] = await sql<{ n: number }[]>`
       select count(*)::int as n from tournament where name like ${MARQUE + "%"}`;
-    if (n !== 3) {
-      ko("⑭a", "témoins", `${n} témoin(s) en base au lieu de 3 — la mesure ne dit rien`);
+    if (n !== 4) {
+      ko("⑭a", "témoins", `${n} témoin(s) en base au lieu de 4 — la mesure ne dit rien`);
     } else {
       ok(
         "⑭a",
         "témoins",
-        "3 témoins en base (1 publié à venir, 1 publié passé, 1 brouillon) — la mesure est décidable",
+        "4 témoins en base (publié à venir, publié passé, brouillon, publié sur événement brouillon) — la mesure est décidable",
       );
 
       // ── ⑭a  LES CINQ AUTRES PAGES NE SERVENT AUCUN TOURNOI ─────────────────────────
@@ -1704,13 +1728,154 @@ for (const cas of ECRITURES_EPROUVEES) {
             `sections interverties ou témoin mal classé — attendu-avant=${iAvant}, section « Déjà joués »=${iSection}, attendu-après=${iApres}`,
           );
         }
+
+        // ── ⑲a  TOUTE CARTE EST UN LIEN VERS SA FICHE — TÉMOIN DE L'ARBITRAGE A1 INVERSÉ ──
+        //
+        // 🔴 LE TÉMOIN S'EST INVERSÉ ENTRE LA 9.2 ET LA 9.3, ET C'EST ÉCRIT DES DEUX CÔTÉS :
+        // `TournamentList.tsx` annonçait *« aucune carte n'est un lien aujourd'hui, TOUTES le
+        // seront dans le commit qui crée la fiche »*. On le mesure sur le HTML SERVI et pas
+        // sur le source : un `<Link>` présent dans le TSX ne prouve pas qu'un `href` sorte.
+        // ⚠️ Le lien du BROUILLON doit rester absent — il est déjà couvert par ⑭b (le slug y
+        // est dans les `interdits`), et c'est voulu : une fuite de brouillon se mesure une
+        // fois, au bon endroit, plutôt qu'à moitié à deux endroits.
+        const hrefAVenir = `href="/tournois/${slugAVenir}"`;
+        const hrefPasse = `href="/tournois/${slugPasse}"`;
+        // En autotest, on exige des `href` qui ne peuvent PAS être servis : la garde doit crier.
+        const hrefsAttendus = AUTOTEST
+          ? [`href="/tournois/zz-gate-inexistant-1"`, `href="/tournois/zz-gate-inexistant-2"`]
+          : [hrefAVenir, hrefPasse];
+        const hrefsManquants = hrefsAttendus.filter((h) => !r.corps.includes(h));
+        if (hrefsManquants.length === 0) {
+          ok(
+            "⑲a",
+            PAGE_TOURNOIS,
+            "les DEUX cartes publiées portent un lien vers leur fiche (A1 inversé, mesuré sur le HTML servi)",
+          );
+        } else {
+          ko(
+            "⑲a",
+            PAGE_TOURNOIS,
+            `lien(s) de fiche ABSENT(S) : ${hrefsManquants.join(", ")} — les cartes ont cessé d'être des liens, ` +
+              "et la résolution de `resoudreFicheTournoi` devient muette avec elles",
+          );
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════════════════════════
+      // ⑲b LA FICHE SERT LE PUBLIÉ ET **404** LE BROUILLON — DANS LES DEUX SENS (Story 9.3)
+      // ══════════════════════════════════════════════════════════════════════════════════
+      //
+      // 🔴 LES DEUX MOITIÉS SONT INDISSOCIABLES, ET LA SECONDE EST CELLE QUI COMPTE. « La
+      // fiche d'un tournoi publié répond 200 » est vrai d'une route qui sert TOUT ; c'est le
+      // 404 sur le brouillon qui prouve le filtre `is_published`. Une route qui aurait perdu
+      // son filtre laisserait la première moitié verte, et **aucune porte visuelle ne le
+      // verrait** : une page qui s'affiche n'a pas l'air cassée.
+      //
+      // 🔴 ET L'ATTENDU EST **404, JAMAIS 403** — ce n'est pas un détail de code de statut.
+      // Un 403 CONFIRME l'existence de ce qu'il refuse : il dirait au curieux qu'un tournoi se
+      // prépare sous ce nom. C'est la doctrine de `/medias/[filename]` (Story 6.4), tenue ici
+      // sur la première route dynamique publique du site. La garde refuse donc explicitement
+      // 403, au lieu de se contenter de « pas 200 ».
+      {
+        const fichePubliee = await demander(`/tournois/${slugAVenir}`);
+        const attenduNom = AUTOTEST ? `${MARQUE}-INEXISTANT` : nomAVenir;
+        if (fichePubliee.statut === 200 && fichePubliee.corps.includes(attenduNom)) {
+          ok("⑲b", `/tournois/${slugAVenir}`, "200 et la fiche porte le nom du tournoi publié");
+        } else {
+          ko(
+            "⑲b",
+            `/tournois/${slugAVenir}`,
+            `attendu 200 + le nom « ${attenduNom} » — obtenu ${fichePubliee.statut}, nom ${
+              fichePubliee.corps.includes(attenduNom) ? "présent" : "ABSENT"
+            }`,
+          );
+        }
+
+        // En autotest on interroge la fiche du tournoi PUBLIÉ en prétendant attendre un 404 :
+        // elle répond 200, donc la garde doit crier. On ne bascule PAS un booléen — on lui
+        // présente un cas réellement inverse (leçon ⑭c, corrigée en revue à la 9.2).
+        const slugInterroge = AUTOTEST ? slugAVenir : slugBrouillon;
+        const ficheBrouillon = await demander(`/tournois/${slugInterroge}`);
+        if (ficheBrouillon.statut === 404) {
+          ok("⑲b", `/tournois/${slugInterroge}`, "404 — le brouillon n'a pas d'adresse publique");
+        } else if (ficheBrouillon.statut === 403) {
+          ko(
+            "⑲b",
+            `/tournois/${slugInterroge}`,
+            "403 au lieu de 404 — un refus qui CONFIRME l'existence du brouillon (doctrine 6.4)",
+          );
+        } else {
+          ko(
+            "⑲b",
+            `/tournois/${slugInterroge}`,
+            `attendu 404, obtenu ${ficheBrouillon.statut} — le filtre is_published de la fiche a sauté`,
+          );
+        }
+
+        // ⚠️ Un slug qui n'a JAMAIS existé doit répondre comme un brouillon : sans ce cas, on
+        // ne saurait pas si le 404 ci-dessus vient du filtre ou d'un `notFound()` systématique.
+        const slugInconnu = AUTOTEST ? slugAVenir : `zz-gate-slug-qui-nexiste-pas-${marqueSlug}`;
+        const ficheInconnue = await demander(`/tournois/${slugInconnu}`);
+        if (ficheInconnue.statut === 404) {
+          ok("⑲b", `/tournois/${slugInconnu}`, "404 sur un slug inexistant");
+        } else {
+          ko(
+            "⑲b",
+            `/tournois/${slugInconnu}`,
+            `attendu 404, obtenu ${ficheInconnue.statut} — un slug inconnu ne doit rien servir`,
+          );
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════════════════════════
+      // ⑳ UN ÉVÉNEMENT **BROUILLON** N'EST NOMMÉ NULLE PART CÔTÉ PUBLIC (Story 9.3)
+      // ══════════════════════════════════════════════════════════════════════════════════
+      //
+      // 🔴 CE QU'AUCUNE AUTRE GARDE NE COUVRE, ET QUE RIEN N'INTERDIT EN BASE. Mesuré le
+      // 2026-08-14 : `getEventsPourRattachement` **ne filtre pas** sur `is_published` (à
+      // dessein — on prépare la Game'in Reims des semaines à l'avance) et `actions/tournois.ts`
+      // ne **couple pas** la publication d'un tournoi à celle de son événement. Un tournoi
+      // publié rattaché à un événement brouillon est donc parfaitement atteignable.
+      // ⇒ Si la fiche nommait son événement sans vérifier, elle **publierait le titre d'un
+      // brouillon d'agenda**. Et **aucune porte visuelle ne le verrait** : une page qui affiche
+      // une ligne de plus n'a pas l'air cassée. C'est une fuite de la même famille que celle
+      // du filtre `is_published`, mais elle passe par une RELATION — d'où sa propre garde.
+      {
+        const fiche = await demander(`/tournois/${slugEvtCache}`);
+        // En autotest, on cherche une chaîne que la page contient forcément : la garde doit
+        // conclure « fuite » et crier.
+        const interdit = AUTOTEST ? "<html" : titreEvtBrouillon;
+        if (fiche.statut !== 200) {
+          ko(
+            "⑳",
+            `/tournois/${slugEvtCache}`,
+            `attendu 200 (le TOURNOI est publié, seul son événement ne l'est pas) — obtenu ${fiche.statut}`,
+          );
+        } else if (fiche.corps.includes(interdit)) {
+          ko(
+            "⑳",
+            `/tournois/${slugEvtCache}`,
+            `FUITE : le titre de l'événement BROUILLON « ${interdit} » est servi sur une page publique`,
+          );
+        } else {
+          ok(
+            "⑳",
+            `/tournois/${slugEvtCache}`,
+            "le tournoi est servi, et le titre de son événement brouillon reste absent",
+          );
+        }
       }
     }
   } finally {
     // 🔴 DANS UN `finally` : le ménage doit avoir lieu même si la porte lève. C'est la seule
     // écriture réellement commitée de cette porte (voir l'en-tête, précaution ②).
+    // ⚠️ L'ORDRE COMPTE : `tournament.event_id` est en `ON DELETE RESTRICT`, donc Postgres
+    // REFUSERAIT de supprimer les événements tant que leurs tournois existent. Les tournois
+    // partent d'abord — et c'est le bon signal, pas un contournement (le raisonnement complet
+    // vit sur la colonne dans `schema.ts`).
     await sql`delete from tournament where name like ${MARQUE + "%"}`;
     if (idEvenement) await sql`delete from event where id = ${idEvenement}`;
+    if (idEvenementBrouillon) await sql`delete from event where id = ${idEvenementBrouillon}`;
   }
 }
 

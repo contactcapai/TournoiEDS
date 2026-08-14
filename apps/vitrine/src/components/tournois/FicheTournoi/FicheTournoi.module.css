@@ -1,0 +1,268 @@
+/* Fiche d'un tournoi (Story 9.3, A23).
+
+   AUCUNE MAQUETTE ne décrit cette page (.decision-log.md l.96 : « Maquettes pages dédiées :
+   AUCUNE »). Ce fichier ne transcrit donc rien : il COMPOSE, à partir du vocabulaire éditorial
+   partagé (`editorial.module.css`) et des valeurs déjà arbitrées au gate visuel sur `/tournois`
+   et `/agenda`. Les valeurs sont des décisions de la story, validées au gate visuel.
+
+   🔴 CE FICHIER EST LE PROLONGEMENT DE `(public)/tournois/page.module.css`, PAS UN NOUVEAU
+   DIALECTE : mêmes fonds (--navy pour la section relevée, --navy-deep par défaut), même filet or,
+   même respiration. Un visiteur qui clique une carte pour arriver ici ne doit pas changer de site.
+   ⚠️ Aucune extraction vers `editorial.module.css` : la règle du projet est qu'on extrait au
+   DEUXIÈME consommateur réel, et rien ici n'a encore de jumeau exact.
+
+   Tokens-only. EXCEPTIONS documentées sur place : `#262359` (extrémité sombre du dégradé, valeur
+   propre à la maquette, reprise d'/agenda et de /tournois — pas un token) et les px structurels
+   (gap, letter-spacing), fidèles à la grammaire déjà validée. */
+
+/* ═════════ ① L'essentiel — liste de description ═════════
+   `<dl>` en grille à deux colonnes : le terme garde une largeur STABLE d'une ligne à l'autre,
+   sinon « Quand », « Jeu » et « Dans le cadre de » désaligneraient leurs valeurs et l'œil
+   perdrait la colonne. `max-content` borné par `minmax` évite qu'un terme long (« Dans le cadre
+   de ») ne mange la place de la valeur en mobile. */
+.essentiel,
+.format {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 10px 24px; /* px structurels */
+  margin-top: var(--block-gap);
+  max-width: 640px;
+}
+
+/* `display: contents` : la <div> de couplage disparaît de la grille, et ce sont bien le <dt> et
+   le <dd> qui deviennent les deux cellules de la ligne. Sans elle il faudrait retirer le
+   groupement — or c'est LUI qui rend le couple terme/valeur explicite pour l'assistance.
+   ⚠️ `display: contents` retire la boîte, pas la sémantique : le <dt>/<dd> reste annoncé. */
+.ligne {
+  display: contents;
+}
+
+/* --grey sur --navy-deep : 5,68:1 mesuré, largement au-dessus de 4,5. Ce texte n'est JAMAIS
+   sous `motion.reveal` (voir la page : la tête n'est pas animée), donc la valeur de plein
+   régime est bien la valeur effective — c'est la précaution qui a coûté deux corrections en
+   3.2 et 4.1. */
+/* 🔴 VOCABULAIRE REPRIS DE `TournamentList.module.css`, PAS RÉINVENTÉ : les étiquettes de la
+   carte (`.inscriptionsLabel`, `.podiumLabel`) sont en `--fs-eyebrow` + `--ls-eyebrow` +
+   capitales. La fiche est la page vers laquelle la carte mène : deux grammaires d'étiquette
+   différentes se liraient comme deux sites.
+   ⚠️ `--cream` et non `--grey` : c'est la valeur de la carte, et elle passe le contraste sur les
+   deux fonds de cette page — `--grey` échouerait sous `motion.reveal` (3,25:1 mesuré). */
+.terme {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+  padding-top: 4px; /* aligne l'œil de la capitale sur la ligne de base de la valeur */
+}
+
+.valeur {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  /* Un nom de jeu ou de salle peut être un mot long sans espace : sans cette règle il
+     déborderait de sa boîte en 320px — le contrôle ④ de `gate` (Story 6.10) le verrait, et
+     `overflow-x: clip` le rognerait en silence si la porte n'existait pas. */
+  overflow-wrap: anywhere;
+}
+
+/* ═════════ ② Section « S'inscrire » / « Le podium » ═════════
+   Fond relevé --navy : procédé de la maquette pour ses sections d'agenda (DESIGN.md l.171),
+   repris tel quel par /agenda et /tournois. Seul le padding du HAUT est ajouté —
+   `editorial.section` ne le pose pas, et une bande colorée a besoin de sa respiration
+   intérieure, sinon le titre colle au bord coloré. */
+.action {
+  padding-top: var(--section-y);
+  background: var(--navy);
+}
+
+/* Le bloc d'inscription reprend la signature de l'état vide d'/agenda et de /tournois : filet or
+   à gauche, même dégradé. C'est le bloc qui porte l'action de la page, il doit être HABITÉ. */
+.inscription,
+.vide {
+  padding: 34px;
+  border-radius: var(--radius-card);
+  border-left: 5px solid var(--gold);
+  background: linear-gradient(135deg, var(--surface), #262359);
+}
+
+/* --cream sur ce dégradé : même fond effectif que l'état vide de /tournois, donc même contraste
+   déjà mesuré là-bas. `--grey` y échouerait — c'est la leçon 4.2 (« un fond EFFECTIF n'est pas
+   un token » : le calcul sur le token annonçait 5,13, le voile réel rendait 4,70). */
+.vide {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  max-width: 620px;
+}
+
+.etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px; /* px structurel */
+}
+
+/* Même grammaire d'étiquette que `.terme` et que la carte. */
+.etatLabel {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* --fs-lead (20px) et non la valeur de la carte (14px) : sur la carte l'état est UN fait parmi
+   d'autres, ici il est LE fait que le visiteur vient chercher. Le changement d'échelle est la
+   différence entre une liste et une fiche, pas une divergence de vocabulaire. */
+.etatValeur {
+  font-size: var(--fs-lead);
+  color: var(--gold);
+}
+
+.etatAide {
+  margin-top: 14px; /* px structurel */
+  font-size: 15.5px; /* px structurel, valeur reprise d'/agenda */
+  color: var(--cream);
+  max-width: 560px;
+}
+
+/* Le bouton « S'inscrire », quand il existe, respire du même écart que les CTA des états vides
+   (`.emptyCta` de /tournois porte --block-gap).
+   ⚠️ Classe passée en `className` au `Button` plutôt qu'un sélecteur descendant `:global(a)` :
+   un sélecteur global sur une balise attraperait tout `<a>` futur du bloc, y compris un lien de
+   prose. On habille l'élément qu'on a voulu, jamais une famille d'éléments. */
+.ctaInscription {
+  margin-top: var(--block-gap);
+}
+
+/* ═════════ Le podium ═════════
+   Une <ol> sans marqueur natif : le rang est écrit en toutes lettres dans le markup (« 1ᵉʳ »),
+   parce que la liste peut ne compter qu'une ou deux places et qu'un « 1. » automatique dirait la
+   même chose sans la dire. `list-style: none` retirerait la sémantique de liste dans
+   Safari/VoiceOver — c'est `role="list"` (posé dans le TSX) qui la restaure. */
+.podium {
+  display: grid;
+  gap: 14px; /* px structurel */
+  list-style: none;
+  max-width: 520px;
+}
+
+.podiumPlace {
+  display: flex;
+  align-items: baseline;
+  gap: 16px; /* px structurel */
+  padding: 16px 22px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+/* --font-display + --ls-display : c'est la construction de `.podiumRang` sur la carte. Seule la
+   TAILLE change (20px contre 15px) — même raison que `.etatValeur` : sur la fiche, le podium est
+   le contenu principal de sa section, pas une mention dans une carte. */
+.podiumRang {
+  font-family: var(--font-display);
+  font-size: var(--fs-lead);
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+  /* Largeur stable : sans elle, « 1ᵉʳ » (3 signes) et « 2ᵉ » (2 signes) désaligneraient les
+     noms d'une ligne à l'autre, et un podium mal aligné se lit comme une erreur de saisie. */
+  min-width: 2.6em;
+}
+
+.podiumNom {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+/* ═════════ ④ Le visuel ═════════
+   Borné : `PhotoFrame` remplit son conteneur (`fill`), donc c'est ICI que la largeur se décide.
+   640px est la largeur des `sizes` déclarés côté TSX — les deux doivent dire la même chose,
+   sinon Next sert une image de mauvaise taille sans que rien ne le signale. */
+.media {
+  max-width: 640px;
+}
+
+/* ═════════ ⑤ Renvoi de fin ═════════
+   Mêmes valeurs que le renvoi d'/agenda et de /tournois : les trois pages se répondent, elles
+   doivent se ressembler jusque dans leur bas de page. */
+.retour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--block-gap);
+}
+
+.retour p {
+  font-size: 15.5px; /* px structurel, valeur reprise d'/agenda */
+  color: var(--light);
+  max-width: 560px;
+}
+
+.retourActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--block-gap);
+}
+
+/* Lien « doux » : le second geste ne doit pas peser autant que le bouton principal. Souligné
+   plutôt que cadré — et il garde l'anneau de focus global, qu'on ne supprime jamais. */
+.lienDoux {
+  font-size: 15.5px; /* px structurel */
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  /* Cible tactile ≥ 44px de haut (non négociable, project-context §5) : le padding vertical
+     est ce qui l'assure, la taille de police seule ne suffit pas. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  transition: color 0.2s ease;
+}
+
+.lienDoux:hover {
+  color: var(--gold);
+}
+
+/* Non négociable (project-context §5) : `prefers-reduced-motion` neutralise transition,
+   transform et box-shadow. Une transition de COULEUR seule est bénigne, mais la règle du projet
+   ne fait pas de tri — et une exception « bénigne » est exactement ce qui se recopie ensuite. */
+@media (prefers-reduced-motion: reduce) {
+  .lienDoux {
+    transition: none;
+  }
+}
+
+/* ═════════ Responsive (< 880px) ═════════
+   880px en LITTÉRAL : une custom property CSS n'est pas lisible dans une @media
+   (`--bp-mobile` est documentaire). Largeurs éprouvées par la porte outillée :
+   320 / 412 / 768 / 880 / 1024 / 1440 / 1920. */
+@media (max-width: 880px) {
+  /* 🔴 LA GRILLE À DEUX COLONNES PASSE EN UNE SEULE, et ce n'est pas cosmétique : à 320px,
+     « Dans le cadre de » laisse moins de 150px à sa valeur, et un titre d'événement y
+     déborderait de sa boîte. Le contrôle ④ de `gate` mesure exactement ce cas depuis la
+     Story 6.10 — il avait trouvé un titre rogné de 7px sur `/`, dormant depuis la 3.2. */
+  .essentiel,
+  .format {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px 0; /* px structurels */
+  }
+
+  /* En une colonne, chaque couple a besoin d'être séparé du suivant : sans cette marge, le
+     <dd> d'une ligne colle au <dt> de la suivante et la liste devient illisible. */
+  .valeur {
+    margin-bottom: 14px; /* px structurel */
+  }
+
+  .terme {
+    padding-top: 0;
+  }
+
+  .inscription,
+  .vide {
+    padding: 30px 20px;
+  }
+
+  .podiumPlace {
+    padding: 14px 18px;
+  }
+}
