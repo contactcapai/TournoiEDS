@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { PhotoFrame } from "@repo/ui";
 
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
 import type { PublicTournament } from "@/server/db/queries/tournaments";
 import styles from "./TournamentList.module.css";
@@ -24,22 +26,32 @@ import styles from "./TournamentList.module.css";
  * Ici, l'appelant n'écrit pas de `<ul>` : il ne peut pas se tromper.
  *
  * ══════════════════════════════════════════════════════════════════════════════════════
- * 🔴 AUCUNE CARTE N'EST UN LIEN, ET C'EST LE LIVRABLE — ARBITRAGE **A1**
+ * 🔴 TOUTE CARTE EST UN LIEN VERS SA FICHE — **ARBITRAGE A1, INVERSÉ PAR LA STORY 9.3**
  * ══════════════════════════════════════════════════════════════════════════════════════
  *
- * La fiche `/tournois/<slug>` **n'existe pas** avant la Story 9.3. Trois façons de « faire
- * comme si », toutes refusées, et la règle est ÉCRITE dans `CLAUDE.md` §5 (*« Ni page stub, ni
- * `href="#"` »*) :
- *   · `href="#"` — il **remonte la page en haut** et **annonce faussement une destination** au
- *     lecteur d'écran. Défaut réel payé en Story 1.5, soldé en 5.5 (dette **R2**), et
- *     `gate:links` existe précisément pour l'interdire ;
- *   · une **page stub** — une porte sans pièce, c'est-à-dire pire ;
- *   · un `onClick` — il faudrait un `'use client'` pour ne mener nulle part.
- * ⇒ La carte n'a **aucun** `<a>`, **aucun** `cursor: pointer`, **aucune** mention lecteur
- * d'écran. Le survol soulève la carte de 4px — c'est un accusé de lecture, pas une promesse de
- * destination (même raisonnement, écrit, que la card de `WorkshopCatalog`).
- * 🔴 **TÉMOIN QUI S'INVERSE EN 9.3** : *aucune* carte n'est un lien aujourd'hui, *toutes* le
- * seront dans le commit qui crée la fiche.
+ * Ce bloc disait l'inverse, et il annonçait lui-même son renversement : *« TÉMOIN QUI
+ * S'INVERSE EN 9.3 : aucune carte n'est un lien aujourd'hui, toutes le seront dans le commit
+ * qui crée la fiche »*. La 9.2 refusait `href="#"`, la page *stub* et l'`onClick` parce que
+ * `/tournois/<slug>` **n'existait pas** (`CLAUDE.md` §5) ; **elle existe**, et le motif du
+ * refus est mort avec elle. Il est réécrit plutôt que laissé : une borne annoncée qui n'existe
+ * plus est un mensonge exactement aussi coûteux qu'une borne tue (leçon **R33 ②**).
+ *
+ * 🔴 **UN SEUL `<a>` PAR CARTE, ET IL EST SUR LE TITRE.** C'est ce qui décide de ce
+ * qu'entend un lecteur d'écran : un `<a>` qui envelopperait la carte entière lui ferait
+ * annoncer d'une traite la date, le nom, le jeu, le lieu et l'état des inscriptions comme
+ * **un seul intitulé de lien**. Le titre seul dit exactement où l'on va.
+ * ⇒ La surface cliquable est étendue à toute la carte par un `::after` en `inset: 0` (voir
+ * le CSS jumelé), et le halo de focus se pose sur la **carte** via `:focus-within` — le
+ * clavier voit donc la même cible que la souris.
+ * ⚠️ **COÛT ASSUMÉ ET CONNU** : l'overlay empêche la **sélection du texte** de la carte. On
+ * l'accepte parce que le contenu à copier (le nom, la date) est repris **entier** sur la fiche
+ * où l'on arrive, et parce que l'alternative — attacher le clic en JavaScript — exigerait un
+ * `'use client'` sur un composant qui n'a aucune autre raison d'en être un.
+ *
+ * ⚠️ **`slug` VIENT DE `COLONNES_PUBLIQUES`, QUI L'A GAGNÉ DANS LE MÊME COMMIT.** La 9.2 l'en
+ * excluait explicitement (*« une colonne remontée que personne ne rend ferait croire au type
+ * dérivé qu'une destination existe »*) : le type `PublicTournament` le porte désormais, et
+ * c'est ce qui rend ce lien typé de bout en bout plutôt que construit à la main.
  */
 
 export function TournamentList({ children }: { children: ReactNode }) {
@@ -75,23 +87,17 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   /**
    * 🔴 LE PODIUM N'APPARAÎT QUE SUR UN TOURNOI PASSÉ, ET C'EST LA RÈGLE QU'AUCUN `CHECK` NE
    * POUVAIT TENIR (AC4 de la Story 9.1) : une contrainte doit être IMMUABLE, or « passé » se
-   * compare à `now()`. Postgres refuse — et une ligne valide aujourd'hui qui deviendrait
-   * invalide demain ferait **échouer toute restauration de sauvegarde**, le jour précis où
-   * l'on en a le plus besoin. La règle se tient donc **ici**, à l'affichage, et une garde de
-   * porte la mesure.
+   * compare à `now()`. Une ligne valide aujourd'hui qui deviendrait invalide demain ferait
+   * **échouer toute restauration de sauvegarde**, le jour précis où l'on en a le plus besoin.
    *
-   * ⚠️ Les trois rangs sont filtrés un par un : les `CHECK` `tournament_podium_sans_trou_*`
-   * interdisent déjà les trous, mais ils ne voient pas un `podium_second` fait uniquement de
-   * caractères sans largeur — que `cleanText` ramène à `null`. Filtrer après nettoyage est ce
-   * qui garantit qu'on ne rend jamais « 2ᵉ — » suivi de rien.
+   * ⚠️ **UNE SEULE DÉFINITION DU PODIUM VISIBLE, PARTAGÉE AVEC LA FICHE** (`lib/podium.ts`,
+   * Story 9.3). Ce composant en portait une copie qui filtrait les trois rangs
+   * **indépendamment** : un `podium_first` fait de caractères sans largeur — que les `CHECK`
+   * laissent passer, puisqu'ils ne gardent que la PRÉSENCE — produisait un podium commençant à
+   * la 2ᵉ place. Un podium qui se lirait différemment d'une page à l'autre serait un défaut,
+   * pas une nuance.
    */
-  const podium: { rang: string; nom: string }[] = passe
-    ? [
-        { rang: "1ᵉʳ", nom: cleanText(tournoi.podiumFirst) },
-        { rang: "2ᵉ", nom: cleanText(tournoi.podiumSecond) },
-        { rang: "3ᵉ", nom: cleanText(tournoi.podiumThird) },
-      ].filter((place): place is { rang: string; nom: string } => place.nom !== null)
-    : [];
+  const podium = passe ? podiumVisible(tournoi) : [];
 
   /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE** — la décision se prend ici, pas à
@@ -116,8 +122,15 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
         </p>
 
         {/* `<h3>` : sous le `<h2>` de la section, lui-même sous le `<h1>` de la page. Aucun
-            niveau sauté — c'est ce que Lighthouse audite (`heading-order`). */}
-        <h3 className={styles.nom}>{tournoi.name}</h3>
+            niveau sauté — c'est ce que Lighthouse audite (`heading-order`).
+            🔴 Le lien est DANS le titre et non autour : un `<a>` enveloppant un `<h3>` reste
+            valide, mais c'est le titre qui doit rester le titre. `next/link` et non `<a>` :
+            c'est une route interne, donc navigation client (patron `SiteFooter`, cas 2). */}
+        <h3 className={styles.nom}>
+          <Link className={styles.lien} href={`/tournois/${tournoi.slug}`}>
+            {tournoi.name}
+          </Link>
+        </h3>
 
         {/* Le jeu est `notNull` en base et non vide (`tournament_game_valide`) : pas de
             branche conditionnelle, elle serait morte. */}

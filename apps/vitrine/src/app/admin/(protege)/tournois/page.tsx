@@ -99,6 +99,13 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}`}>
           Modifier
         </Link>
+        {/* « Aperçu » arrive avec la Story 9.3, en même temps que la fiche publique qu'il
+            prévisualise et que la phrase « Voir le rendu avant de publier » de `_sections.ts`.
+            Ordre et libellé repris de la liste d'agenda : deux listes du même back-office qui
+            nommeraient différemment le même geste feraient hésiter au mauvais moment. */}
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/apercu`}>
+          Aperçu
+        </Link>
         <TournoiActions
           id={tournoi.id}
           nom={tournoi.name}

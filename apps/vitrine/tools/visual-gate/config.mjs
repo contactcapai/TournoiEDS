@@ -49,3 +49,62 @@ export const WIDTHS = (process.env.GATE_WIDTHS ?? "320,412,768,880,1024,1440,192
 // n'écoute dessus. Les sondes d'entrée de ce dossier disent franchement « rien ne
 // répond sur … » — c'est le témoin qui compte, pas le port.
 export const BASE = process.env.GATE_BASE ?? "http://127.0.0.1:4310";
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 LA FICHE DE TOURNOI EST UNE ROUTE **DYNAMIQUE** — SON URL SE DÉRIVE, ELLE NE S'ÉCRIT PAS
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// [AJOUTÉ le 2026-08-14, Story 9.3.] `/tournois/<slug>` est la 7ᵉ page publique et la première
+// route dynamique publique du site. `PAGES` ci-dessus est une liste d'URL **concrètes** : la
+// fiche n'y entre pas telle quelle, et les deux façons de contourner le problème sont
+// symétriquement fausses —
+//   · **écrire un slug en dur** : le jour où ce tournoi est supprimé ou dépublié, toutes les
+//     portes qui balaient `PAGES` deviennent ROUGES sur un produit parfaitement sain. C'est
+//     littéralement la dette **R46** (une base vide transformée en réquisitoire contre le
+//     produit) et la leçon n°1 de la rétro Epic 6 : *~17 instruments faux, TOUS accusant le
+//     produit*. Un slug en dur, c'est une donnée de production recopiée dans un instrument ;
+//   · **ne rien faire** : la fiche serait la SEULE page publique qu'aucune porte ne regarde,
+//     en silence. C'est le piège nommé d'avance par la note d'architecture (§13).
+//
+// ⇒ On la RÉSOUT depuis le site lui-même : lire `/tournois`, prendre le premier lien de fiche
+// qu'elle rend. Trois propriétés, et chacune compte :
+//   ① **elle suit la donnée** — le slug mesuré est toujours celui d'un tournoi réellement
+//      publié, quel qu'il soit ;
+//   ② **elle EST un témoin de l'arbitrage A1 inversé** — elle ne peut trouver un `href` que
+//      parce que les cartes sont devenues des liens (Story 9.3). Si quelqu'un les débranchait,
+//      la résolution deviendrait muette et le dirait ;
+//   ③ **à vide, elle DÉCLARE au lieu de crier** — aucun tournoi publié n'est un état
+//      parfaitement légitime (base neuve, tout dépublié), et une porte doit savoir distinguer
+//      « rien à mesurer » de « défaut mesuré ». C'est la doctrine de la sonde de données de
+//      `gate:carousel`, écrite en soldant R46, appliquée ici à une URL au lieu d'un compte.
+//
+// ⚠️ CONSÉQUENCE SUR LE TÉMOIN, ET ELLE EST DÉCLARÉE AVANT LA MESURE : le compte de `gate` vaut
+// **196** (7 pages × 7 largeurs × 4 contrôles) quand un tournoi publié existe — le cas de
+// staging —, et **168 + une exemption déclarée** sinon. Un compte qui bougerait autrement est
+// une erreur de configuration, pas un succès.
+//
+// @returns {Promise<{url: string|null, raison: string}>}
+export async function resoudreFicheTournoi(base) {
+  const reponse = await fetch(base + "/tournois").catch(() => null);
+  if (!reponse?.ok) {
+    return {
+      url: null,
+      raison: `/tournois n'a pas répondu correctement (${reponse?.status ?? "aucune réponse"})`,
+    };
+  }
+  const html = await reponse.text();
+  // Le `href` que rend `next/link` pour une route interne est littéral dans le HTML servi.
+  // ⚠️ La classe de caractères REFUSE le guillemet ET le slash : sans le slash, `/tournois/a/b`
+  // (qui n'existe pas, mais qu'une future sous-route créerait) serait capturé en entier et on
+  // mesurerait une URL qui n'est pas une fiche.
+  const trouve = html.match(/href="(\/tournois\/[^"/]+)"/);
+  if (!trouve) {
+    return {
+      url: null,
+      raison:
+        "aucun lien de fiche dans /tournois — soit aucun tournoi n'est publié (état légitime), " +
+        "soit les cartes ont cessé d'être des liens (arbitrage A1, Story 9.3)",
+    };
+  }
+  return { url: trouve[1], raison: "résolue depuis le premier lien de /tournois" };
+}

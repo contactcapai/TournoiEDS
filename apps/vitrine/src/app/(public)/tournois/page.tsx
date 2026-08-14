@@ -238,15 +238,29 @@ export default async function Tournois() {
         <section className={`${editorial.section} ${motion.reveal}`}>
           <Wrap>
             <div className={styles.outro}>
-              {/* 🔴 CE QUI EST AFFIRMÉ ICI EST TENU PAR LE SCHÉMA, PAS PAR L'HABITUDE :
-                  `tournament.event_id` est `notNull` (arbitrage A4 de la 9.1), donc « chaque
-                  tournoi est rattaché à un rendez-vous » est vrai par construction et le
-                  restera. Une première version énumérait « une soirée en bar, un salon, un
-                  temps fort » — vrai des tournois d'aujourd'hui, faux au premier tournoi EN
-                  LIGNE, que la note d'architecture prévoit explicitement (dette R48). */}
+              {/* ══════════════════════════════════════════════════════════════════════════
+                  🔴 CETTE PHRASE ÉTAIT FAUSSE, ET SON COMMENTAIRE ÉTAIT PIRE — CORRIGÉ EN 9.3
+                  ══════════════════════════════════════════════════════════════════════════
+                  Elle disait : *« Chaque tournoi est rattaché à un rendez-vous de l'agenda :
+                  c'est là qu'on retrouve le programme complet. »*, et le commentaire qui la
+                  gardait affirmait : *« CE QUI EST AFFIRMÉ ICI EST TENU PAR LE SCHÉMA, PAS PAR
+                  L'HABITUDE : `tournament.event_id` est `notNull` (arbitrage A4 de la 9.1),
+                  donc c'est vrai par construction et le restera. »*
+                  🔬 **La Story 9.5 a rendu `event_id` NULLABLE le lendemain** (migration
+                  `0016`) : un tournoi peut désormais ÊTRE le rendez-vous. La phrase est donc
+                  devenue fausse en 24 heures, et elle était SERVIE (mesurée sur le HTML de
+                  staging au cadrage de la 9.3).
+                  🔴 **LE COMMENTAIRE ÉTAIT PLUS DANGEREUX QUE LA PHRASE** : en affirmant une
+                  garantie de SCHÉMA, il dissuadait de la relire. C'est la mécanique exacte de
+                  la dette **R48** — une copie fixe, juste sur son domaine d'origine, rendue
+                  fausse par ÉLARGISSEMENT du domaine — et la 3ᵉ occurrence de
+                  `pieges/patron-eprouve-une-seule-nature.md` sur cette seule page.
+                  ⇒ Ce qui suit n'affirme plus rien sur le rattachement, qui est **facultatif**.
+                  Ce qui reste est garanti par le schéma : `starts_at` est `notNull`, donc tout
+                  tournoi a une date, donc l'agenda a toujours quelque chose à en dire. */}
               <p>
-                Chaque tournoi est rattaché à un rendez-vous de l&rsquo;agenda&nbsp;: c&rsquo;est
-                là qu&rsquo;on retrouve le programme complet.
+                L&rsquo;agenda reprend tous les rendez-vous de l&rsquo;asso, tournois
+                compris&nbsp;: c&rsquo;est là qu&rsquo;on retrouve le programme complet.
               </p>
               <Button variant="outline" href="/agenda">
                 Voir l&rsquo;agenda

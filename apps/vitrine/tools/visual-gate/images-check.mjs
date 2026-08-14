@@ -34,7 +34,7 @@
 //
 // Usage :  node tools/visual-gate/images-check.mjs [baseUrl]
 //          IMAGES_CASSER=1 …  → auto-validation de l'instrument
-import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
+import { PAGES, BASE as BASE_DEFAUT, resoudreFicheTournoi } from "./config.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 
@@ -82,7 +82,18 @@ let controles = 0;
 
 console.log(`\n  Base : ${BASE}\n`);
 
-for (const page of PAGES) {
+// 🔴 [AJOUTÉ le 2026-08-14, Story 9.3.] LA 7ᵉ PAGE EST DYNAMIQUE, ET SON URL SE DÉRIVE.
+// `/tournois/<slug>` est résolue depuis le site lui-même (premier lien de fiche rendu par
+// `/tournois`), jamais écrite en dur — un slug figé ferait rougir cette porte sur un produit
+// sain le jour d'une dépublication (dette R46). Aucun tournoi publié est un état LÉGITIME.
+// ⚠️ Elle compte ici : la fiche rend le VISUEL du tournoi en grand, et c'est la seule porte qui
+// exige 200 + octets d'image sur toute URL référencée par une page.
+const fiche = await resoudreFicheTournoi(BASE);
+if (fiche.url) console.log(`   ✅ Fiche de tournoi couverte : ${fiche.url}.`);
+else console.log(`   ⚠️ Fiche de tournoi NON couverte — ${fiche.raison}. Ce n'est pas un succès.`);
+const pagesBalayees = fiche.url ? [...PAGES, fiche.url] : PAGES;
+
+for (const page of pagesBalayees) {
   const reponse = await fetch(BASE + page).catch(() => null);
   if (!reponse?.ok) {
     console.error(`\n❌ ${page} ne répond pas correctement (${reponse?.status ?? "aucune réponse"}).`);
@@ -128,7 +139,7 @@ if (echecs.length === 0) {
     process.exit(1);
   }
   console.log(
-    `✅ IMAGES CONFORMES — ${controles} URL(s) servie(s) sur ${PAGES.length} pages répondent 200 avec des octets d'image.\n`,
+    `✅ IMAGES CONFORMES — ${controles} URL(s) servie(s) sur ${pagesBalayees.length} pages répondent 200 avec des octets d'image.\n`,
   );
   process.exit(0);
 }

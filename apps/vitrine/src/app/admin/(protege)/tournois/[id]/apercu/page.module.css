@@ -1,0 +1,23 @@
+/* Plateau de prévisualisation de la fiche de tournoi (Story 9.3). Tokens uniquement.
+
+   🔴 IL NE POSE **AUCUN FOND**, ET C'EST L'INVERSE DU PLATEAU DE L'APERÇU D'AGENDA — pour la
+   même raison qui commande les deux. Là-bas on prévisualise une CARTE, qui n'existe que posée
+   sur le `--navy` de sa section : le plateau devait donc le reproduire, sinon le contraste
+   montré n'aurait existé nulle part (leçon 4.2 — un fond effectif n'est pas un token). Ici on
+   prévisualise une PAGE ENTIÈRE, qui pose elle-même ses deux fonds (`--navy-deep` par défaut,
+   `--navy` sur la section « S'inscrire »). Lui en imposer un troisième montrerait un rendu qui
+   n'existe pas — c'est-à-dire mentir dans l'écran dont le métier est de dire la vérité.
+
+   ⚠️ AUCUN `padding` HORIZONTAL non plus : la fiche porte son propre `Wrap`, qui est ce qui
+   décide de sa gouttière sur le site. En ajouter une ici décalerait tout le contenu vers
+   l'intérieur et montrerait des largeurs de ligne qui n'existent pas — le même défaut, d'un
+   cran plus discret. */
+
+.plateau {
+  margin-top: 18px; /* px structurel, valeur du plateau d'agenda */
+  border: 1px dashed rgba(218, 178, 101, 0.35); /* --gold à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  /* La fiche commence par `editorial.head`, qui porte déjà son propre padding vertical :
+     le plateau n'en rajoute pas, il ne fait que marquer la frontière. */
+  overflow: hidden;
+}

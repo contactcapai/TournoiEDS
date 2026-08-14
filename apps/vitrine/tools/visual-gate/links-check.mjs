@@ -20,7 +20,7 @@
 // Usage :  node tools/visual-gate/links-check.mjs [baseUrl]
 //          LINKS_DEBRANCHER_PIEGE=1 …  → auto-validation de l'instrument
 import { launchChrome } from "./cdp.mjs";
-import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
+import { PAGES, BASE as BASE_DEFAUT, resoudreFicheTournoi } from "./config.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 const AUTOTEST = process.env.LINKS_DEBRANCHER_PIEGE === "1";
@@ -123,7 +123,19 @@ if (!sonde?.ok) {
 const chrome = await launchChrome(9358);
 
 try {
-  for (const page of PAGES) {
+  // 🔴 [AJOUTÉ le 2026-08-14, Story 9.3.] LA 7ᵉ PAGE EST DYNAMIQUE, ET SON URL SE DÉRIVE.
+  // `/tournois/<slug>` n'est pas une URL concrète : elle est résolue depuis le site lui-même
+  // (premier lien de fiche rendu par `/tournois`). Écrire un slug en dur ferait rougir cette
+  // porte sur un produit sain le jour d'une dépublication — c'est la dette R46. Aucun tournoi
+  // publié est un état LÉGITIME : la porte le DÉCLARE alors, et ne crie pas.
+  // ⚠️ L'enjeu est double ici : cette porte clique VRAIMENT les liens, donc elle est aussi celle
+  // qui prouve que les nouveaux liens de carte (arbitrage A1 inversé) mènent à un 200.
+  const fiche = await resoudreFicheTournoi(BASE);
+  if (fiche.url) console.log(`   ✅ Fiche de tournoi couverte : ${fiche.url}.`);
+  else console.log(`   ⚠️ Fiche de tournoi NON couverte — ${fiche.raison}. Ce n'est pas un succès.`);
+  const pagesBalayees = fiche.url ? [...PAGES, fiche.url] : PAGES;
+
+  for (const page of pagesBalayees) {
     for (const largeur of LARGEURS) {
       await chrome.setViewport(largeur);
       await chrome.goto(BASE + page);
@@ -385,6 +397,84 @@ try {
             ko("④", `${ou} (menu ouvert)`, "🔴 le panneau n'a PLUS AUCUN élément focalisable — le piège de focus de la Story 1.4 est désactivé en silence");
           } else {
             ok("④", `${ou} (menu ouvert)`, `piège de focus alimenté (${dansPanneau.focalisables} élément(s) focalisable(s))`);
+          }
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════════════════════════
+      // ⑦ UNE CARTE-LIEN N'EST PAS RECOUVERTE PAR SA PROPRE IMAGE (Story 9.3)
+      // ══════════════════════════════════════════════════════════════════════════════════
+      //
+      // 🔴 GARDE NÉE D'UN DÉFAUT RÉEL, MESURÉ SUR STAGING LE 2026-08-14, ET QU'AUCUNE PORTE
+      // NE POUVAIT VOIR. Sur `/tournois`, la carte entière est rendue cliquable par un
+      // `::after { position: absolute; inset: 0 }` posé sur le lien du titre. Le cadre
+      // `PhotoFrame` est LUI AUSSI positionné et vient APRÈS dans le DOM : deux descendants à
+      // `z-index: auto` se peignent dans l'ordre de l'arbre, donc la photo passait AU-DESSUS
+      // de l'overlay. `elementFromPoint` au centre de la photo rendait l'`<img>`, et cliquer
+      // la photo ne menait NULLE PART — sur la moitié de la surface d'une carte dont le
+      // livrable est d'être cliquable.
+      //
+      // 🔴 POURQUOI LES AUTRES GARDES DE CE FICHIER SONT AVEUGLES À ÇA : elles cliquent par
+      // `el.click()` sur l'ancre elle-même, ce qui appelle le gestionnaire SANS passer par le
+      // test de recouvrement du navigateur. C'est la bonne méthode pour mesurer un
+      // défilement ; c'est exactement la mauvaise pour mesurer ce qui reçoit le clic.
+      // ⚠️ Le survol, lui, continuait de fonctionner (il remonte la chaîne des ancêtres,
+      // indépendante de l'empilement) : **la carte réagissait sans être cliquable**.
+      //
+      // ⚠️ GÉNÉRIQUE, ET PAS SPÉCIFIQUE AUX TOURNOIS : la garde vise tout `<li>` qui contient
+      // à la fois une image et un lien interne — le patron « carte cliquable illustrée »
+      // reviendra, et c'est le jour où il reviendra que cette garde sert.
+      {
+        const recouvrements = await chrome.eval(`(() => {
+          const cartes = [...document.querySelectorAll("li")].filter(
+            (li) => li.querySelector("img") && li.querySelector("a[href^='/']"),
+          );
+          const resultats = [];
+          for (const li of cartes) {
+            const img = li.querySelector("img");
+            img.scrollIntoView({ block: "center" });
+            const b = img.getBoundingClientRect();
+            if (b.width < 8 || b.height < 8) continue;
+            const el = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+            if (!el) continue;
+            resultats.push({
+              href: li.querySelector("a[href^='/']").getAttribute("href"),
+              atteintLeLien: Boolean(el.closest("a")),
+              recu: el.tagName.toLowerCase(),
+            });
+          }
+          return resultats;
+        })()`);
+
+        if (recouvrements.length === 0) {
+          // 🔴 « RIEN À MESURER » N'EST PAS « TOUT VA BIEN » — doctrine de la sonde de données
+          // de `gate:carousel` (dette R46). Aucune carte illustrée sur cette page : on le DIT.
+          exemptions.add(
+            `⑦ recouvrement : aucune carte illustrée sur ${ou} — la garde n'a rien pu mesurer, ` +
+              "et ce n'est pas un succès. Le cas se fabrique en donnant un visuel à un tournoi " +
+              "publié depuis /admin/tournois ; aucun n'en porte aujourd'hui.",
+          );
+        } else {
+          // En autotest on exige l'inverse de la vérité : la garde doit crier.
+          const attendu = !AUTOTEST;
+          for (const r of recouvrements) {
+            if (r.atteintLeLien === attendu) {
+              ok("⑦", `${ou} → ${r.href}`, "le centre de l'image atteint bien le lien de la carte");
+            } else {
+              // ⚠️ LE MESSAGE DIT CE QUI A ÉTÉ MESURÉ, PAS CE QU'ON SUPPOSE — et il doit
+              // rester vrai DANS LES DEUX MODES. Une première version écrivait « reçoit <a>
+              // et NON le lien », ce qui était absurde en autotest (où l'attendu est inversé
+              // et où l'élément atteint EST le lien). Un instrument dont le message ment sur
+              // sa propre mesure est la forme la plus discrète de `pieges/instrument-non-valide.md`.
+              ko(
+                "⑦",
+                `${ou} → ${r.href}`,
+                AUTOTEST
+                  ? `attendu inversé (autotest) : le centre de l'image atteint le lien via <${r.recu}> — la garde voit donc bien ce qu'on lui présente`
+                  : `le centre de l'image reçoit <${r.recu}> SANS atteindre le lien — la carte n'est ` +
+                    "pas cliquable sur sa photo (overlay recouvert : `z-index` manquant sur `::after`)",
+              );
+            }
           }
         }
       }

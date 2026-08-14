@@ -67,23 +67,24 @@ function tournoisDuRendezVous(rendezVous: RendezVous) {
  * c'est la **relation** qui le dit, et c'est l'argument le plus concret de l'arbitrage A2
  * (aucune valeur d'enum ajoutée, la nature se dérive).
  *
- * 🔴 **LA FICHE N'EXISTE PAS ENCORE — STORY 9.3.** Tant qu'elle n'existe pas, le cas « un
- * seul » renvoie lui aussi vers `/tournois`, où le tournoi **est** visible : c'est une
- * destination **vraie**, seulement moins précise. On ne fabrique **jamais** `/tournois/<slug>`
- * en pariant sur son arrivée — ce serait un lien mort, c'est-à-dire le défaut R2, et
- * `CLAUDE.md` §5 l'interdit au même titre qu'un `href="#"`.
- * ⇒ **Quand la 9.3 arrivera, c'est LA LIGNE CI-DESSOUS et elle seule qui change.** C'est pour
- * cela que le `slug` est déjà remonté par `COLONNES_RENDEZ_VOUS` : la donnée est là, il ne
- * manque que la page. Routé — dette de la Story 9.5, story d'absorption **9.3**.
+ * ✅ **DETTE R52 SOLDÉE PAR LA STORY 9.3 — LA FICHE EXISTE.** Ce bloc disait : *« La fiche
+ * n'existe pas encore. Tant qu'elle n'existe pas, le cas "un seul" renvoie lui aussi vers
+ * `/tournois` […] On ne fabrique JAMAIS `/tournois/<slug>` en pariant sur son arrivée — ce
+ * serait un lien mort, c'est-à-dire le défaut R2. »* Le pari n'a pas eu lieu, la page est
+ * arrivée : le cas « un seul » désigne désormais **ce** tournoi, comme l'arbitrage le
+ * demandait depuis le début. Le `slug` était **déjà** remonté par `COLONNES_RENDEZ_VOUS` — la
+ * donnée était là, il ne manquait que la page, et c'est ce qui a borné la reprise à une ligne.
  * ⚠️ **LE LIBELLÉ N'EST PAS TOUCHÉ ICI.** « J'y serai » reste « J'y serai » : c'est une
  * formulation **contractuelle** (UX-DR18), et la corriger serait un arbitrage **éditorial**
  * qui appartient au gate de Brice, pas au dev. Ce qui était faux était la **destination**,
  * pas le mot — d'où une fonction qui ne rend qu'un `href`.
+ * ⚠️ **AUCUN FILTRE `is_published` N'EST REFAIT ICI, ET C'EST VOULU** : les deux lectures qui
+ * alimentent `tournois` (`getUpcomingTournamentsSansEvenement` et `getTournoisParEvenement`)
+ * le posent **déjà** en base. Le redoubler ici donnerait une seconde définition de « un
+ * tournoi visible », et les deux divergeraient au premier ajustement.
  */
 export function destinationDuCta(rendezVous: RendezVous): string | null {
   const tournois = tournoisDuRendezVous(rendezVous);
   if (tournois.length === 0) return null;
-  // 🔴 LA LIGNE QUE LA STORY 9.3 CHANGE, ET ELLE SEULE :
-  //    return tournois.length === 1 ? `/tournois/${tournois[0].slug}` : "/tournois";
-  return "/tournois";
+  return tournois.length === 1 ? `/tournois/${tournois[0].slug}` : "/tournois";
 }
