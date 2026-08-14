@@ -702,7 +702,18 @@ docker compose logs -f postgres         # base (tournoi ET vitrine — moteur mu
 > Motif : la vitrine sert desormais sa propre page des tournois, et cette app n'est plus
 > maintenue (arbitrage A18). Les deux URLs ci-dessous continuent donc de fonctionner **telles
 > quelles dans OBS**, sans reconfiguration, parce que le routeur Traefik `tournoi-tft-overlay`
-> (`PathPrefix(/overlay)`) les garde sur cette application.
+> garde sur cette application **`/overlay`, `/assets` ET `/favicon.svg`**.
+>
+> 🔴 **LES TROIS CHEMINS SONT NECESSAIRES — ET LA PREMIERE VERSION N'EN AVAIT QU'UN.**
+> Avec `PathPrefix(/overlay)` seul, le document HTML repondait bien **200**, mais ses ressources
+> (`/assets/index-*.js`, `/assets/index-*.css`, `/favicon.svg` — chemins **absolus** produits par
+> le build Vite) partaient en **307** vers la vitrine : le `<script type="module">` recevait une
+> page HTML au lieu de JavaScript, donc **l'overlay restait BLANC a l'ecran pendant le direct**,
+> avec un document en 200 et aucun signal. Trouve en revue, mesure, corrige.
+> ⚠️ **La lecon vaut au-dela de ce routeur** : prouver une redirection sur les **documents** ne
+> dit RIEN de leurs **sous-ressources**. Toute modification de ces regles se re-verifie en
+> relevant les `src=`/`href=` du HTML servi et en mesurant **chacun** d'eux — puis en chargeant
+> reellement la page pour voir si elle rend.
 > ⚠️ **`https://tournoi.esportdessacres.fr/qualifications` REDIRIGE**, elle (elle n'est pas
 > sous `/overlay`) : c'est assume — les overlays sont des **mirroirs** de ces pages, et ce sont
 > eux qui servent au stream.

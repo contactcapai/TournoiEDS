@@ -141,11 +141,20 @@ services:
     # maintenant et l'apex TOUT SEUL apres la 7.5 — meme mecanisme qu'AUTH_URL (Story 7.4),
     # « elle ne peut donc pas diverger de la regle Traefik ».
     #
-    # 🔴 TEMPORAIRE ET SURTOUT PAS PERMANENT (`permanent=false`). ⚠️ LE CODE EMIS EST **307**,
-    # PAS 302 — mesure du 2026-08-14, `curl -sI` sur les trois chemins. C'est le comportement de
-    # `redirectRegex` de Traefik, et la valeur `false` n'est donc pas « 302 » comme on l'ecrit
-    # souvent : ce qui compte ici n'est pas le chiffre mais le fait qu'il ne soit pas MIS EN
-    # CACHE. Un 301 est mis en cache PAR LE NAVIGATEUR,
+    # 🔴 TEMPORAIRE ET SURTOUT PAS PERMANENT (`permanent=false`).
+    #
+    # ⚠️ LE CODE EMIS DEPEND DE LA METHODE, ET CE COMMENTAIRE S EST TROMPE DEUX FOIS :
+    #   · **GET  -> 302 Found**            <- ce que voit un VRAI VISITEUR qui clique un lien
+    #   · HEAD / POST / OPTIONS / PUT -> 307 Temporary Redirect
+    # Mesure du 2026-08-14, deterministe sur 5 iterations, meme `Location` dans les deux cas.
+    # 🔴 D ABORD ecrit « 302 » (juste, mais non mesure), puis « CORRIGE » en « 307 » sur la foi
+    # d un `curl -sI` — c est-a-dire d un HEAD, la seule methode qu un visiteur n emploie jamais.
+    # La « correction » a donc rendu ce commentaire MOINS vrai pour le trafic reel. Trouve en
+    # revue (Edge Case Hunter). ⇒ **Mesurer une redirection avec `-I` mesure autre chose que ce
+    # que vit un visiteur** — utiliser `curl -s -D - -o /dev/null` (un vrai GET).
+    #
+    # Ce qui compte ici n est de toute facon pas le chiffre mais le fait qu il ne soit pas MIS EN
+    # CACHE — 302 et 307 sont tous deux temporaires. Un 301 est mis en cache PAR LE NAVIGATEUR,
     # souvent sans expiration : pose aujourd'hui vers staging, il SURVIVRAIT a la bascule 7.5
     # dans le navigateur de chaque personne ayant suivi le lien entre-temps, et aucun changement
     # cote serveur ne pourrait les rattraper. Le passage en 301 est un geste SEPARE, a faire
@@ -193,7 +202,16 @@ services:
       # ⚠️ Les polices viennent de `fonts.googleapis.com` (hote tiers) et le websocket de
       # `api-tournoi.esportdessacres.fr` (autre hote) : ni l'un ni l'autre ne traverse ce
       # routeur. Releve, pas suppose.
-      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && (PathPrefix(`/overlay`) || PathPrefix(`/assets`) || Path(`/favicon.svg`))"
+      #
+      # 🔴 `PathRegexp` AVEC `(?i)`, ET NON `PathPrefix` — L'EXEMPTION DOIT ETRE INSENSIBLE A LA
+      # CASSE. `PathPrefix` matche LITTERALEMENT : avec lui, `/OVERLAY` partait en redirection.
+      # ⚠️ ON A CRU QUE C ETAIT SANS CONSEQUENCE (« cette URL n a jamais du marcher »), ET LA
+      # MESURE A DIT L INVERSE : le routeur du SPA tournoi est INSENSIBLE A LA CASSE — mesure du
+      # 2026-08-14, `/overlay/FINALE` chargee dans un vrai navigateur rend « Finale EDS ». Donc
+      # `/OVERLAY` FONCTIONNAIT avant cette story, et `PathPrefix` en faisait une REGRESSION.
+      # ⇒ Trouve en revue (Edge Case Hunter), et l hypothese qui le minimisait a ete REFUTEE par
+      # la mesure au lieu d etre crue.
+      - "traefik.http.routers.tournoi-tft-overlay.rule=Host(`tournoi.esportdessacres.fr`) && PathRegexp(`(?i)^/(overlay|assets|favicon\\.svg)`)"
       - "traefik.http.routers.tournoi-tft-overlay.entrypoints=websecure"
       - "traefik.http.routers.tournoi-tft-overlay.tls=true"
       - "traefik.http.routers.tournoi-tft-overlay.tls.certresolver=letsencrypt"
