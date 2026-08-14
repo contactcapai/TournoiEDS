@@ -1508,26 +1508,39 @@ for (const cas of ECRITURES_EPROUVEES) {
       returning id`;
     idEvenement = evt.id;
 
-    // 🔴 LES DATES SONT DÉCALÉES DE 30 JOURS DE PART ET D'AUTRE, ET C'EST CE QUI REND LE
-    // VOLET ③ DÉCIDABLE. À `now()`, un témoin tombe dans « passés » (la frontière est `lte`
-    // d'un côté, `gt` de l'autre) — mais à une seconde près, ce qui rendrait la mesure
-    // dépendante du temps de trajet HTTP. Trente jours ne laissent aucune ambiguïté.
+    // 🔴 LES DATES SONT DÉCALÉES D'UN JOUR DE PART ET D'AUTRE — ET CE CHOIX A ÉTÉ CORRIGÉ EN
+    // REVUE. Deux contraintes s'opposent, et ±1 jour est le seul point qui satisfasse les deux :
+    //   · ASSEZ LOIN de `now()` pour que le volet ③ soit décidable. À `now()` exactement, un
+    //     témoin tombe dans « passés » à la seconde près (frontière `lte` / `gt`), donc la
+    //     mesure dépendrait du temps de trajet HTTP. Un jour ne laisse aucune ambiguïté ;
+    //   · ASSEZ PRÈS pour être en TÊTE de sa liste. La première version datait les témoins à
+    //     ±30 jours — or les lectures publiques sont bornées à 50 lignes et triées par date.
+    //     Le jour où 50 tournois réels précèdent le témoin (la Game'in Reims en porte DIX à
+    //     elle seule, et les passés s'accumulent indéfiniment par A3), il sortirait du `LIMIT`
+    //     et la porte crierait « témoin publié ABSENT » sur un produit parfaitement sain.
+    //     🔴 C'est le mode de défaillance chiffré de l'Epic 6 — ~17 instruments faux, TOUS
+    //     accusant le produit — fabriqué ici par l'instrument lui-même. À ±1 jour, le témoin à
+    //     venir est le PLUS PROCHE (donc premier des ascendants) et le témoin passé le PLUS
+    //     RÉCENT (donc premier des descendants) : aucun des deux ne peut être tronqué.
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
-              values (${idEvenement}, ${nomAVenir}, 'CS2', ${slugAVenir}, now() + interval '30 days', 'interne', true)`;
+              values (${idEvenement}, ${nomAVenir}, 'CS2', ${slugAVenir}, now() + interval '1 day', 'interne', true)`;
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
-              values (${idEvenement}, ${nomPasse}, 'CS2', ${slugPasse}, now() - interval '30 days', 'interne', true)`;
+              values (${idEvenement}, ${nomPasse}, 'CS2', ${slugPasse}, now() - interval '1 day', 'interne', true)`;
+    // Le brouillon est daté DANS LE FUTUR PROCHE lui aussi : s'il fuyait, il fuirait donc dans
+    // la section la plus regardée, en tête de liste. Un témoin de fuite doit être placé là où
+    // la fuite serait la plus visible, pas là où elle serait la plus discrète.
     await sql`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, is_published)
-              values (${idEvenement}, ${nomBrouillon}, 'CS2', ${slugBrouillon}, now() + interval '31 days', 'interne', false)`;
+              values (${idEvenement}, ${nomBrouillon}, 'CS2', ${slugBrouillon}, now() + interval '2 days', 'interne', false)`;
 
     // Le cas de vérité connue, LU EN PREMIER (leçon 4.2, parade n°8) : si les trois lignes ne
     // sont pas là, la mesure qui suit ne dit rien du tout.
     const [{ n }] = await sql<{ n: number }[]>`
       select count(*)::int as n from tournament where name like ${MARQUE + "%"}`;
     if (n !== 3) {
-      ko("⑭ pages publiques", "témoins", `${n} témoin(s) en base au lieu de 3 — la mesure ne dit rien`);
+      ko("⑭a", "témoins", `${n} témoin(s) en base au lieu de 3 — la mesure ne dit rien`);
     } else {
       ok(
-        "⑭ pages publiques",
+        "⑭a",
         "témoins",
         "3 témoins en base (1 publié à venir, 1 publié passé, 1 brouillon) — la mesure est décidable",
       );
@@ -1540,7 +1553,24 @@ for (const cas of ECRITURES_EPROUVEES) {
       // sur les 2 autres, en silence, pendant deux epics). `/tournois` en est retiré ICI, par
       // son nom, et traité juste en dessous : c'est le seul endroit du fichier où une page est
       // nommée, et l'exclure de la boucle est le contraire d'une liste en dur.
-      for (const page of PAGES.filter((p) => p !== PAGE_TOURNOIS)) {
+      const autresPages = PAGES.filter((p) => p !== PAGE_TOURNOIS);
+
+      // 🔴 LE COMPTE EST DIT, ET C'EST UNE CORRECTION DE REVUE. `PAGES` vient de
+      // `GATE_PAGES` : quelqu'un qui lancerait `GATE_PAGES=/tournois` pour itérer plus vite
+      // obtiendrait une boucle VIDE, donc ni `ok()` ni `ko()` — ce volet disparaîtrait de la
+      // sortie **en silence**. C'est le rétrécissement invisible que ce fichier reproche par
+      // ailleurs aux listes en dur (leçon 5.5) : une couverture qui s'évapore sans le dire.
+      if (autresPages.length === 0) {
+        ko(
+          "⑭a",
+          "périmètre",
+          "AUCUNE autre page à balayer — `GATE_PAGES` est restreint, ce volet n'a rien mesuré",
+        );
+      } else {
+        ok("⑭a", "périmètre", `${autresPages.length} autre(s) page(s) publique(s) balayée(s)`);
+      }
+
+      for (const page of autresPages) {
         const r = await demander(page);
         // En autotest, on cherche une chaîne que la page contient forcément : la garde doit
         // alors crier.
@@ -1549,16 +1579,16 @@ for (const cas of ECRITURES_EPROUVEES) {
           : [nomAVenir, nomPasse, nomBrouillon, slugAVenir, slugPasse, slugBrouillon];
         const vus = cherches.filter((c) => r.corps.includes(c));
         if (vus.length === 0) {
-          ok("⑭ pages publiques", page, "aucun tournoi servi (la seule surface publique est /tournois)");
+          ok("⑭a", page, "aucun tournoi servi (la seule surface publique est /tournois)");
         } else {
-          ko("⑭ pages publiques", page, `sert un tournoi : ${vus.join(", ")}`);
+          ko("⑭a", page, `sert un tournoi : ${vus.join(", ")}`);
         }
       }
 
       // ── ⑭b  SUR `/tournois` : LE PUBLIÉ APPARAÎT, LE BROUILLON NON ──────────────────
       const r = await demander(PAGE_TOURNOIS);
       if (r.statut !== 200) {
-        ko("⑭ pages publiques", PAGE_TOURNOIS, `attendu 200, obtenu ${r.statut} — rien à mesurer`);
+        ko("⑭b", PAGE_TOURNOIS, `attendu 200, obtenu ${r.statut} — rien à mesurer`);
       } else {
         // En autotest, on cherche des noms qui ne peuvent PAS être servis : la garde doit
         // conclure « absent » alors qu'elle attend « présent », donc crier.
@@ -1567,14 +1597,10 @@ for (const cas of ECRITURES_EPROUVEES) {
           : [nomAVenir, nomPasse];
         const manquants = attendusPresents.filter((c) => !r.corps.includes(c));
         if (manquants.length === 0) {
-          ok(
-            "⑭ pages publiques",
-            PAGE_TOURNOIS,
-            "les DEUX témoins publiés sont servis (à venir + passé)",
-          );
+          ok("⑭b", PAGE_TOURNOIS, "les DEUX témoins publiés sont servis (à venir + passé)");
         } else {
           ko(
-            "⑭ pages publiques",
+            "⑭b",
             PAGE_TOURNOIS,
             `témoin(s) publié(s) ABSENT(S) : ${manquants.join(", ")} — le filtre is_published ou la dérivation les écarte`,
           );
@@ -1587,10 +1613,10 @@ for (const cas of ECRITURES_EPROUVEES) {
         const interdits = AUTOTEST ? ["<html"] : [nomBrouillon, slugBrouillon];
         const fuites = interdits.filter((c) => r.corps.includes(c));
         if (fuites.length === 0) {
-          ok("⑭ pages publiques", PAGE_TOURNOIS, "le témoin BROUILLON reste absent du HTML servi");
+          ok("⑭b", PAGE_TOURNOIS, "le témoin BROUILLON reste absent du HTML servi");
         } else {
           ko(
-            "⑭ pages publiques",
+            "⑭b",
             PAGE_TOURNOIS,
             `FUITE DE BROUILLON : ${fuites.join(", ")} — le filtre is_published a sauté`,
           );
@@ -1604,33 +1630,43 @@ for (const cas of ECRITURES_EPROUVEES) {
         // gardes ci-dessus — la page afficherait simplement les tournois à venir sous le
         // titre « Déjà joués ». C'est un défaut que seul l'œil verrait, et seulement s'il
         // connaissait les dates.
-        const iSection = r.corps.indexOf(MARQUEUR_SECTION_PASSES);
-        const iAVenir = r.corps.indexOf(nomAVenir);
-        const iPasse = r.corps.indexOf(nomPasse);
+        // 🔴 L'AUTOTEST **ÉCHANGE LES DEUX TÉMOINS**, IL N'INVERSE PAS LE BOOLÉEN — CORRIGÉ
+        // EN REVUE, ET LA DIFFÉRENCE EST TOUTE LA VALEUR DE CETTE AUTO-VALIDATION.
+        // La première version calculait `correct` sur les données réelles puis lisait
+        // `AUTOTEST ? !correct : correct`. Elle prouvait que la branche rouge est ATTEIGNABLE,
+        // et rien de plus : si la comparaison elle-même était fausse (un `<` écrit `>`),
+        // `correct` vaudrait `false` sur des données pourtant justes, l'autotest lirait
+        // `!false = true` et rendrait un ✅ — l'instrument aurait validé son propre défaut.
+        // ⇒ Ici on présente aux MÊMES opérateurs une paire réellement inversée : on demande à
+        // la garde d'admettre que le témoin PASSÉ est avant la section « Déjà joués » et le
+        // témoin À VENIR après. C'est faux dans le HTML servi, donc elle DOIT crier — et elle
+        // ne peut le faire que si `<` et `>` sont écrits dans le bon sens.
+        const [nomAvantSection, nomApresSection] = AUTOTEST
+          ? [nomPasse, nomAVenir]
+          : [nomAVenir, nomPasse];
 
-        if (iSection < 0 || iAVenir < 0 || iPasse < 0) {
+        const iSection = r.corps.indexOf(MARQUEUR_SECTION_PASSES);
+        const iAvant = r.corps.indexOf(nomAvantSection);
+        const iApres = r.corps.indexOf(nomApresSection);
+
+        if (iSection < 0 || iAvant < 0 || iApres < 0) {
           ko(
-            "⑭ pages publiques",
+            "⑭c",
             `${PAGE_TOURNOIS} (dérivation)`,
-            `marqueur de section=${iSection}, à venir=${iAVenir}, passé=${iPasse} — indécidable`,
+            `marqueur de section=${iSection}, attendu-avant=${iAvant}, attendu-après=${iApres} — indécidable`,
+          );
+        } else if (iAvant < iSection && iApres > iSection) {
+          ok(
+            "⑭c",
+            `${PAGE_TOURNOIS} (dérivation)`,
+            `le témoin +1j est AVANT « Déjà joués » (${iAvant} < ${iSection}) et le témoin −1j APRÈS (${iApres} > ${iSection})`,
           );
         } else {
-          // En autotest, on inverse l'attendu : la garde doit voir que l'ordre observé ne
-          // correspond plus à ce qu'on lui demande.
-          const correct = iAVenir < iSection && iPasse > iSection;
-          if (AUTOTEST ? !correct : correct) {
-            ok(
-              "⑭ pages publiques",
-              `${PAGE_TOURNOIS} (dérivation)`,
-              `le témoin +30j est AVANT « Déjà joués » (${iAVenir} < ${iSection}) et le témoin −30j APRÈS (${iPasse} > ${iSection})`,
-            );
-          } else {
-            ko(
-              "⑭ pages publiques",
-              `${PAGE_TOURNOIS} (dérivation)`,
-              `sections interverties ou témoin mal classé — à venir=${iAVenir}, section « Déjà joués »=${iSection}, passé=${iPasse}`,
-            );
-          }
+          ko(
+            "⑭c",
+            `${PAGE_TOURNOIS} (dérivation)`,
+            `sections interverties ou témoin mal classé — attendu-avant=${iAvant}, section « Déjà joués »=${iSection}, attendu-après=${iApres}`,
+          );
         }
       }
     }

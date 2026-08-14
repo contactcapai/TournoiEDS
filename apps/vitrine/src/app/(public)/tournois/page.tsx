@@ -7,7 +7,7 @@ import {
   TournamentCard,
   TournamentList,
 } from "@/components/tournois/TournamentList/TournamentList";
-import { getPastTournaments, getUpcomingTournaments } from "@/server/db/queries/tournaments";
+import { getPublicTournaments } from "@/server/db/queries/tournaments";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./page.module.css";
@@ -89,20 +89,19 @@ const A_VENIR_MAX = 50;
 const PASSES_MAX = 50;
 
 export default async function Tournois() {
-  // Deux lectures, une par section. Pas de tri en mémoire à partir d'une seule requête : chaque
-  // liste a sa borne et son ordre propres, et les faire sortir de Postgres est ce qui garantit
-  // que la borne s'applique EN BASE et non après coup.
+  // Deux lectures, une par section, derrière UN SEUL point d'entrée. Pas de tri en mémoire à
+  // partir d'une seule requête : chaque liste a sa borne et son ordre propres, et les faire
+  // sortir de Postgres est ce qui garantit que la borne s'applique EN BASE et non après coup.
   //
-  // 🔴 ET C'EST LA SEULE LECTURE D'HORLOGE DE LA PAGE — elle vit dans la couche données, jamais
-  // dans le rendu (`react-hooks/purity`). Les cartes reçoivent une VARIANTE (`a-venir` /
-  // `passe`) dérivée de la requête qui les a produites : les deux frontières ne peuvent donc
-  // pas diverger.
-  const [aVenir, passes] = await Promise.all([
-    getUpcomingTournaments(A_VENIR_MAX),
-    getPastTournaments(PASSES_MAX),
-  ]);
-
-  const total = aVenir.length + passes.length;
+  // 🔴 UN SEUL APPEL, ET C'EST UNE CORRECTION DE REVUE : les deux requêtes doivent partager
+  // le MÊME instant, sans quoi un tournoi dont `starts_at` tombe entre les deux lectures
+  // d'horloge sort dans les DEUX listes. Le raisonnement complet vit sur
+  // `getPublicTournaments` — et l'horloge y reste lue dans la couche données, jamais ici
+  // (lire l'heure pendant un rendu est l'impureté que `react-hooks/purity` refuse).
+  //
+  // ⚠️ Les cartes reçoivent une VARIANTE (`a-venir` / `passe`) dérivée de la requête qui les a
+  // produites : les deux frontières ne peuvent donc pas diverger.
+  const { aVenir, passes } = await getPublicTournaments(A_VENIR_MAX, PASSES_MAX);
 
   return (
     <>
@@ -212,12 +211,23 @@ export default async function Tournois() {
         </section>
       ) : null}
 
-      {/* ④ Renvoi final. Il n'est rendu QUE lorsque la page porte au moins un tournoi : quand
-          elle est entièrement vide, l'état vide ci-dessus porte déjà le même renvoi vers
-          l'agenda, et le répéter à deux blocs d'intervalle ferait une page qui bégaie.
+      {/* ④ Renvoi final.
+          🔴 CONDITIONNÉ SUR `aVenir.length`, ET **PAS** SUR LE TOTAL — DÉFAUT RÉEL TROUVÉ EN
+          REVUE (Edge Case Hunter), ET LA PREMIÈRE VERSION AVAIT LE BON RAISONNEMENT SUR LA
+          MAUVAISE GRANDEUR. Elle testait `aVenir.length + passes.length > 0`, en traitant
+          « la page porte au moins un tournoi » comme équivalent à « l'état vide n'est pas
+          affiché ». Les deux peuvent être vrais EN MÊME TEMPS : dans l'état « aucun à venir
+          mais des passés » — que l'AC3 exige explicitement de traiter — la page rendait DEUX
+          fois le même bouton « Voir l'agenda », à deux blocs d'intervalle. C'est très
+          exactement la page qui bégaie que ce commentaire disait vouloir éviter.
+          ⚠️ ET AUCUN FILET NE POUVAIT LE VOIR : au merge, staging ne porte AUCUN tournoi
+          passé, donc ni le gate visuel ni aucune porte ne rencontrait cette branche. La revue
+          était le seul regard extérieur possible sur elle.
+          ⇒ Le renvoi n'existe que lorsque la section « À venir » a rendu une LISTE ; dès
+          qu'elle rend son état vide, c'est lui qui porte le renvoi, et il n'y en a qu'un.
           ⚠️ La page reste ENTIÈRE dans tous les cas (AC3) — tête, chapô, chrome, et au moins un
           bloc qui parle. */}
-      {total > 0 ? (
+      {aVenir.length > 0 ? (
         <section className={`${editorial.section} ${motion.reveal}`}>
           <Wrap>
             <div className={styles.outro}>

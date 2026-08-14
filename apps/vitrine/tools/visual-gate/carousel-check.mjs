@@ -95,6 +95,31 @@ const FORCER_DONNEES = process.env.CAROUSEL_FORCER_DONNEES === "1";
 const MARQUEUR_PAGE_SAINE = 'id="a-venir-title"';
 const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
 
+/**
+ * 🔴 L'ANGLE MORT QUE LA SONDE DE DONNÉES **CRÉE**, ET QU'IL FAUT DONC DÉCLARER — trouvé en
+ * revue de la Story 9.2, angle données.
+ *
+ * En corrigeant un faux POSITIF (R46 : une base vide accusait le produit), on ouvre la porte à
+ * un faux NÉGATIF : la sonde conclut « rien à mesurer » sur le seul témoignage du RENDU. Si
+ * `getPastEvents` régressait un jour — un `lte` devenu `lt`, un filtre `is_published` cassé,
+ * une jointure qui vide la liste —, la section disparaîtrait du HTML **exactement comme** à
+ * zéro donnée, et cette porte se tairait sur une vraie régression.
+ * ⚠️ `CAROUSEL_FORCER_DONNEES=1` ne comble PAS ce trou : il prouve que la porte sait crier sur
+ * « 0 vignette », pas que la dérivation SQL est fiable quand elle prétend n'avoir rien à
+ * montrer.
+ * ⚠️ Et rien d'autre ne le couvre : `gate:agenda` n'écrit **aucun témoin** (mesuré — aucun
+ * `insert into event` dans son source), contrairement à la garde ⑭ de `gate:tournois` qui
+ * prouve la dérivation des TOURNOIS en committant deux témoins datés de part et d'autre de
+ * `now()`.
+ * ⇒ Dette **R48**, avec sa story d'absorption nommée. Le correctif est connu : doter
+ * `gate:agenda` d'un volet-témoin analogue à la ⑭.
+ */
+const EXEMPTION_DERIVATION =
+  "    ⚠️  EXEMPTION DÉCLARÉE — CETTE SONDE NE COUVRE PAS LA DÉRIVATION SQL ELLE-MÊME.\n" +
+  "       « Aucune section passés » est lu sur le RENDU, pas en base : une régression de\n" +
+  "       `getPastEvents` produirait le même silence qu'une base sans événement passé.\n" +
+  "       Dette R48 → `gate:agenda` doit gagner un volet-témoin comme la ⑭ de gate:tournois.\n";
+
 const sonde = await fetch(URL).catch(() => null);
 if (!sonde?.ok) {
   console.error(`\n❌ Rien ne répond correctement sur ${URL} (${sonde?.status ?? "aucune réponse"}).`);
@@ -129,6 +154,7 @@ if (!sonde?.ok) {
       "    Pour l'éprouver : publier un événement PASSÉ depuis le back-office (`/admin/agenda`).\n" +
         "    Pour vérifier que cette porte sait encore crier : CAROUSEL_FORCER_DONNEES=1\n",
     );
+    console.log(EXEMPTION_DERIVATION);
     process.exit(0);
   }
   if (!sectionPresente && FORCER_DONNEES) {
@@ -268,6 +294,7 @@ try {
 
 if (echecs.length === 0) {
   console.log("\n✅ CARROUSEL CONFORME — comportement mesuré, pas déduit du CSS.\n");
+  console.log(EXEMPTION_DERIVATION);
   process.exit(0);
 }
 console.error("\n❌ CARROUSEL NON CONFORME :\n");

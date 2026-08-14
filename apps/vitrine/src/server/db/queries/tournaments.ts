@@ -223,11 +223,11 @@ const RELATION_VISUEL = {
  *   rendu dépend du volume saisi est un défaut qui n'apparaîtrait qu'en production, chez
  *   quelqu'un d'autre. **« Généreux » n'est pas « non borné ».**
  */
-export async function getUpcomingTournaments(limite: number) {
+async function getUpcomingTournaments(limite: number, maintenant: Date) {
   return db.query.tournament.findMany({
     columns: COLONNES_PUBLIQUES,
     where: (table, { and, eq, gt }) =>
-      and(eq(table.isPublished, true), gt(table.startsAt, new Date())),
+      and(eq(table.isPublished, true), gt(table.startsAt, maintenant)),
     orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
     with: RELATION_VISUEL,
     limit: limite,
@@ -249,15 +249,54 @@ export async function getUpcomingTournaments(limite: number) {
  * date franchie »). La bascule « à venir » → « passés » **n'est pas un geste** : elle se
  * dérive de la date, ici, à chaque requête.
  */
-export async function getPastTournaments(limite: number) {
+async function getPastTournaments(limite: number, maintenant: Date) {
   return db.query.tournament.findMany({
     columns: COLONNES_PUBLIQUES,
     where: (table, { and, eq, lte }) =>
-      and(eq(table.isPublished, true), lte(table.startsAt, new Date())),
+      and(eq(table.isPublished, true), lte(table.startsAt, maintenant)),
     orderBy: (table, { asc, desc }) => [desc(table.startsAt), asc(table.name), asc(table.id)],
     with: RELATION_VISUEL,
     limit: limite,
   });
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LES DEUX LISTES DE `/tournois`, ET **UNE SEULE LECTURE D'HORLOGE POUR LES DEUX**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * C'est le point d'entrée public unique : les deux fonctions ci-dessus ne sont pas exportées,
+ * et l'instant leur est **passé**, jamais relu.
+ *
+ * 🔬 POURQUOI — DÉFAUT TROUVÉ EN REVUE (angle données), ET IL EST RÉEL BIEN QU'INFIME.
+ * La version précédente appelait `new Date()` **dans chacune** des deux fonctions, lancées en
+ * `Promise.all`. Si les deux appels tombent de part et d'autre d'une frontière de milliseconde,
+ * on obtient deux instants `T1 < T2`, et un tournoi dont `starts_at` vaut exactement un point
+ * de `]T1, T2]` satisfait **les deux** conditions (`> T1` **et** `<= T2`) : il sort dans les
+ * DEUX listes, donc s'affiche deux fois — sur une visite, et jamais sur la suivante.
+ * ⚠️ Le symptôme est **irreproductible par construction**, ce qui est précisément ce qui rend
+ * ce genre de défaut coûteux : il ne se diagnostique pas, il s'explique.
+ * ⇒ Avec un instant unique, la frontière est la MÊME des deux côtés (`gt` / `lte`) : un tournoi
+ * appartient à **exactement une** des deux listes, quelle que soit sa date. La propriété
+ * devient structurelle au lieu d'être probable.
+ *
+ * ⚠️ **ET L'HORLOGE RESTE LUE DANS LA COUCHE DONNÉES**, pas dans le rendu : c'est ici, et non
+ * dans `page.tsx`, que `new Date()` est appelé. Faire lire l'heure à la page aurait fermé la
+ * fenêtre en rouvrant l'impureté que `react-hooks/purity` refuse.
+ *
+ * 🔴 **LA MÊME FENÊTRE EXISTE SUR QUATRE SURFACES ANTÉRIEURES** — mesuré le 2026-08-14 par
+ * relevé des appelants : `/agenda` (`getUpcomingEvents` + `getPastEvents`), `/admin/agenda`,
+ * `/admin/galerie/nouveau` et `/admin/galerie/[id]` (les paires `…ForAdmin`), plus
+ * `/admin/tournois`. Elles ne sont **pas** corrigées ici : ce sont cinq surfaces mergées,
+ * hors périmètre de cette story. Dette **R48**, consignée avec sa condition de réouverture.
+ */
+export async function getPublicTournaments(aVenirMax: number, passesMax: number) {
+  const maintenant = new Date();
+  const [aVenir, passes] = await Promise.all([
+    getUpcomingTournaments(aVenirMax, maintenant),
+    getPastTournaments(passesMax, maintenant),
+  ]);
+  return { aVenir, passes };
 }
 
 /**
