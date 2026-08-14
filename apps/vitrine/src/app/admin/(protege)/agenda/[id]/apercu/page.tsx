@@ -10,6 +10,8 @@ import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
 import { lireAdmin } from "@/server/auth/guard";
 import { getEventById } from "@/server/db/queries/events";
 import { getPhotosForEvents } from "@/server/db/queries/photos";
+import type { RendezVous } from "@/server/db/queries/rendez-vous";
+import { getTournoisParEvenement } from "@/server/db/queries/tournaments";
 import agenda from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
 
@@ -77,6 +79,34 @@ export default async function ApercuEvenementPage({
   // l'événement n'a aucune photo publiée — l'appelant retombe alors sur le placeholder.
   const photos = evenement.estPasse ? await getPhotosForEvents([evenement.id]) : null;
 
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 L'APERÇU EST LA **TROISIÈME** SURFACE DES COMPOSANTS D'AGENDA — LE CADRAGE 9.5 EN
+   * ANNONÇAIT DEUX, LE TYPECHECK EN A TROUVÉ TROIS
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `NextEventCard` et `EventRow` prennent un `RendezVous` depuis la 9.5. Cet écran leur
+   * passait un `AgendaEvent` — et c'est **le typecheck qui l'a dit**, exactement le mode de
+   * défaillance qu'on voulait (bruyant, pas silencieux).
+   *
+   * 🔴 ON LIT LES VRAIS TOURNOIS, ON N'ÉCRIT PAS `tournois: []`. La branche est vide dans le
+   * cas courant, et il aurait été tentant de la coder en dur : l'aperçu ne passe aucun `cta`,
+   * donc rien ne la consomme **aujourd'hui**. Ce serait affirmer « cet événement ne porte
+   * aucun tournoi » sans l'avoir regardé — c'est-à-dire la mécanique même de la dette **R48**,
+   * réintroduite dans l'écran dont le métier est de **dire la vérité** sur le rendu public.
+   * ⚠️ `getTournoisParEvenement` filtre sur `is_published`, et c'est le bon filtre ici : cet
+   * écran montre ce que le **public** verra, pas ce que le back-office contient.
+   */
+  const tournoisParEvenement = await getTournoisParEvenement([evenement.id]);
+  const rendezVous: RendezVous = {
+    nature: "evenement",
+    cle: evenement.id,
+    startsAt: evenement.startsAt,
+    libelle: evenement.title,
+    evenement,
+    tournois: tournoisParEvenement.get(evenement.id) ?? [],
+  };
+
   return (
     <>
       <h1 className={agenda.titre}>Aperçu</h1>
@@ -140,7 +170,7 @@ export default async function ApercuEvenementPage({
           {/* Pas de `cta` : sur `/agenda` la carte n'en porte aucun (elle EST la
               destination). Reproduire ici un CTA que le public ne voit pas ferait mentir
               l'aperçu. */}
-          <NextEventCard event={evenement} />
+          <NextEventCard rendezVous={rendezVous} />
         </div>
       </section>
 
@@ -150,7 +180,7 @@ export default async function ApercuEvenementPage({
         </h2>
         <div className={styles.plateau}>
           <EventList>
-            <EventRow event={evenement} variant="detailed" />
+            <EventRow rendezVous={rendezVous} variant="detailed" />
           </EventList>
         </div>
       </section>

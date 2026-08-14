@@ -306,13 +306,30 @@ export const tournamentInputSchema = z
           "l'adresse de la page du tournoi.",
       }),
     /**
-     * 🔴 RATTACHEMENT **OBLIGATOIRE** À UN ÉVÉNEMENT DE L'AGENDA — DÉCISION 1 DU §8.
-     * *« Un tournoi peut se faire en ligne mais on créera l'événement dans l'agenda pour l'y
-     * rattacher. »* ⇒ **aucune colonne nullable de plus**, donc **aucune occasion de refaire
-     * `event_has_venue`** — le `CHECK` qui valait `NULL`, passait, et est resté faux trois
-     * epics.
+     * 🔴 RATTACHEMENT **FACULTATIF** À UN ÉVÉNEMENT DE L'AGENDA — DÉCISION 1 DU §8, **RENVERSÉE
+     * LE 2026-08-14** (Story 9.5).
+     *
+     * `null` ⇒ **le tournoi EST le rendez-vous** : l'agenda l'affiche lui-même, et le bénévole
+     * ne saisit plus deux objets pour une seule date. Renseigné ⇒ le tournoi est une animation
+     * d'un événement qui peut en porter plusieurs (Game'in Reims).
+     *
+     * ⚠️ **CE CHAMP DISAIT « OBLIGATOIRE », ET SON MOTIF ÉTAIT JUSTE** : *« aucune colonne
+     * nullable de plus, donc aucune occasion de refaire `event_has_venue` »*. Il l'est
+     * toujours — **l'occasion est bel et bien rouverte**, et c'est le `superRefine` en bas de
+     * ce schéma (jumeau du `CHECK` `tournament_a_un_lieu`) qui la referme.
+     *
+     * ⚠️ **Patron `optionalUuid` d'`event.ts`, comme `photoId` juste en dessous** : la chaîne
+     * vide vaut `null` **avant** la validation de format, sans quoi l'option « Aucun » du
+     * `<select>` (qui porte `value=""`) produirait « identifiant invalide » au lieu de
+     * « pas d'événement ».
      */
-    eventId: z.uuid("Choisissez l'événement d'agenda auquel ce tournoi est rattaché."),
+    eventId: trimmedText
+      .transform((value) => (value.length === 0 ? null : value))
+      .nullable()
+      .default(null)
+      .refine((value) => value === null || z.uuid().safeParse(value).success, {
+        message: "Cet événement n'existe plus. Rechargez la page et choisissez-en un autre.",
+      }),
     /**
      * 🔴 LE VISUEL — **UNE PHOTO DE LA GALERIE**, ET FACULTATIF (arbitrage **A2**, question
      * ouverte n°2 tranchée « non obligatoire »).
@@ -470,6 +487,30 @@ export const tournamentInputSchema = z
    * pas où poser le focus ni où afficher le message (patron `erreursParChamp`).
    */
   .superRefine((valeurs, ctx) => {
+    /**
+     * 🔴 PAS D'ÉVÉNEMENT ⇒ UN LIEU — JUMEAU EXACT DU `CHECK` `tournament_a_un_lieu` (Story 9.5).
+     *
+     * Un tournoi rattaché tient son lieu de **son événement** ; détaché, il ne l'a plus que
+     * s'il porte le sien. Sans cette règle, l'agenda afficherait un rendez-vous **sans dire
+     * où**, ce que `event_has_venue` existe précisément pour interdire côté événements.
+     *
+     * ⚠️ **DEUX EXPRESSIONS DE LA MÊME RÈGLE, ET C'EST VOULU** (doctrine du projet) : la base
+     * est le garde-fou qu'un `UPDATE` direct ou une restauration ne peuvent pas contourner ;
+     * Zod est celui qui **parle au bénévole**. Le message vise `venueName` — c'est le seul des
+     * deux champs sur lequel il peut agir sans défaire son intention de détacher.
+     * ⚠️ Ici la null-safety ne se pose **pas** : JavaScript n'a pas de logique ternaire, et
+     * `texteOptionnel` a déjà ramené `''` et les blancs à `null`. C'est **côté SQL seulement**
+     * que la forme naïve dégénère — ne pas en conclure que le `coalesce` là-bas est superflu.
+     */
+    if (valeurs.eventId === null && valeurs.venueName === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["venueName"],
+        message:
+          "Sans événement d'agenda, indiquez où se tient le tournoi (une salle, une ville, " +
+          "ou « En ligne ») : c'est ce lieu que l'agenda affichera.",
+      });
+    }
     if (valeurs.registrationMode === "mately" && valeurs.registrationUrl === null) {
       ctx.addIssue({
         code: "custom",

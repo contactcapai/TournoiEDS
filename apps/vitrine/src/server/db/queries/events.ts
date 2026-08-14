@@ -30,10 +30,19 @@ import { db } from "../client";
  * `is_published` d'abord, `starts_at` ensuite : c'est l'ordre de l'index
  * `event_published_starts_at_idx` posé par la Story 3.1 pour cette requête précise.
  */
-export async function getUpcomingEvents(limit: number) {
+/**
+ * ⚠️ **L'INSTANT ARRIVE EN PARAMÈTRE DEPUIS LA STORY 9.5, ET IL EST OBLIGATOIRE.**
+ * Cette fonction lisait `new Date()` elle-même. Elle est désormais **une des deux moitiés**
+ * d'une liste fusionnée (événements + tournois sans événement, `queries/rendez-vous.ts`) : si
+ * chaque moitié lisait sa propre horloge, une ligne pile à la frontière pourrait tomber dans
+ * les deux — c'est la fenêtre **R49**, et le but est de **ne pas en créer une sixième**.
+ * ⇒ Le paramètre n'a **pas de défaut**, volontairement : un appelant qui l'oublie ne peut pas
+ * retomber en silence sur une seconde lecture d'horloge, le typecheck l'arrête.
+ */
+export async function getUpcomingEvents(limit: number, maintenant: Date) {
   return db.query.event.findMany({
     where: (table, { and, eq, gt }) =>
-      and(eq(table.isPublished, true), gt(table.startsAt, new Date())),
+      and(eq(table.isPublished, true), gt(table.startsAt, maintenant)),
     orderBy: (table, { asc }) => asc(table.startsAt),
     // Relation déclarée par la Story 3.1 : le bar arrive avec l'événement, pas en N+1.
     // `bar` est nullable (temps fort hors bar) — le rendu doit traiter les deux branches.

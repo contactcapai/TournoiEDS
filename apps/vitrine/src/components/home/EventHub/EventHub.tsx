@@ -4,7 +4,8 @@ import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { NEW_TAB_SR, classerDestination } from "@/lib/links";
-import type { AgendaEvent } from "@/server/db/queries/events";
+import { destinationDuCta, estJeudiJeux } from "@/lib/rendez-vous";
+import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import motion from "@/styles/motion.module.css";
 import styles from "./EventHub.module.css";
 
@@ -25,10 +26,10 @@ import styles from "./EventHub.module.css";
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
 
 export interface EventHubProps {
-  /** Prochain événement publié, ou `null` s'il n'y en a aucun (état vide). */
-  next: AgendaEvent | null;
+  /** Prochain rendez-vous publié, ou `null` s'il n'y en a aucun (état vide). */
+  next: RendezVous | null;
   /** Les suivants — le roulement. Peut être vide sans que ce soit l'état vide. */
-  rest: AgendaEvent[];
+  rest: RendezVous[];
   /**
    * Invitation Discord, ou `DESTINATION_ABSENTE` — Story 6.13.
    *
@@ -94,6 +95,32 @@ function EmptyState({ discordUrl }: { discordUrl: string }) {
 }
 
 export function EventHub({ next, rest, discordUrl }: EventHubProps) {
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 DEUX AFFIRMATIONS DE CE FICHIER ÉTAIENT FAUSSES — DETTE R48, MESURÉE SUR STAGING
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Le 2026-08-14, sur le premier événement `special` jamais saisi (« Tournoi TFT 15/09 »,
+   * **mardi**, lieu « En ligne »), ce hub rendait « On se voit **jeudi** ? » puis « Roulement
+   * sur **4 bars rémois** — 1 jeudi par mois chacun ». Les deux sont faux, et aucune porte ne
+   * pouvait le voir : ce sont des phrases **justes** pour toute donnée que le projet avait
+   * jamais eue. `special` existait depuis la 3.1 ; **personne n'en avait saisi un**.
+   *
+   * ⚠️ LES DEUX DÉRIVATIONS NE SONT PAS LA MÊME, ET C'EST LE POINT DÉLICAT :
+   *   · le **titre** parle du **prochain** rendez-vous — celui que la carte montre ;
+   *   · la **note de roulement** parle de **ce que la liste montre**. Elle reste vraie tant
+   *     qu'au moins un jeudi jeux est rendu, même si le prochain rendez-vous est un tournoi :
+   *     dans ce cas le roulement est bien ce qu'on est en train de décrire en dessous. La lier
+   *     au seul `next` l'aurait fait disparaître d'un hub qui liste quatre jeudis.
+   *
+   * ⚠️ Les formulations restent **CONTRACTUELLES** (UX-DR18) : on ne reformule pas, on **masque
+   * ou on substitue**, et la substitution du titre est portée au gate ÉDITORIAL de Brice.
+   */
+  const rendus = next ? [next, ...rest] : [];
+  const titreJeudi = next !== null && estJeudiJeux(next);
+  const roulementVrai = rendus.some(estJeudiJeux);
+  const cta = next ? destinationDuCta(next) : null;
+
   return (
     // aria-labelledby ↔ id du <h2> de la tête de section (pattern acquis review 1.6 F6).
     <section className={styles.section} aria-labelledby="agenda-title">
@@ -107,7 +134,13 @@ export function EventHub({ next, rest, discordUrl }: EventHubProps) {
               {/* &nbsp; avant le « ? » : espace insécable de la typographie française,
                   déjà dans la maquette (`jeudi&nbsp;?`). Le {" "} explicite au-dessus
                   évite l'espace avalée par JSX (leçon 2.6). */}
-              <Brush>jeudi{"\u00A0"}?</Brush>
+              {/* 🔴 « jeudi » ⇒ « bientôt » quand le prochain rendez-vous
+                  N'EST PAS un jeudi jeux (R48 ①). Le mot substitué reste DANS le `<Brush>` :
+                  c'est lui que le trait de pinceau souligne, et le sortir changerait le titre. */}
+              <Brush>
+                {titreJeudi ? "jeudi" : "bient\u00F4t"}
+                {"\u00A0"}?
+              </Brush>
             </>
           }
           intro="Toutes nos dates sont ici, sur le site. Plus besoin de fouiller Discord pour savoir où on se retrouve cette semaine."
@@ -130,20 +163,33 @@ export function EventHub({ next, rest, discordUrl }: EventHubProps) {
         <div className={motion.reveal}>
           {next ? (
             <>
-              {/* Le CTA renvoie vers /agenda : pas de billetterie en v1 (UX-DR10). */}
-              <NextEventCard event={next} cta={{ label: "J'y serai", href: "/agenda" }} />
+              {/* 🔴 LE CTA NE RENVOIE PLUS VERS /agenda (R48 ③) — sa destination se DÉRIVE des
+                  tournois du rendez-vous, et il DISPARAÎT quand il n'y en a aucun. Ce n'est pas
+                  une perte : « J'y serai » vers /agenda ne promettait rien qu'un clic pouvait
+                  tenir, et le lien « Voir tout l'agenda » juste en dessous y mène déjà.
+                  ⚠️ Le libellé reste « J'y serai » — formulation contractuelle (UX-DR18). Ce
+                  qui était faux était la destination, pas le mot. */}
+              <NextEventCard
+                rendezVous={next}
+                cta={cta ? { label: "J'y serai", href: cta } : undefined}
+              />
 
               {rest.length > 0 ? (
                 <EventList>
-                  {rest.map((event) => (
-                    <EventRow key={event.id} event={event} />
+                  {rest.map((rendezVous) => (
+                    <EventRow key={rendezVous.cle} rendezVous={rendezVous} />
                   ))}
                 </EventList>
               ) : null}
 
-              <p className={styles.footNote}>
-                Roulement sur 4 bars rémois — 1 jeudi par mois chacun
-              </p>
+              {/* 🔴 LA NOTE DE ROULEMENT DÉCRIT LES JEUDIS — elle ne se rend donc que si la
+                  liste en montre au moins un (R48 ②). Sur un hub qui n'affiche qu'un tournoi
+                  et un temps fort, elle parlerait de quelque chose d'absent de l'écran. */}
+              {roulementVrai ? (
+                <p className={styles.footNote}>
+                  Roulement sur 4 bars rémois — 1 jeudi par mois chacun
+                </p>
+              ) : null}
 
               <div className={styles.more}>
                 <LinkArrow href="/agenda">Voir tout l&apos;agenda</LinkArrow>

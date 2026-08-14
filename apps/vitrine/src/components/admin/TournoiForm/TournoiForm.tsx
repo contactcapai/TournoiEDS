@@ -100,7 +100,8 @@ export interface TournoiFormProps {
   /** `undefined` = création. Sinon : les valeurs à pré-remplir. */
   tournoi?: {
     id: string;
-    eventId: string;
+    /** `null` depuis la 9.5 : le tournoi peut être le rendez-vous lui-même. */
+    eventId: string | null;
     name: string;
     game: string;
     slug: string;
@@ -120,7 +121,11 @@ export interface TournoiFormProps {
     /** Décide si l'identifiant d'adresse est encore modifiable (A3). */
     isPublished: boolean;
   };
-  /** Les événements d'agenda proposables au rattachement (A4 — le lien est obligatoire). */
+  /**
+   * Les événements d'agenda proposables au rattachement — **facultatif depuis la 9.5**.
+   * ⚠️ Une liste vide n'est plus un état bloquant : c'est le cas nominal d'une base neuve, et
+   * le tournoi se saisit très bien sans.
+   */
   evenements: readonly EvenementRattachable[];
   /**
    * Les photos de la galerie proposables comme visuel (A2). **Publiées uniquement** — voir
@@ -133,7 +138,17 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   const router = useRouter();
   const creation = tournoi === undefined;
 
-  const [eventId, setEventId] = useState(tournoi?.eventId ?? evenements[0]?.id ?? "");
+  /**
+   * 🔴 LE DÉFAUT EST « AUCUN », ET LA VERSION PRÉCÉDENTE RATTACHAIT AU HASARD.
+   *
+   * Elle lisait `tournoi?.eventId ?? evenements[0]?.id ?? ""` — or `getEventsPourRattachement`
+   * trie **`desc(startsAt)`** : à la création, le formulaire rattachait donc d'office au
+   * **dernier événement saisi**, que personne n'avait choisi, et qui n'a aucune raison d'être
+   * le bon. C'est la duplication de la 9.1 vue de l'autre bout : non seulement il *fallait*
+   * rattacher, mais on rattachait **à tort par défaut**.
+   * ⇒ `""` à la création = l'option « Aucun », que `optionalUuid` ramène à `null`.
+   */
+  const [eventId, setEventId] = useState(tournoi?.eventId ?? "");
   const [name, setName] = useState(tournoi?.name ?? "");
   const [game, setGame] = useState(tournoi?.game ?? "");
   const [slug, setSlug] = useState(tournoi?.slug ?? "");
@@ -245,61 +260,61 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
         </p>
 
         {/* ── Le rattachement à l'agenda ────────────────────────────────────────────────
-            🔴 OBLIGATOIRE (A4), ET L'ÉCRAN DIT POURQUOI. *« Un tournoi peut se faire en
-            ligne mais on créera l'événement dans l'agenda pour l'y rattacher. »* C'est ce
-            choix qui évite une colonne nullable de plus — donc une occasion de refaire
-            `event_has_venue`. */}
+            🔴 FACULTATIF DEPUIS LA 9.5 — et l'écran doit dire ce que chacun des deux cas
+            PRODUIT, pas seulement qu'un choix existe. Sans événement, le tournoi paraît
+            lui-même à l'agenda ; rattaché, c'est l'événement qui paraît, et le tournoi en
+            est une animation. Un bénévole qui ne le sait pas re-crée l'événement « pour être
+            sûr » — c'est-à-dire exactement la double saisie que cette story supprime.
+            ⚠️ L'ÉTAT VIDE N'EST PLUS BLOQUANT : une base neuve sans aucun événement est un
+            cas parfaitement saisissable, et le `<select>` garde alors sa seule option. */}
         <div className={styles.champ}>
           <label className={styles.label} htmlFor="tournoi-eventId">
-            Événement de l&rsquo;agenda (obligatoire)
+            Événement de l&rsquo;agenda (facultatif)
           </label>
-          {evenements.length > 0 ? (
-            <>
-              <select
-                id="tournoi-eventId"
-                name="eventId"
-                className={styles.saisie}
-                value={eventId}
-                onChange={(evenement) => setEventId(evenement.target.value)}
-                aria-invalid={erreurs.eventId ? "true" : undefined}
-                aria-describedby="tournoi-eventId-aide"
-              >
-                {evenements.map((evenement) => (
-                  <option key={evenement.id} value={evenement.id}>
-                    {formatLongDate(evenement.startsAt)} — {evenement.title}
-                    {evenement.isPublished ? "" : " (brouillon)"}
-                  </option>
-                ))}
-              </select>
-              <p className={styles.sousChamp} id="tournoi-eventId-aide">
-                <span>
-                  Tout tournoi appartient à un événement de l&rsquo;agenda — un même
-                  événement peut en porter plusieurs (la Game&rsquo;in Reims en porte dix).
-                  Si l&rsquo;événement n&rsquo;existe pas encore, créez-le d&rsquo;abord
-                  dans l&rsquo;agenda.
-                  {evenementChoisi && !evenementChoisi.isPublished ? (
+          <select
+            id="tournoi-eventId"
+            name="eventId"
+            className={styles.saisie}
+            value={eventId}
+            onChange={(evenement) => setEventId(evenement.target.value)}
+            aria-invalid={erreurs.eventId ? "true" : undefined}
+            aria-describedby="tournoi-eventId-aide"
+          >
+            {/* `value=""` ⇒ `optionalUuid` le ramène à `null`. Premier de la liste : c'est le
+                cas le plus fréquent, et le défaut à la création. */}
+            <option value="">Aucun — ce tournoi est le rendez-vous</option>
+            {evenements.map((evenement) => (
+              <option key={evenement.id} value={evenement.id}>
+                {formatLongDate(evenement.startsAt)} — {evenement.title}
+                {evenement.isPublished ? "" : " (brouillon)"}
+              </option>
+            ))}
+          </select>
+          <p className={styles.sousChamp} id="tournoi-eventId-aide">
+            <span>
+              {evenementChoisi ? (
+                <>
+                  Ce tournoi est une animation de cet événement : c&rsquo;est
+                  l&rsquo;<strong>événement</strong> qui paraît à l&rsquo;agenda, et il peut
+                  porter plusieurs tournois (la Game&rsquo;in Reims en porte dix).
+                  {evenementChoisi.isPublished ? null : (
                     <>
                       {" "}
-                      ⚠️ L&rsquo;événement choisi est un <strong>brouillon</strong> : c&rsquo;est
-                      permis, mais il devra être publié pour paraître sur le site.
+                      ⚠️ L&rsquo;événement choisi est un <strong>brouillon</strong> :
+                      c&rsquo;est permis, mais il devra être publié pour paraître sur le site.
                     </>
-                  ) : null}
-                </span>
-              </p>
-            </>
-          ) : (
-            /* ⚠️ L'ÉTAT VIDE EST UN CAS RÉEL ET BLOQUANT — pas une hypothèse. Sur une base
-               neuve, l'agenda est vide, et un `<select>` sans option laisserait soumettre un
-               `eventId` vide pour découvrir l'échec après avoir tout rempli. On dit ce qu'il
-               faut faire, à l'endroit où on le découvre. */
-            <p className={styles.erreur} role="alert">
-              Aucun événement dans l&rsquo;agenda : impossible de créer un tournoi tant
-              qu&rsquo;il n&rsquo;y a pas d&rsquo;événement auquel le rattacher.{" "}
-              <Link className={styles.lien} href="/admin/agenda/nouveau">
-                Créer un événement
-              </Link>
-            </p>
-          )}
+                  )}
+                </>
+              ) : (
+                <>
+                  Sans événement, ce tournoi <strong>est</strong> le rendez-vous : il paraît
+                  lui-même à l&rsquo;agenda et sur l&rsquo;accueil, et il faut alors indiquer
+                  son lieu plus bas. Ne rattachez que s&rsquo;il fait partie d&rsquo;un
+                  événement plus large.
+                </>
+              )}
+            </span>
+          </p>
           {erreurs.eventId ? <p className={styles.erreur}>{erreurs.eventId}</p> : null}
         </div>
 
@@ -357,14 +372,28 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           erreur={erreurs.startsAt}
         />
 
+        {/* 🔴 CE CHAMP CHANGE DE NATURE SELON LE RATTACHEMENT — 9.5.
+            Son libellé disait « Salle ou espace (facultatif) » et son aide « le lieu général
+            vient déjà de l'agenda » : **vrai tant que tout tournoi avait un événement**, faux
+            depuis que le rattachement est facultatif. C'est `pieges/patron-eprouve-une-seule-
+            nature.md` — le commentaire qui justifiait le comportement décrivait une
+            CORRÉLATION prise pour une règle.
+            ⚠️ Rattaché ⇒ précision facultative DANS le lieu de l'événement. Détaché ⇒ c'est
+            le SEUL lieu qui existe, et `tournament_a_un_lieu` l'exige. */}
         <ChampTexte
           id="tournoi-venueName"
           name="venueName"
-          label="Salle ou espace (facultatif)"
+          label={
+            evenementChoisi ? "Salle ou espace (facultatif)" : "Lieu du tournoi (obligatoire)"
+          }
           valeur={venueName}
           onChange={setVenueName}
           max={LIEU_MAX}
-          aide="Seulement s'il faut préciser où, DANS le lieu de l'événement. Exemple : « Hall B, scène esport ». Le lieu général vient déjà de l'agenda."
+          aide={
+            evenementChoisi
+              ? "Seulement s'il faut préciser où, DANS le lieu de l'événement. Exemple : « Hall B, scène esport ». Le lieu général vient déjà de l'agenda."
+              : "Sans événement de rattachement, c'est le seul lieu affiché : indiquez-le. Exemple : « En ligne », « Le Kraken, Reims »."
+          }
           erreur={erreurs.venueName}
         />
 
