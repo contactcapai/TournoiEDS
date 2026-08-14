@@ -1,7 +1,9 @@
 import { Button } from "@repo/ui";
 import { formatBigDate, formatTime } from "@/lib/date-paris";
+import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import { estJeudiJeux } from "@/lib/rendez-vous";
 import { cleanText } from "@/lib/text";
-import type { AgendaEvent } from "@/server/db/queries/events";
+import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import styles from "./NextEventCard.module.css";
 
 // Carte du prochain rendez-vous (`.next` de la maquette) — Server Component pur.
@@ -17,10 +19,29 @@ import styles from "./NextEventCard.module.css";
 // jeudi — un temps fort peut tomber n'importe quel jour, et la carte le rend sans
 // distinction. `architecture.md` est corrigé plutôt que le code renommé à tort.
 
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 ELLE REND DEUX NATURES DEPUIS LA STORY 9.5 — ET ELLE N'EN FABRIQUE AUCUNE (A9)
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// Elle prenait un `AgendaEvent`. Depuis que `tournament.event_id` est facultatif, le prochain
+// rendez-vous peut être un **tournoi sans événement**. Le convertir en `AgendaEvent` aurait
+// été le geste évident — et il aurait obligé à **inventer** un `type`, un `bar`, une
+// `description` : c'est-à-dire à refaire, d'un cran plus bas, la dette **R48** que cette
+// story solde. Elle reçoit donc l'union `RendezVous` et **branche** dessus.
+//
+// 🔴 CE QUE R48 A COÛTÉ, ET QUI SE LIT DANS CE FICHIER : deux lignes de copie FIXE que le
+// code assumait en toutes lettres (« le reste de la phrase est une copie FIXE, pas une
+// donnée », « copie fixe, JAMAIS data-dépendante »). Ces commentaires étaient **JUSTES** tant
+// que tout rendez-vous était un jeudi en bar. Ils sont devenus faux par **ÉLARGISSEMENT DU
+// DOMAINE**, pas par erreur — `pieges/patron-eprouve-une-seule-nature.md`.
+// ⚠️ Le correctif n'est PAS de rendre ces phrases saisissables : ce serait rouvrir la
+// frontière Q6 et faire porter au modèle « ni prix ni jauge » ce que son commentaire lui
+// interdit. C'est de **dériver de la nature** et de **MASQUER** ce qu'on ne garantit pas.
+
 export interface NextEventCardProps {
-  event: AgendaEvent;
-  /** Cible du CTA. La home renvoie vers /agenda ; la page /agenda n'a pas de CTA
-   *  de carte (elle EST la destination) et ne passe donc rien. */
+  rendezVous: RendezVous;
+  /** Cible du CTA, **dérivée par l'appelant** (`destinationDuCta`). La page /agenda n'a pas
+   *  de CTA de carte et ne passe donc rien. */
   cta?: { label: string; href: string };
 }
 
@@ -69,11 +90,17 @@ function GamepadIcon() {
   );
 }
 
-export function NextEventCard({ event, cta }: NextEventCardProps) {
-  const bigDate = formatBigDate(event.startsAt);
-  const games = cleanText(event.games);
-  const venueName = cleanText(event.venueName);
-  const venueAddress = cleanText(event.venueAddress);
+export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
+  const bigDate = formatBigDate(rendezVous.startsAt);
+  const jeudiJeux = estJeudiJeux(rendezVous);
+
+  // Le lieu, les jeux et le titre se lisent des DEUX natures — chacune sous son nom, sans
+  // objet intermédiaire qui prétendrait qu'un tournoi est un événement.
+  const evenement = rendezVous.nature === "evenement" ? rendezVous.evenement : null;
+  const tournoi = rendezVous.nature === "tournoi" ? rendezVous.tournoi : null;
+  const venueName = cleanText(evenement?.venueName ?? tournoi?.venueName ?? null);
+  const venueAddress = cleanText(evenement?.venueAddress ?? null);
+  const games = cleanText(evenement?.games ?? tournoi?.game ?? null);
 
   return (
     <div className={styles.next}>
@@ -86,20 +113,23 @@ export function NextEventCard({ event, cta }: NextEventCardProps) {
         {/* <h3> : sous le <h2> d'une tête de section, lui-même sous le <h1> de la
             page. Vrai sur la home (h1 du Hero) comme sur /agenda (h1 de page) —
             aucun saut de niveau, audit Lighthouse `heading-order`. */}
-        <h3 className={styles.nextTitle}>{event.title}</h3>
+        <h3 className={styles.nextTitle}>{rendezVous.libelle}</h3>
 
         <div className={styles.facts}>
-          {/* Lieu — DEUX branches, comme le modèle (bar du roulement, ou lieu libre
-              pour un temps fort). Un nom de bar provisoire (« Bar partenaire #2 »)
-              se rend TEL QUEL : la tolérance est réglée côté données par la 3.1,
-              aucune branche UI. Si aucune des deux branches n'a de quoi nommer un
-              lieu, la ligne disparaît plutôt que d'annoncer un rendez-vous nulle
-              part (NFR8). */}
-          {event.bar ? (
+          {/* Lieu — TROIS branches désormais : le bar du roulement, le lieu libre d'un temps
+              fort, ou le lieu propre d'un tournoi. Un nom de bar provisoire (« Bar partenaire
+              #2 ») se rend TEL QUEL : la tolérance est réglée côté données par la 3.1, aucune
+              branche UI. Si rien ne nomme un lieu, la ligne disparaît plutôt que d'annoncer un
+              rendez-vous nulle part (NFR8).
+              ⚠️ Pour un tournoi, `tournament_a_un_lieu` garantit qu'il y en a un — la branche
+              vide reste écrite quand même : elle protège les événements, et une garde qu'on
+              retire « parce qu'elle ne peut plus arriver » est celle qui revient. */}
+          {evenement?.bar ? (
             <div>
               <PinIcon />
               <span>
-                <strong>{event.bar.name}</strong> — {event.bar.district}, {event.bar.city}
+                <strong>{evenement.bar.name}</strong> — {evenement.bar.district},{" "}
+                {evenement.bar.city}
               </span>
             </div>
           ) : venueName ? (
@@ -112,23 +142,48 @@ export function NextEventCard({ event, cta }: NextEventCardProps) {
             </div>
           ) : null}
 
-          {/* Heure : formatée en horloge de Paris, jamais avec getHours(). Le reste
-              de la phrase est une copie FIXE, pas une donnée. */}
+          {/* Heure : formatée en horloge de Paris, jamais avec getHours().
+              🔴 LA QUEUE DE PHRASE EST CONDITIONNELLE DEPUIS LA 9.5 (R48 ③). « on reste tant
+              qu'on veut » décrit la soirée hebdomadaire, qui n'a pas d'heure de fin annoncée.
+              Un tournoi a un format et une fin ; un temps fort peut en avoir une aussi. Hors
+              jeudi jeux, l'heure se rend donc SEULE — une absence, jamais une affirmation. */}
           <div>
             <ClockIcon />
-            <span>{formatTime(event.startsAt)} — on reste tant qu&apos;on veut</span>
+            <span>
+              {formatTime(rendezVous.startsAt)}
+              {jeudiJeux ? <> — on reste tant qu&apos;on veut</> : null}
+            </span>
           </div>
 
-          {/* Conditions : copie fixe, JAMAIS data-dépendante. Le modèle ne porte ni
-              prix ni jauge, et il ne doit pas commencer à en porter par ce biais. */}
-          <div>
-            <TicketIcon />
-            <span>Gratuit · ouvert à tous, même sans matériel</span>
-          </div>
+          {/* 🔴 TROISIÈME FAIT — TROIS CAS, ET AUCUN N'AFFIRME CE QU'IL NE SAIT PAS (R48 ④).
+              · jeudi jeux ⇒ la copie fixe d'origine, qui reste vraie : gratuit, matériel sur
+                place. Elle n'est PAS rendue saisissable (frontière Q6) ;
+              · tournoi ⇒ l'ÉTAT DES INSCRIPTIONS, seule promesse qu'on puisse tenir, et le
+                libellé vient de `LIBELLES_ETAT_INSCRIPTION` — jamais recopié ici (patron
+                `lib/libelles-tournoi.ts`, un seul exemplaire pour toutes les surfaces).
+                ⚠️ A7 de la Story 9.2 : l'état ne se rend que sur un tournoi À VENIR, parce que
+                la base autorise un tournoi passé resté « ouvertes » et que personne ne les
+                referme. Ici la garantie est STRUCTURELLE — cette carte ne rend que des
+                rendez-vous à venir (`getUpcomingRendezVous`) ;
+              · temps fort ⇒ RIEN. Ni prix ni jauge dans le modèle, donc rien à dire. */}
+          {jeudiJeux ? (
+            <div>
+              <TicketIcon />
+              <span>Gratuit · ouvert à tous, même sans matériel</span>
+            </div>
+          ) : tournoi ? (
+            <div>
+              <TicketIcon />
+              <span>
+                Inscriptions : {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState].toLowerCase()}
+              </span>
+            </div>
+          ) : null}
 
           {/* 4ᵉ fait, CONDITIONNEL : ligne masquée plutôt que placeholder vide
               (UX-DR10). Le jeudi `thursday2` du seed, semé SANS `games`, existe
-              pour l'éprouver. */}
+              pour l'éprouver. ⚠️ Côté tournoi, `game` est `notNull` et non vide
+              (`tournament_game_valide`) : la ligne y est donc toujours rendue. */}
           {games ? (
             <div>
               <GamepadIcon />
@@ -138,9 +193,11 @@ export function NextEventCard({ event, cta }: NextEventCardProps) {
         </div>
       </div>
 
-      {/* CTA optionnel : pas de billetterie en v1 (UX-DR10). La home renvoie vers
-          /agenda ; la page /agenda ne passe rien — elle EST la destination, un CTA
-          qui s'y renvoie serait un lien mort (arbitrage de Brice, Story 3.3). */}
+      {/* CTA optionnel : pas de billetterie en v1 (UX-DR10).
+          🔴 SA DESTINATION N'EST PLUS `/agenda` (R48 ③, arbitrage de Brice du 2026-08-14) —
+          elle se DÉRIVE des tournois du rendez-vous (`destinationDuCta`), et le CTA disparaît
+          quand il n'y en a aucun. Ce composant ne la calcule pas : la page décide, comme elle
+          décide déjà de tout ce qui vient de la base (patron AC1 de la 3.2). */}
       {cta ? (
         <div className={styles.act}>
           <Button variant="gold" href={cta.href}>

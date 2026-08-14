@@ -29,12 +29,33 @@ import { db } from "../client";
  *
  * `is_published` d'abord, `starts_at` ensuite : c'est l'ordre de l'index
  * `event_published_starts_at_idx` posé par la Story 3.1 pour cette requête précise.
+ *
+ * 🔴 L'ORDRE EST **TOTAL** DEPUIS LA STORY 9.5 — ET LE DÉFAUT ÉTAIT DANS `LIMIT`, PAS DANS LE
+ * RENDU. Il s'écrivait `asc(startsAt)` seul. Trouvé en revue : avec deux événements publiés à
+ * la **même minute** (`datetime-local` ne saisit ni secondes ni millisecondes, et la Game'in
+ * Reims en porte plusieurs en parallèle), **lequel des deux tombe dans le `LIMIT` n'était pas
+ * déterminé**. Sur des pages `force-dynamic`, rejouées à chaque visite, un événement pouvait
+ * donc apparaître puis disparaître à la frontière de la borne, sans qu'aucune donnée n'ait
+ * changé — le « scintillement que personne ne saurait reproduire ».
+ * ⚠️ **Trier en mémoire après coup n'y aurait RIEN changé** : la ligne écartée l'est **en
+ * base**, avant que le rendu ne la voie. C'est pour cela que le tie-break est ici et non dans
+ * `rendez-vous.ts`, dont le commentaire affirmait — à tort — que chaque moitié sortait déjà
+ * totalement ordonnée. `id` en dernier terme : une clé primaire, donc l'ordre est total.
  */
-export async function getUpcomingEvents(limit: number) {
+/**
+ * ⚠️ **L'INSTANT ARRIVE EN PARAMÈTRE DEPUIS LA STORY 9.5, ET IL EST OBLIGATOIRE.**
+ * Cette fonction lisait `new Date()` elle-même. Elle est désormais **une des deux moitiés**
+ * d'une liste fusionnée (événements + tournois sans événement, `queries/rendez-vous.ts`) : si
+ * chaque moitié lisait sa propre horloge, une ligne pile à la frontière pourrait tomber dans
+ * les deux — c'est la fenêtre **R49**, et le but est de **ne pas en créer une sixième**.
+ * ⇒ Le paramètre n'a **pas de défaut**, volontairement : un appelant qui l'oublie ne peut pas
+ * retomber en silence sur une seconde lecture d'horloge, le typecheck l'arrête.
+ */
+export async function getUpcomingEvents(limit: number, maintenant: Date) {
   return db.query.event.findMany({
     where: (table, { and, eq, gt }) =>
-      and(eq(table.isPublished, true), gt(table.startsAt, new Date())),
-    orderBy: (table, { asc }) => asc(table.startsAt),
+      and(eq(table.isPublished, true), gt(table.startsAt, maintenant)),
+    orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.title), asc(table.id)],
     // Relation déclarée par la Story 3.1 : le bar arrive avec l'événement, pas en N+1.
     // `bar` est nullable (temps fort hors bar) — le rendu doit traiter les deux branches.
     with: { bar: true },
@@ -63,7 +84,11 @@ export async function getPastEvents(limit: number) {
   return db.query.event.findMany({
     where: (table, { and, eq, lte }) =>
       and(eq(table.isPublished, true), lte(table.startsAt, new Date())),
-    orderBy: (table, { desc }) => desc(table.startsAt),
+    // 🔴 ORDRE TOTAL, MÊME RAISON QU'AU-DESSUS — et le risque est ici PLUS grand : la borne
+    // du carrousel est **4**, donc réellement atteinte. Le premier terme s'inverse, les deux
+    // suivants restent ascendants : ils ne servent qu'à départager, et les inverser aussi ne
+    // rendrait pas l'ordre « plus décroissant », seulement différent, sans raison.
+    orderBy: (table, { asc, desc }) => [desc(table.startsAt), asc(table.title), asc(table.id)],
     with: { bar: true },
     limit,
   });

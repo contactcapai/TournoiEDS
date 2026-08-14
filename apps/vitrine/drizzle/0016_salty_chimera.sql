@@ -1,0 +1,2 @@
+ALTER TABLE "tournament" ALTER COLUMN "event_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "tournament" ADD CONSTRAINT "tournament_a_un_lieu" CHECK ("tournament"."event_id" is not null or coalesce(length(btrim("tournament"."venue_name")), 0) > 0);

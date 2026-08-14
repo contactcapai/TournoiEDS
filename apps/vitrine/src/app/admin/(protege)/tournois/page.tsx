@@ -61,12 +61,24 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
           {salle ? ` — ${salle}` : null}
         </p>
 
-        {/* ⚠️ L'ÉVÉNEMENT DE RATTACHEMENT EST AFFICHÉ, PAS SUPPOSÉ. Il est OBLIGATOIRE (A4)
-            et un tournoi rattaché au mauvais événement est invisible autrement : les deux
-            dates peuvent différer légitimement (la GIR est UN événement sur deux jours qui
-            porte DIX animations à des heures différentes). */}
+        {/* ⚠️ LE RATTACHEMENT EST AFFICHÉ, PAS SUPPOSÉ — et les DEUX cas le sont depuis la 9.5.
+            Un tournoi rattaché au mauvais événement est invisible autrement : les deux dates
+            peuvent différer légitimement (la GIR est UN événement sur deux jours qui porte DIX
+            animations à des heures différentes).
+            🔴 ET L'ABSENCE DE RATTACHEMENT SE DIT AUSSI, elle ne se rend pas par un blanc : sans
+            événement, ce tournoi paraît LUI-MÊME à l'agenda, et c'est le fait le plus important
+            de sa ligne — la seule chose qui explique pourquoi il apparaît sur la home. */}
         <p className={propre.rattachement}>
-          Rattaché à l&rsquo;événement <strong>{tournoi.event.title}</strong>
+          {tournoi.event ? (
+            <>
+              Rattaché à l&rsquo;événement <strong>{tournoi.event.title}</strong>
+            </>
+          ) : (
+            <>
+              <strong>Sans événement</strong> — ce tournoi est le rendez-vous, il paraît
+              lui-même à l&rsquo;agenda
+            </>
+          )}
         </p>
 
         <p className={propre.inscriptions}>

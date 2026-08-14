@@ -66,8 +66,17 @@ export default async function ModifierTournoiPage({
           parce qu'on ne modifie pas de la même façon une page en ligne et un brouillon — et
           parce que c'est l'état de publication qui décide si l'adresse est encore modifiable. */}
       <p className={styles.chapo}>
-        Rattaché à <strong>{tournoi.event.title}</strong> (
-        {formatLongDate(tournoi.event.startsAt)}).{" "}
+        {tournoi.event ? (
+          <>
+            Rattaché à <strong>{tournoi.event.title}</strong> (
+            {formatLongDate(tournoi.event.startsAt)}).{" "}
+          </>
+        ) : (
+          <>
+            <strong>Sans événement</strong> : ce tournoi est le rendez-vous, et il paraît
+            lui-même à l&rsquo;agenda.{" "}
+          </>
+        )}
         {tournoi.isPublished ? (
           <>
             Ce tournoi est <strong>publié</strong> : son adresse est figée tant qu&rsquo;il

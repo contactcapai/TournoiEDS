@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Tag } from "@repo/ui";
 import { formatRowDate, formatTime } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
-import type { AgendaEvent } from "@/server/db/queries/events";
+import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import styles from "./EventList.module.css";
 
 // Liste d'événements et sa ligne (`.rest` / `.rest .row` de la maquette) —
@@ -33,7 +33,7 @@ export function EventList({ children }: { children: ReactNode }) {
 }
 
 export interface EventRowProps {
-  event: AgendaEvent;
+  rendezVous: RendezVous;
   /**
    * `compact` (défaut) — le hub de la home : date, titre, quartier + heure, tag.
    * `detailed` — la page `/agenda` : ajoute **l'adresse postale complète** et la
@@ -47,14 +47,18 @@ export interface EventRowProps {
   variant?: "compact" | "detailed";
 }
 
-export function EventRow({ event, variant = "compact" }: EventRowProps) {
+export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
   // UNE SEULE DATE, jamais une plage : la maquette écrit « 21-22/11 » pour Game in
   // Reims, mais le modèle ne porte qu'un `starts_at`. Afficher une fin serait inventer
   // une donnée. Écart de transcription assumé, tracé dans `formatRowDate`.
-  const place = event.bar
-    ? event.bar.district
-    : (cleanText(event.venueName) ?? cleanText(event.venueAddress));
-  const isHighlight = event.type === "special";
+  //
+  // 🔴 DEUX NATURES DEPUIS LA 9.5, ET AUCUNE N'EST FABRIQUÉE (A9) — voir `NextEventCard`.
+  const evenement = rendezVous.nature === "evenement" ? rendezVous.evenement : null;
+  const tournoi = rendezVous.nature === "tournoi" ? rendezVous.tournoi : null;
+  const place = evenement?.bar
+    ? evenement.bar.district
+    : (cleanText(evenement?.venueName ?? tournoi?.venueName ?? null) ??
+      cleanText(evenement?.venueAddress ?? null));
   const detailed = variant === "detailed";
 
   // 🔴 L'ADRESSE POSTALE COMPLÈTE, et elle n'est affichée NULLE PART AILLEURS sur le
@@ -63,24 +67,30 @@ export function EventRow({ event, variant = "compact" }: EventRowProps) {
   // de billetterie en v1, et « J'y serai » renvoyait précisément vers cette page).
   // L'adresse, elle, répond à la seule question qui reste quand on a décidé d'y aller.
   // Pas de redondance avec le sous-titre : celui-ci porte le QUARTIER, pas la rue.
+  // ⚠️ Un tournoi n'a **ni adresse postale ni description** dans le modèle : les deux lignes
+  // de la variante `detailed` restent donc vides pour lui, et disparaissent — c'est la règle
+  // NFR8 déjà appliquée ci-dessous, pas un cas particulier. Ne PAS y substituer son `game` ou
+  // son `formatText` : ce ne sont pas les mêmes faits.
   const address = detailed
-    ? event.bar
-      ? [cleanText(event.bar.address), cleanText(event.bar.city)].filter(Boolean).join(", ")
-      : cleanText(event.venueAddress)
+    ? evenement?.bar
+      ? [cleanText(evenement.bar.address), cleanText(evenement.bar.city)]
+          .filter(Boolean)
+          .join(", ")
+      : cleanText(evenement?.venueAddress ?? null)
     : null;
-  const description = detailed ? cleanText(event.description) : null;
+  const description = detailed ? cleanText(evenement?.description ?? null) : null;
 
   return (
     <li className={styles.row}>
-      <div className={styles.rowDate}>{formatRowDate(event.startsAt)}</div>
+      <div className={styles.rowDate}>{formatRowDate(rendezVous.startsAt)}</div>
       <div className={styles.rowText}>
-        <b>{event.title}</b>
+        <b>{rendezVous.libelle}</b>
         {/* Sous-titre OMIS quand rien ne le nourrit : date + titre + tag suffisent à
             la ligne. `description` n'est PAS un repli ici — elle a sa propre ligne
             en variante `detailed`, et la home ne l'affiche pas du tout. */}
         {place ? (
           <p>
-            {place} — {formatTime(event.startsAt)}
+            {place} — {formatTime(rendezVous.startsAt)}
           </p>
         ) : null}
         {/* Les deux lignes ci-dessous n'existent qu'en `detailed`, et chacune
@@ -90,9 +100,14 @@ export function EventRow({ event, variant = "compact" }: EventRowProps) {
         {description ? <p className={styles.rowDescription}>{description}</p> : null}
       </div>
       {/* Libellés PUBLICS de l'enum : `schema.ts` dit explicitement qu'ils sont du
-          RENDU et non de la donnée. */}
-      <Tag variant={isHighlight ? "highlight" : "default"}>
-        {isHighlight ? "Temps fort" : "Hebdo"}
+          RENDU et non de la donnée.
+          🔴 UN TROISIÈME LIBELLÉ DEPUIS LA 9.5, ET IL NE VIENT PAS D'UN ENUM. Un tournoi sans
+          événement n'a **pas** de `type` : le rendre « Hebdo » serait faux, et le laisser sans
+          étiquette ferait un trou dans la grille de la ligne. « Tournoi » se **dérive de la
+          nature**, ce qui est exactement l'arbitrage A2 — aucune valeur ajoutée à `EVENT_TYPES`
+          (qui alimente le contrat n8n) pour un fait que la relation dit déjà. */}
+      <Tag variant={evenement?.type === "thursday" ? "default" : "highlight"}>
+        {tournoi ? "Tournoi" : evenement?.type === "special" ? "Temps fort" : "Hebdo"}
       </Tag>
     </li>
   );

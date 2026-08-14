@@ -102,9 +102,13 @@ const CAS_PARTICULIERS: Record<string, string> = {
  *
  * Ce bloc renvoyait **inconditionnellement** « Le bar choisi n'existe plus », et le commentaire
  * qui le justifiait disait : *« ici la seule clé étrangère est le bar »*. C'était vrai jusqu'au
- * 2026-08-13. La Story 9.1 crée `tournament.event_id`, **`NOT NULL` et `ON DELETE RESTRICT`**
- * (décision 1 du §8 de la note d'architecture) : supprimer un événement qui porte un tournoi
- * lève désormais un `23503` **entrant**, sur une contrainte qui n'a rien à voir avec un bar.
+ * 2026-08-13. La Story 9.1 crée `tournament.event_id` en **`ON DELETE RESTRICT`** : supprimer un
+ * événement qui porte un tournoi lève désormais un `23503` **entrant**, sur une contrainte qui
+ * n'a rien à voir avec un bar.
+ * ⚠️ **CE BLOC DISAIT AUSSI « `NOT NULL` » — PLUS VRAI DEPUIS LA 9.5**, où `event_id` est devenu
+ * nullable. `RESTRICT`, lui, est **conservé** (le raisonnement complet vit sur la colonne, dans
+ * `schema.ts`), donc ce `23503` se lève exactement comme avant. Ce qui change est le **remède**
+ * proposé au bénévole : **détacher** un tournoi est désormais un geste possible.
  *
  * ⚠️ Sans cette distinction, un bénévole qui tente de supprimer un événement de la Game'in
  * Reims lirait « Le bar choisi n'existe plus » — une phrase **fausse**, qui parle d'un objet
@@ -126,8 +130,10 @@ function messageErreurBase(erreur: unknown): string {
   if (contrainte.startsWith("tournament_")) {
     return (
       "Cet événement porte au moins un tournoi : il ne peut pas être supprimé tant qu'un " +
-      "tournoi y est rattaché. Ouvrez la section Tournois, supprimez ou rattachez ailleurs " +
-      "les tournois concernés, puis revenez ici. (Rien n'a été supprimé.)"
+      "tournoi y est rattaché. Ouvrez la section Tournois, puis supprimez ces tournois, " +
+      "rattachez-les ailleurs, ou détachez-les en choisissant « Aucun » (ils deviennent alors " +
+      "des rendez-vous à part entière, et il faudra leur indiquer un lieu). " +
+      "(Rien n'a été supprimé.)"
     );
   }
   return "Le bar choisi n'existe plus. Rechargez la page et choisissez-en un autre.";

@@ -64,7 +64,10 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
   tournament_name_valide: "le nom du tournoi",
   tournament_game_valide: "le jeu",
   tournament_slug_valide: "l'identifiant de l'adresse",
-  tournament_venue_name_valide: "la salle ou l'espace",
+  // ⚠️ « la salle ou l'espace » jusqu'à la 9.5 : le champ ne précisait alors QUE l'intérieur
+  // du lieu de l'événement. Détaché, il EST le lieu — et l'écran l'appelle « Lieu du tournoi ».
+  // Un message qui nomme un autre concept que l'étiquette du champ fait chercher.
+  tournament_venue_name_valide: "le lieu du tournoi",
   tournament_format_text_valide: "le déroulé annoncé",
   tournament_prizes_valide: "les lots",
   tournament_match_duration_valide: "la durée d'un match",
@@ -78,10 +81,23 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
 /**
  * Cas dont le message ne se déduit PAS du nom d'un champ.
  *
- * Les trois portent des règles qui mettent **deux colonnes en relation** : nommer un seul
- * champ serait faux la moitié du temps (patron `event_has_venue`).
+ * Ils portent des règles qui mettent **deux colonnes en relation** : nommer un seul champ
+ * serait faux la moitié du temps (patron `event_has_venue`).
  */
 const CAS_PARTICULIERS: Record<string, string> = {
+  /**
+   * 🔴 CE CAS EST CENSÉ ÊTRE INATTEIGNABLE — ET C'EST EXACTEMENT POUR ÇA QU'IL EST ÉCRIT.
+   *
+   * Le `superRefine` de `tournamentInputSchema` porte la même règle et parle **avant** la base
+   * (avec le focus sur le bon champ). Ce message-ci ne sert donc que si la base est atteinte
+   * autrement : une écriture concurrente, un `UPDATE` direct, une restauration. Sans lui, le
+   * bénévole lirait un `violates check constraint "tournament_a_un_lieu"` brut — et c'est
+   * précisément le défaut trouvé en revue de la 6.3, où huit contraintes sur dix rendaient un
+   * message qui ne nommait aucun champ.
+   */
+  tournament_a_un_lieu:
+    "Un tournoi sans événement d'agenda doit indiquer son lieu : c'est ce lieu que " +
+    "l'agenda affichera. Choisissez un événement, ou renseignez le lieu du tournoi.",
   tournament_mately_a_son_url:
     "Un tournoi dont les inscriptions passent par MATELY doit porter une adresse " +
     "d'inscription : sans elle, la fiche annoncerait des inscriptions sans aucun moyen de " +

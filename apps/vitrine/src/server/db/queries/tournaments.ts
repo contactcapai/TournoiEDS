@@ -352,7 +352,12 @@ export async function slugDejaPris(slug: string, idExclu: string | null) {
 }
 
 /**
- * Les événements d'agenda proposables au rattachement (A4 : le lien est **obligatoire**).
+ * Les événements d'agenda proposables au rattachement — **facultatif depuis la Story 9.5**.
+ *
+ * ⚠️ Cette en-tête disait *« A4 : le lien est **obligatoire** »*. La décision 1 du §8 a été
+ * renversée le 2026-08-14 : un tournoi sans événement **est** le rendez-vous. Cette lecture ne
+ * change pas — elle alimente toujours le même `<select>` —, mais une liste **vide** n'est plus
+ * un état bloquant : c'est le cas nominal d'une base neuve.
  *
  * 🔴 LA LISTE N'EST PAS FILTRÉE SUR `is_published`, ET C'EST DÉLIBÉRÉ. Un bénévole prépare la
  * Game'in Reims **des semaines à l'avance**, événement d'agenda en brouillon compris : ne
@@ -401,3 +406,108 @@ export async function getPhotosPourVisuel(limite: number) {
 
 /** Une photo proposable en visuel, dérivée de la requête. */
 export type PhotoVisuel = Awaited<ReturnType<typeof getPhotosPourVisuel>>[number];
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LECTURES POUR L'AGENDA (Story 9.5) — LE TOURNOI VU COMME UN RENDEZ-VOUS
+
+   🔴 ELLES VIVENT ICI, PAS DANS `queries/rendez-vous.ts`, ET C'EST LA MÊME RÈGLE
+   QUE POUR LES LECTURES D'ADMIN : `architecture.md` pose une famille de requêtes
+   PAR DOMAINE, pas par surface. Ce qui interroge la table `tournament` est ici ;
+   `rendez-vous.ts` ne fait que **composer** les deux domaines, sans jamais écrire
+   un `db.query.tournament` de son côté — sinon il existerait deux définitions de
+   « un tournoi publié à venir », et elles divergeraient au premier ajustement.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Les colonnes qu'un tournoi doit porter pour se rendre **comme un rendez-vous d'agenda**.
+ *
+ * ⚠️ **`slug` EST REMONTÉ ICI ALORS QUE `COLONNES_PUBLIQUES` NE LE REMONTE PAS**, et l'écart
+ * est voulu : la 9.2 l'excluait parce qu'aucune carte n'était cliquable *(« une colonne
+ * remontée que personne ne rend ferait croire au type dérivé qu'une destination existe »)*.
+ * Ici il **a** un consommateur — le CTA « J'y serai », qui doit désigner **ce** tournoi (A4).
+ * Tant que la fiche n'existe pas (Story 9.3), il sert d'**identité**, pas encore d'URL.
+ */
+const COLONNES_RENDEZ_VOUS = {
+  id: true,
+  slug: true,
+  name: true,
+  game: true,
+  startsAt: true,
+  venueName: true,
+  registrationState: true,
+} as const;
+
+/**
+ * Les `limite` prochains tournois **PUBLIÉS et SANS ÉVÉNEMENT** — ceux qui **sont** le
+ * rendez-vous, et qui paraissent donc eux-mêmes à l'agenda (Story 9.5, méthode M2).
+ *
+ * 🔴 `isNull(eventId)` EST LA MOITIÉ QUI ÉVITE LE DOUBLON, ET C'EST TOUT L'ENJEU DE L'AC3.
+ * Un tournoi **rattaché** ne doit **jamais** sortir ici : c'est son **événement** que l'agenda
+ * montre, et lui seul. Sans ce filtre, la Game'in Reims apparaîtrait **onze fois** — une pour
+ * l'événement, dix pour ses animations. Le filtre n'est donc pas une optimisation de volume,
+ * c'est la règle métier elle-même.
+ *
+ * ⚠️ L'instant arrive **en paramètre** : cette lecture est une moitié de liste fusionnée, et
+ * l'autre moitié (`getUpcomingEvents`) doit voir **exactement la même frontière**. Même motif
+ * que `getPublicTournaments`, écrit à la 9.2 après un défaut trouvé en revue (dette R49).
+ * ⚠️ `gt` et non `gte`, comme partout : **une seule définition de « à venir » dans le dépôt**.
+ */
+export async function getUpcomingTournamentsSansEvenement(limite: number, maintenant: Date) {
+  return db.query.tournament.findMany({
+    columns: COLONNES_RENDEZ_VOUS,
+    where: (table, { and, eq, gt, isNull }) =>
+      and(eq(table.isPublished, true), isNull(table.eventId), gt(table.startsAt, maintenant)),
+    orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
+    limit: limite,
+  });
+}
+
+/** Un tournoi rendu comme rendez-vous d'agenda, dérivé de la requête. */
+export type TournoiDuRendezVous = Awaited<
+  ReturnType<typeof getUpcomingTournamentsSansEvenement>
+>[number];
+
+/**
+ * Les tournois **PUBLIÉS** portés par chacun de ces événements, groupés par événement.
+ *
+ * 🔴 POURQUOI CETTE LECTURE EXISTE, ET POURQUOI ELLE N'EST PAS UNE RELATION `with:`.
+ * Le CTA « J'y serai » se **dérive du nombre** de tournois que porte le rendez-vous (A4) :
+ * un seul ⇒ il désigne ce tournoi · plusieurs (cas GIR) ⇒ il renvoie à `/tournois` · aucun ⇒
+ * il disparaît. Il faut donc, pour chaque événement rendu, savoir **combien** — et lesquels.
+ * ⇒ Passer par `with: { tournaments: … }` sur `getUpcomingEvents` aurait alourdi un type
+ * (`AgendaEvent`) consommé par **quatre** surfaces qui n'en ont que faire, dont les deux
+ * sélecteurs d'occasion de la galerie. Une lecture séparée laisse `AgendaEvent` intact.
+ *
+ * 🔴 **UNE SEULE REQUÊTE POUR LES N ÉVÉNEMENTS, PAS UNE PAR CARTE** — patron
+ * `getPhotosForEvents` (dette R25) : une lecture par événement serait un N+1 sur des pages
+ * `force-dynamic`, donc payé à **chaque** visite.
+ *
+ * ⚠️ **FILTRÉE SUR `is_published`** : un événement publié peut porter un tournoi en brouillon.
+ * Le compter ferait apparaître un CTA vers une page qui n'existe pas encore publiquement.
+ * ⚠️ **Aucune borne de date ici** : la borne est celle des événements qu'on lui passe. Un
+ * tournoi d'un événement à venir est à venir par construction.
+ */
+export async function getTournoisParEvenement(eventIds: readonly string[]) {
+  // Garde de FORME, pas d'optimisation : `inArray(col, [])` génère `IN ()`, invalide en SQL.
+  // Le cas se produit dès qu'aucun événement n'est à venir — un état parfaitement légitime,
+  // que le hub rend déjà (« Pas de jeudi calé pour l'instant »). Patron `getPhotosForEvents`.
+  if (eventIds.length === 0) return new Map<string, TournoiDuRendezVous[]>();
+
+  const lignes = await db.query.tournament.findMany({
+    columns: { ...COLONNES_RENDEZ_VOUS, eventId: true },
+    where: (table, { and, eq, inArray }) =>
+      and(eq(table.isPublished, true), inArray(table.eventId, [...eventIds])),
+    orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
+  });
+
+  const parEvenement = new Map<string, TournoiDuRendezVous[]>();
+  for (const { eventId, ...tournoi } of lignes) {
+    // `eventId` est typé `string | null` — Drizzle ne sait pas que le `WHERE` l'a exclu. On
+    // traite la branche plutôt que d'affirmer avec un `!` non vérifié (patron `photos.ts`).
+    if (eventId === null) continue;
+    const deja = parEvenement.get(eventId);
+    if (deja) deja.push(tournoi);
+    else parEvenement.set(eventId, [tournoi]);
+  }
+  return parEvenement;
+}

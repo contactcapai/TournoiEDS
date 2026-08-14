@@ -7,8 +7,9 @@ import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { NEW_TAB_SR, classerDestination } from "@/lib/links";
-import { getPastEvents, getUpcomingEvents } from "@/server/db/queries/events";
+import { getPastEvents } from "@/server/db/queries/events";
 import { getPhotosForEvents } from "@/server/db/queries/photos";
+import { getUpcomingRendezVous } from "@/server/db/queries/rendez-vous";
 import { lireReglages } from "@/server/db/queries/settings";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -160,8 +161,17 @@ export default async function Agenda() {
   // ⚠️ `lireReglages()` est enveloppée de `cache()` : le `(public)/layout.tsx` l'appelle aussi
   // pour le header et le footer, et les deux appels ne font qu'UNE requête SQL le temps de
   // cette requête HTTP.
+  //
+  // 🔴 « À VENIR » LIT DEUX SOURCES DEPUIS LA STORY 9.5 (événements + tournois SANS
+  // événement) ; « DÉJÀ PASSÉ » N'EN LIT QU'UNE, ET C'EST UN ARBITRAGE (A8).
+  // La vignette du carrousel rend un **compte-rendu** et une **photo d'événement**
+  // (`getPhotosForEvents`, filtrée `is_published`) : un tournoi n'a ni l'un ni l'autre — il a
+  // un **podium** et son propre `photo_id`. Et `/tournois` porte déjà sa section « Déjà
+  // joués » depuis la Story 9.2 : fusionner ici dupliquerait une surface livrée l'avant-veille.
+  // ⚠️ **COMPENSATION OBLIGATOIRE, ET ELLE EST EN BAS DE PAGE** : le renvoi final nomme
+  // `/tournois`, pour qu'un tournoi passé ne disparaisse pas **en silence** de cette page.
   const [upcoming, past, reglages] = await Promise.all([
-    getUpcomingEvents(UPCOMING_LIMIT),
+    getUpcomingRendezVous(UPCOMING_LIMIT),
     getPastEvents(PAST_LIMIT),
     lireReglages(),
   ]);
@@ -217,13 +227,22 @@ export default async function Agenda() {
               <>
                 {/* Pas de CTA sur la carte : elle renverrait vers cette page même
                     (arbitrage de Brice — le CTA « participer » d'epics.md n'a aucune
-                    destination en v1, il est remplacé par l'adresse des lignes). */}
-                <NextEventCard event={next} />
+                    destination en v1, il est remplacé par l'adresse des lignes).
+                    ⚠️ CE MOTIF A VIEILLI SANS DEVENIR FAUX : depuis la 9.5 le CTA du hub ne
+                    renvoie plus vers `/agenda` mais vers le tournoi du rendez-vous, donc il
+                    AURAIT une destination ici. On ne l'ajoute pas pour autant — ce serait une
+                    surface de rendu neuve sur une page mergée, hors AC. Point porté au gate
+                    visuel de Brice plutôt que tranché au dev. */}
+                <NextEventCard rendezVous={next} />
 
                 {rest.length > 0 ? (
                   <EventList>
-                    {rest.map((event) => (
-                      <EventRow key={event.id} event={event} variant="detailed" />
+                    {rest.map((rendezVous) => (
+                      <EventRow
+                        key={rendezVous.cle}
+                        rendezVous={rendezVous}
+                        variant="detailed"
+                      />
                     ))}
                   </EventList>
                 ) : null}
@@ -292,13 +311,25 @@ export default async function Agenda() {
       ) : null}
 
       {/* ④ Renvoi final. Le CTA d'adhésion n'est PAS ici : cette page parle de dates,
-          la porte d'adhésion est la double porte de la home (Story 2.5). */}
+          la porte d'adhésion est la double porte de la home (Story 2.5).
+          🔴 LE RENVOI VERS /tournois EST LA CONTREPARTIE DE L'ARBITRAGE A8 (Story 9.5), PAS
+          UN ORNEMENT. Le carrousel « Déjà passé » ci-dessus ne montre que des ÉVÉNEMENTS : un
+          tournoi sans événement y figure tant qu'il est à venir, puis en sort une fois joué.
+          Sans cette phrase, il disparaîtrait de la page **en silence** — et ce projet paie
+          depuis la dette R2 les endroits où une absence ne se dit pas. */}
       <section className={`${editorial.section} ${motion.reveal}`}>
         <Wrap>
           <div className={styles.outro}>
             <p>
-              Les animations et interventions, c&apos;est une autre porte&nbsp;: elle
-              est décrite sur la page dédiée.
+              Les tournois ont leur propre page&nbsp;: on y retrouve ceux à venir et
+              tous ceux qui ont déjà été joués, avec leur podium.
+            </p>
+            <Button variant="outline" href="/tournois">
+              Voir les tournois
+            </Button>
+            <p>
+              Les animations et interventions, c&apos;est encore une autre porte&nbsp;:
+              elle est décrite sur la page dédiée.
             </p>
             <Button variant="outline" href="/animations">
               Voir les animations

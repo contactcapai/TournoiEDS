@@ -7,7 +7,7 @@ import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
 import { TournamentBridge } from "@/components/home/TournamentBridge/TournamentBridge";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
-import { getUpcomingEvents } from "@/server/db/queries/events";
+import { getUpcomingRendezVous } from "@/server/db/queries/rendez-vous";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
 import { getPublishedPhotos } from "@/server/db/queries/photos";
 import { lireReglages } from "@/server/db/queries/settings";
@@ -67,6 +67,11 @@ export const dynamic = "force-dynamic";
  * 5 = la carte du prochain rendez-vous + jusqu'à 4 lignes de roulement — exactement ce
  * que montre la maquette (3 hebdo + 1 temps fort). La home donne un APERÇU, pas
  * l'exhaustivité (EXPERIENCE.md l.119) : la liste complète est la page /agenda (3.3).
+ *
+ * ⚠️ **DEPUIS LA 9.5, CETTE BORNE PORTE SUR LA LISTE FUSIONNÉE**, pas sur les seuls
+ * événements — et c'est bien 5 **au total**, pas 5 + 5. `getUpcomingRendezVous` lit chaque
+ * source à la borne **pleine** puis tronque **après** la fusion : les 5 retenus sont donc
+ * exactement les 5 plus proches, quelle que soit leur répartition entre les deux natures.
  */
 const HOME_EVENT_COUNT = 5;
 
@@ -99,8 +104,12 @@ export default async function Home() {
   // ⚠️ `lireReglages()` est enveloppée de `cache()` : le `(public)/layout.tsx` l'appelle
   // AUSSI, pour le header et le footer, et les deux appels ne font qu'UNE requête SQL le
   // temps de cette requête HTTP. Ce n'est PAS un cache applicatif — rien à invalider.
+  // 🔴 DEPUIS LA STORY 9.5, LA PREMIÈRE LECTURE N'EST PLUS « LES ÉVÉNEMENTS » MAIS « LES
+  // RENDEZ-VOUS » : les événements publiés **et** les tournois publiés SANS événement, dans
+  // un seul ordre chronologique. Un tournoi rattaché n'y figure pas — c'est son événement que
+  // l'agenda montre, jamais ses animations (sans quoi la Game'in Reims paraîtrait onze fois).
   const [upcoming, partners, photos, reglages] = await Promise.all([
-    getUpcomingEvents(HOME_EVENT_COUNT),
+    getUpcomingRendezVous(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
     getPublishedPhotos(HOME_PHOTO_COUNT),
     lireReglages(),

@@ -1337,51 +1337,75 @@ export const tournamentRegistrationState = pgEnum(
  * ⚠️ L'absence est gardée par `gate:tournois`, qui lit le **schéma réel de la base** : un
  * commentaire ne tient pas une règle six mois (leçon de la garde ⑩ de `gate:ateliers`).
  *
- * ⚠️ **AUCUNE COLONNE NULLABLE N'EST AJOUTÉE SANS NÉCESSITÉ**, et `event_id` est le cas
- * emblématique : la décision 1 du §8 le rend **obligatoire** (*« un tournoi peut se faire en
- * ligne mais on créera l'événement dans l'agenda pour l'y rattacher »*) ⇒ **aucune occasion de
- * refaire `event_has_venue`**, le `CHECK` qui valait `NULL`, passait, et est resté faux trois
- * epics. Les **DIX** colonnes nullables restantes le sont toutes pour une raison ÉCRITE, et
- * chacune porte une branche `is null` **explicite** dans sa contrainte quand elle en a une.
+ * ⚠️ **AUCUNE COLONNE NULLABLE N'EST AJOUTÉE SANS NÉCESSITÉ**, et chacune l'est pour une raison
+ * ÉCRITE, avec une branche `is null` **explicite** dans sa contrainte quand elle en a une.
  *
- * ⚠️ **CE COMPTE DISAIT « HUIT » — FAUX, TROUVÉ EN REVUE, ET LE MOTIF EST INSTRUCTIF.** Il y en
- * avait **neuf** à l'écriture (`venue_name`, `format_text`, `prizes`, `match_duration_minutes`,
- * `capacity`, `registration_url`, `podium_first`, `podium_second`, `podium_third`), et **dix**
- * depuis que `photo_id` a été ajouté (A2). Sur un projet dont la doctrine est *« compter par
- * exécution, jamais de mémoire »*, un nombre écrit à la main dans un commentaire est
- * exactement ce qui se désaligne — c'est la 5ᵉ occurrence, après `_sections.ts`, `CHAMPS_URL`,
- * la couverture d'autotest de `gate:reseaux` et la liste `INTERDITS` de `gate:tournois`.
- * ⇒ **Le compte qui fait foi est celui de la porte**, qui le relit dans
- * `information_schema.columns` ; celui-ci n'est qu'une aide à la lecture.
+ * 🔴 **`event_id` EST DEVENU NULLABLE À LA STORY 9.5, ET CE PARAGRAPHE DISAIT L'INVERSE.**
+ * Il affirmait : *« la décision 1 du §8 le rend **obligatoire** ⇒ **aucune occasion de refaire
+ * `event_has_venue`** »*. La décision 1 a été **RENVERSÉE le 2026-08-14**, non par un
+ * raisonnement mais par un **usage réel** : Brice a saisi le premier tournoi du projet et a dû
+ * créer **deux objets pour un seul rendez-vous**. Elle était **juste sur son motif** (éviter une
+ * colonne nullable) et **fausse sur son coût** — elle transformait le cas le plus fréquent,
+ * *un tournoi EST le rendez-vous*, en double saisie.
+ * ⇒ **L'occasion de refaire `event_has_venue` est donc bel et bien rouverte**, et elle est
+ * refermée **explicitement** par `tournament_a_un_lieu` (voir son bloc, plus bas) : *pas
+ * d'événement ⇒ un lieu*, écrite **null-safe**, et prouvée par une garde qui **LIT son texte**.
+ *
+ * ⚠️ **UN COMPTE ÉCRIT ICI À LA MAIN A DÉJÀ ÉTÉ FAUX DEUX FOIS** — il disait « huit », il y en
+ * avait **neuf** à l'écriture, puis **dix** dès que `photo_id` a été ajouté (A2), et **onze**
+ * depuis que `event_id` est nullable (9.5). Sur un projet dont la doctrine est *« compter par
+ * exécution, jamais de mémoire »*, un nombre recopié dans un commentaire est exactement ce qui
+ * se désaligne — c'était la 5ᵉ occurrence, après `_sections.ts`, `CHAMPS_URL`, la couverture
+ * d'autotest de `gate:reseaux` et la liste `INTERDITS` de `gate:tournois`.
+ * ⇒ **AUCUN COMPTE N'EST PLUS ÉCRIT ICI.** Celui qui fait foi est celui de la porte, qui le
+ * relit dans `information_schema.columns` — et le maintenir à deux endroits, c'est le perdre.
  */
 export const tournament = pgTable(
   "tournament",
   {
     id: uuid().primaryKey().defaultRandom(),
     /**
-     * 🔴 `ON DELETE RESTRICT`, ET C'EST LE SEUL DES TROIS COMPORTEMENTS QUI SOIT HONNÊTE ICI.
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 LE RATTACHEMENT À L'AGENDA — **FACULTATIF DEPUIS LA STORY 9.5**, ET `RESTRICT` RESTE
+     * ══════════════════════════════════════════════════════════════════════════════════════
      *
-     * Les deux autres clés étrangères de ce fichier (`event.barId`, `photo.eventId`) sont en
-     * `SET NULL`, parce que leur colonne est **nullable** et que l'orphelin garde un sens (un
-     * jeudi sans bar reste un jeudi ; une photo sans occasion reste une photo). Ici la colonne
-     * est **`notNull`** (décision 1 du §8) : `SET NULL` est donc **impossible**, et il ne reste
-     * que deux options.
-     *   · `CASCADE` **détruirait les tournois** d'un événement supprimé — or la suppression
-     *     d'un événement est une opération **banale** du back-office depuis la 6.3, et un
-     *     tournoi porte son podium, son URL d'inscription et son adresse publique partagée.
-     *     Une perte muette, déclenchée par un geste de routine.
+     * `null` ⇒ **le tournoi EST le rendez-vous**, et l'agenda l'affiche à ce titre (méthode M2).
+     * Renseigné ⇒ le tournoi est **une animation** d'un événement plus large qui peut en porter
+     * plusieurs : c'est le cas de la Game'in Reims, **contenant à deux niveaux** — deux jours,
+     * dix animations à des heures différentes (confirmé par Brice le 2026-08-14).
+     * ⚠️ Le rattachement n'est donc **pas supprimé**, il devient **facultatif** : la décision
+     * d'origine décrivait **bien la GIR** et **mal le tournoi seul**.
+     *
+     * 🔴 `ON DELETE RESTRICT` EST **CONSERVÉ**, ET CE N'EST PLUS LE MÊME RAISONNEMENT QU'EN 9.1.
+     * Ce bloc disait : *« la colonne est `notNull`, `SET NULL` est donc **impossible**, il ne
+     * reste que deux options »*. **Ce motif a disparu avec le `NOT NULL`** — les trois
+     * comportements sont désormais possibles, et il faut donc **choisir** au lieu de subir :
+     *   · `CASCADE` **détruirait les tournois** d'un événement supprimé — la suppression d'un
+     *     événement est une opération **banale** du back-office depuis la 6.3, et un tournoi
+     *     porte son podium, son URL d'inscription et son adresse publique partagée. Une perte
+     *     muette, déclenchée par un geste de routine. **Refusé, comme en 9.1.**
+     *   · `SET NULL` **est devenu possible**, et il est **refusé quand même** — c'est le
+     *     changement le plus tentant de cette story, et le piège. Un tournoi rattaché **sans
+     *     lieu propre** (cas nominal : c'est l'événement qui portait le lieu) verrait son
+     *     `event_id` passer à `null` et **violerait aussitôt `tournament_a_un_lieu`**. Postgres
+     *     refuserait alors la suppression avec un message de **contrainte CHECK** — illisible,
+     *     et pointant sur la mauvaise cause. On échangerait un refus **clair** contre un refus
+     *     **obscur**, pour le même résultat.
      *   · `RESTRICT` fait **refuser** la suppression par Postgres, et c'est **le bon signal** —
      *     exactement le raisonnement déjà écrit sur `event.barId`.
+     * ⚠️ **Ne pas « harmoniser » cette clé sur `event.barId` / `photo.eventId`** au motif que la
+     * colonne est maintenant nullable comme les leurs : leur orphelin garde un sens sans
+     * contrainte à respecter (un jeudi sans bar reste un jeudi), le nôtre doit **encore prouver
+     * qu'il a un lieu**.
      *
      * ⚠️ CONSÉQUENCE **HORS DE CETTE TABLE**, ET ELLE EST PAYÉE : `actions/agenda.ts`
      * traduisait tout `23503` par « Le bar choisi n'existe plus », parce que le bar était sa
      * seule clé étrangère. Ce n'est plus vrai. Sans correction, un bénévole qui supprime un
      * événement portant un tournoi lirait un message parlant d'un **bar** — faux, et
-     * impossible à corriger. Le message y distingue désormais les deux cas.
+     * impossible à corriger. Le message y distingue désormais les deux cas, et depuis la 9.5
+     * il propose aussi de **détacher**, geste qui n'existait pas.
      */
-    eventId: uuid()
-      .notNull()
-      .references(() => event.id, { onDelete: "restrict" }),
+    eventId: uuid().references(() => event.id, { onDelete: "restrict" }),
     /** Le nom du tournoi, rendu en titre de la fiche (A23 ①). */
     name: text().notNull(),
     /**
@@ -1416,8 +1440,15 @@ export const tournament = pgTable(
      */
     startsAt: timestamp({ withTimezone: true }).notNull(),
     /**
-     * La salle ou l'espace, **en plus** du lieu de l'événement (qui porte déjà le sien).
-     * Absent → la ligne est masquée à l'affichage, jamais rendue vide (NFR8, UX-DR10).
+     * Le lieu du tournoi. Absent → la ligne est masquée à l'affichage, jamais rendue vide
+     * (NFR8, UX-DR10).
+     *
+     * 🔴 **DEPUIS LA 9.5, IL EST LE PIVOT DE `tournament_a_un_lieu` — NE PAS LE SUPPRIMER.**
+     * Il ne se lit plus « la salle, **en plus** du lieu de l'événement » (formulation d'origine,
+     * vraie quand tout tournoi avait un événement) : quand `event_id` est `null`, il est le
+     * **seul** endroit où le lieu existe. Le rendre obligatoire serait faux dans l'autre sens —
+     * un tournoi rattaché n'a pas à répéter l'adresse de son événement. D'où une contrainte
+     * **conditionnelle**, et non un `notNull`.
      */
     venueName: text(),
     /**
@@ -1546,6 +1577,48 @@ export const tournament = pgTable(
     check(
       "tournament_mately_a_son_url",
       sql`${table.registrationMode} is null or ${table.registrationMode} <> 'mately' or ${table.registrationUrl} is not null`,
+    ),
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 PAS D'ÉVÉNEMENT ⇒ UN LIEU — **C'EST `event_has_venue`, ET ON LE SAIT D'AVANCE**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Rendre `event_id` nullable (Story 9.5) rouvre le trou que la décision 1 du §8 cherchait
+     * précisément à éviter : le lieu d'un tournoi rattaché vient de **son événement**, donc
+     * sans événement **et** sans `venue_name`, un tournoi s'afficherait à l'agenda sans qu'on
+     * sache **où** il se tient. Le motif d'origine était réel — il est refermé ici, à la main.
+     *
+     * 🔴 LA FORME NAÏVE EST **EXACTEMENT** LE DÉFAUT HISTORIQUE :
+     *     `event_id is not null or length(btrim(venue_name)) > 0`
+     * Dans le cas **exact** qu'elle interdit (`event_id` `NULL`, `venue_name` `NULL`), elle vaut
+     * `FALSE OR NULL` = **`NULL`** — et **un `CHECK` qui vaut `NULL` PASSE** (logique ternaire
+     * SQL : il n'échoue que sur `FALSE`). C'est le mécanisme par lequel `event_has_venue` est
+     * resté faux **trois epics et sept portes vertes**.
+     *
+     * ⚠️ **ET LE MEMBRE DANGEREUX N'EST PAS CELUI QU'ON CROIT** — même contre-intuition que
+     * `tournament_mately_a_son_url` ci-dessus, d'où ce paragraphe :
+     *   · `event_id is not null` ne vaut **jamais** `NULL` (`IS NOT NULL` rend toujours un
+     *     booléen). Ce n'est **pas** lui qu'il faut protéger, alors que c'est la colonne qu'on
+     *     vient de rendre nullable ;
+     *   · c'est `length(btrim(venue_name)) > 0` qui vaut `NULL` quand la colonne est `NULL`.
+     * ⇒ `coalesce(…, 0)` **à l'intérieur**, sur la longueur, et non un `venue_name is not null`
+     * ajouté devant : les deux se valent logiquement, mais celui-ci **dit** où était le danger.
+     *
+     * 🔴 ET ÇA NE SE MESURE **PAS** PAR UNE ÉCRITURE — leçon `gate:ateliers` ⑧, prouvée rouge :
+     * avec le `coalesce` retiré, la contre-épreuve « les deux colonnes à `NULL` » reste **VERTE**,
+     * parce que le défaut rend la garde aveugle **par construction**. Le seul témoin est une
+     * garde qui **LIT le texte de la contrainte** (`pg_get_constraintdef`), et `gate:tournois`
+     * en porte une (garde ⑯).
+     *
+     * ⚠️ **`btrim` ne retire que les blancs ASCII, pas U+200B** — même limite déclarée que les
+     * autres gardes de texte de cette table, à rouvrir pour TOUTES ensemble (dette **R41**,
+     * Story 7.8). Zod refuse le cas visiblement vide (`visiblementVide`), et
+     * `tournament_venue_name_valide` interdit déjà la chaîne blanche : cette contrainte-ci ne
+     * répète donc pas la validation du contenu, elle ne décide que de la **présence**.
+     */
+    check(
+      "tournament_a_un_lieu",
+      sql`${table.eventId} is not null or coalesce(length(btrim(${table.venueName})), 0) > 0`,
     ),
     /**
      * 🔴 GARDES DE TEXTE — MÊME DOCTRINE QUE PARTOUT DANS CE FICHIER : **la base est le

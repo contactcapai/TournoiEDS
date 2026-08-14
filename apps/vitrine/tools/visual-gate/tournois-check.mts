@@ -67,6 +67,9 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { BASE as BASE_DEFAUT, PAGES } from "./config.mjs";
+// ⚠️ IMPORTÉ, JAMAIS RECOPIÉ (garde ⑱) : c'est la constante qui construit le `pgEnum`, le
+// schéma Zod ET le contrat n8n. Une liste alignée à la main se désaligne à l'ajout suivant.
+import { EVENT_TYPES } from "../../src/lib/schemas/event";
 import {
   LIBELLES_ETAT_INSCRIPTION,
   LIBELLES_MODE_INSCRIPTION,
@@ -328,10 +331,43 @@ const avantMenage = await compter();
       valeur: { ...BASE_VALIDE, slug: "a".repeat(IDENTIFIANT_MAX + 1) },
       doitPasser: false,
     },
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 CE CAS ÉTAIT DEVENU VRAI POUR LA MAUVAISE RAISON — TROUVÉ EN REVUE (Story 9.5)
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Il s'écrivait `{ ...BASE_VALIDE, eventId: "" }`, `doitPasser: false`, sous l'étiquette
+     * *« événement de rattachement ABSENT (A4 : obligatoire) »*. Depuis la 9.5, `eventId: ""`
+     * vaut `null` et n'est **plus** un refus — mais `BASE_VALIDE` ne porte **aucun**
+     * `venueName`, donc le `superRefine` neuf refusait la ligne pour « lieu manquant ». Le
+     * booléen observé restait `false` : **le même verdict, par un mécanisme entièrement
+     * différent.**
+     * ⇒ Le cas ne discriminait plus rien. Si quelqu'un remettait `eventId: z.uuid()`
+     * obligatoire — c'est-à-dire annulait le livrable de cette story — il serait resté
+     * **VERT**. C'est `pieges/garde-nominale.md` par vieillissement : l'étiquette décrivait
+     * encore la règle d'hier, le code mesurait celle d'aujourd'hui.
+     *
+     * ⇒ Il est remplacé par **DEUX** cas qui, ensemble, décident : l'un prouve que
+     * l'optionalité EXISTE (contre-épreuve **positive**, la seule qui rougirait si on
+     * remettait l'obligation), l'autre que la règle « pas d'événement ⇒ un lieu » MORD.
+     */
     {
-      quoi: "événement de rattachement ABSENT (A4 : obligatoire)",
+      quoi: "sans événement MAIS avec un lieu (l'optionalité de la 9.5)",
+      valeur: { ...BASE_VALIDE, eventId: "", venueName: "En ligne" },
+      doitPasser: true,
+    },
+    {
+      quoi: "sans événement ET sans lieu (jumeau Zod de `tournament_a_un_lieu`)",
       valeur: { ...BASE_VALIDE, eventId: "" },
       doitPasser: false,
+    },
+    {
+      // ⚠️ Et le rattachement reste possible SANS lieu propre : c'est le cas nominal de la
+      // Game'in Reims, où le lieu vient de l'événement. Sans ce troisième cas, une règle
+      // « TOUJOURS un lieu » passerait les deux précédents.
+      quoi: "AVEC événement et sans lieu (le lieu vient de l'événement)",
+      valeur: BASE_VALIDE,
+      doitPasser: true,
     },
     {
       // 🔴 LE PIÈGE `date-tz.md`, ÉPROUVÉ : la forme exacte que rend un `datetime-local`.
@@ -1730,6 +1766,188 @@ for (const cas of ECRITURES_EPROUVEES) {
   }
 }
 
+// ── ⑰  PAS D'ÉVÉNEMENT ⇒ UN LIEU — LA CONTRAINTE, LUE DANS SON TEXTE (Story 9.5) ──────
+//
+// 🔴 LA SEULE GARDE QUI PUISSE VOIR CE DÉFAUT, ET ELLE NE PASSE PAS PAR UNE ÉCRITURE.
+// La 9.5 rend `event_id` **nullable**, ce qui rouvre exactement le trou qu'`event_has_venue`
+// a laissé ouvert **trois epics et sept portes vertes** : la forme naïve
+//     `event_id is not null or length(btrim(venue_name)) > 0`
+// vaut `FALSE OR NULL` = **`NULL`** dans le cas précis qu'elle interdit — et un `CHECK` qui
+// vaut `NULL` **PASSE**. Retirer le `coalesce` laisserait donc la contre-épreuve « les deux
+// colonnes à NULL » **VERTE** : le défaut rend l'écriture aveugle **par construction**
+// (leçon `gate:ateliers` ⑧, prouvée rouge). ⇒ On LIT `pg_get_constraintdef`.
+//
+// 🔴 ET ELLE VÉRIFIE **DEUX** CHOSES, PAS UNE — la seconde est le piège
+// `pieges/contrainte-degeneree.md` appliqué à cette story. Si quelqu'un remettait un
+// `NOT NULL` sur `event_id`, la contrainte deviendrait **toujours vraie** : toujours là,
+// toujours satisfaite, ne protégeant plus rien, **sans qu'aucun test ne rougisse**. Une
+// contrainte conditionnelle ne vaut que par la nullabilité de la colonne qui la conditionne.
+{
+  const [colonne] = await sql<{ nullable: string }[]>`
+    select is_nullable as nullable from information_schema.columns
+    where table_name = 'tournament' and column_name = 'event_id'`;
+
+  // En autotest, on exige l'inverse de la réalité : la garde doit voir la divergence.
+  const attenduNullable = AUTOTEST ? "NO" : "YES";
+  if (colonne?.nullable === attenduNullable) {
+    ok("⑰ pas d'événement ⇒ un lieu", "tournament.event_id", "la colonne est NULLABLE (9.5)");
+  } else {
+    ko(
+      "⑰ pas d'événement ⇒ un lieu",
+      "tournament.event_id",
+      `attendu is_nullable=${attenduNullable}, trouvé ${colonne?.nullable ?? "colonne absente"} — ` +
+        "si la colonne redevient NOT NULL, `tournament_a_un_lieu` est TOUJOURS vraie : elle ne garde plus rien",
+    );
+  }
+
+  const [contrainte] = await sql<{ definition: string }[]>`
+    select pg_get_constraintdef(oid) as definition from pg_constraint
+    where conrelid = 'tournament'::regclass and conname = 'tournament_a_un_lieu'`;
+
+  if (!contrainte) {
+    ko(
+      "⑰ pas d'événement ⇒ un lieu",
+      "tournament_a_un_lieu",
+      "la contrainte N'EXISTE PAS — un tournoi sans événement peut n'avoir aucun lieu et s'afficher sans dire où",
+    );
+  } else {
+    const definition = contrainte.definition;
+    // En autotest, on exige une formule qui n'y est pas : la garde doit le voir.
+    const motifNullSafe = AUTOTEST ? /nullif\s*\(/i : /coalesce\s*\(/i;
+    if (motifNullSafe.test(definition) && /venue_name/i.test(definition)) {
+      ok(
+        "⑰ pas d'événement ⇒ un lieu",
+        "tournament_a_un_lieu",
+        "NULL-SAFE — la longueur est enveloppée, le CHECK ne peut plus valoir NULL",
+      );
+    } else {
+      ko(
+        "⑰ pas d'événement ⇒ un lieu",
+        "tournament_a_un_lieu",
+        `la contrainte n'est PAS null-safe — elle vaudra NULL, donc PASSERA. Texte lu : ${definition}`,
+      );
+    }
+    // ⚠️ Le membre `event_id is not null` doit être là, sinon la règle ne dit plus « PAS
+    // d'événement ⇒ un lieu » mais « toujours un lieu » — ce qui refuserait les tournois
+    // rattachés dont le lieu vient de leur événement (cas nominal de la Game'in Reims).
+    // ⚠️ En autotest on exige `IS NULL` (jamais présent) : sans cette inversion, cette
+    // sous-assertion serait la seule de la garde à ne recevoir AUCUN cas d'échec — elle
+    // resterait verte quoi qu'il arrive, et la couverture calculée ne le dirait pas, puisque
+    // celle-ci se compte par ÉTIQUETTE de garde et que les deux autres rougissent déjà.
+    if (new RegExp(AUTOTEST ? "event_id IS NULL" : "event_id IS NOT NULL", "i").test(definition)) {
+      ok(
+        "⑰ pas d'événement ⇒ un lieu",
+        "tournament_a_un_lieu",
+        "conditionnelle au rattachement — un tournoi rattaché n'a pas à répéter le lieu de son événement",
+      );
+    } else {
+      ko(
+        "⑰ pas d'événement ⇒ un lieu",
+        "tournament_a_un_lieu",
+        `la branche « rattaché » manque : la règle deviendrait « TOUJOURS un lieu ». Texte lu : ${definition}`,
+      );
+    }
+  }
+}
+
+// ── ⑰bis  L'EFFET, DANS LES TROIS CAS — UN REFUS, DEUX ACCEPTATIONS ───────────────────
+//
+// 🔴 LA LECTURE DU TEXTE (⑰) ET L'ÉCRITURE (⑰bis) NE SE REMPLACENT PAS — ELLES SE COMPLÈTENT,
+// ET C'EST LA LEÇON `gate:ateliers` ⑧ PRISE DANS LES DEUX SENS :
+//   · l'écriture seule est **aveugle à la null-safety** (le défaut la rend verte) ⇒ ⑰ ;
+//   · la lecture seule ne prouve pas que la contrainte **est appliquée** — un texte juste sur
+//     une contrainte `NOT VALID`, ou détachée par une migration, passerait ⑰ sans rien garder.
+// ⚠️ ET LES DEUX ACCEPTATIONS COMPTENT AUTANT QUE LE REFUS : sans elles, une contrainte qui
+// refuserait **tout** serait indiscernable d'une contrainte juste (patron de la garde ⑦).
+{
+  const CAS_LIEU: { quoi: string; refus: boolean; rattache: boolean; lieu: string | null }[] = [
+    { quoi: "sans événement ET sans lieu", refus: true, rattache: false, lieu: null },
+    // ⚠️ Ce cas-ci est attrapé par `tournament_venue_name_valide` AVANT `tournament_a_un_lieu`,
+    // et c'est sans importance : ce qu'on éprouve est l'EFFET (un tel tournoi ne doit pas
+    // exister), pas quelle contrainte le refuse. Le nom vu est rapporté dans le message.
+    { quoi: "sans événement, blancs ASCII pour lieu", refus: true, rattache: false, lieu: "   " },
+    { quoi: "sans événement, AVEC un lieu", refus: false, rattache: false, lieu: "En ligne" },
+    { quoi: "AVEC événement, sans lieu", refus: false, rattache: true, lieu: null },
+  ];
+
+  for (const cas of CAS_LIEU) {
+    // En autotest, on inverse le verdict attendu : la garde doit voir la divergence.
+    const refusAttendu = AUTOTEST ? !cas.refus : cas.refus;
+    let accepte = false;
+    let vu = "?";
+    try {
+      await sql.begin(async (tx) => {
+        const idEvenement = cas.rattache ? await evenementTemoin(tx) : null;
+        await tx`insert into tournament (event_id, name, game, slug, starts_at, registration_mode, venue_name)
+                 values (${idEvenement}, ${MARQUE + "-lieu"}, 'CS2', ${MARQUE.toLowerCase() + "-lieu"},
+                         now(), 'interne', ${cas.lieu})`;
+        accepte = true;
+        // Annulation systématique : cette garde ne laisse RIEN derrière elle (garde ⑮).
+        throw new Error("__ROLLBACK__");
+      });
+    } catch (erreur) {
+      const details = erreur as { message?: string; code?: string; constraint_name?: string };
+      if (details.message !== "__ROLLBACK__") {
+        vu = details.constraint_name ?? details.code ?? "?";
+      }
+    }
+
+    if (accepte === !refusAttendu) {
+      ok(
+        "⑰bis effet du lieu",
+        cas.quoi,
+        accepte ? "accepté, comme il se doit" : `refusé par ${vu}`,
+      );
+    } else {
+      ko(
+        "⑰bis effet du lieu",
+        cas.quoi,
+        refusAttendu
+          ? "ACCEPTÉ alors qu'il devait être refusé — un tournoi peut s'afficher sans dire où il se tient"
+          : `REFUSÉ (${vu}) alors qu'il devait passer — la contrainte est trop large`,
+      );
+    }
+  }
+}
+
+// ── ⑱  AUCUNE VALEUR D'ENUM « tournoi » — LA NATURE SE DÉRIVE (arbitrage A2, Story 9.5) ─
+//
+// 🔴 GARDE D'**ABSENCE**, ET C'EST LA SEULE FAÇON DE LA TENIR. « Cet événement porte-t-il un
+// tournoi ? » se **dérive** de la relation `event.tournaments`, qui existe depuis la 9.1.
+// Ajouter une valeur `tournoi` à `event_type` fabriquerait une **seconde source** du même
+// fait — et deux sources divergent : un `type = tournoi` dont le tournoi a été supprimé, un
+// tournoi rattaché à un `thursday`. Le rendu ne saurait plus laquelle croire.
+//
+// ⚠️ ET LE COÛT SERAIT HORS DE CE DÉPÔT : `EVENT_TYPES` alimente le **contrat envoyé à n8n**
+// (`lib/schemas/publication.ts`, `type: z.enum(EVENT_TYPES)`). Une valeur de plus modifierait
+// un contrat d'intégration tierce pour un fait qu'on sait déduire.
+//
+// 🔴 LA LISTE ATTENDUE N'EST PAS RECOPIÉE ICI — elle est **importée** de `EVENT_TYPES`, la
+// même constante qui construit le `pgEnum` et le schéma Zod. Une énumération alignée à la main
+// se désaligne à l'ajout suivant : ce projet l'a payé cinq fois (`_sections.ts`, `CHAMPS_URL`,
+// la couverture d'autotest de `gate:reseaux`, la liste `INTERDITS` de cette porte, le compte
+// de colonnes nullables de `schema.ts`).
+{
+  const valeurs = await sql<{ valeur: string }[]>`
+    select e.enumlabel as valeur from pg_enum e
+    join pg_type t on t.oid = e.enumtypid
+    where t.typname = 'event_type'
+    order by e.enumsortorder`;
+  const enBase = valeurs.map((v) => v.valeur);
+  // En autotest, on attend une liste volontairement fausse : la garde doit le voir.
+  const attendues = AUTOTEST ? [...EVENT_TYPES, "tournoi"] : [...EVENT_TYPES];
+
+  if (JSON.stringify(enBase) === JSON.stringify(attendues)) {
+    ok("⑱ A2 — nature dérivée", "enum event_type", `${enBase.length} valeurs, inchangé : ${enBase.join(", ")}`);
+  } else {
+    ko(
+      "⑱ A2 — nature dérivée",
+      "enum event_type",
+      `attendu [${attendues.join(", ")}], trouvé [${enBase.join(", ")}] — une valeur « tournoi » ferait DEUX sources du même fait, et toucherait le contrat n8n`,
+    );
+  }
+}
+
 // ── ⑮  MÉNAGE : LA PORTE NE LAISSE RIEN DERRIÈRE ELLE ─────────────────────────────────
 //
 // 🔴 GARDE NÉE D'UN DÉFAUT RÉEL DE `gate:partenaires` : elle POLLUAIT le volume qu'elle
@@ -1797,9 +2015,12 @@ exemptions.add(
     "trouve le TOCTOU : elle était vraie au premier commit de la story et fausse au dernier.",
 );
 exemptions.add(
-  "🔴 QUE LE RATTACHEMENT SOIT LE BON. La base garantit qu'un tournoi A UN événement (A4) ; " +
-    "elle ne peut rien contre un tournoi rattaché au MAUVAIS événement. C'est l'écran qui le " +
-    "couvre, en affichant l'événement sur chaque ligne — et le gate visuel qui le voit.",
+  "🔴 QUE LE RATTACHEMENT SOIT LE BON. La base garantit qu'un tournoi non rattaché a un LIEU " +
+    "(garde ⑰) ; elle ne peut rien contre un tournoi rattaché au MAUVAIS événement. C'est " +
+    "l'écran qui le couvre, en affichant l'événement — ou son absence — sur chaque ligne, et " +
+    "le gate visuel qui le voit. ⚠️ CETTE EXEMPTION DISAIT « la base garantit qu'un tournoi A " +
+    "UN événement (A4) » : vraie jusqu'au 2026-08-13, FAUSSE depuis la Story 9.5, qui rend " +
+    "`event_id` facultatif. Une exemption est un fait daté comme un autre.",
 );
 exemptions.add(
   "🔴 QUE `ON DELETE RESTRICT` PRODUISE UN MESSAGE UTILISABLE. La contrainte est éprouvée " +
