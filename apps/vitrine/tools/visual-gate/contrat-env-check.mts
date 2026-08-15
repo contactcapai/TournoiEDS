@@ -1,3 +1,4 @@
+// @porte surface=deploiement effet=lecture story=7.4
 /**
  * gate:contrat-env — LA PORTE QUI GARDE UNE ABSENCE (Story 7.4, AC3)
  * ════════════════════════════════════════════════════════════════════════════════

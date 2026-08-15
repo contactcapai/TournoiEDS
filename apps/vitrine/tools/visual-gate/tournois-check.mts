@@ -1,3 +1,4 @@
+// @porte surface=tournois effet=base story=9.1
 // 🔬 GARDE DE LA SURFACE « TOURNOIS » (Story 9.1) — 21ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :
@@ -67,6 +68,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { BASE as BASE_DEFAUT, PAGES } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 // ⚠️ IMPORTÉ, JAMAIS RECOPIÉ (garde ⑱) : c'est la constante qui construit le `pgEnum`, le
 // schéma Zod ET le contrat n8n. Une liste alignée à la main se désaligne à l'ajout suivant.
 import { EVENT_TYPES } from "../../src/lib/schemas/event";
@@ -110,8 +112,24 @@ const ok = (garde: string, ou: string, quoi: string) => succes.push(`${garde} ${
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE_APP = join(ICI, "..", "..");
 
-/** Préfixe de TOUS les témoins de cette porte — reconnaissable par un humain (voir l'en-tête). */
-const MARQUE = `ZZ-GATE-${Date.now().toString(36).toUpperCase()}`;
+/**
+ * Préfixe de TOUS les témoins de cette porte — reconnaissable par un humain (voir l'en-tête).
+ *
+ * 🔴 DEUX PRÉFIXES, ET LA DISTINCTION EST UN CORRECTIF DE LA STORY 7.11 (trouvé en revue).
+ * `MARQUE` porte un horodatage : unique à chaque exécution, donc **inutilisable** pour
+ * retrouver ce qu'un run précédent a laissé. Or la garde ⑭ **COMMITE** des tournois publiés,
+ * visibles sur `/tournois`. Si le processus meurt entre l'`INSERT` et le `DELETE` (CI tuée,
+ * Ctrl-C, coupure pendant un `fetch`), les témoins restent affichés **sur une page publique**,
+ * et aucune exécution future ne pouvait les voir — le ménage cherchait `like MARQUE%`, un
+ * préfixe que le run suivant ne connaît pas.
+ * ⇒ Le balayage d'entrée porte sur le préfixe **STABLE**. Une porte qui écrit sur une page
+ * publique doit savoir réparer ce qu'une exécution interrompue a laissé, pas seulement ce
+ * qu'elle vient de créer.
+ * ⚠️ Ce défaut dormait ici depuis la **Story 9.1** ; il a été découvert sur `gate:agenda`, qui
+ * avait **hérité** de ce patron. Corrigé aux deux endroits le 2026-08-15.
+ */
+const PREFIXE_STABLE = "ZZ-GATE-";
+const MARQUE = `${PREFIXE_STABLE}${Date.now().toString(36).toUpperCase()}`;
 
 /**
  * La SEULE page publique qui sert des tournois (Story 9.2, arbitrage A20).
@@ -227,22 +245,23 @@ for (const route of ROUTES_EPROUVEES) {
 // MOITIÉ B — CE QUE LA BASE REFUSE, ET CE QUE LES CONTRATS GARANTISSENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 // 🔴 L'ENVIRONNEMENT EST PRIORITAIRE SUR `.env.local`, ET C'EST NOUVEAU DEPUIS CETTE STORY.
 // Les six portes de modèle antérieures lisaient `.env.local` **seulement** : elles étaient
 // écrites quand un Postgres local tournait. Depuis le 2026-08-13 il n'y en a plus, et c'est
 // `DATABASE_URL=… pnpm --filter vitrine gate:tournois` qui vise staging. Le repli sur
 // `.env.local` reste, pour qu'un poste qui rallumerait une base locale continue de marcher.
-const urlBase = process.env.DATABASE_URL ?? lireVariable("DATABASE_URL");
+// ✅ [Story 7.11] La priorité à `process.env` vivait ICI, à l'appel, et non dans le helper —
+// c'est ce qui rendait cette porte pilotable pour une raison **invisible dans le helper**, et
+// qui a fait échouer trois tentatives de dérivation. Elle vit maintenant dans `./env.mjs`,
+// une fois, pour toutes les portes.
+// ⚠️ CE COMMENTAIRE A DIT « comportement inchangé » — **FAUX, corrigé en revue.** L'ancien
+// `process.env.DATABASE_URL ?? lireVariable(…)` traitait une variable **définie mais vide**
+// comme décisive (`??` ne voit que `null`/`undefined`), donc la porte sortait en criant ; le
+// helper, lui, testait `if (process.env[nom])` et retombait **en silence** sur `.env.local`.
+// La règle est désormais alignée sur l'ancienne, dans `./env.mjs` : une variable définie fait
+// foi, même vide.
+const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {
   console.log("🔴 DATABASE_URL introuvable (ni environnement, ni .env.local).");
   console.log("   La moitié B ne peut pas s'exécuter — et une porte qui sauterait sa moitié");
@@ -259,6 +278,24 @@ if (!urlBase) {
 }
 
 const sql = postgres(urlBase, { max: 1 });
+
+// 🧹 BALAYAGE D'ENTRÉE — voir le bloc de `PREFIXE_STABLE`. Des témoins ici ne sont PAS une
+// anomalie de la base : c'est la trace d'une exécution interrompue, et ils sont PUBLIÉS.
+// ⚠️ Il porte sur les DEUX tables que cette porte touche, comme le ménage de sortie : la
+// précaution ③ de l'en-tête (« le décompte porte sur toutes les tables touchées ») vaut
+// autant pour la réparation que pour le ménage.
+{
+  const orphelinsT = await sql<{ id: string }[]>`
+    delete from tournament where name like ${PREFIXE_STABLE + "%"} returning id`;
+  const orphelinsE = await sql<{ id: string }[]>`
+    delete from event where title like ${PREFIXE_STABLE + "%"} returning id`;
+  if (orphelinsT.length + orphelinsE.length > 0) {
+    console.log(
+      `\n  🧹 ORPHELINS d'une exécution interrompue supprimés : ${orphelinsT.length} tournoi(s), ` +
+        `${orphelinsE.length} événement(s) — ils étaient servis sur /tournois.\n`,
+    );
+  }
+}
 
 /** Compte les lignes des DEUX tables que cette porte touche (voir l'en-tête, précaution ③). */
 async function compter(): Promise<{ tournois: number; evenements: number }> {

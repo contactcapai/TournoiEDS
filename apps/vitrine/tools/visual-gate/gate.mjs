@@ -1,3 +1,4 @@
+// @porte surface=rendu effet=lecture story=retro-2
 // 🔴 PORTE DE LA DoD — sort en code 1 si une garde tombe.
 //
 // C'est la différence entre un script et une porte : celui-ci ÉCHOUE. Les autres

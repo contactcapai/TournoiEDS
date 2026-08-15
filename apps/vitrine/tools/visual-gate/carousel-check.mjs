@@ -1,3 +1,4 @@
+// @porte surface=agenda effet=lecture story=3.3
 // 🔬 GARDE COMPORTEMENTALE DU CARROUSEL « déjà passé » (/agenda, Story 3.3).
 //
 // Pourquoi un contrôle dédié : Lighthouse **n'audite pas** `scrollable-region-focusable`
@@ -114,11 +115,20 @@ const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
  * ⇒ Dette **R50**, avec sa story d'absorption nommée. Le correctif est connu : doter
  * `gate:agenda` d'un volet-témoin analogue à la ⑭.
  */
+// ✅ [Story 7.11] L'EXEMPTION EST LEVÉE — ET ELLE EST REMPLACÉE PAR UN RENVOI, PAS EFFACÉE.
+// La dette R50 est soldée : `gate:agenda` porte désormais sa garde **⑥**, qui commite deux
+// témoins `ZZ-GATE-` datés de part et d'autre de `now()` et vérifie leur **position** dans le
+// HTML servi — donc « section absente alors qu'un passé publié existe » est devenu un ROUGE
+// au lieu d'un silence. Elle est éprouvée dans les deux sens (`AGENDA_DEBRANCHER_R50=1`).
+// ⚠️ Effacer la ligne aurait fait disparaître **le fait que ce trou a existé**, et avec lui la
+// raison pour laquelle une porte écrit des témoins. On garde donc le renvoi : ce texte dit
+// maintenant où la couverture vit, au lieu de dire qu'elle manque.
 const EXEMPTION_DERIVATION =
-  "    ⚠️  EXEMPTION DÉCLARÉE — CETTE SONDE NE COUVRE PAS LA DÉRIVATION SQL ELLE-MÊME.\n" +
-  "       « Aucune section passés » est lu sur le RENDU, pas en base : une régression de\n" +
-  "       `getPastEvents` produirait le même silence qu'une base sans événement passé.\n" +
-  "       Dette R50 → `gate:agenda` doit gagner un volet-témoin comme la ⑭ de gate:tournois.\n";
+  "    ⓘ  LA DÉRIVATION SQL N'EST PAS COUVERTE **ICI**, ET C'EST NORMAL : elle l'est par\n" +
+  "       `gate:agenda` ⑥ (dette R50, soldée par la Story 7.11), qui fabrique la donnée que\n" +
+  "       cette sonde ne peut pas inventer. Cette porte lit le RENDU ; sans un événement passé\n" +
+  "       publié, son silence reste ambigu — c'est `gate:agenda` qui lève l'ambiguïté.\n" +
+  "       ⚠️ Si `gate:agenda` ⑥ disparaissait, ce trou se rouvrirait EN SILENCE.\n";
 
 const sonde = await fetch(URL).catch(() => null);
 if (!sonde?.ok) {

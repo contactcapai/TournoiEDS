@@ -1,3 +1,4 @@
+// @porte surface=partenaires effet=base+disque story=6.5
 // 🔬 GARDE DE LA SURFACE « PARTENAIRES » (Story 6.5) — 14ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :
@@ -44,6 +45,7 @@ import postgres from "postgres";
 import sharp from "sharp";
 
 import { BASE as BASE_DEFAUT } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 import {
   cheminLogo,
   estLogoDuVolume,
@@ -215,16 +217,6 @@ for (const valeur of TRAVERSEES) {
 // BASE ET VOLUME DE DÉVELOPPEMENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  if (process.env[nom]) return process.env[nom]!;
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {

@@ -65,14 +65,58 @@ garde s'ajoute) :
 
 ## Les portes comportementales
 
-Une porte par surface dont le défaut ne se voit **ni au build, ni à l'œil** :
+Une porte par surface dont le défaut ne se voit **ni au build, ni à l'œil**.
+
+### 🗺️ « Je touche à ça, je passe quoi ? » — `gate:list`
+
+```bash
+pnpm --filter vitrine gate:list            # toutes les portes, groupées par surface
+pnpm --filter vitrine gate:list agenda     # celles qui gardent l'agenda
+```
+
+🔴 **C'EST LA SOURCE, ET LE TABLEAU CI-DESSOUS N'EN EST PLUS QU'UNE COPIE D'ILLUSTRATION.**
+La liste des portes vient de `package.json`, l'accès base vient de la **lecture du source** de
+chaque porte, et la surface/l'effet sont **déclarés dans le fichier de la porte elle-même**
+(`// @porte surface=… effet=…`, donc ça vit et ça meurt avec elle). `gate:list` sort en **code
+1** si une porte de `package.json` n'est pas déclarée, si son fichier a disparu, ou — la garde
+qui compte — si sa **déclaration contredit son code** (elle se dit `lecture` alors que son
+source ouvre une connexion Postgres).
+
+⚠️ **Motif : ce tableau a été faux DEUX fois** (2026-08-05, puis 2026-08-14). Une énumération
+alignée à la main se désaligne à l'ajout suivant — c'est le 5ᵉ exemplaire du même défaut sur ce
+projet (`_sections.ts`, `CHAMPS_URL`, la couverture d'autotest de `gate:reseaux`, ce tableau
+deux fois). On ne le réaligne donc plus : on le **dérive**.
+
+🔴 **CE PARAGRAPHE A ÉTÉ FAUX, ET SON HISTOIRE EST LA LEÇON.** Il affirmait : *« les portes
+privées d'environnement sont SEPT, pas six ; `gate:reseaux` lit elle aussi `DATABASE_URL` dans
+le fichier `.env.local` et non dans `process.env` »*. **Les deux moitiés sont mortes :**
+
+- le compte de **SEPT** venait d'une dérivation fausse — `gate:list` ne cherchait que le
+  littéral `process.env.DATABASE_URL` et **accusait cinq portes innocentes**, qui lisaient
+  l'environnement en indexation dynamique. **Deux** seulement étaient bloquées (`ateliers`,
+  `reseaux`). Corrigé en **PR #53**, après **trois** versions fausses en un jour ;
+- et depuis la **Story 7.11**, il n'y en a plus **aucune** : `lireVariable` vivait en **sept
+  copies avec deux sémantiques sous le même nom** (famille R37), il vit maintenant dans
+  **`env.mjs`**, et `gate:list` dérive de son **import**.
+
+⇒ **Le compte se lit par exécution — `pnpm --filter vitrine gate:list` — jamais dans ce
+fichier.** Ce paragraphe est conservé au passé parce qu'il documente **comment** un tableau tenu
+à la main se trompe, ce que l'effacer aurait supprimé.
+
+### 🔑 `env.mjs` — la résolution des variables, en un seul endroit
+
+Toute porte qui a besoin de `DATABASE_URL` ou de `MEDIA_DIR` **importe `./env.mjs`**. Ne jamais
+re-dupliquer ce helper, même « pour éviter un import » : c'est le geste exact qui a produit les
+deux sémantiques. Règle : **l'environnement d'abord**, repli sur `.env.local` ensuite, et une
+variable **définie mais vide fait foi** (elle vaut « ne devine pas », et la porte sort en criant
+au lieu de choisir une base à la place de l'opérateur).
 
 ```bash
 pnpm --filter vitrine gate:carousel      # carrousel des temps forts (3.3)
 pnpm --filter vitrine gate:marquee       # bandeau de logos (4.1)
 pnpm --filter vitrine gate:lightbox      # galerie scrapbook (4.3)
 pnpm --filter vitrine gate:images        # toutes les images servies répondent (4.3)
-pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⚠️ écrit en base, et nettoie
+pnpm --filter vitrine gate:solicitation  # formulaire + modale (5.1) — ⛔ REFUSE de s'exécuter hors boucle locale
 pnpm --filter vitrine gate:links         # tous les liens du site (5.5)
 pnpm --filter vitrine gate:admin         # frontière de sécurité du back-office (6.1)
 pnpm --filter vitrine gate:agenda        # surface de saisie « agenda » (6.3) — ⚠️ écrit en base, en transaction ANNULÉE
@@ -82,12 +126,41 @@ pnpm --filter vitrine gate:ateliers      # surface « ateliers » (6.9) — ⚠�
 pnpm --filter vitrine gate:membres       # surface « membres » (6.10) — ⚠️ écrit en base ET SUR LE DISQUE, et nettoie
 pnpm --filter vitrine gate:sollicitations # surface « sollicitations » (6.11) — ⚠️ écrit en base, et nettoie
 pnpm --filter vitrine gate:reglages      # surface « réglages » (6.13) — ⚠️ écrit en base, et RESTAURE
+pnpm --filter vitrine gate:reseaux       # déclenchement n8n (6.7) — fabrique son PROPRE faux n8n
+pnpm --filter vitrine gate:contrat-env   # contrat des variables d'environnement (7.4)
+pnpm --filter vitrine gate:tournois      # surface « tournois » (9.1) — ⚠️ écrit en base, et nettoie
 ```
 
-> ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05** : les trois portes
-> livrées entre-temps avaient chacune leur section plus bas, mais aucune n'était remontée ici.
-> Une liste alignée une fois se désaligne à l'ajout suivant — **la relire contre
-> `package.json`**, qui est la seule source qui ne peut pas mentir.
+> ⚠️ **Cette liste s'arrêtait à `gate:galerie` (6.4) jusqu'au 2026-08-05**, puis à
+> `gate:reglages` (6.13) **jusqu'au 2026-08-14** — trois portes de plus manquaient à l'appel
+> (`reseaux`, `contrat-env`, `tournois`). **Deuxième désalignement du même tableau**, ce qui
+> confirme le diagnostic au lieu de l'infirmer : une liste alignée à la main se désaligne à
+> l'ajout suivant. **La relire contre `package.json`**, seule source qui ne peut pas mentir :
+> `node -e "console.log(Object.keys(require('./apps/vitrine/package.json').scripts).filter(s=>/^gate/.test(s)))"`
+
+### ⛔ La seule porte qui a un effet SORTANT — et qui le refuse désormais
+
+`gate:solicitation` **soumet le formulaire public pour de vrai**, donc `submitSolicitation`
+appelle `notifySolicitation` : **3 e-mails réels par exécution** (garde ③ = 1 envoi valide,
+garde ④ = resoumissions jusqu'au rate-limit, `RATE_LIMIT_MAX = 3` / 60 s) vers l'adresse de
+contact **lue en base**. Mesuré le **2026-08-14** : **18 e-mails** dans la boîte de
+l'association, en 6 exécutions, plus **9 lignes** restées en base — son `finally` nettoie via
+`DATABASE_URL` de `.env.local`, qui pointe le Postgres local qu'on ne lance plus.
+
+🔴 **Aucune ligne de code n'a changé le jour où c'est devenu vrai.** En local,
+`GMAIL_APP_PASSWORD` est absente ⇒ le transport lève, et l'INSERT est **découplé** de l'envoi
+⇒ l'échec était **silencieux**. La règle du 2026-08-13 (« le rendu se regarde sur staging ») a
+pointé la même porte vers un hôte au SMTP configuré. ⇒ **Une porte à effet sortant doit
+refuser l'environnement qu'elle ne sait pas rendre muet**, sans quoi c'est la configuration
+d'exécution qui décide, en silence, si elle est inoffensive.
+
+Elle refuse donc toute cible dont le `hostname` n'est pas la boucle locale (égalité exacte —
+un `includes("localhost")` laisserait passer `localhost.attaquant.fr`). Dérogation explicite,
+volontairement absente de `package.json` :
+
+```bash
+SOLICITATION_AUTORISER_ENVOI_REEL=1 node tools/visual-gate/solicitation-check.mjs <url>
+```
 
 🔴 **`gate:links` mesure des EFFETS, pas des attributs** — c'est ce qui la distingue.
 Le défaut R2 EST un défilement : le lire dans le DOM ne le mesure pas. Elle **clique

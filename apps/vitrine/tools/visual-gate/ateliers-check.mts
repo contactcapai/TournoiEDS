@@ -1,3 +1,4 @@
+// @porte surface=ateliers effet=base story=6.9
 // 🔬 GARDE DE LA SURFACE « ATELIERS » (Story 6.9) — 15ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :
@@ -43,12 +44,10 @@
 //
 // Usage :  pnpm --filter vitrine gate:ateliers [baseUrl]
 //          ATELIERS_AUTOTEST=1 …  → auto-validation de l'instrument
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { BASE as BASE_DEFAUT } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 import { LIBELLES_FAMILLE } from "../../src/lib/familles-ateliers";
 import {
   PUBLIC_MAX,
@@ -67,8 +66,6 @@ const exemptions = new Set<string>();
 const ko = (garde: string, ou: string, quoi: string) => echecs.push(`${garde} ${ou} — ${quoi}`);
 const ok = (garde: string, ou: string, quoi: string) => succes.push(`${garde} ${ou} — ${quoi}`);
 
-const ICI = dirname(fileURLToPath(import.meta.url));
-const RACINE_APP = join(ICI, "..", "..");
 
 async function demander(chemin: string) {
   const reponse = await fetch(BASE + chemin, { redirect: "manual" });
@@ -146,15 +143,6 @@ for (const route of ROUTES_EPROUVEES) {
 // MOITIÉ B — CE QUE LA BASE REFUSE, ET CE QUE LES CONTRATS GARANTISSENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {

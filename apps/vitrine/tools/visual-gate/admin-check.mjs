@@ -1,3 +1,4 @@
+// @porte surface=securite effet=lecture story=6.1
 // 🔬 GARDE DE LA FRONTIÈRE DE SÉCURITÉ DU BACK-OFFICE (Story 6.1, FR27, FR28, AR-SEC2).
 //
 // Pourquoi un contrôle dédié — même motif que `gate:lightbox` / `gate:carousel` /

@@ -1,3 +1,4 @@
+// @porte surface=sollicitations effet=base story=6.11
 // 🔬 SURFACE « SOLLICITATIONS » — LA 17ᵉ PORTE (Story 6.11)
 //
 // Pourquoi une porte dédiée — ce que ni lint, ni typecheck, ni build, ni Lighthouse, ni les
@@ -53,6 +54,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { BASE as BASE_DEFAUT } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 import { solicitationInputSchema } from "../../src/lib/schemas/solicitation";
 import { cleanText } from "../../src/lib/text";
 import { SOLLICITATIONS_MAX } from "../../src/server/db/queries/solicitations";
@@ -135,21 +137,6 @@ for (const route of ROUTES_EPROUVEES) {
 // BASE DE DÉVELOPPEMENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  if (process.env[nom]) return process.env[nom]!;
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne
-      ? ligne
-          .slice(ligne.indexOf("=") + 1)
-          .trim()
-          .replace(/^["']|["']$/g, "")
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {
