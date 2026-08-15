@@ -18,7 +18,7 @@
 import { z } from "zod";
 
 import { instantAvecFuseau, instantAvecFuseauOptionnel } from "./instant";
-import { texteOptionnel, visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide, texteNettoye } from "./texte";
 
 /**
  * Valeurs de l'enum `event_type`, **définies ici une seule fois**.
@@ -30,7 +30,7 @@ import { texteOptionnel, visiblementVide } from "./texte";
  */
 export const EVENT_TYPES = ["thursday", "special"] as const;
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * 🔴 UN TEXTE FAIT DE CARACTÈRES INVISIBLES N'EST PAS UN TEXTE — AJOUTÉ APRÈS LA REVUE

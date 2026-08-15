@@ -15,7 +15,7 @@
 import { z } from "zod";
 
 import { PREFIXE_PORTRAIT } from "../portraits";
-import { texteOptionnel, visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide, texteNettoye } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -72,7 +72,7 @@ export const ROLE_MAX = 80;
  */
 export const PORTRAIT_MAX = 200;
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * Un membre de l'équipe présenté sur `/l-asso`.

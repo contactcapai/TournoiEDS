@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 
-import { texteOptionnel, visiblementVide } from "./texte";
+import { texteOptionnel, visiblementVide, texteNettoye } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -93,7 +93,7 @@ export const RESUME_MAX = 200;
 /** Le public visé (« Collégiens et lycéens », « Tout public à partir de 8 ans »). */
 export const PUBLIC_MAX = 120;
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * 🔴 `texteOptionnel` A ÉTÉ EXTRAITE VERS `./texte.ts` PAR LA STORY 6.10 (dette R37 ①).
