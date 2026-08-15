@@ -106,6 +106,14 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/apercu`}>
           Aperçu
         </Link>
+        {/* 🔴 Une entrée À PART, et non un lien niché dans « Modifier » (Story 10.4).
+            « Modifier » annonce l'édition de l'ANNONCE — jeu, date, lieu, lots. Composer le
+            déroulé est un autre geste, à un autre moment : on annonce des semaines avant, on
+            compose quand on sait qui vient. Les fondre ferait chercher le second là où rien
+            ne le laisse deviner. */}
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
+          Déroulé
+        </Link>
         <TournoiActions
           id={tournoi.id}
           nom={tournoi.name}
