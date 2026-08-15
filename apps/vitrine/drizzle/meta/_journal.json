@@ -127,6 +127,20 @@
       "when": 1786737538892,
       "tag": "0017_parched_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786802891417,
+      "tag": "0018_lucky_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786803346904,
+      "tag": "0019_chief_pixie",
+      "breakpoints": true
     }
   ]
 }

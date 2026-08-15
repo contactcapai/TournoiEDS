@@ -1,0 +1,2 @@
+ALTER TABLE "tournament" ADD COLUMN "team_size" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "tournament" ADD CONSTRAINT "tournament_team_size_positive" CHECK ("tournament"."team_size" >= 1);

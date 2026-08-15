@@ -30,6 +30,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -117,6 +118,12 @@ import {
   REGISTRATION_STATES,
   TARIF_MAX as TOURNAMENT_TARIF_MAX,
 } from "../../lib/schemas/tournament";
+import {
+  ENTRY_STATES,
+  MATCH_STATES,
+  PHASE_KINDS,
+  PHASE_STATES,
+} from "../../lib/tournoi/structure";
 // ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` CI-DESSUS : `event.ts` exporte déjà un
 // `TITRE_MAX` (celui d'un événement, 80 lui aussi — mais par COÏNCIDENCE d'alignement sur son
 // propre rendu, pas parce que ce serait la même règle). Les importer nus ferait une collision
@@ -1584,6 +1591,15 @@ export const tournament = pgTable(
      * Comment on s'inscrit. **`notNull`**, et c'est ce qui rend le `CHECK` ci-dessous
      * structurellement null-safe (voir son bloc).
      */
+    /**
+     * Effectif d'un engagé — 1 en individuel, 2 en duo, etc. (Story 10.1).
+     *
+     * C'est la valeur contre laquelle `effectifConforme` juge une inscription. Elle vit sur le
+     * tournoi et non sur la phase : « 4 équipes de 2 » décrit le tournoi entier.
+     * ⚠️ `default(1)` et non nullable : l'individuel n'est pas l'absence d'équipe, c'est une
+     * équipe d'un membre — un seul chemin de code.
+     */
+    teamSize: integer().notNull().default(1),
     registrationMode: tournamentRegistrationMode().notNull(),
     /** L'adresse d'inscription. **Obligatoire en mode `mately`** — voir le `CHECK`. */
     registrationUrl: text(),
@@ -1887,9 +1903,176 @@ export const tournament = pgTable(
      * `event_published_starts_at_idx`, et un seul index sert les deux sens de la dérivation
      * « à venir » (`gt`) et « passés » (`lte`).
      */
+    check("tournament_team_size_positive", sql`${table.teamSize} >= 1`),
     index("tournament_published_starts_at_idx").on(table.isPublished, table.startsAt),
     /** Sert la fiche `/tournois/<slug>` (Story 9.3) : lecture par identifiant lisible. */
     index("tournament_event_starts_at_idx").on(table.eventId, table.startsAt),
+  ],
+);
+
+// ════════════════════════════════════════════════════════════════════════════════
+// STRUCTURE D'UN TOURNOI — phases, engagés, rencontres (Story 10.1)
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 UNE RENCONTRE OPPOSE DES ENGAGÉS, JAMAIS DES PERSONNES. Un engagé porte 1..N membres :
+// l'individuel est une équipe d'un membre. C'est ce qui donne UN SEUL chemin de code — deux
+// chemins (« joueur » / « équipe ») divergeraient en silence, et l'ajouter après coup
+// obligerait à toucher toutes les tables et tout le moteur.
+//
+// ⚠️ Le podium reste sur `tournament` et n'est PAS redoublé ici. Un seul propriétaire par
+// fait : il est écrit tantôt à la main, tantôt par le moteur, jamais dans deux colonnes.
+
+export const tournamentPhaseKind = pgEnum("tournament_phase_kind", PHASE_KINDS);
+export const tournamentPhaseState = pgEnum("tournament_phase_state", PHASE_STATES);
+export const tournamentEntryState = pgEnum("tournament_entry_state", ENTRY_STATES);
+export const tournamentMatchState = pgEnum("tournament_match_state", MATCH_STATES);
+
+/**
+ * Une phase d'un tournoi. La structure saisie est un PLAN : elle se réécrit tant qu'aucune
+ * rencontre n'a de résultat (`phaseLibrementModifiable`, `lib/tournoi/structure.ts`).
+ */
+export const tournamentPhase = pgTable(
+  "tournament_phase",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    // CASCADE et non RESTRICT, contrairement à `tournament.eventId` : une phase n'a aucune
+    // existence hors de son tournoi, là où un événement d'agenda en a une.
+    tournamentId: uuid()
+      .notNull()
+      .references(() => tournament.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    name: text().notNull(),
+    kind: tournamentPhaseKind().notNull(),
+    state: tournamentPhaseState().notNull().default("planifiee"),
+    /**
+     * Réglages PROPRES au format (taille des lobbies, nombre de tours…), validés à
+     * l'écriture. Décision 4 du 2026-08-13 : colonnes typées pour ce qui est COMMUN à tous
+     * les formats, document validé pour ce qui ne l'est pas.
+     */
+    settings: jsonb().notNull().default({}),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("tournament_phase_position_positive", sql`${table.position} >= 1`),
+    check("tournament_phase_name_non_blanc", sql`length(btrim(${table.name})) > 0`),
+    uniqueIndex("tournament_phase_ordre_unique").on(table.tournamentId, table.position),
+  ],
+);
+
+/**
+ * Un ENGAGÉ — une inscription, pas une personne. `displayName` est le nom de l'équipe, ou
+ * celui du joueur en individuel.
+ */
+export const tournamentEntry = pgTable(
+  "tournament_entry",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    tournamentId: uuid()
+      .notNull()
+      .references(() => tournament.id, { onDelete: "cascade" }),
+    displayName: text().notNull(),
+    state: tournamentEntryState().notNull().default("inscrit"),
+    /**
+     * Identifiant chez MATELY. C'est la clé d'IDEMPOTENCE de la re-synchronisation
+     * (Story 11.2) : sans elle, rejouer une ingestion créerait des doublons.
+     */
+    externalId: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("tournament_entry_display_name_non_blanc", sql`length(btrim(${table.displayName})) > 0`),
+    // Index PARTIEL : deux engagés saisis à la main portent tous deux `external_id` à NULL,
+    // et un index unique ordinaire les compterait comme un doublon.
+    uniqueIndex("tournament_entry_external_unique")
+      .on(table.tournamentId, table.externalId)
+      .where(sql`${table.externalId} is not null`),
+    index("tournament_entry_tournoi_idx").on(table.tournamentId, table.state),
+  ],
+);
+
+/**
+ * Un membre d'un engagé. `userId` est facultatif et le restera : un seul membre de l'équipe
+ * peut avoir un compte, les autres ne sont que des noms — une inscription n'est pas un compte.
+ */
+export const tournamentEntryMember = pgTable(
+  "tournament_entry_member",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    entryId: uuid()
+      .notNull()
+      .references(() => tournamentEntry.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    displayName: text().notNull(),
+    // SET NULL : supprimer un compte ne doit pas effacer le nom de qui a joué.
+    userId: uuid().references(() => user.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    check("tournament_entry_member_position_positive", sql`${table.position} >= 1`),
+    check(
+      "tournament_entry_member_display_name_non_blanc",
+      sql`length(btrim(${table.displayName})) > 0`,
+    ),
+    uniqueIndex("tournament_entry_member_ordre_unique").on(table.entryId, table.position),
+  ],
+);
+
+/** Une rencontre d'une phase. `round` distingue les tours d'un bracket ou les journées. */
+export const tournamentMatch = pgTable(
+  "tournament_match",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    phaseId: uuid()
+      .notNull()
+      .references(() => tournamentPhase.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    round: integer(),
+    state: tournamentMatchState().notNull().default("a_jouer"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("tournament_match_position_positive", sql`${table.position} >= 1`),
+    // NULL-SAFE : `round >= 1` seul vaudrait NULL — donc PASSERAIT — sur la colonne nulle,
+    // qui est le cas nominal d'une phase sans tours. Même défaut qu'`event_has_venue`.
+    check("tournament_match_round_positive", sql`${table.round} is null or ${table.round} >= 1`),
+    uniqueIndex("tournament_match_ordre_unique").on(table.phaseId, table.position),
+  ],
+);
+
+/**
+ * Une PLACE dans une rencontre.
+ *
+ * 🔴 `entryId` EST NULLABLE, ET C'EST LE LIVRABLE : une place vide, une exemption (*bye*), un
+ * groupe plus petit qu'un autre. Le moteur actuel, avec ses lobbies de 8 pleins, ne le
+ * prévoit pas — c'est une capacité à écrire, pas un cas limite à espérer.
+ */
+export const tournamentMatchSlot = pgTable(
+  "tournament_match_slot",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    matchId: uuid()
+      .notNull()
+      .references(() => tournamentMatch.id, { onDelete: "cascade" }),
+    position: integer().notNull(),
+    // RESTRICT et non SET NULL : un engagé qui a joué ne se supprime pas, sinon sa place
+    // deviendrait silencieusement une exemption et réécrirait l'histoire. Le pointage marque
+    // `absent`, il ne supprime jamais.
+    entryId: uuid().references(() => tournamentEntry.id, { onDelete: "restrict" }),
+    score: integer(),
+    rank: integer(),
+  },
+  (table) => [
+    check("tournament_match_slot_position_positive", sql`${table.position} >= 1`),
+    check("tournament_match_slot_score_positif", sql`${table.score} is null or ${table.score} >= 0`),
+    check("tournament_match_slot_rank_positif", sql`${table.rank} is null or ${table.rank} >= 1`),
+    uniqueIndex("tournament_match_slot_ordre_unique").on(table.matchId, table.position),
+    // Un même engagé ne peut pas occuper deux places de la MÊME rencontre. Partiel : les
+    // places vides sont plusieurs à porter `entry_id` à NULL, et c'est légitime.
+    uniqueIndex("tournament_match_slot_engage_unique")
+      .on(table.matchId, table.entryId)
+      .where(sql`${table.entryId} is not null`),
   ],
 );
 
