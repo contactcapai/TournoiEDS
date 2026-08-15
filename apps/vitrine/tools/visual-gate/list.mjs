@@ -107,9 +107,54 @@ for (const [nom, commande] of Object.entries(scripts)) {
     continue;
   }
 
-  // ── DÉRIVÉ : lu dans le source, donc impossible à désaligner ────────────────────────
+  // ── DÉRIVÉ : lu dans le source ──────────────────────────────────────────────────────
+  //
+  // 🔴 CE TÉMOIN A ÉTÉ FAUX LE JOUR DE SA LIVRAISON, ET IL ACCUSAIT LE PRODUIT.
+  // Il ne cherchait que le littéral `process.env.DATABASE_URL`. Or **cinq** portes lisent
+  // l'environnement en **indexation dynamique**, dans leur `lireVariable` :
+  //
+  //     if (process.env[nom]) return process.env[nom]!;      // galerie, partenaires,
+  //                                                          // membres, sollicitations, reglages
+  //
+  // Elles étaient donc **pilotables depuis toujours**, et cette porte les a déclarées
+  // « ⛔ SANS ENVIRONNEMENT ». Sur sept portes accusées, **cinq étaient innocentes** — et
+  // le chiffre a été repris tel quel dans une dette et dans une story avant d'être mesuré.
+  // C'est la leçon n°1 de la rétro Epic 6 (~17 instruments faux, TOUS accusant le produit),
+  // refaite par l'instrument même qui prétendait la prévenir. Mesuré le 2026-08-14 en
+  // lisant les sept sources ; seules `ateliers` et `reseaux` lisent le FICHIER seulement.
+  //
+  // ⚠️ ET LA LEÇON N'EST PAS « J'AI OUBLIÉ UNE FORME » : c'est qu'une reconnaissance de
+  // motif dans du texte ne mesure pas un COMPORTEMENT. Elle reste une heuristique — d'où
+  // la déclaration explicite en sortie (`⚠️ dérivation heuristique`), qui interdit de lire
+  // ce tableau comme une mesure. La vraie parade est structurelle et elle est routée :
+  // **unifier `lireVariable`** en UN helper partagé (il est aujourd'hui DUPLIQUÉ dans
+  // 7 fichiers, avec DEUX sémantiques différentes sous le MÊME nom — famille de la dette
+  // R37). Story **7.11**.
+  // 🔴 ET LE PREMIER CORRECTIF A ÉTÉ FAUX AUSSI, DANS L'AUTRE SENS. Élargir le motif à
+  // `process.env[` a rendu `gate:reseaux` « pilotable » — alors qu'elle n'indexe
+  // `process.env` que pour les VARIABLES N8N (l. 194-198), très loin de sa lecture de
+  // `DATABASE_URL` (l. 527), qui ne regarde que le fichier. Un faux NÉGATIF est **pire**
+  // qu'un faux positif : il rend une porte bloquée invisible, en silence.
+  // ⇒ On ne teste plus le fichier entier mais une FENÊTRE autour de la lecture de
+  // `.env.local` — c'est là, et nulle part ailleurs, que se décide la priorité.
+  // ⚠️ ET LE BALAYAGE PORTE SUR **TOUTES** LES OCCURRENCES, pas la première : `.env.local`
+  // apparaît d'abord dans les commentaires d'en-tête de plusieurs portes, très loin du code
+  // qui résout l'URL. Un `indexOf` simple a donc déclaré `gate:partenaires` bloquée alors
+  // que son `lireVariable` consulte bien `process.env[nom]` — 3ᵉ version de ce témoin, et
+  // 3ᵉ fois qu'il se trompe. C'est la démonstration, à l'usage, que cette question ne se
+  // décide pas en lisant du texte : la parade est **structurelle** (Story 7.11).
   const ouvrePostgres = /\bpostgres\(/.test(source) || /drizzle\(/.test(source);
-  const litProcessEnv = /process\.env\.DATABASE_URL/.test(source);
+  const positions = [];
+  for (let i = source.indexOf(".env.local"); i !== -1; i = source.indexOf(".env.local", i + 1)) {
+    positions.push(i);
+  }
+  const fenetres = positions.map((p) => source.slice(Math.max(0, p - 400), p + 400));
+  const litProcessEnv =
+    /process\.env\.DATABASE_URL/.test(source) || fenetres.some((f) => /process\.env\[/.test(f));
+  // Trois états, et le troisième est le plus honnête : une porte qui ouvre Postgres sans
+  // qu'on trouve d'où vient son URL n'est ni pilotable ni bloquée — elle est INDÉCIDABLE
+  // par lecture, et le dire vaut mieux que de trancher au hasard.
+  const indecidable = ouvrePostgres && positions.length === 0 && !/process\.env\.DATABASE_URL/.test(source);
 
   // 🔴 LA GARDE ANTI-DÉRIVE : le code contredit-il la déclaration ?
   if (ouvrePostgres && !EFFETS[champs.effet].ecrit) {
@@ -127,9 +172,10 @@ for (const [nom, commande] of Object.entries(scripts)) {
     effet: champs.effet,
     tiers,
     story: champs.story ?? null,
-    // Une porte qui touche la base sans lire `process.env.DATABASE_URL` ne connaît que
+    // Une porte qui résout son URL SANS jamais consulter `process.env` ne connaît que
     // `.env.local`, donc `localhost:5434` — le Postgres supprimé le 2026-08-13 (dette R47).
-    orpheline: ouvrePostgres && !litProcessEnv,
+    orpheline: ouvrePostgres && !litProcessEnv && !indecidable,
+    indecidable,
   });
 }
 
@@ -152,7 +198,11 @@ for (const [surface, liste] of [...parSurface].sort()) {
   console.log(`  ${surface}`);
   for (const p of liste) {
     const e = EFFETS[p.effet];
-    const orphelin = p.orpheline ? "  ⛔ SANS ENVIRONNEMENT (R47)" : "";
+    const orphelin = p.orpheline
+      ? "  ⛔ SANS ENVIRONNEMENT (R47)"
+      : p.indecidable
+        ? "  ❔ résolution d'URL INDÉCIDABLE par lecture"
+        : "";
     console.log(`    ${e.icone} ${p.nom.padEnd(21)} ${e.texte}${TIERS[p.tiers]}${orphelin}`);
   }
   console.log("");
@@ -168,9 +218,16 @@ if (!filtre) {
       `\n  ⛔ ${orphelines.length} porte(s) SANS ENVIRONNEMENT — elles ne lisent que \`.env.local\`,`,
     );
     console.log("     donc le Postgres local supprimé le 2026-08-13. Elles ne s'exécutent PLUS,");
-    console.log("     et seul leur échec de connexion le dit. Dette R47 → Story 7.10 :");
+    console.log("     et seul leur échec de connexion le dit. Dette R47 → Story 7.11 :");
     console.log(`     ${orphelines.map((p) => p.nom).join(", ")}`);
   }
+  // ⚠️ DÉCLARATION D'HEURISTIQUE — une porte verte ne doit jamais se lire « c'est mesuré ».
+  // Ce verdict vient d'une reconnaissance de motif dans du TEXTE, pas d'une exécution : il a
+  // déjà été faux une fois, sur cinq portes à la fois (voir le bloc 🔴 plus haut).
+  console.log(
+    "\n  ⚠️ Dérivation HEURISTIQUE (lecture du source, pas exécution) — elle a déjà été fausse",
+  );
+  console.log("     sur 5 portes le 2026-08-14. Parade structurelle routée → Story 7.11.");
   console.log("");
 }
 
