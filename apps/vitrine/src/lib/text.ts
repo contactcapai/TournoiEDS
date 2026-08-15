@@ -62,7 +62,9 @@ export const visiblementVide = (value: string) =>
 export function cleanText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
   if (trimmed.length === 0) return null;
-  return visiblementVide(trimmed) ? null : trimmed;
+  // On retire les invisibles AVANT de re-trimmer : sinon un MÉLANGE d'espaces et de
+  // caractères sans largeur (« ␣U+200B␣U+200C␣ ») survit, visiblement vide à l'écran.
+  return trimmed.replace(SANS_LARGEUR, "").trim().length === 0 ? null : trimmed;
 }
 
 /**
