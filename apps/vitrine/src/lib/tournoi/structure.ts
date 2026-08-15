@@ -18,8 +18,17 @@ export type PhaseKind = (typeof PHASE_KINDS)[number];
 export const PHASE_STATES = ["planifiee", "en_cours", "terminee"] as const;
 export type PhaseState = (typeof PHASE_STATES)[number];
 
-/** Le pointage du jour J. Un engagé absent n'est pas supprimé — il est marqué. */
-export const ENTRY_STATES = ["inscrit", "present", "absent"] as const;
+/**
+ * Le pointage du jour J, et la suite. Un engagé n'est jamais supprimé — il est marqué.
+ *
+ * 🔴 `abandonne` N'EST PAS `absent`, ET LES CONFONDRE FAUSSERAIT LE CLASSEMENT (dette R60).
+ * `absent` = ne s'est jamais présenté, n'a rien joué. `abandonne` = était là, a joué, puis a
+ * arrêté — sur un tournoi étalé sur plusieurs semaines c'est le cas courant, pas le cas
+ * limite. Ses points et ses manches RESTENT : les effacer réécrirait les parties où ses
+ * adversaires l'ont battu. L'application TFT existante porte cette distinction depuis
+ * toujours (`Player.status`), et le modèle de la Story 10.1 l'avait perdue.
+ */
+export const ENTRY_STATES = ["inscrit", "present", "absent", "abandonne"] as const;
 export type EntryState = (typeof ENTRY_STATES)[number];
 
 export const MATCH_STATES = ["a_jouer", "en_cours", "terminee"] as const;

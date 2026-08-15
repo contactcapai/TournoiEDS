@@ -1,0 +1,213 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import {
+  classer,
+  lobbiesSuisses,
+  pointsDePlacement,
+  repartirEnLobbies,
+  statistiques,
+  type EngageClassable,
+} from "./classement";
+
+const stats = (
+  total: number,
+  premieres = 0,
+  moitieHaute = 0,
+  dernierPlacement = 1,
+) => ({ total, premieres, moitieHaute, dernierPlacement, manchesJouees: 1, moyenne: total });
+
+const engage = (id: string, nom: string, s: ReturnType<typeof stats>, abandonne = false):
+  EngageClassable => ({ id, nom, stats: s, abandonne });
+
+describe("points — le « TFT à 8 » a disparu", () => {
+  it("donne N points au premier d'un lobby de N, et 1 au dernier", () => {
+    assert.equal(pointsDePlacement(1, 8), 8);
+    assert.equal(pointsDePlacement(8, 8), 1);
+    assert.equal(pointsDePlacement(1, 6), 6);
+    assert.equal(pointsDePlacement(6, 6), 1);
+  });
+
+  it("ne rend PLUS le barème de 8 sur un lobby plus petit", () => {
+    // Le défaut de l'original, mesuré : il rendait 8 pour un 1er dans un lobby de 6.
+    assert.notEqual(pointsDePlacement(1, 6), 8);
+    assert.equal(pointsDePlacement(1, 6), 6);
+  });
+
+  it("refuse un placement impossible plutôt que de rendre un nombre négatif", () => {
+    assert.equal(pointsDePlacement(9, 8), 0);
+    assert.equal(pointsDePlacement(0, 8), 0);
+    assert.equal(pointsDePlacement(1, 0), 0);
+  });
+});
+
+describe("répartition en lobbies — plus jamais de lobby orphelin", () => {
+  const tailles = (groupes: unknown[][]) => groupes.map((g) => g.length);
+  const joueurs = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
+
+  it("équilibre au lieu de découper en tranches", () => {
+    // L'original rendait [8, 2] à 10 joueurs. Personne ne veut jouer le lobby de 2.
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(10), 8)), [5, 5]);
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(17), 8)), [6, 6, 5]);
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(9), 8)), [5, 4]);
+  });
+
+  it("laisse les comptes ronds intacts", () => {
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(16), 8)), [8, 8]);
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(8), 8)), [8]);
+  });
+
+  it("rend UN lobby incomplet quand l'effectif est plus petit que la cible", () => {
+    // « Un lobby à 7 au lieu de 8 » — le cas que le pointage doit rendre possible.
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(7), 8)), [7]);
+    assert.deepEqual(tailles(repartirEnLobbies(joueurs(3), 8)), [3]);
+  });
+
+  it("n'écarte jamais plus d'une place entre le plus grand et le plus petit lobby", () => {
+    for (let n = 1; n <= 40; n += 1) {
+      const t = tailles(repartirEnLobbies(joueurs(n), 8));
+      assert.ok(Math.max(...t) - Math.min(...t) <= 1, `${n} joueurs -> ${t.join(",")}`);
+      assert.equal(
+        t.reduce((s, x) => s + x, 0),
+        n,
+        `${n} joueurs : personne ne doit disparaître`,
+      );
+    }
+  });
+
+  it("CONSERVE l'ordre reçu — c'est lui qui porte le sens", () => {
+    // Mélanger ici rendrait la méthode suisse fausse en silence.
+    assert.deepEqual(repartirEnLobbies([1, 2, 3, 4], 2), [
+      [1, 2],
+      [3, 4],
+    ]);
+  });
+});
+
+describe("statistiques — la « moitié haute » remplace le top 4", () => {
+  const manches = [
+    { placement: 1, points: 8, ordre: 1 },
+    { placement: 5, points: 4, ordre: 2 },
+    { placement: 3, points: 6, ordre: 3 },
+  ];
+
+  it("compte la moitié haute d'un lobby de 8 : les places 1 à 4", () => {
+    const s = statistiques(manches, 8);
+    assert.equal(s.total, 18);
+    assert.equal(s.premieres, 1);
+    assert.equal(s.moitieHaute, 2, "les places 1 et 3");
+    assert.equal(s.manchesJouees, 3);
+  });
+
+  it("resserre le seuil sur un lobby de 6 : les places 1 à 3", () => {
+    // Avec « top 4 » en dur, la 4e place d'un lobby de 6 aurait compté — deux tiers du plateau.
+    assert.equal(statistiques([{ placement: 4, points: 3, ordre: 1 }], 6).moitieHaute, 0);
+    assert.equal(statistiques([{ placement: 3, points: 4, ordre: 1 }], 6).moitieHaute, 1);
+  });
+
+  it("prend le dernier résultat par l'ORDRE, pas par la position dans la liste", () => {
+    assert.equal(statistiques(manches, 8).dernierPlacement, 3, "la manche d'ordre 3");
+  });
+
+  it("rend des zéros sans planter quand rien n'a été joué", () => {
+    assert.deepEqual(statistiques([], 8), {
+      total: 0,
+      premieres: 0,
+      moitieHaute: 0,
+      dernierPlacement: 0,
+      manchesJouees: 0,
+      moyenne: 0,
+    });
+  });
+});
+
+describe("classement", () => {
+  it("applique les départages dans l'ordre éprouvé", () => {
+    const rangs = classer([
+      engage("a", "Alice", stats(20, 1, 2, 3)),
+      engage("b", "Bob", stats(20, 2, 2, 5)),
+      engage("c", "Chloe", stats(25, 0, 1, 8)),
+    ]);
+    assert.deepEqual(
+      rangs.map((r) => r.nom),
+      ["Chloe", "Bob", "Alice"],
+      "les points d'abord, puis les premières places",
+    );
+  });
+
+  it("départage par le MEILLEUR dernier résultat, donc le plus PETIT placement", () => {
+    const rangs = classer([
+      engage("a", "Alice", stats(10, 1, 1, 7)),
+      engage("b", "Bob", stats(10, 1, 1, 2)),
+    ]);
+    assert.equal(rangs[0].nom, "Bob");
+  });
+
+  it("🔴 rend un ordre TOTAL — deux ex æquo parfaits ne changent plus de place", () => {
+    // L'original s'arrêtait au dernier résultat : l'ordre de deux égaux était indéterminé,
+    // donc le classement affiché n'était pas reproductible (famille R31).
+    const egaux = [engage("z", "Zoe", stats(10, 1, 1, 3)), engage("a", "Alice", stats(10, 1, 1, 3))];
+    const premier = classer(egaux).map((r) => r.id);
+    const second = classer([...egaux].reverse()).map((r) => r.id);
+    assert.deepEqual(premier, second, "le même ensemble donne le même ordre");
+    assert.deepEqual(premier, ["a", "z"], "et il est déterminé par le nom");
+  });
+
+  it("numérote les rangs à partir de 1, sans trou", () => {
+    const rangs = classer([
+      engage("a", "Alice", stats(30)),
+      engage("b", "Bob", stats(20)),
+      engage("c", "Chloe", stats(10)),
+    ]);
+    assert.deepEqual(
+      rangs.map((r) => r.rang),
+      [1, 2, 3],
+    );
+  });
+
+  it("garde au classement un engagé qui a ABANDONNÉ (dette R60)", () => {
+    // Le retirer réécrirait les manches où ses adversaires l'ont battu.
+    const rangs = classer([
+      engage("a", "Alice", stats(30)),
+      engage("b", "Bob", stats(40), true),
+    ]);
+    assert.equal(rangs[0].nom, "Bob");
+    assert.equal(rangs.length, 2);
+  });
+});
+
+describe("méthode suisse", () => {
+  it("regroupe par niveau : les meilleurs ensemble", () => {
+    const lobbies = lobbiesSuisses(
+      [
+        engage("a", "A", stats(10)),
+        engage("b", "B", stats(40)),
+        engage("c", "C", stats(30)),
+        engage("d", "D", stats(20)),
+      ],
+      2,
+    );
+    assert.deepEqual(
+      lobbies.map((l) => l.map((e) => e.nom)),
+      [
+        ["B", "C"],
+        ["D", "A"],
+      ],
+    );
+  });
+
+  it("ÉCARTE de la manche suivante ceux qui ont abandonné", () => {
+    const lobbies = lobbiesSuisses(
+      [
+        engage("a", "A", stats(40)),
+        engage("b", "B", stats(30), true),
+        engage("c", "C", stats(20)),
+      ],
+      2,
+    );
+    assert.deepEqual(
+      lobbies.flat().map((e) => e.nom),
+      ["A", "C"],
+      "B est au classement mais ne rejoue pas",
+    );
+  });
+});
