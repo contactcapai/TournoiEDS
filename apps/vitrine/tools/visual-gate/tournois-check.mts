@@ -2497,7 +2497,24 @@ for (const cas of ECRITURES_EPROUVEES) {
 // ne l'est pas, elle DÉCLARE une exemption au lieu de conclure.
 {
   const NOM = "㉔ repli de la copie fixe";
-  const COPIE_FIXE = "Gratuit";
+  /**
+   * 🔴 LE TÉMOIN EST LA **PHRASE ENTIÈRE**, JAMAIS LE MOT SEUL — ET CETTE LIGNE A ÉTÉ PAYÉE
+   * PAR UN VERDICT ROUGE SUR UN PRODUIT SAIN.
+   *
+   * 🔬 Mesuré le 2026-08-14, au premier lancement réel de cette garde : elle cherchait
+   * `« Gratuit »` sur toute la page et le trouvait **deux fois**. Le second n'a rien à voir
+   * avec la carte — c'est le chapô de la passerelle Tournois : *« **Gratuits**, ouverts sur
+   * inscription. À commencer par notre circuit TFT… »*, où « Gratuit » n'est qu'une
+   * **sous-chaîne** de « Gratuits ». La carte cessait donc bien d'annoncer la gratuité comme
+   * A3 l'exige, et la porte criait quand même.
+   * ⇒ **4ᵉ instrument faux de cette story, et le 4ᵉ à accuser le produit** — exactement le mode
+   * de défaillance chiffré de l'Epic 6 (~17 instruments faux, TOUS contre le produit). Il a été
+   * attrapé parce que l'instrument a été prouvé AVANT le produit (règle n°1 de la rétro).
+   * ⚠️ La leçon n'est pas « ce mot-là était mal choisi » : c'est qu'un témoin doit être
+   * **unique à la surface qu'il mesure**. La phrase complète l'est ; un mot de sept lettres
+   * partagé avec la prose éditoriale ne l'est pas, et ne le sera jamais.
+   */
+  const COPIE_FIXE = "Gratuit · ouvert à tous, même sans matériel";
   const QUEUE_QUI_SURVIT = "ouvert à tous, même sans matériel";
   const TARIF_TEMOIN = "7,50 € (temoin de porte)";
 
@@ -2586,12 +2603,11 @@ for (const cas of ECRITURES_EPROUVEES) {
         }
       } else {
         // ⓑ SANS tarif : la phrase entière revient, au caractère près.
-        const attendue = `${COPIE_FIXE} · ${QUEUE_QUI_SURVIT}`;
-        const cherchee = AUTOTEST ? attendue + "-faux" : attendue;
+        const cherchee = AUTOTEST ? COPIE_FIXE + "-faux" : COPIE_FIXE;
         if (markup.includes(cherchee)) {
-          ok(NOM, cas.libelle, `« ${attendue} » servi au caractère près — le repli tient`);
+          ok(NOM, cas.libelle, `« ${COPIE_FIXE} » servi au caractère près — le repli tient`);
         } else {
-          ko(NOM, cas.libelle, `« ${attendue} » N'EST PAS servi — le cas MAJORITAIRE a été cassé`);
+          ko(NOM, cas.libelle, `« ${COPIE_FIXE} » N'EST PAS servi — le cas MAJORITAIRE a été cassé`);
         }
       }
     } finally {
