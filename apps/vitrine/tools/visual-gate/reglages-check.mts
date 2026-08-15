@@ -55,6 +55,7 @@ import postgres from "postgres";
 
 import { launchChrome } from "./cdp.mjs";
 import { BASE as BASE_DEFAUT, PAGES } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 import { siteSettingInputSchema } from "../../src/lib/schemas/site-setting";
 import { classerDestination } from "../../src/lib/links";
 
@@ -85,21 +86,6 @@ if (AUTOTEST) {
 // BASE DE DÉVELOPPEMENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  if (process.env[nom]) return process.env[nom]!;
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne
-      ? ligne
-          .slice(ligne.indexOf("=") + 1)
-          .trim()
-          .replace(/^["']|["']$/g, "")
-      : null;
-  } catch {
-    return null;
-  }
-}
 
 const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {

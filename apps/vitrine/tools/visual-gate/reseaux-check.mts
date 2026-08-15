@@ -63,6 +63,7 @@ import {
   type PublicationPayload,
 } from "../../src/lib/schemas/publication";
 import { toParisIso } from "../../src/lib/date-paris";
+import { lireVariable } from "./env.mjs";
 import {
   DELAI_PUBLICATION_MS,
   EN_TETE_JETON_N8N,
@@ -522,13 +523,14 @@ async function appelerAvec(
 // ⑪ ABSENCE : AUCUNE COLONNE DE « TEXTE D'ANNONCE » SUR `event`
 // ══════════════════════════════════════════════════════════════════════════════════════
 {
-  const url = (() => {
-    const brut = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    return /^DATABASE_URL=(.*)$/m.exec(brut)?.[1]?.trim() ?? null;
-  })();
+  // ✅ [Story 7.11] Cette résolution était une **regex en ligne** sur `.env.local`, au milieu
+  // d'une garde — la seule porte sans helper du tout. Elle ne consultait donc jamais
+  // `process.env`, ce qui rendait `gate:reseaux` **incapable de s'exécuter** depuis le
+  // 2026-08-13, sans que rien ne le dise. Elle passe par `./env.mjs` comme les autres.
+  const url = lireVariable("DATABASE_URL");
 
   if (!url) {
-    ko("⑪", "DATABASE_URL introuvable dans .env.local : la garde d'ABSENCE ne peut pas être exercée");
+    ko("⑪", "DATABASE_URL introuvable (ni environnement, ni .env.local) : la garde d'ABSENCE ne peut pas être exercée");
   } else {
     const sql = postgres(url, { max: 1, onnotice: () => {} });
     try {

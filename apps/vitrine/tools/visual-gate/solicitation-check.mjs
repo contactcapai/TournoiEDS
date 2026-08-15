@@ -52,6 +52,7 @@ import { config } from "dotenv";
 import postgres from "postgres";
 import { launchChrome } from "./cdp.mjs";
 import { BASE as BASE_DEFAUT } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 
 // `DATABASE_URL` n'est PAS injectée automatiquement dans un script `node` autonome
 // (contrairement à `next build`/`next start`) — patron `drizzle.config.ts`.
@@ -519,7 +520,10 @@ try {
   // Nettoyage : chaque ligne créée par cette porte porte GATE_MARKER dans `name` — on ne
   // laisse RIEN derrière soi, contrairement aux autres `gate:*` qui ne mutent jamais la base.
   try {
-    const url = process.env.DATABASE_URL;
+    // ✅ [Story 7.11] Passe par `./env.mjs` comme les autres portes. Le `dotenv` chargé plus
+    // haut peuplait déjà `process.env`, donc le comportement est identique — mais la
+    // résolution n'était plus lisible de l'extérieur, et c'est ce qui se corrige ici.
+    const url = lireVariable("DATABASE_URL");
     if (url) {
       sql = postgres(url, { prepare: false });
       const supprimees = await sql`

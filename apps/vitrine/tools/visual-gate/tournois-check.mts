@@ -68,6 +68,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 import { BASE as BASE_DEFAUT, PAGES } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 // ⚠️ IMPORTÉ, JAMAIS RECOPIÉ (garde ⑱) : c'est la constante qui construit le `pgEnum`, le
 // schéma Zod ET le contrat n8n. Une liste alignée à la main se désaligne à l'ajout suivant.
 import { EVENT_TYPES } from "../../src/lib/schemas/event";
@@ -222,22 +223,17 @@ for (const route of ROUTES_EPROUVEES) {
 // MOITIÉ B — CE QUE LA BASE REFUSE, ET CE QUE LES CONTRATS GARANTISSENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 // 🔴 L'ENVIRONNEMENT EST PRIORITAIRE SUR `.env.local`, ET C'EST NOUVEAU DEPUIS CETTE STORY.
 // Les six portes de modèle antérieures lisaient `.env.local` **seulement** : elles étaient
 // écrites quand un Postgres local tournait. Depuis le 2026-08-13 il n'y en a plus, et c'est
 // `DATABASE_URL=… pnpm --filter vitrine gate:tournois` qui vise staging. Le repli sur
 // `.env.local` reste, pour qu'un poste qui rallumerait une base locale continue de marcher.
-const urlBase = process.env.DATABASE_URL ?? lireVariable("DATABASE_URL");
+// ✅ [Story 7.11] La priorité à `process.env` vivait ICI, à l'appel, et non dans le helper —
+// c'est ce qui rendait cette porte pilotable pour une raison **invisible dans le helper**, et
+// qui a fait échouer trois tentatives de dérivation. Elle vit maintenant dans `./env.mjs`,
+// une fois, pour toutes les portes. Comportement inchangé.
+const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {
   console.log("🔴 DATABASE_URL introuvable (ni environnement, ni .env.local).");
   console.log("   La moitié B ne peut pas s'exécuter — et une porte qui sauterait sa moitié");
