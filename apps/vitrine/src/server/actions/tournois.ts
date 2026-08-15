@@ -474,14 +474,17 @@ export async function definirPublicationTournoi(
 /**
  * Supprime un tournoi — définitivement.
  *
- * ⚠️ **AUCUN EFFET DE BORD AUJOURD'HUI, ET CE NE SERA PAS VRAI DEMAIN.** Aucune clé étrangère
- * ne référence `tournament` (le périmètre A5 exclut phases, inscriptions et engagés) et aucun
- * fichier ne lui est rattaché : ce `DELETE` est donc sûr, exactement comme celui d'un atelier.
- * 🔴 Dès la **Story 10.1**, `phase` et `registration` le référenceront — et il faudra alors
- * décider explicitement entre `CASCADE` (détruire le déroulé avec le tournoi) et `RESTRICT`
- * (refuser tant qu'il reste des inscrits). **Ne pas laisser ce choix au défaut de Drizzle** :
- * c'est ce qui a rendu la suppression d'un `event` délicate, et le raisonnement est écrit sur
- * `tournament.eventId`.
+ * 🔴 **CE BLOC DISAIT « AUCUN EFFET DE BORD AUJOURD'HUI » — C'EST FAUX DEPUIS LA STORY 10.1,
+ * CORRIGÉ LE 2026-08-15.** Il annonçait lui-même le jour où il cesserait d'être vrai, et ce
+ * jour est arrivé : `tournament_phase` et `tournament_entry` référencent désormais cette
+ * table, tout comme `tournament_match` et `tournament_match_slot` par transitivité.
+ *
+ * ⚠️ **CE `DELETE` DÉTRUIT DONC TOUTE LA STRUCTURE DU TOURNOI** — phases, engagés, membres,
+ * rencontres et résultats. Le choix a été fait explicitement en 10.1 et non laissé au défaut
+ * de Drizzle : `CASCADE`, parce qu'une phase ou un engagé n'a **aucune existence** hors de son
+ * tournoi, là où un événement d'agenda en a une (d'où le `RESTRICT` sur `tournament.eventId`).
+ * ⇒ **La confirmation de l'écran doit le DIRE** (`TournoiActions`) : une différence de
+ * comportement entre deux écrans du même back-office s'écrit, elle ne se déduit pas.
  *
  * La confirmation en DEUX TEMPS vit côté écran (`BoutonConfirmation`) : c'est là qu'elle
  * protège quelqu'un. Une seconde garde côté serveur n'empêcherait rien qu'un POST direct ne
