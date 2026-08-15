@@ -42,7 +42,7 @@
 
 import { z } from "zod";
 
-import { visiblementVide } from "../text";
+import { neutraliserInvisibles, visiblementVide } from "../text";
 
 /**
  * 🔴 CARACTÈRES SANS LARGEUR — `.trim()` NE LES ENLÈVE PAS, ET C'EST UN TROU RÉEL.
@@ -75,6 +75,26 @@ import { visiblementVide } from "../text";
  */
 // Réexport : les six schémas consommateurs continuent d'importer depuis ce module.
 export { visiblementVide };
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * LE POINT D'ENTRÉE DE TOUT TEXTE SAISI — UNE SEULE DÉFINITION (Story 7.8, dette R41)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `z.string().trim()` existait en **sept** copies locales nommées `trimmedText` (event,
+ * member, partner, photo, solicitation, tournament, workshop). Aucune ne retirait les
+ * invisibles COLLÉS à une valeur visible : `"a@b.fr" + U+200B` traversait Zod ET tous les
+ * `CHECK` de la base, et se stockait tel quel. Sept copies d'une règle Unicode, c'est la
+ * famille R37 — on n'en corrige jamais sept, on en corrige une.
+ *
+ * ⚠️ `.overwrite()` et non `.transform()` : il applique la normalisation **en préservant le
+ * type `ZodString`**, donc les `.max()` et `.refine()` des sept schémas continuent de
+ * chaîner sans rien réécrire chez eux.
+ *
+ * ⚠️ Le second `.trim()` est nécessaire — retirer un invisible peut exposer un espace qui
+ * était jusque-là interne.
+ */
+export const texteNettoye = z.string().trim().overwrite(neutraliserInvisibles).trim();
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -125,9 +145,7 @@ export { visiblementVide };
  * @param libelle Le nom du champ **tel qu'un bénévole le lit** (« La description »).
  */
 export const texteOptionnel = (max: number, libelle: string) =>
-  z
-    .string()
-    .trim()
+  texteNettoye
     .transform((value) => (visiblementVide(value) ? null : value))
     .nullable()
     .default(null)
@@ -178,9 +196,7 @@ export const texteOptionnel = (max: number, libelle: string) =>
  * @param libelle Le nom du champ **tel qu'un bénévole le lit** (« L'adresse du Discord »).
  */
 export const urlHttpOptionnelle = (max: number, libelle: string) =>
-  z
-    .string()
-    .trim()
+  texteNettoye
     .transform((value) => (visiblementVide(value) ? null : value))
     .nullable()
     .default(null)

@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 
-import { visiblementVide } from "./texte";
+import { visiblementVide, texteNettoye } from "./texte";
 
 /**
  * Valeurs de l'enum `solicitation_type`, **définies ici une seule fois** (FR32, epics.md Story 5.1).
@@ -45,7 +45,7 @@ export const SOLICITATION_TYPE_LABELS: Record<(typeof SOLICITATION_TYPES)[number
   autre: "Autre",
 };
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 export const solicitationInputSchema = z.object({
   /**

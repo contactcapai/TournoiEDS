@@ -15,7 +15,7 @@
  */
 import { z } from "zod";
 
-import { urlHttpOptionnelle, visiblementVide } from "./texte";
+import { texteNettoye, urlHttpOptionnelle, visiblementVide } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -157,9 +157,10 @@ export const siteSettingInputSchema = z.object({
    * les caractères de largeur nulle (leçon 6.3), donc Zod est **le seul** des deux à pouvoir
    * fermer ce cas.
    */
-  contactEmail: z
-    .string()
-    .trim()
+  // 🔴 `texteNettoye` et non `z.string().trim()` : c'est LE champ où un invisible collé fait
+  // le plus de dégâts — cette valeur devient le `to:` d'une notification SMTP, et l'envoi
+  // étant découplé de la persistance (Story 5.1), l'échec serait parfaitement silencieux.
+  contactEmail: texteNettoye
     .max(EMAIL_MAX, `L'adresse e-mail ne peut pas dépasser ${EMAIL_MAX} caractères.`)
     .refine((value) => !visiblementVide(value), {
       message:

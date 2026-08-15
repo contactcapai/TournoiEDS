@@ -15,7 +15,7 @@
 import { z } from "zod";
 
 import { instantAvecFuseau, instantAvecFuseauOptionnel } from "./instant";
-import { texteOptionnel, urlHttpOptionnelle, visiblementVide } from "./texte";
+import { texteOptionnel, urlHttpOptionnelle, visiblementVide, texteNettoye } from "./texte";
 // 🔴 `URL_MAX` EST IMPORTÉE, JAMAIS RECOPIÉE. Une URL d'inscription et une URL de réseau
 // social sont **le même objet** (une adresse http(s) saisie par un bénévole) : deux bornes
 // distinctes divergeraient au premier ajustement, et personne ne saurait laquelle fait foi.
@@ -263,7 +263,7 @@ export function fabriquerIdentifiant(nom: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * Un tournoi (A21 : la racine MINIMALE — **sans** phases, **sans** inscriptions, **sans**

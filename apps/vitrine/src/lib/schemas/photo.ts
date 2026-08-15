@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 
-import { visiblementVide } from "./texte";
+import { visiblementVide, texteNettoye } from "./texte";
 
 /**
  * ⚠️ `trimmedText` est redéfini ici plutôt qu'importé de `partner.ts`, et `caption`
@@ -29,7 +29,7 @@ import { visiblementVide } from "./texte";
  * Le jour où un 3ᵉ schéma a besoin d'un texte optionnel BORNÉ, c'est là qu'il faut
  * extraire une fabrique — pas avant (règle « payé deux fois », METHODE.md §5).
  */
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * 🔴 NOM DE FICHIER — C'EST LA VALEUR LA PLUS DANGEREUSE DE TOUT LE PROJET.

@@ -13,7 +13,7 @@
 import { z } from "zod";
 
 import { LOGO_EXTENSION, PREFIXE_LOGO } from "../logos";
-import { texteOptionnel, urlHttpOptionnelle, visiblementVide } from "./texte";
+import { texteOptionnel, urlHttpOptionnelle, visiblementVide, texteNettoye } from "./texte";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -116,7 +116,7 @@ export const PARTNER_CATEGORIES = ["sponsor", "partenaire", "soutien", "particip
  */
 export type PartnerCategory = (typeof PARTNER_CATEGORIES)[number];
 
-const trimmedText = z.string().trim();
+const trimmedText = texteNettoye;
 
 /**
  * 🔴 CARACTÈRES SANS LARGEUR — la garde a été EXTRAITE vers `./texte.ts` (Story 4.3).

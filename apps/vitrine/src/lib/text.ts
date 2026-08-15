@@ -27,9 +27,35 @@
  */
 const SANS_LARGEUR = /[\u00AD\u200B-\u200F\u2060-\u2064\uFEFF]/g;
 
+/**
+ * Les invisibles qui ne portent JAMAIS de sens ici — la classe ci-dessus MOINS U+200C et
+ * U+200D (ZWNJ et ZWJ), qui assemblent les séquences d'emoji et servent dans plusieurs
+ * écritures. C'est cette classe-là qu'on RETIRE d'une valeur ; l'autre ne sert qu'à JUGER
+ * si une valeur est vide. Échappements explicites, jamais les caractères eux-mêmes.
+ */
+const INVISIBLES_SANS_SENS = /[\u00AD\u200B\u200E\u200F\u2060-\u2064\uFEFF]/g;
+
 /** Vrai si la chaîne ne contient AUCUN caractère visible (après retrait des sans-largeur). */
 export const visiblementVide = (value: string) =>
   value.replace(SANS_LARGEUR, "").length === 0;
+
+/**
+ * Retire les invisibles COLLÉS à une valeur visible — `"a@b.fr" + U+200B` (dette R41).
+ *
+ * Une telle chaîne n'est pas « visiblement vide » : elle traversait donc Zod et tous les
+ * `CHECK` intacte, et était stockée telle quelle (`btrim` de Postgres ne retire que les
+ * blancs ASCII). Sur `contact_email`, qui est le `to:` d'une notification SMTP, ça donne un
+ * message jamais délivré, **en silence** — et le découplage envoi/persistance de la Story
+ * 5.1 rend précisément cet échec invisible.
+ *
+ * ⚠️ ZWJ ET ZWNJ SURVIVENT : 👨‍👩‍👧 est assemblé par des U+200D, les retirer casserait
+ * l'emoji. On ne retire que ce qui ne peut rien vouloir dire.
+ *
+ * ⚠️ Le `trim()` final n'est pas décoratif : retirer un invisible peut EXPOSER un espace
+ * qui était jusque-là au milieu de la chaîne (`"a " + U+200B` -> `"a"`).
+ */
+export const neutraliserInvisibles = (value: string) =>
+  value.replace(INVISIBLES_SANS_SENS, "").trim();
 
 /**
  * Un texte blanc n'est pas un texte.
@@ -62,9 +88,13 @@ export const visiblementVide = (value: string) =>
 export function cleanText(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
   if (trimmed.length === 0) return null;
-  // On retire les invisibles AVANT de re-trimmer : sinon un MÉLANGE d'espaces et de
-  // caractères sans largeur (« ␣U+200B␣U+200C␣ ») survit, visiblement vide à l'écran.
-  return trimmed.replace(SANS_LARGEUR, "").trim().length === 0 ? null : trimmed;
+  // On retire les invisibles AVANT de juger : sinon un MÉLANGE d'espaces et de caractères
+  // sans largeur (« ␣U+200B␣U+200C␣ ») survit, visiblement vide à l'écran.
+  if (trimmed.replace(SANS_LARGEUR, "").trim().length === 0) return null;
+  // 🔴 ET ON REND LA VALEUR NETTOYÉE, PAS LA BRUTE (Story 7.8) : le correctif de l'écriture
+  // ne touche PAS les lignes déjà en base. Sans ça, tout ce qui a été saisi avant continuerait
+  // de rendre ses invisibles collés indéfiniment.
+  return neutraliserInvisibles(trimmed);
 }
 
 /**
