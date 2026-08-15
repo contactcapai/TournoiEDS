@@ -14,7 +14,7 @@
     "gate": "node tools/visual-gate/gate.mjs",
     "gate:links": "node tools/visual-gate/links-check.mjs",
     "gate:admin": "node tools/visual-gate/admin-check.mjs",
-    "test": "node --import tsx --test src/lib/*.test.ts src/lib/schemas/*.test.ts"
+    "test": "node --import tsx --test src/lib/*.test.ts src/lib/**/*.test.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",
