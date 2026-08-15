@@ -1,0 +1,112 @@
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.vide {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phase {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+}
+
+.entete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rang {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--paper);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.nom {
+  margin: 0;
+  font-weight: 700;
+}
+
+.nature,
+.etat {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.ajout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+}
+
+.titreAjout {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.champ input,
+.champ select {
+  /* Cible tactile confortable — règle du projet, jamais en dessous de 44px. */
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.aide {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.erreur,
+.erreurChamp {
+  margin: 0;
+  color: var(--alert);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 879px) {
+  .phase {
+    padding: 12px;
+  }
+}

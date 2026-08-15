@@ -91,6 +91,9 @@ export default async function ModifierTournoiPage({
       </p>
 
       <div className={styles.barreActions}>
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
+          Composer le déroulé
+        </Link>
         <Link className={styles.lien} href="/admin/tournois">
           Retour aux tournois
         </Link>

@@ -76,8 +76,12 @@ export function TournoiActions({ id, nom, isPublished }: TournoiActionsProps) {
         question={`Supprimer définitivement « ${nom} » ?`}
         precision={
           "Le tournoi disparaît de cet écran, définitivement — avec son déroulé annoncé, ses " +
-          "lots, son podium et son adresse. L'événement d'agenda auquel il est rattaché, lui, " +
-          "n'est pas touché. " +
+          "lots, son podium et son adresse. " +
+          // 🔴 Ajouté en Story 10.4 : depuis la 10.1, ce geste détruit AUSSI toute la
+          // structure. Le taire ferait perdre des résultats à quelqu'un qui croyait
+          // n'effacer qu'une annonce.
+          "Ses phases, ses engagés et TOUS SES RÉSULTATS sont détruits avec lui. " +
+          "L'événement d'agenda auquel il est rattaché, lui, n'est pas touché. " +
           "Si vous voulez seulement qu'il cesse de paraître, utilisez « Retirer du site » : " +
           "la fiche est conservée et se republie en un clic — et c'est aussi ce qui vous " +
           "rend le droit de changer son adresse."
