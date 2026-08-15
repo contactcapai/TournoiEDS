@@ -1,0 +1,1 @@
+ALTER TYPE "public"."tournament_entry_state" ADD VALUE 'abandonne';
