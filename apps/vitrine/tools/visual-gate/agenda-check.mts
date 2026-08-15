@@ -30,9 +30,6 @@
 //
 // Usage :  pnpm --filter vitrine gate:agenda [baseUrl]
 //          AGENDA_AUTOTEST=1 …  → auto-validation de l'instrument (voir plus bas)
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import postgres from "postgres";
 
 import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
@@ -42,6 +39,7 @@ import {
   toInputValue,
 } from "../../src/lib/date-paris";
 import { RECAP_MAX, TITRE_MAX, barInputSchema, eventInputSchema } from "../../src/lib/schemas/event";
+import { lireDatabaseUrl } from "./env.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 const AUTOTEST = process.env.AGENDA_AUTOTEST === "1";
@@ -119,21 +117,11 @@ for (const route of ROUTES_EPROUVEES) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════
-// BASE DE DÉVELOPPEMENT — lecture de DATABASE_URL sans dépendance supplémentaire
+// BASE — la résolution vit dans `./env.mjs` depuis la Story 7.11
 // ══════════════════════════════════════════════════════════════════════════════════════
-
-const ICI = dirname(fileURLToPath(import.meta.url));
-
-function lireDatabaseUrl(): string | null {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  try {
-    const contenu = readFileSync(join(ICI, "..", "..", ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith("DATABASE_URL="));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
+// ⚠️ Ce bloc portait sa propre copie, sous un TROISIÈME nom (`lireDatabaseUrl`). Elle avait
+// la bonne sémantique — mais c'est précisément le problème : **sept copies, deux
+// comportements, trois noms**, donc rien à quoi se fier de l'extérieur. Voir `./env.mjs`.
 
 const urlBase = lireDatabaseUrl();
 if (!urlBase) {
@@ -252,6 +240,137 @@ for (const cas of ECRITURES_A_ACCEPTER) {
       } else {
         ok("⑤ rien de non publié", page, `200, et aucun des ${nonPublies.length} brouillons`);
       }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// ⑥ LA DÉRIVATION « À VENIR / DÉJÀ PASSÉ » EST MESURÉE SUR LE RENDU — SOLDE LA DETTE R50
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 LE TROU QU'ELLE FERME, ET IL EST SILENCIEUX PAR CONSTRUCTION. `gate:carousel` conclut
+// « rien à mesurer » quand la section « Déjà passé » est absente du HTML — parce qu'une base
+// sans événement passé publié est un état parfaitement légitime (c'est le correctif de R46,
+// qui a supprimé un faux POSITIF). Mais l'absence de la section a **deux causes possibles**,
+// et le rendu ne les distingue pas :
+//     ① aucun événement passé publié      → rien à mesurer, la porte a raison de se taire ;
+//     ② `getPastEvents` a régressé        → il y a un DÉFAUT, et la porte se tait pareil.
+// ⇒ Un faux NÉGATIF. `CAROUSEL_FORCER_DONNEES=1` ne le comble pas : il prouve que la porte
+// sait crier sur « 0 vignette », pas que la dérivation SQL est fiable quand elle prétend
+// n'avoir rien à montrer.
+//
+// La seule parade est de **fabriquer la donnée** : si un événement passé publié existe et que
+// la section reste absente, ce n'est plus ambigu — c'est ②.
+//
+// 🔴 CE BLOC EST LE SEUL DE CE FICHIER QUI **COMMITE**, et c'est une nouveauté assumée. Tout
+// le reste vit en transaction ROLLBACK (voir l'en-tête). Ici c'est impossible : une écriture
+// annulée n'est **jamais servie en HTTP** — le serveur interroge la base dans une autre
+// connexion. Contreparties, toutes tenues : préfixe `ZZ-GATE-` reconnaissable d'un coup d'œil
+// par un humain, ménage dans un `finally`, et **le ménage se prouve par un recompte**, pas par
+// la présence du `finally` (`pieges/faux-succes.md`).
+//
+// ⚠️ DEUX TÉMOINS, ET LE SECOND N'EST PAS DÉCORATIF : un seul témoin passé prouverait « il
+// apparaît », ce qui resterait vrai d'une page qui afficherait TOUT. Le témoin daté dans le
+// FUTUR doit se trouver **avant** le marqueur de section, celui daté dans le PASSÉ **après** —
+// c'est la seule mesure qui prouve qu'un événement tombe dans la BONNE section. Patron : la
+// garde ⑭ de `gate:tournois`, dont ce bloc est l'application à `event`.
+//
+// ⚠️ ±1 JOUR, ET C'EST UN CHOIX MESURÉ (repris de la garde ⑭) : assez loin de `now()` pour que
+// la frontière `lte`/`gt` ne dépende pas du temps de trajet HTTP, assez près pour rester en
+// tête de liste malgré la borne des lectures publiques.
+{
+  const MARQUE = `ZZ-GATE-AGENDA-${Date.now()}`;
+  const titrePasse = `${MARQUE}-PASSE`;
+  const titreAVenir = `${MARQUE}-A-VENIR`;
+
+  // L'`id` du `<h2>` de la section, porté par `aria-labelledby` : il tient l'accessibilité,
+  // donc le supprimer casserait le rendu bien avant de casser cette mesure. Volontairement
+  // PAS un nom de classe CSS Module, dont le hash change à chaque édition du fichier.
+  const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
+
+  const ids: string[] = [];
+  try {
+    // 🔬 AUTO-VALIDATION DE CETTE GARDE (`pieges/instrument-non-valide.md`).
+    //
+    // Le défaut que ⑥ vise (`getPastEvents` qui régresse) vit dans le code **servi par
+    // staging** : le casser exigerait un redéploiement, c'est-à-dire abîmer l'hôte que la
+    // porte mesure. On fabrique donc son **EFFET**, qui est identique et observable : le
+    // témoin « passé » est daté dans le FUTUR, donc plus aucun événement passé publié
+    // n'existe et la section « Déjà passé » disparaît — exactement ce que produirait un
+    // `lte` devenu `lt`, ou un filtre `is_published` cassé.
+    // ⚠️ Une garde dont on n'a jamais vu l'échec ne prouve pas qu'elle mesure quelque chose,
+    // et celle-ci existe précisément parce qu'un SILENCE était pris pour un succès (R50).
+    const DEBRANCHER_R50 = process.env.AGENDA_DEBRANCHER_R50 === "1";
+    if (DEBRANCHER_R50) {
+      console.log(
+        "  ⚠️  AGENDA_DEBRANCHER_R50=1 — le témoin « passé » est daté dans le FUTUR, un ÉCHEC de ⑥ est ATTENDU\n",
+      );
+    }
+
+    for (const [titre, decalage] of [
+      [titrePasse, DEBRANCHER_R50 ? "+2 days" : "-1 day"],
+      [titreAVenir, "+1 day"],
+    ] as const) {
+      const [ligne] = await sql<{ id: string }[]>`
+        insert into event (title, venue_name, starts_at, is_published)
+        values (${titre}, 'Salle temoin', now() + ${decalage}::interval, true)
+        returning id`;
+      ids.push(ligne.id);
+    }
+
+    const reponse = await fetch(BASE + "/agenda");
+    const html = await reponse.text();
+
+    const posSection = html.indexOf(MARQUEUR_SECTION_PASSES);
+    const posPasse = html.indexOf(titrePasse);
+    const posAVenir = html.indexOf(titreAVenir);
+
+    if (posSection === -1) {
+      ko(
+        "⑥ dérivation",
+        "/agenda",
+        "un événement PASSÉ PUBLIÉ existe et la section « Déjà passé » est ABSENTE — " +
+          "ce n'est plus « rien à mesurer », c'est un défaut de dérivation (R50)",
+      );
+    } else {
+      ok("⑥ dérivation", "/agenda", "la section « Déjà passé » apparaît quand la donnée existe");
+    }
+
+    if (posPasse === -1 || posAVenir === -1) {
+      ko(
+        "⑥a témoins servis",
+        "/agenda",
+        `passé=${posPasse !== -1}, à venir=${posAVenir !== -1} — un témoin publié n'est pas servi`,
+      );
+    } else if (posSection === -1) {
+      ko("⑥b position", "/agenda", "section absente : la position est inéprouvable");
+    } else if (!(posAVenir < posSection && posSection < posPasse)) {
+      ko(
+        "⑥b position",
+        "/agenda",
+        `ordre servi à-venir=${posAVenir} · section=${posSection} · passé=${posPasse} — ` +
+          "un événement est dans la MAUVAISE section (les deux listes seraient interverties)",
+      );
+    } else {
+      ok(
+        "⑥b position",
+        "/agenda",
+        "le témoin futur est AVANT la section « Déjà passé », le témoin passé APRÈS",
+      );
+    }
+  } finally {
+    // 🔴 LE MÉNAGE SE PROUVE, IL NE SE DÉCLARE PAS. On supprime, puis on RECOMPTE : un
+    // `delete` qui n'affecte aucune ligne laisserait deux témoins publiés sur une page
+    // publique, et le `finally` seul ne le dirait pas.
+    if (ids.length > 0) {
+      await sql`delete from event where id = any(${ids})`;
+    }
+    const [restants] = await sql<{ n: number }[]>`
+      select count(*)::int as n from event where title like ${MARQUE + "%"}`;
+    if (restants.n !== 0) {
+      ko("⑥c ménage", "event", `${restants.n} témoin(s) ZZ-GATE- SUBSISTENT en base`);
+    } else {
+      ok("⑥c ménage", "event", `${ids.length} témoin(s) créé(s), 0 restant (recompté)`);
     }
   }
 }

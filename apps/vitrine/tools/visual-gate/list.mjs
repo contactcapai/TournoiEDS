@@ -143,18 +143,19 @@ for (const [nom, commande] of Object.entries(scripts)) {
   // que son `lireVariable` consulte bien `process.env[nom]` — 3ᵉ version de ce témoin, et
   // 3ᵉ fois qu'il se trompe. C'est la démonstration, à l'usage, que cette question ne se
   // décide pas en lisant du texte : la parade est **structurelle** (Story 7.11).
+  // ✅ STORY 7.11 — CE TÉMOIN N'EST PLUS UNE HEURISTIQUE, IL EST BINAIRE.
+  // Les trois versions ci-dessus tentaient de deviner, dans du TEXTE, si une porte
+  // consultait `process.env` avant `.env.local`. Elles se sont trompées trois fois, dans les
+  // deux sens. La question a disparu avec sa cause : la résolution vit maintenant dans **un
+  // seul** module (`./env.mjs`, sémantique « environnement d'abord »), et une porte
+  // l'**importe** ou ne l'importe pas. On ne reconnaît plus un motif, on lit un fait.
+  //
+  // ⚠️ Ce qui reste dérivé du texte, et qui l'assume : `postgres(`/`drizzle(` pour savoir si
+  // la porte touche une base. C'est un appel de fonction, pas une intention — et si un jour
+  // il devenait ambigu, la parade serait la même : rendre le fait explicite, pas affiner la
+  // regex.
   const ouvrePostgres = /\bpostgres\(/.test(source) || /drizzle\(/.test(source);
-  const positions = [];
-  for (let i = source.indexOf(".env.local"); i !== -1; i = source.indexOf(".env.local", i + 1)) {
-    positions.push(i);
-  }
-  const fenetres = positions.map((p) => source.slice(Math.max(0, p - 400), p + 400));
-  const litProcessEnv =
-    /process\.env\.DATABASE_URL/.test(source) || fenetres.some((f) => /process\.env\[/.test(f));
-  // Trois états, et le troisième est le plus honnête : une porte qui ouvre Postgres sans
-  // qu'on trouve d'où vient son URL n'est ni pilotable ni bloquée — elle est INDÉCIDABLE
-  // par lecture, et le dire vaut mieux que de trancher au hasard.
-  const indecidable = ouvrePostgres && positions.length === 0 && !/process\.env\.DATABASE_URL/.test(source);
+  const litProcessEnv = /from "\.\/env\.mjs"/.test(source);
 
   // 🔴 LA GARDE ANTI-DÉRIVE : le code contredit-il la déclaration ?
   if (ouvrePostgres && !EFFETS[champs.effet].ecrit) {
@@ -174,8 +175,8 @@ for (const [nom, commande] of Object.entries(scripts)) {
     story: champs.story ?? null,
     // Une porte qui résout son URL SANS jamais consulter `process.env` ne connaît que
     // `.env.local`, donc `localhost:5434` — le Postgres supprimé le 2026-08-13 (dette R47).
-    orpheline: ouvrePostgres && !litProcessEnv && !indecidable,
-    indecidable,
+    orpheline: ouvrePostgres && !litProcessEnv,
+
   });
 }
 
@@ -198,11 +199,7 @@ for (const [surface, liste] of [...parSurface].sort()) {
   console.log(`  ${surface}`);
   for (const p of liste) {
     const e = EFFETS[p.effet];
-    const orphelin = p.orpheline
-      ? "  ⛔ SANS ENVIRONNEMENT (R47)"
-      : p.indecidable
-        ? "  ❔ résolution d'URL INDÉCIDABLE par lecture"
-        : "";
+    const orphelin = p.orpheline ? "  ⛔ SANS ENVIRONNEMENT (R47)" : "";
     console.log(`    ${e.icone} ${p.nom.padEnd(21)} ${e.texte}${TIERS[p.tiers]}${orphelin}`);
   }
   console.log("");
@@ -221,13 +218,14 @@ if (!filtre) {
     console.log("     et seul leur échec de connexion le dit. Dette R47 → Story 7.11 :");
     console.log(`     ${orphelines.map((p) => p.nom).join(", ")}`);
   }
-  // ⚠️ DÉCLARATION D'HEURISTIQUE — une porte verte ne doit jamais se lire « c'est mesuré ».
-  // Ce verdict vient d'une reconnaissance de motif dans du TEXTE, pas d'une exécution : il a
-  // déjà été faux une fois, sur cinq portes à la fois (voir le bloc 🔴 plus haut).
-  console.log(
-    "\n  ⚠️ Dérivation HEURISTIQUE (lecture du source, pas exécution) — elle a déjà été fausse",
-  );
-  console.log("     sur 5 portes le 2026-08-14. Parade structurelle routée → Story 7.11.");
+  // ⚠️ CE BLOC DÉCLARAIT « dérivation HEURISTIQUE … parade routée → Story 7.11 ». La 7.11 est
+  // FAITE : la question ne se devine plus, elle se lit. On corrige donc la déclaration au lieu
+  // de la laisser annoncer un chantier clos — un document qui décrit un état dépassé fait
+  // chercher la panne au mauvais endroit (`pieges/cadrage-perime.md`).
+  console.log("\n  ⓘ Pilotabilité : dérivée de l'IMPORT de `./env.mjs` — un fait binaire.");
+  console.log("     (Elle s'inférait de motifs dans le texte jusqu'au 2026-08-14, et s'est");
+  console.log("      trompée TROIS fois en un jour, dont une sur 5 portes à la fois.)");
+  console.log("     ⚠️ Reste dérivé du texte, et l'assume : `postgres(`/`drizzle(` pour l'accès base.");
   console.log("");
 }
 

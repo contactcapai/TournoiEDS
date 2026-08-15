@@ -45,13 +45,14 @@
 //
 // Usage :  pnpm --filter vitrine gate:galerie [baseUrl]
 //          GALERIE_AUTOTEST=1 …  → auto-validation de l'instrument
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import postgres from "postgres";
 import sharp from "sharp";
 
 import { BASE as BASE_DEFAUT } from "./config.mjs";
+import { lireVariable } from "./env.mjs";
 import { ALT_MAX, ALT_MIN, CAPTION_MAX, photoInputSchema } from "../../src/lib/schemas/photo";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
@@ -187,16 +188,6 @@ for (const route of ROUTES_EPROUVEES) {
 // BASE ET VOLUME DE DÉVELOPPEMENT
 // ══════════════════════════════════════════════════════════════════════════════════════
 
-function lireVariable(nom: string): string | null {
-  if (process.env[nom]) return process.env[nom]!;
-  try {
-    const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
-    const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
-    return ligne ? ligne.slice(ligne.indexOf("=") + 1).trim().replace(/^["']|["']$/g, "") : null;
-  } catch {
-    return null;
-  }
-}
 
 const urlBase = lireVariable("DATABASE_URL");
 if (!urlBase) {
