@@ -1,3 +1,4 @@
+import type { EntryState } from "./tournoi/structure";
 import type {
   TournamentRegistrationMode,
   TournamentRegistrationState,
@@ -66,4 +67,36 @@ export const AIDES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, string>
   fermees:
     "On ne peut pas s'inscrire — soit les inscriptions ne sont pas encore ouvertes, soit " +
     "elles sont closes. C'est la valeur de départ : rien ne s'ouvre par accident.",
+};
+
+/**
+ * Le pointage du jour J, dit au bénévole (Story 10.5).
+ *
+ * 🔴 « ABSENT » ET « A ABANDONNÉ » PORTENT DES LIBELLÉS QUI NE SE RESSEMBLENT PAS, et c'est
+ * l'AC 5. Deux libellés proches sur deux gestes que tout oppose est exactement ce qui fait
+ * cliquer trop vite — leçon d'`AtelierActions` (6.9), où « retirer de l'offre » a dû s'éloigner
+ * de « supprimer ». Ici l'enjeu est plus grand qu'une ligne perdue : confondre les deux
+ * FAUSSERAIT LE CLASSEMENT (dette R60, `lib/tournoi/structure.ts`).
+ */
+export const LIBELLES_ETAT_ENGAGE: Record<EntryState, string> = {
+  inscrit: "Inscrit",
+  present: "Présent",
+  absent: "Absent",
+  abandonne: "A abandonné",
+};
+
+/**
+ * Ce que chaque état veut dire, dit **AU MOMENT DU POINTAGE**.
+ *
+ * ⚠️ La phrase d'`abandonne` nomme la conséquence sur le CLASSEMENT, parce que c'est la seule
+ * différence qui coûte quelque chose : effacer les points d'un abandon réécrirait les parties
+ * où ses adversaires l'ont battu.
+ */
+export const AIDES_ETAT_ENGAGE: Record<EntryState, string> = {
+  inscrit: "Inscrit, pas encore pointé. C'est l'état de départ.",
+  present: "Il est là. C'est lui qu'on comptera pour générer le tableau.",
+  absent: "Ne s'est jamais présenté, n'a rien joué.",
+  abandonne:
+    "Était là, a joué, puis a arrêté. Ses points et ses manches RESTENT au classement — " +
+    "les effacer réécrirait les parties où ses adversaires l'ont battu.",
 };

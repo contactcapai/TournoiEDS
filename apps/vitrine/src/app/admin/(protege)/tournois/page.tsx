@@ -114,6 +114,14 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
           Déroulé
         </Link>
+        {/* 🔴 UNE ENTRÉE À PART, POUR LA MÊME RAISON QUE « DÉROULÉ » (Story 10.5). Le défaut
+            relevé par Brice le 2026-08-15 était un lien niché dans « Modifier » : on ne le
+            refait pas. Et « Engagés » n'est pas non plus une sous-partie du « Déroulé » —
+            c'est le geste du JOUR J, fait dans une salle, souvent par quelqu'un d'autre que
+            celui qui a composé les phases des semaines plus tôt. */}
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
+          Engagés
+        </Link>
         <TournoiActions
           id={tournoi.id}
           nom={tournoi.name}
