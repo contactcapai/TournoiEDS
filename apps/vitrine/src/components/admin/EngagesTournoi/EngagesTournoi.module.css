@@ -1,14 +1,24 @@
 /* Les engagés d'un tournoi (Story 10.5).
 
-   🔴 CE FICHIER NE PORTE QUE CE QUI EST PROPRE À CET ÉCRAN. La mise en page de formulaire
-   (`.form`, `.champ`, `.legend`, `.erreur`, `.regle`, `.avertissement`, `.confirmation`,
-   `.actions`, `.sousChamp`) vient d'`admin-form.module.css`, les boutons d'état
-   d'`admin-actions.module.css` : ce sont les briques que les dix autres formulaires du
-   back-office consomment. Les réimplémenter ici serait refaire la dette R59.
+   🔴 CETTE FEUILLE EST DIMENSIONNÉE POUR 64 LIGNES, PAS POUR DIX — correctif du gate visuel du
+   2026-08-15 (*« c'est gros, imagine 64 joueurs »*). La 1ʳᵉ version rendait chaque engagé en
+   CARTE (bordure + fond + 18 px de marge) : ~200 px la ligne CALCULÉS SUR CETTE FEUILLE (pas
+   mesurés au navigateur), soit ~12 800 px de défilement à 64 joueurs. La carte devient une
+   ligne à filet : 44 (boutons) + 2 × 6 (marge) + 1 (filet) = **57 px**, soit ~3 650 px.
 
-   ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`).
-   Une variable CSS inconnue ne lève rien : elle rend la propriété invalide, en silence — la
-   valeur héritée passe, et l'écran a « juste l'air moche » sans qu'aucune porte ne parle.
+   ⚠️ **57 px EST UN PLANCHER, PAS UN CHOIX** : il est fixé par la cible tactile de 44 px des
+   boutons d'état (project-context.md §5), plus le filet et l'aération minimale. Descendre en
+   dessous se paierait sur la cible, pas sur la mise en page — et le back-office se consulte sur
+   un portable, dans un bar, le jour du tournoi.
+
+   🔴 CE FICHIER NE PORTE QUE CE QUI EST PROPRE À CET ÉCRAN. La mise en page de formulaire vient
+   d'`admin-form.module.css`, les boutons d'état d'`admin-actions.module.css` (`.bascule` /
+   `.basculePubliee`), qu'on COMPOSE ici plutôt que de les réimplémenter — sinon c'est la dette
+   R59 refaite.
+
+   ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`). Une
+   variable CSS inconnue ne lève rien : elle rend la propriété invalide, en silence — la valeur
+   héritée passe, et l'écran a « juste l'air moche » sans qu'aucune porte ne parle.
    Breakpoint 880px en LITTÉRAL (project-context.md §5). */
 
 .bloc {
@@ -18,8 +28,15 @@
 }
 
 /* ───────── Le compte des présents (AC 7) ─────────
-   C'est le chiffre qu'on vient chercher le jour J, et celui que la Story 10.8 consommera
-   pour générer le tableau : il est en tête, et il est gros. */
+   C'est le chiffre qu'on vient chercher le jour J, et celui que la Story 10.8 consommera pour
+   générer le tableau : il est en tête, et il est gros. Il ne coûte qu'UNE fois — ce n'est donc
+   pas lui qui rendait l'écran lourd, et il n'a pas été rétréci. */
+.enTete {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .compte {
   font-family: var(--font-display);
   font-size: 32px;
@@ -33,7 +50,6 @@
 }
 
 .detail {
-  margin-top: -16px;
   font-size: 15px;
   line-height: var(--lh-body);
   color: var(--grey);
@@ -49,32 +65,32 @@
   color: var(--light);
 }
 
+/* ───────── La liste ─────────
+   🔴 UN FILET, PAS UNE CARTE. Soixante-quatre cartes empilées, c'est soixante-quatre bordures,
+   soixante-quatre fonds et soixante-quatre respirations : le chrome finit par coûter plus que
+   le contenu. Le filet suffit à séparer deux lignes, et il ne se répète pas visuellement. */
 .liste {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  border-top: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 %, filet sans token */
   list-style: none;
 }
 
 .engage {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 20px;
-  padding: 18px 20px;
-  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
-  border-radius: var(--radius-card);
-  background: var(--surface);
+  align-items: center;
+  gap: 10px 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.25);
 }
 
 .identite {
-  flex: 1 1 280px;
+  flex: 1 1 200px;
   /* Sans ça, un nom long refuse de se réduire et déborde la ligne. */
   min-width: 0;
 }
 
 .nom {
-  font-size: 18px;
+  font-size: 16px;
   line-height: var(--lh-body);
   color: var(--light);
   /* Les saisies sont bornées (60 caractères), mais une ligne écrite par du SQL direct ou une
@@ -84,45 +100,62 @@
 }
 
 .membres {
-  margin-top: 4px;
-  font-size: 15px;
+  font-size: 13px;
   line-height: var(--lh-body);
   color: var(--grey);
   overflow-wrap: anywhere;
 }
 
 .origine {
-  margin-top: 4px;
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.5px;
-  text-transform: uppercase;
   color: var(--gold);
 }
 
-.etatCourant {
-  margin-top: 8px;
-  max-width: 60ch;
-  font-size: 14px;
-  line-height: var(--lh-body);
-  color: var(--light);
+/* ───────── Les quatre états, sur une ligne ─────────
+   Ils COMPOSENT `.bascule` / `.basculePubliee` d'`admin-actions.module.css` : seule la densité
+   est resserrée ici (padding et taille de texte), jamais la bordure ni l'état plein/creux — ce
+   sont eux qui font lire l'état sans lire le libellé, dans tout le back-office.
+
+   ⚠️ `min-height` N'EST PAS TOUCHÉE : elle reste aux 44 px de la classe partagée. C'est la
+   seule dimension de cette feuille qu'on n'a pas le droit de gagner. */
+.etats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* ⚠️ EN `--grey` ET NON EN `--gold` : ce n'est pas une alerte, c'est un FAIT ACQUIS qui
-   restera affiché sur cette ligne jusqu'à la fin du tournoi. Lui donner la couleur d'accent
-   la ferait lire comme un avertissement permanent, et userait l'accent là où les vraies
-   erreurs en ont besoin (même raisonnement que `.trace`, admin-actions.module.css).
-   `flex-basis: 100%` : la phrase passe SOUS les boutons d'état plutôt que de les comprimer
-   en dessous des 44px de cible tactile. */
+.boutonEtat {
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+/* ⚠️ `disabled` porte ici DEUX sens : l'état courant (le bouton plein, qu'on ne re-clique pas)
+   et l'aller-retour d'un pointage. Le premier ne doit PAS s'estomper — il est l'information ;
+   le second se signale par le curseur. D'où l'absence d'`opacity` sur le bouton plein. */
+.boutonEtat:disabled {
+  cursor: default;
+}
+
+.fin {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* ⚠️ EN `--grey` ET NON EN `--gold` : ce n'est pas une alerte, c'est un FAIT ACQUIS qui restera
+   affiché sur cette ligne jusqu'à la fin du tournoi. Lui donner la couleur d'accent la ferait
+   lire comme un avertissement permanent, et userait l'accent là où les vraies erreurs en ont
+   besoin (même raisonnement que `.trace`, admin-actions.module.css).
+   🔴 ET C'EST UN FAIT COURT, PAS UN PARAGRAPHE : en cours de tournoi presque toutes les lignes
+   le portent, et la phrase complète — « marquez-le a abandonné » — est dite UNE fois au-dessus
+   de la liste. Le `title` la redonne au survol, sur la ligne concernée. */
 .verrou {
-  flex-basis: 100%;
-  max-width: 72ch;
-  font-size: 14px;
+  font-size: 13px;
   line-height: var(--lh-body);
   color: var(--grey);
-}
-
-.verrou strong {
-  color: var(--light);
+  white-space: nowrap;
 }
 
 .titreAjout {
@@ -137,7 +170,9 @@
     font-size: 26px;
   }
 
-  .engage {
-    padding: 14px 16px;
+  /* Sous 880px la ligne se replie en deux : identité au-dessus, commandes en dessous. Les
+     boutons gardent leurs 44 px — c'est justement là qu'on pointe au doigt. */
+  .fin {
+    margin-left: 0;
   }
 }
