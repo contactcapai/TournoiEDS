@@ -12,6 +12,7 @@
 //   `<input datetime-local>` accepté sans conversion → heure fausse en prod ❌          ❌       ❌   ❌
 //   l'aller-retour de date se décale d'une heure aux changements d'heure    ❌          ❌       ❌   ❌
 //   R23 : une heure pathologique enregistrée en silence                     ❌          ❌       ❌   ❌
+//   la section « Déjà passé » disparaît si `getPastEvents` régresse (R50)    ❌          ❌       ❌   ❌
 //
 // 🔴 DEUX MOITIÉS, PARCE QUE LES DEUX RISQUES NE SE MESURENT PAS AU MÊME ENDROIT :
 //   A — HTTP NU, sans aucun cookie : ce que le serveur SERT à un inconnu ;
@@ -23,13 +24,20 @@
 // sa propre copie et resterait verte le jour où le produit divergerait — c'est très
 // exactement `pieges/garde-nominale.md` (« vérifier un NOM ne protège pas un CONTRAT »).
 //
-// ⚠️ La moitié B écrit dans la base de DÉVELOPPEMENT. Chaque écriture vit dans une
-// transaction ROLLBACK : rien n'est jamais laissé derrière. Et elle procède par INSERT et
-// non par UPDATE — un `UPDATE` sur une table vide affecte zéro ligne, ne déclenche aucun
-// `CHECK`, et rendrait un VERT qui ne mesure rien.
+// ⚠️ La moitié B écrit dans la base. Ses écritures vivent en transaction ROLLBACK, et elle
+// procède par INSERT et non par UPDATE — un `UPDATE` sur une table vide affecte zéro ligne, ne
+// déclenche aucun `CHECK`, et rendrait un VERT qui ne mesure rien.
+//
+// 🔴 UNE EXCEPTION, ET ELLE EST ICI PARCE QU'UN LECTEUR S'ARRÊTE À CET EN-TÊTE. Ce bloc disait
+// « **chaque** écriture vit dans une transaction ROLLBACK : rien n'est jamais laissé derrière »
+// — devenu **FAUX** avec la garde ⑫ (Story 7.11), qui **COMMITE** deux événements publiés le
+// temps de les voir servis en HTTP. Seule la garde ⑫ s'en expliquait, 250 lignes plus bas.
+// Corrigé en revue : la garde ⑫ commite, sous préfixe `ZZ-GATE-AGENDA-`, avec balayage des
+// orphelins **au démarrage** et ménage prouvé par recompte.
 //
 // Usage :  pnpm --filter vitrine gate:agenda [baseUrl]
-//          AGENDA_AUTOTEST=1 …  → auto-validation de l'instrument (voir plus bas)
+//          AGENDA_AUTOTEST=1 …        → auto-validation de l'instrument (voir plus bas)
+//          AGENDA_DEBRANCHER_R50=1 …  → auto-validation de la SEULE garde ⑫ (voir son bloc)
 import postgres from "postgres";
 
 import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
@@ -245,7 +253,11 @@ for (const cas of ECRITURES_A_ACCEPTER) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════
-// ⑥ LA DÉRIVATION « À VENIR / DÉJÀ PASSÉ » EST MESURÉE SUR LE RENDU — SOLDE LA DETTE R50
+// ⑫ LA DÉRIVATION « À VENIR / DÉJÀ PASSÉ » EST MESURÉE SUR LE RENDU — SOLDE LA DETTE R50
+// ⚠️ NUMÉROTÉE ⑫ ET NON ⑥ : une première version portait ⑥, déjà pris par « ⑥ date sans
+// fuseau » plus bas dans ce fichier. Deux gardes sans rapport partageaient le même numéro, et
+// une même exécution produisait deux blocs `⑥` — le verdict global restait juste, la lecture
+// humaine devenait ambiguë. Trouvé en revue (Blind Hunter) ; la sortie l’affichait pourtant.
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 LE TROU QU'ELLE FERME, ET IL EST SILENCIEUX PAR CONSTRUCTION. `gate:carousel` conclut
@@ -279,7 +291,18 @@ for (const cas of ECRITURES_A_ACCEPTER) {
 // la frontière `lte`/`gt` ne dépende pas du temps de trajet HTTP, assez près pour rester en
 // tête de liste malgré la borne des lectures publiques.
 {
-  const MARQUE = `ZZ-GATE-AGENDA-${Date.now()}`;
+  // 🔴 DEUX PRÉFIXES, ET LA DISTINCTION EST UN CORRECTIF DE REVUE (Blind Hunter).
+  // `MARQUE` porte un horodatage, donc il est UNIQUE à chaque exécution — parfait pour ne pas
+  // confondre deux runs, **inutilisable** pour retrouver ce qu'un run précédent a laissé.
+  // Or ce bloc COMMITE des événements `is_published = true` : si le processus meurt entre
+  // l'`INSERT` et le `DELETE` (CI tuée, Ctrl-C, coupure pendant le `fetch`), **deux faux
+  // jeudis restent affichés sur la page publique**, et aucune exécution future ne pouvait les
+  // voir — le recompte cherchait `like MARQUE%`, un préfixe que le run suivant ne connaît pas.
+  // ⇒ Le ménage porte sur le préfixe **STABLE**, et il balaie AUSSI au démarrage : une porte
+  // qui écrit sur une page publique doit savoir réparer ce qu'une exécution interrompue a
+  // laissé, pas seulement ce qu'elle vient de créer.
+  const PREFIXE_STABLE = "ZZ-GATE-AGENDA-";
+  const MARQUE = `${PREFIXE_STABLE}${Date.now()}`;
   const titrePasse = `${MARQUE}-PASSE`;
   const titreAVenir = `${MARQUE}-A-VENIR`;
 
@@ -288,11 +311,21 @@ for (const cas of ECRITURES_A_ACCEPTER) {
   // PAS un nom de classe CSS Module, dont le hash change à chaque édition du fichier.
   const MARQUEUR_SECTION_PASSES = 'id="passes-title"';
 
+  // Balayage d'entrée : des orphelins ici ne sont PAS une anomalie de la base, c'est la trace
+  // d'une exécution précédente interrompue. On le dit, on répare, et on continue.
+  const orphelins = await sql<{ id: string }[]>`
+    delete from event where title like ${PREFIXE_STABLE + "%"} returning id`;
+  if (orphelins.length > 0) {
+    console.log(
+      `  🧹 ${orphelins.length} témoin(s) ZZ-GATE-AGENDA- ORPHELIN(S) d'une exécution interrompue — supprimé(s).\n`,
+    );
+  }
+
   const ids: string[] = [];
   try {
     // 🔬 AUTO-VALIDATION DE CETTE GARDE (`pieges/instrument-non-valide.md`).
     //
-    // Le défaut que ⑥ vise (`getPastEvents` qui régresse) vit dans le code **servi par
+    // Le défaut que ⑫ vise (`getPastEvents` qui régresse) vit dans le code **servi par
     // staging** : le casser exigerait un redéploiement, c'est-à-dire abîmer l'hôte que la
     // porte mesure. On fabrique donc son **EFFET**, qui est identique et observable : le
     // témoin « passé » est daté dans le FUTUR, donc plus aucun événement passé publié
@@ -303,8 +336,26 @@ for (const cas of ECRITURES_A_ACCEPTER) {
     const DEBRANCHER_R50 = process.env.AGENDA_DEBRANCHER_R50 === "1";
     if (DEBRANCHER_R50) {
       console.log(
-        "  ⚠️  AGENDA_DEBRANCHER_R50=1 — le témoin « passé » est daté dans le FUTUR, un ÉCHEC de ⑥ est ATTENDU\n",
+        "  ⚠️  AGENDA_DEBRANCHER_R50=1 — le témoin « passé » est daté dans le FUTUR, un ÉCHEC de ⑫ est ATTENDU\n",
       );
+      // 🔴 L'AUTO-VALIDATION REPOSE SUR UNE HYPOTHÈSE — ALORS ON LA MESURE (revue, Blind
+      // Hunter). Simuler la panne consiste à faire disparaître le SEUL événement passé publié.
+      // Si la base en contient de VRAIS, la section « Déjà passé » reste présente, ⑫ reste
+      // verte, et l'auto-validation conclurait à tort que la garde ne sait pas échouer — ou
+      // pire, ferait croire qu'elle a été éprouvée alors qu'elle ne l'a pas été.
+      // ⚠️ C'est exactement le motif de la sonde de données de `gate:carousel` : une porte doit
+      // savoir distinguer « je ne peux pas mesurer » de « j'ai mesuré ».
+      const [reels] = await sql<{ n: number }[]>`
+        select count(*)::int as n from event
+        where is_published = true and starts_at <= now()
+          and title not like ${PREFIXE_STABLE + "%"}`;
+      if (reels.n > 0) {
+        console.log(
+          `  ⛔ AUTO-VALIDATION NON CONCLUANTE : ${reels.n} événement(s) passé(s) publié(s) RÉELS\n` +
+            "     existent, donc la section « Déjà passé » restera présente quoi qu'il arrive.\n" +
+            "     Le témoin ne peut pas la faire disparaître — ⑫ ne peut pas être éprouvée ici.\n",
+        );
+      }
     }
 
     for (const [titre, decalage] of [
@@ -318,59 +369,108 @@ for (const cas of ECRITURES_A_ACCEPTER) {
       ids.push(ligne.id);
     }
 
-    const reponse = await fetch(BASE + "/agenda");
-    const html = await reponse.text();
-
-    const posSection = html.indexOf(MARQUEUR_SECTION_PASSES);
-    const posPasse = html.indexOf(titrePasse);
-    const posAVenir = html.indexOf(titreAVenir);
-
-    if (posSection === -1) {
-      ko(
-        "⑥ dérivation",
-        "/agenda",
-        "un événement PASSÉ PUBLIÉ existe et la section « Déjà passé » est ABSENTE — " +
-          "ce n'est plus « rien à mesurer », c'est un défaut de dérivation (R50)",
-      );
-    } else {
-      ok("⑥ dérivation", "/agenda", "la section « Déjà passé » apparaît quand la donnée existe");
+    // 🔴 LE `fetch` EST ENCADRÉ, ET CE N'EST PAS DE LA PRUDENCE DÉCORATIVE (revue, Edge Case
+    // Hunter). Sans ce `catch`, une coupure réseau faisait remonter l'exception hors du bloc :
+    // `sql.end()` n'était jamais atteint (connexion qui fuit) et **toutes les gardes de fuseau
+    // et de schéma qui suivent — lesquelles n'ont besoin NI du réseau NI de la base — ne
+    // s'exécutaient jamais**. Le rapport entier disparaissait au profit d'une trace brute,
+    // c'est-à-dire qu'un hoquet réseau annulait la mesure de tout le reste du fichier.
+    let html: string | null = null;
+    let motifReseau: string | null = null;
+    try {
+      const reponse = await fetch(BASE + "/agenda");
+      // Un `/agenda` en 500 ne fait pas planter le script, mais il rendrait le diagnostic
+      // MENSONGER (« la section est absente » au lieu de « le serveur est en erreur »).
+      if (!reponse.ok) motifReseau = `/agenda a répondu ${reponse.status}`;
+      else html = await reponse.text();
+    } catch (erreur) {
+      motifReseau = `/agenda injoignable (${(erreur as Error).message})`;
     }
 
-    if (posPasse === -1 || posAVenir === -1) {
-      ko(
-        "⑥a témoins servis",
-        "/agenda",
-        `passé=${posPasse !== -1}, à venir=${posAVenir !== -1} — un témoin publié n'est pas servi`,
-      );
-    } else if (posSection === -1) {
-      ko("⑥b position", "/agenda", "section absente : la position est inéprouvable");
-    } else if (!(posAVenir < posSection && posSection < posPasse)) {
-      ko(
-        "⑥b position",
-        "/agenda",
-        `ordre servi à-venir=${posAVenir} · section=${posSection} · passé=${posPasse} — ` +
-          "un événement est dans la MAUVAISE section (les deux listes seraient interverties)",
-      );
+    if (html === null) {
+      ko("⑫ dérivation", "/agenda", `${motifReseau} — la dérivation est INÉPROUVABLE`);
     } else {
-      ok(
-        "⑥b position",
-        "/agenda",
-        "le témoin futur est AVANT la section « Déjà passé », le témoin passé APRÈS",
-      );
+      const posSection = html.indexOf(MARQUEUR_SECTION_PASSES);
+      const posPasse = html.indexOf(titrePasse);
+      const posAVenir = html.indexOf(titreAVenir);
+
+      if (posSection === -1) {
+        ko(
+          "⑫ dérivation",
+          "/agenda",
+          "un événement PASSÉ PUBLIÉ existe et la section « Déjà passé » est ABSENTE — " +
+            "ce n'est plus « rien à mesurer », c'est un défaut de dérivation (R50)",
+        );
+      } else {
+        ok("⑫ dérivation", "/agenda", "la section « Déjà passé » apparaît quand la donnée existe");
+      }
+
+      if (posPasse === -1 || posAVenir === -1) {
+        ko(
+          "⑫a témoins servis",
+          "/agenda",
+          `passé=${posPasse !== -1}, à venir=${posAVenir !== -1} — un témoin publié n'est pas servi`,
+        );
+      } else if (posSection === -1) {
+        ko("⑫b position", "/agenda", "section absente : la position est inéprouvable");
+      } else if (!(posAVenir < posSection && posSection < posPasse)) {
+        ko(
+          "⑫b position",
+          "/agenda",
+          `ordre servi à-venir=${posAVenir} · section=${posSection} · passé=${posPasse} — ` +
+            "un événement est dans la MAUVAISE section (les deux listes seraient interverties)",
+        );
+      } else {
+        ok(
+          "⑫b position",
+          "/agenda",
+          "le témoin futur est AVANT la section « Déjà passé », le témoin passé APRÈS",
+        );
+      }
     }
   } finally {
     // 🔴 LE MÉNAGE SE PROUVE, IL NE SE DÉCLARE PAS. On supprime, puis on RECOMPTE : un
     // `delete` qui n'affecte aucune ligne laisserait deux témoins publiés sur une page
     // publique, et le `finally` seul ne le dirait pas.
-    if (ids.length > 0) {
-      await sql`delete from event where id = any(${ids})`;
+    //
+    // ⚠️ ET LE `DELETE` EST LUI-MÊME ENCADRÉ (revue) : s'il levait — perte de connexion en
+    // pleine écriture —, le recompte qui suit ne s'exécutait pas, donc **aucun `ko`**. Les
+    // deux témoins `is_published = true` seraient restés sur une page publique **sans le
+    // moindre signal**, précisément ce que ce bloc prétend exclure. La preuve par recompte ne
+    // vaut que si elle est atteignable sur TOUS les chemins.
+    let motifSuppression: string | null = null;
+    try {
+      if (ids.length > 0) {
+        await sql`delete from event where id = any(${ids})`;
+      }
+    } catch (erreur) {
+      motifSuppression = (erreur as Error).message;
     }
-    const [restants] = await sql<{ n: number }[]>`
-      select count(*)::int as n from event where title like ${MARQUE + "%"}`;
-    if (restants.n !== 0) {
-      ko("⑥c ménage", "event", `${restants.n} témoin(s) ZZ-GATE- SUBSISTENT en base`);
-    } else {
-      ok("⑥c ménage", "event", `${ids.length} témoin(s) créé(s), 0 restant (recompté)`);
+
+    // Le recompte porte sur le préfixe STABLE : il voit donc aussi ce qu'une exécution
+    // précédente aurait laissé, et pas seulement les témoins de ce run.
+    try {
+      const [restants] = await sql<{ n: number }[]>`
+        select count(*)::int as n from event where title like ${PREFIXE_STABLE + "%"}`;
+      if (restants.n !== 0) {
+        ko(
+          "⑫c ménage",
+          "event",
+          `${restants.n} témoin(s) ${PREFIXE_STABLE} SUBSISTENT en base — ils sont PUBLIÉS` +
+            (motifSuppression ? ` (suppression en échec : ${motifSuppression})` : ""),
+        );
+      } else {
+        ok("⑫c ménage", "event", `${ids.length} témoin(s) créé(s), 0 restant (recompté)`);
+      }
+    } catch (erreur) {
+      // Dernier filet : si même le recompte est impossible, on ne peut RIEN affirmer — et le
+      // dire est la seule conduite honnête. Un silence ici se lirait comme un succès.
+      ko(
+        "⑫c ménage",
+        "event",
+        `recompte IMPOSSIBLE (${(erreur as Error).message}) — statut du ménage INCONNU` +
+          (motifSuppression ? `, et la suppression avait déjà échoué : ${motifSuppression}` : ""),
+      );
     }
   }
 }
@@ -552,6 +652,18 @@ exemptions.add(
     "redirige AVANT que la page ne s'exécute, la fuite est structurellement inobservable ici " +
     "(exemption héritée de `gate:admin`, et elle vaut pour les 6 stories suivantes).",
 );
+if (AUTOTEST) {
+  // 🔴 UN AUTOTEST MUET SUR SA PROPRE COUVERTURE LAISSE CROIRE QU'IL COUVRE TOUT — règle
+  // établie par `gate:ateliers`, et qui manquait ici (trouvée en revue, Edge Case Hunter).
+  // `AGENDA_AUTOTEST=1` ne présente AUCUN cas d'échec à la garde ⑫ : elle tourne en mode
+  // NORMAL pendant l'auto-validation, donc un rapport « auto-validation réussie » ne dit
+  // strictement rien d'elle. Son épreuve a un drapeau SÉPARÉ, et il faut le dire.
+  exemptions.add(
+    "L'AUTO-VALIDATION de la garde ⑫ (dérivation « à venir / déjà passé ») n'est PAS couverte " +
+      "par AGENDA_AUTOTEST=1 : elle a son propre drapeau, AGENDA_DEBRANCHER_R50=1, à lancer " +
+      "séparément. Ce rapport ne prouve donc rien sur ⑫.",
+  );
+}
 
 console.log();
 for (const s of succes) console.log("  ✅ " + s);

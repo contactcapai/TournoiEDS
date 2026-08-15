@@ -60,7 +60,25 @@ const RACINE_APP = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
  * @returns {string | null}
  */
 export function lireVariable(nom) {
-  if (process.env[nom]) return process.env[nom];
+  // 🔴 UNE VARIABLE **DÉFINIE MAIS VIDE** TRANCHE, ELLE NE S'EFFACE PAS — trouvé en revue
+  // (Edge Case Hunter), et c'était une VRAIE RÉGRESSION introduite par l'unification.
+  //
+  // Les cinq copies d'origine testaient `if (process.env[nom])`, donc `""` était **falsy** et
+  // faisait retomber sur `.env.local`. Mais `tournois-check.mts` écrivait
+  // `process.env.DATABASE_URL ?? lireVariable(...)`, et `??` ne se déclenche **que** sur
+  // `null`/`undefined` : `""` gagnait, `urlBase` valait `""`, et la porte sortait **en
+  // criant**. En remplaçant l'un par l'autre, on a transformé un échec franc en repli
+  // silencieux. Mesuré : `DATABASE_URL= pnpm … gate:tournois` faisait tourner la porte contre
+  // `postgresql://…@localhost:5434/vitrine` — le Postgres **supprimé le 2026-08-13** — au lieu
+  // d'échouer. ⚠️ Et le commentaire ajouté à `tournois-check.mts` affirmait « comportement
+  // inchangé » : faux, corrigé là-bas aussi.
+  //
+  // ⇒ Règle retenue, et c'est la plus sûre des deux : **si la variable est DÉFINIE, elle fait
+  // foi**, fût-elle vide. Une variable vide est une intention explicite (« je te dis de ne pas
+  // deviner »), et l'appelant la traite comme absente et sort franchement. Se rabattre sur un
+  // fichier dans ce cas, c'est choisir une base à la place de l'opérateur, en silence — et
+  // c'est exactement ce que `pieges/faux-succes.md` interdit.
+  if (nom in process.env) return process.env[nom] ?? null;
   try {
     const contenu = readFileSync(join(RACINE_APP, ".env.local"), "utf8");
     const ligne = contenu.split(/\r?\n/).find((l) => l.trim().startsWith(`${nom}=`));
