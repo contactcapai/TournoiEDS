@@ -1,0 +1,143 @@
+/* Les engagés d'un tournoi (Story 10.5).
+
+   🔴 CE FICHIER NE PORTE QUE CE QUI EST PROPRE À CET ÉCRAN. La mise en page de formulaire
+   (`.form`, `.champ`, `.legend`, `.erreur`, `.regle`, `.avertissement`, `.confirmation`,
+   `.actions`, `.sousChamp`) vient d'`admin-form.module.css`, les boutons d'état
+   d'`admin-actions.module.css` : ce sont les briques que les dix autres formulaires du
+   back-office consomment. Les réimplémenter ici serait refaire la dette R59.
+
+   ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`).
+   Une variable CSS inconnue ne lève rien : elle rend la propriété invalide, en silence — la
+   valeur héritée passe, et l'écran a « juste l'air moche » sans qu'aucune porte ne parle.
+   Breakpoint 880px en LITTÉRAL (project-context.md §5). */
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ───────── Le compte des présents (AC 7) ─────────
+   C'est le chiffre qu'on vient chercher le jour J, et celui que la Story 10.8 consommera
+   pour générer le tableau : il est en tête, et il est gros. */
+.compte {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--light);
+}
+
+.compte strong {
+  color: var(--gold);
+}
+
+.detail {
+  margin-top: -16px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.vide {
+  padding: 24px;
+  border: 1px dashed rgba(146, 147, 173, 0.45); /* --grey à 45 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  max-width: 72ch;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.liste {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+.engage {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.identite {
+  flex: 1 1 280px;
+  /* Sans ça, un nom long refuse de se réduire et déborde la ligne. */
+  min-width: 0;
+}
+
+.nom {
+  font-size: 18px;
+  line-height: var(--lh-body);
+  color: var(--light);
+  /* Les saisies sont bornées (60 caractères), mais une ligne écrite par du SQL direct ou une
+     restauration ne doit pas casser la mise en page : `overflow-x: clip` la rognerait EN
+     SILENCE, et `gate` ne couvre pas /admin. */
+  overflow-wrap: anywhere;
+}
+
+.membres {
+  margin-top: 4px;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+  overflow-wrap: anywhere;
+}
+
+.origine {
+  margin-top: 4px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.etatCourant {
+  margin-top: 8px;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* ⚠️ EN `--grey` ET NON EN `--gold` : ce n'est pas une alerte, c'est un FAIT ACQUIS qui
+   restera affiché sur cette ligne jusqu'à la fin du tournoi. Lui donner la couleur d'accent
+   la ferait lire comme un avertissement permanent, et userait l'accent là où les vraies
+   erreurs en ont besoin (même raisonnement que `.trace`, admin-actions.module.css).
+   `flex-basis: 100%` : la phrase passe SOUS les boutons d'état plutôt que de les comprimer
+   en dessous des 44px de cible tactile. */
+.verrou {
+  flex-basis: 100%;
+  max-width: 72ch;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.verrou strong {
+  color: var(--light);
+}
+
+.titreAjout {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+@media (max-width: 880px) {
+  .compte {
+    font-size: 26px;
+  }
+
+  .engage {
+    padding: 14px 16px;
+  }
+}
