@@ -1,3 +1,4 @@
+// @porte surface=sollicitations effet=base story=6.11
 // 🔬 SURFACE « SOLLICITATIONS » — LA 17ᵉ PORTE (Story 6.11)
 //
 // Pourquoi une porte dédiée — ce que ni lint, ni typecheck, ni build, ni Lighthouse, ni les

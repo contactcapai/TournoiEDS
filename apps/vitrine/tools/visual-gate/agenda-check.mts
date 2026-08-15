@@ -1,3 +1,4 @@
+// @porte surface=agenda effet=base story=6.3
 // 🔬 GARDE DE LA SURFACE DE SAISIE « AGENDA » (Story 6.3) — 12ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — même motif que `gate:admin` / `gate:solicitation` / `gate:links` :

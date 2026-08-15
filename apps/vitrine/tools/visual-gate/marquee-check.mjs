@@ -1,3 +1,4 @@
+// @porte surface=partenaires effet=lecture story=4.1
 // 🔬 GARDE COMPORTEMENTALE DU BANDEAU DE LOGOS (`/`, Story 4.1).
 //
 // Pourquoi un contrôle dédié — le tableau qui l'a fait écrire :

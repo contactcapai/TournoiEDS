@@ -1,3 +1,4 @@
+// @porte surface=galerie effet=lecture story=4.3
 // 🔬 GARDE COMPORTEMENTALE DE LA LIGHTBOX (`/`, Story 4.3).
 //
 // Pourquoi un contrôle dédié — le tableau qui l'a fait écrire :

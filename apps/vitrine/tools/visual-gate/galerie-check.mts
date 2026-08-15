@@ -1,3 +1,4 @@
+// @porte surface=galerie effet=base+disque story=6.4
 // 🔬 GARDE DE LA SURFACE « GALERIE » (Story 6.4) — 13ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et cette fois une colonne de plus, parce que cette story est

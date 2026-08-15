@@ -1,3 +1,4 @@
+// @porte surface=sollicitations effet=sortant tiers=reel story=5.1
 // 🔬 GARDE COMPORTEMENTALE DU FORMULAIRE DE SOLLICITATION (`/partenaires`, Story 5.1).
 //
 // Pourquoi un contrôle dédié — même motif que `gate:lightbox`/`gate:carousel`/`gate:marquee` :

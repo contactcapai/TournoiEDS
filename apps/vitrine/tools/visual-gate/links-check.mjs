@@ -1,3 +1,4 @@
+// @porte surface=liens effet=lecture story=5.5
 // 🔬 GARDE COMPORTEMENTALE DES LIENS DU SITE (Story 5.5, dettes R2 et R12).
 //
 // Pourquoi un contrôle dédié — même motif que `gate:lightbox` / `gate:carousel` /

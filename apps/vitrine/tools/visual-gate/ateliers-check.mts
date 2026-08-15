@@ -1,3 +1,4 @@
+// @porte surface=ateliers effet=base story=6.9
 // 🔬 GARDE DE LA SURFACE « ATELIERS » (Story 6.9) — 15ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :
