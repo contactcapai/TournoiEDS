@@ -87,10 +87,29 @@ alignée à la main se désaligne à l'ajout suivant — c'est le 5ᵉ exemplair
 projet (`_sections.ts`, `CHAMPS_URL`, la couverture d'autotest de `gate:reseaux`, ce tableau
 deux fois). On ne le réaligne donc plus : on le **dérive**.
 
-✅ **Et il a trouvé quelque chose dès sa première exécution** : les portes privées
-d'environnement par la règle du 2026-08-13 sont **SEPT**, pas six. `gate:reseaux` lit elle
-aussi `DATABASE_URL` dans le fichier `.env.local` et non dans `process.env` — un relevé fait à
-la main l'avait manquée le jour même.
+🔴 **CE PARAGRAPHE A ÉTÉ FAUX, ET SON HISTOIRE EST LA LEÇON.** Il affirmait : *« les portes
+privées d'environnement sont SEPT, pas six ; `gate:reseaux` lit elle aussi `DATABASE_URL` dans
+le fichier `.env.local` et non dans `process.env` »*. **Les deux moitiés sont mortes :**
+
+- le compte de **SEPT** venait d'une dérivation fausse — `gate:list` ne cherchait que le
+  littéral `process.env.DATABASE_URL` et **accusait cinq portes innocentes**, qui lisaient
+  l'environnement en indexation dynamique. **Deux** seulement étaient bloquées (`ateliers`,
+  `reseaux`). Corrigé en **PR #53**, après **trois** versions fausses en un jour ;
+- et depuis la **Story 7.11**, il n'y en a plus **aucune** : `lireVariable` vivait en **sept
+  copies avec deux sémantiques sous le même nom** (famille R37), il vit maintenant dans
+  **`env.mjs`**, et `gate:list` dérive de son **import**.
+
+⇒ **Le compte se lit par exécution — `pnpm --filter vitrine gate:list` — jamais dans ce
+fichier.** Ce paragraphe est conservé au passé parce qu'il documente **comment** un tableau tenu
+à la main se trompe, ce que l'effacer aurait supprimé.
+
+### 🔑 `env.mjs` — la résolution des variables, en un seul endroit
+
+Toute porte qui a besoin de `DATABASE_URL` ou de `MEDIA_DIR` **importe `./env.mjs`**. Ne jamais
+re-dupliquer ce helper, même « pour éviter un import » : c'est le geste exact qui a produit les
+deux sémantiques. Règle : **l'environnement d'abord**, repli sur `.env.local` ensuite, et une
+variable **définie mais vide fait foi** (elle vaut « ne devine pas », et la porte sort en criant
+au lieu de choisir une base à la place de l'opérateur).
 
 ```bash
 pnpm --filter vitrine gate:carousel      # carrousel des temps forts (3.3)

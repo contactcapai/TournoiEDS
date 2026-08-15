@@ -154,8 +154,20 @@ for (const [nom, commande] of Object.entries(scripts)) {
   // la porte touche une base. C'est un appel de fonction, pas une intention — et si un jour
   // il devenait ambigu, la parade serait la même : rendre le fait explicite, pas affiner la
   // regex.
-  const ouvrePostgres = /\bpostgres\(/.test(source) || /drizzle\(/.test(source);
-  const litProcessEnv = /from "\.\/env\.mjs"/.test(source);
+  // ⚠️ ET « BINAIRE » NE VEUT PAS DIRE « INFAILLIBLE » — resserré en revue (Edge Case Hunter).
+  // La 1ʳᵉ version testait `/from "\.\/env\.mjs"/` : elle acceptait un import **commenté**
+  // (faux positif) et refusait des guillemets simples ou un retour à la ligne entre `from` et
+  // le spécificateur (faux négatifs). Aucune des 19 portes n'était dans ces cas — mais c'est
+  // la même famille d'erreur que les trois versions précédentes, et l'écrire « binaire » sans
+  // la resserrer aurait été refaire l'excès de confiance qu'on venait de corriger.
+  // ⇒ On retire d'abord les commentaires, puis on accepte les deux styles de guillemets et
+  // les espaces libres. Ce qui reste indécidable par lecture — un import PRÉSENT mais jamais
+  // APPELÉ — est déclaré en sortie plutôt que deviné.
+  const sansCommentaires = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+  const ouvrePostgres = /\bpostgres\(/.test(sansCommentaires) || /drizzle\(/.test(sansCommentaires);
+  const litProcessEnv = /from\s+["']\.\/env\.mjs["']/.test(sansCommentaires);
 
   // 🔴 LA GARDE ANTI-DÉRIVE : le code contredit-il la déclaration ?
   if (ouvrePostgres && !EFFETS[champs.effet].ecrit) {
@@ -222,10 +234,12 @@ if (!filtre) {
   // FAITE : la question ne se devine plus, elle se lit. On corrige donc la déclaration au lieu
   // de la laisser annoncer un chantier clos — un document qui décrit un état dépassé fait
   // chercher la panne au mauvais endroit (`pieges/cadrage-perime.md`).
-  console.log("\n  ⓘ Pilotabilité : dérivée de l'IMPORT de `./env.mjs` — un fait binaire.");
+  console.log("\n  ⓘ Pilotabilité : dérivée de l'IMPORT de `./env.mjs`, commentaires exclus.");
   console.log("     (Elle s'inférait de motifs dans le texte jusqu'au 2026-08-14, et s'est");
   console.log("      trompée TROIS fois en un jour, dont une sur 5 portes à la fois.)");
-  console.log("     ⚠️ Reste dérivé du texte, et l'assume : `postgres(`/`drizzle(` pour l'accès base.");
+  console.log("     ⚠️ CE QUE CE TABLEAU NE PROUVE PAS, et il faut le lire ainsi :");
+  console.log("        · un import PRÉSENT mais jamais APPELÉ passerait pour « pilotable » ;");
+  console.log("        · l'accès base reste dérivé du texte (`postgres(` / `drizzle(`).");
   console.log("");
 }
 
