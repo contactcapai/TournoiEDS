@@ -208,9 +208,18 @@ export function formatBigDate(instant: Date): { day: string; month: string } {
 /**
  * Date compacte d'une ligne de roulement : `"Jeu. 25/06"`.
  *
- * ⚠️ UNE SEULE DATE, jamais une plage. La maquette affiche « 21-22/11 » pour Game in
- * Reims, mais le modèle de la Story 3.1 ne porte qu'un `starts_at` : inventer une fin
- * ici serait afficher une donnée qui n'existe pas. Écart assumé et tracé par la story.
+ * ⚠️ UNE SEULE DATE DANS CETTE CASE, jamais une plage — et **le motif a changé le 2026-08-14
+ * (Story 9.6)**. Il disait : *« le modèle de la Story 3.1 ne porte qu'un `starts_at` : inventer
+ * une fin ici serait afficher une donnée qui n'existe pas »*. **Cette raison est morte** :
+ * `event.ends_at` et `tournament.ends_at` existent. La laisser écrite ferait chercher une règle
+ * qui n'existe plus (`00 référence/pieges/cadrage-perime.md`, et la leçon R33 ② : une borne
+ * annoncée qui n'existe plus est un mensonge aussi coûteux qu'une borne tue).
+ *
+ * 🔴 LE NOUVEAU MOTIF EST UN ARBITRAGE DE RENDU (A6), PAS UNE ABSENCE DE DONNÉE : la case de
+ * gauche d'une ligne de roulement est un **repère de calendrier** compact (`« Jeu. 25/06 »`), et
+ * la maquette y écrit « 21-22/11 » pour la Game in Reims. On ne l'y compose pas — **la fin est
+ * dite à sa place**, dans l'horaire, par `formatPlageHoraire`, qui **nomme le jour** dès qu'il
+ * diffère. L'information n'est donc jamais perdue ; elle est ailleurs, et une seule fois.
  */
 export function formatRowDate(instant: Date): string {
   const { day, month } = parisParts(instant);
@@ -245,6 +254,73 @@ export function formatLongDate(instant: Date): string {
 export function formatTime(instant: Date): string {
   const { hour, minute } = parisParts(instant);
   return `${hour}h${pad2(minute)}`;
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 L'HORAIRE D'UN RENDEZ-VOUS — ET IL DIT LE **JOUR** QUAND LA FIN N'EST PAS LE MÊME
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Story 9.6. `« 14h00 »` sans fin · `« 14h00 → 18h00 »` avec une fin le **même** jour ·
+ * `« 14h00 → dim. 22/11 à 02h00 »` quand elle tombe **un autre jour**.
+ *
+ * 🔴 LE TROISIÈME CAS N'EST PAS UN RAFFINEMENT, C'EST LA CORRECTION D'UNE AFFIRMATION FAUSSE.
+ * La Game'in Reims est, dans `schema.ts`, *« **UN** événement portant **DIX** animations à des
+ * heures différentes, **sur deux jours** »*. Rendre `« 14h00 → 02h00 »` pour un rendez-vous qui
+ * finit **le lendemain** dirait au visiteur que c'est fini le soir même — et **rien ne le
+ * verrait** : une ligne qui affiche une heure de plus n'a pas l'air cassée. C'est la famille de
+ * la dette **R48** (affirmer un fait qu'on n'a pas), et le seul remède est de **dire le jour**.
+ *
+ * 🔴 LA COMPARAISON PASSE PAR `parisParts`, **JAMAIS** PAR `getDate()`. Règle de tête de
+ * `server/db/schema.ts` : `getDay()`, `getHours()` et `toISOString().slice(0,10)` répondent dans
+ * le fuseau du **process** — juste par coïncidence sur un poste à Paris, faux dans le conteneur
+ * de production qui tourne en **UTC**. Un rendez-vous du 21 à 23h00 finissant le 22 à 00h30
+ * serait alors jugé « même jour » une fois sur deux, selon l'heure d'été.
+ *
+ * ⚠️ **UNE SEULE DÉFINITION POUR LES QUATRE SURFACES**, et la `densite` est le seul écart : la
+ * carte d'accueil, la ligne d'agenda et la carte de `/tournois` sont serrées (`courte`), la fiche
+ * a la place d'écrire la date en toutes lettres (`longue`). Ce n'est pas une prop « au cas où » —
+ * les deux ont des consommateurs **réels** dès cette story. Quatre compositions à la main
+ * divergeraient, et la divergence ne se verrait que sur le cas rare (la fin le lendemain).
+ *
+ * ⚠️ `fin` est accepté **`null`** pour que les quatre surfaces appellent la même fonction **sans
+ * brancher** : une branche répétée quatre fois est une branche qu'on oublie une fois.
+ * ⚠️ La flèche est écrite **ici, une seule fois** : c'est un arbitrage de rendu (gate visuel), et
+ * il doit se changer en un endroit.
+ */
+export function formatPlageHoraire(
+  debut: Date,
+  fin: Date | null,
+  densite: "courte" | "longue" = "courte",
+): string {
+  const debutTexte = formatTime(debut);
+  if (fin === null) return debutTexte;
+
+  const a = parisParts(debut);
+  const b = parisParts(fin);
+  const memeJour = a.year === b.year && a.month === b.month && a.day === b.day;
+
+  if (memeJour) return `${debutTexte} → ${formatTime(fin)}`;
+
+  /**
+   * 🔴 L'ANNÉE APPARAÎT DÈS QU'ELLE CHANGE, **MÊME EN DENSITÉ COURTE** — trouvé en revue
+   * (Edge Case Hunter), et ce dépôt avait déjà écrit pourquoi.
+   *
+   * `formatRowDate` ne porte **jamais** l'année (« Ven. 01/01 »). Un réveillon — 31/12 à 23h00,
+   * fin le 01/01 à 02h00 — rendait donc `« 23h00 → Ven. 01/01 à 2h00 »`, où **rien ne dit que
+   * c'est l'année suivante**. C'est mot pour mot l'ambiguïté que `formatLongDate` existe pour
+   * éviter côté début, et son commentaire la qualifie déjà : *« Jeu. 02/01 y serait ambigu, et
+   * l'ambiguïté ne se verrait qu'en janvier — c'est-à-dire trop tard »*.
+   * ⚠️ On ne corrige **pas** `formatRowDate` : sa case de calendrier est compacte par
+   * conception, et elle n'a pas ce problème (elle ne rend qu'**une** date, pas une relation
+   * entre deux). C'est **ici** que le franchissement d'année existe.
+   * ⚠️ Le cas est rare — une nuit par an — et c'est exactement pour ça qu'il ne serait jamais
+   * diagnostiqué : une chaîne un peu plus longue une fois l'an vaut mieux qu'une date fausse
+   * que personne ne relit.
+   */
+  const changeDAnnee = a.year !== b.year;
+  const jour = densite === "longue" || changeDAnnee ? formatLongDate(fin) : formatRowDate(fin);
+  return `${debutTexte} → ${jour} à ${formatTime(fin)}`;
 }
 
 /**
@@ -359,6 +435,45 @@ export function parisWallClockFromInput(valeur: string): Date | null {
 }
 
 /**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE MÊME PONT POUR UN CHAMP **FACULTATIF** — ET `null` NE PEUT PAS VOULOIR DIRE DEUX CHOSES
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔬 Mesuré (Story 9.6) : `parisWallClockFromInput` rend `null` sur une chaîne **vide** comme
+ * sur une saisie **invalide** — la regex `FORMAT_SAISIE` ne matche ni l'une ni l'autre. Pour
+ * `starts_at`, qui est obligatoire, l'ambiguïté n'existe pas : les deux cas sont des erreurs, et
+ * les actions rendent le même message. **Pour un champ facultatif, elle est un défaut** : la
+ * branche « pas renseigné » **effacerait** en silence une valeur déjà en base à la première
+ * faute de frappe.
+ *
+ * 🔴 LE MOTIF EST CELUI, DÉJÀ ÉCRIT, DE `entierOptionnel` (`server/actions/tournois.ts`) :
+ * *« On ne transforme **PAS** une saisie illisible en `null` : une faute de frappe **effacerait**
+ * alors silencieusement la valeur déjà enregistrée, au lieu d'être signalée. »* Ce n'est donc pas
+ * une règle inventée ici — c'est la même, appliquée aux dates.
+ *
+ * ⚠️ **UNE UNION DISCRIMINÉE ET PAS UN `Date | null`**, pour la même raison que la fonction
+ * existe : un type qui ne distingue pas les deux cas laisserait l'appelant les confondre, ce qui
+ * est très exactement le défaut. Le compilateur oblige à traiter `"invalide"`.
+ *
+ * ⚠️ La **validité calendaire** (29 février d'une année non bissextile), les **bornes** et le
+ * **relevé de l'heure murale** ne sont pas refaits ici : ils vivent dans
+ * `parisWallClockFromInput`, qui reste le seul pont. Cette fonction ne décide que de
+ * l'**absence**.
+ */
+export type SaisieInstantOptionnel =
+  | { cas: "absent" }
+  | { cas: "invalide" }
+  | { cas: "ok"; instant: Date };
+
+export function parisWallClockOptionnelFromInput(valeur: string): SaisieInstantOptionnel {
+  // `trim()` d'abord : un champ que le navigateur laisse à `""` et un champ où l'on n'a tapé
+  // que des espaces sont la même chose — « pas renseigné ».
+  if (valeur.trim().length === 0) return { cas: "absent" };
+  const instant = parisWallClockFromInput(valeur);
+  return instant === null ? { cas: "invalide" } : { cas: "ok", instant };
+}
+
+/**
  * Valeur de `<input type="datetime-local">` correspondant à un instant, en **heure murale
  * de Paris**.
  *
@@ -390,6 +505,53 @@ export type DiagnosticHeure =
   | { cas: "inexistante" | "ambigue"; message: string };
 
 const UNE_HEURE_MS = 3_600_000;
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LES **DEUX** BORNES D'UN HORAIRE, DIAGNOSTIQUÉES ENSEMBLE — ET C'EST UN CORRECTIF
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Story 9.6, **trouvé en revue (Blind Hunter)**. Les deux Server Actions écrivaient :
+ *
+ *     const avertissement = diagnostic.cas === "ok" ? lectureFin.avertissement : diagnostic.message;
+ *
+ * sous un commentaire qui affirmait *« LES DEUX AVERTISSEMENTS, ET LE DÉBUT D'ABORD »*. C'est un
+ * ternaire : il n'en rend **jamais deux**, et l'avertissement de la fin était **silencieusement
+ * jeté** dès que le début en avait un. Le commentaire décrivait une garde qui n'existait pas —
+ * `00 référence/pieges/avertissement-commentaire.md`, et il était **copié à l'identique** dans
+ * les deux actions.
+ *
+ * 🔴 **ET LE DÉFAUT ÉTAIT PLUS LARGE QUE CE QUE LA REVUE A VU** : `EventForm` calcule en plus un
+ * avertissement **côté client, en direct**, et il ne regardait que `startsAt`. Une fin saisie
+ * dans une heure pathologique n'était donc signalée **ni pendant la frappe, ni à l'envoi**.
+ * ⇒ La règle vit désormais **ici**, en un seul endroit, consommée par les trois.
+ *
+ * ⚠️ **CONCATÉNER LES DEUX MESSAGES BRUTS AURAIT FABRIQUÉ UN SECOND MENSONGE.** Celui de
+ * `diagnostiquerHeureMurale` dit *« L'événement sera enregistré à 3h00 »* — vrai pour un début,
+ * **faux pour une fin** : c'est la FIN qui sera enregistrée à 3h00. D'où les préfixes, et
+ * **seulement quand il y a deux messages** : à un seul, la sortie est **identique au caractère
+ * près** à celle d'avant cette story (non-régression du cas courant, qui est le seul atteint en
+ * pratique).
+ *
+ * ⚠️ Une saisie vide ou malformée rend `{ cas: "ok" }` (voir `diagnostiquerHeureMurale`) : une
+ * fin absente ne produit donc aucun message, et une fin illisible est l'affaire de
+ * `parisWallClockOptionnelFromInput`, pas de celle-ci.
+ */
+export function avertissementHeuresMurales(
+  saisieDebut: string,
+  saisieFin: string,
+): string | null {
+  const debut = diagnostiquerHeureMurale(saisieDebut);
+  const fin = diagnostiquerHeureMurale(saisieFin);
+  const messageDebut = debut.cas === "ok" ? null : debut.message;
+  const messageFin = fin.cas === "ok" ? null : fin.message;
+
+  if (messageDebut === null && messageFin === null) return null;
+  if (messageFin === null) return messageDebut;
+  if (messageDebut === null) return `Heure de fin — ${messageFin}`;
+  // Le début d'abord : c'est lui qui porte le rendez-vous, une fin sans lui n'aurait pas de sens.
+  return `Début — ${messageDebut} Heure de fin — ${messageFin}`;
+}
 
 export function diagnostiquerHeureMurale(valeur: string): DiagnosticHeure {
   const instant = parisWallClockFromInput(valeur);

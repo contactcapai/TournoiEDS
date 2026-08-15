@@ -217,6 +217,21 @@
   color: var(--light);
 }
 
+/* Le tarif annoncé (Story 9.6). Même rang que le lieu — une CONDITION DE VENUE, au même
+   titre que « où » —, donc même taille et même couleur.
+   ⚠️ Le poids porte la hiérarchie, jamais la couleur : `--gold` aurait été tentant (c'est
+   l'information que le visiteur cherche) mais il tombe à 4,53:1 sous le fondu de
+   `motion.reveal`, dont le plancher réel a été re-mesuré à 0,747 (Story 4.1) — une
+   conformité qui tient à l'arrondi n'en est pas une. `--light` rend 7,46:1 dans les mêmes
+   conditions. Même arbitrage, et même mesure, que `.rowPrice` d'`EventList`. */
+.tarif {
+  margin-top: 4px;
+  font-size: 14px; /* px structurel : entre --fs-eyebrow (13) et le corps (15) */
+  line-height: var(--lh-body);
+  font-weight: 700; /* Roboto est VARIABLE → gras réel, pas de faux-gras (globals.css) */
+  color: var(--light);
+}
+
 /* ───────── L'état des inscriptions (tournois À VENIR uniquement) ─────────
    `margin-top: auto` : le filet est collé EN BAS du corps de la carte, quelle que soit la
    longueur du nom et du lieu. Sans cela, deux cartes voisines de hauteurs de texte différentes

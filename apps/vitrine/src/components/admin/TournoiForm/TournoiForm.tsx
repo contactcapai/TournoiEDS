@@ -6,7 +6,12 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
-import { formatLongDate, parisWallClockFromInput, toInputValue } from "@/lib/date-paris";
+import {
+  formatLongDate,
+  parisWallClockFromInput,
+  parisWallClockOptionnelFromInput,
+  toInputValue,
+} from "@/lib/date-paris";
 import {
   AIDES_ETAT_INSCRIPTION,
   AIDES_MODE_INSCRIPTION,
@@ -23,6 +28,7 @@ import {
   NOM_MAX,
   PLACES_MAX,
   PODIUM_MAX,
+  TARIF_MAX,
   REGISTRATION_MODES,
   REGISTRATION_STATES,
   URL_MAX,
@@ -73,7 +79,12 @@ const ORDRE_CHAMPS = [
   "game",
   "slug",
   "startsAt",
+  // Story 9.6 — à leur place VISUELLE. `endsAt` suit immédiatement `startsAt` (les deux bornes
+  // d'un même horaire), et `priceText` rejoint le bloc « ce qu'il faut savoir pour venir », juste
+  // après le lieu. Les ajouter en fin de liste enverrait le focus au mauvais champ.
+  "endsAt",
   "venueName",
+  "priceText",
   "photoId",
   "registrationMode",
   "registrationUrl",
@@ -106,6 +117,10 @@ export interface TournoiFormProps {
     game: string;
     slug: string;
     startsAt: Date;
+    /** `null` = aucune fin annoncée (Story 9.6, A5 — c'est le livrable, pas un manque). */
+    endsAt: Date | null;
+    /** Le tarif annoncé, en toutes lettres (Story 9.6). `null` ⇒ le site n'affiche RIEN. */
+    priceText: string | null;
     venueName: string | null;
     formatText: string | null;
     prizes: string | null;
@@ -153,6 +168,10 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   const [game, setGame] = useState(tournoi?.game ?? "");
   const [slug, setSlug] = useState(tournoi?.slug ?? "");
   const [startsAt, setStartsAt] = useState(tournoi ? toInputValue(tournoi.startsAt) : "");
+  // Story 9.6 — `toInputValue` et JAMAIS `toISOString()` (qui afficherait l'heure UTC, piège ②
+  // de `lib/date-paris.ts`). Absente ⇒ champ VIDE, jamais la chaîne « null ».
+  const [endsAt, setEndsAt] = useState(tournoi?.endsAt ? toInputValue(tournoi.endsAt) : "");
+  const [priceText, setPriceText] = useState(tournoi?.priceText ?? "");
   const [venueName, setVenueName] = useState(tournoi?.venueName ?? "");
   const [photoId, setPhotoId] = useState(tournoi?.photoId ?? "");
   const [formatText, setFormatText] = useState(tournoi?.formatText ?? "");
@@ -200,6 +219,20 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           error: "Cette date n'existe pas.",
           fieldErrors: {
             startsAt: "Vérifiez le jour, le mois et l'heure : cette date n'existe pas.",
+          },
+        };
+      }
+
+      // 🔴 MÊME VÉRIFICATION POUR LA FIN, ET ELLE DISTINGUE « VIDE » DE « ILLISIBLE » (9.6).
+      // Un champ facultatif dont la saisie illisible retomberait sur « pas renseigné »
+      // effacerait une fin déjà enregistrée, sans un mot. La règle est la MÊME que côté serveur
+      // (`lireHeureDeFin`) : deux lectures divergentes seraient invisibles en local.
+      if (parisWallClockOptionnelFromInput(String(formData.get("endsAt") ?? "")).cas === "invalide") {
+        return {
+          statut: "erreur",
+          error: "Cette heure de fin n'existe pas.",
+          fieldErrors: {
+            endsAt: "Vérifiez le jour, le mois et l'heure : cette date n'existe pas.",
           },
         };
       }
@@ -372,6 +405,23 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           erreur={erreurs.startsAt}
         />
 
+        {/* 🔴 L'HEURE DE FIN — FACULTATIVE, ET L'AIDE DIT L'EFFET SUR LE SITE (Story 9.6).
+            Patron `AIDES_MODE_INSCRIPTION` : on écrit au bénévole ce que la page du tournoi
+            affichera, pas le format attendu du champ.
+            ⚠️ Elle nomme le cas « après minuit » parce que c'est la faute de saisie la plus
+            probable sur un tournoi du soir — et parce que le site, lui, l'affiche correctement
+            (il NOMME le jour quand la fin n'est pas le même). */}
+        <ChampTexte
+          id="tournoi-endsAt"
+          name="endsAt"
+          label="Fin du tournoi (facultative)"
+          type="datetime-local"
+          valeur={endsAt}
+          onChange={setEndsAt}
+          aide="Heure de Paris. Laissée vide, la page n'annonce aucune fin. Une fin après minuit se saisit avec la date du lendemain — le site l'affiche alors en toutes lettres."
+          erreur={erreurs.endsAt}
+        />
+
         {/* 🔴 CE CHAMP CHANGE DE NATURE SELON LE RATTACHEMENT — 9.5.
             Son libellé disait « Salle ou espace (facultatif) » et son aide « le lieu général
             vient déjà de l'agenda » : **vrai tant que tout tournoi avait un événement**, faux
@@ -395,6 +445,20 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
               : "Sans événement de rattachement, c'est le seul lieu affiché : indiquez-le. Exemple : « En ligne », « Le Kraken, Reims »."
           }
           erreur={erreurs.venueName}
+        />
+
+        {/* Le tarif (Story 9.6, dette R55). ⚠️ L'aide dit explicitement que le vide n'affiche
+            RIEN — surtout pas « Gratuit ». C'est la règle la plus facile à supposer de travers,
+            et celle dont l'erreur serait publique. */}
+        <ChampTexte
+          id="tournoi-priceText"
+          name="priceText"
+          label="Tarif (facultatif)"
+          valeur={priceText}
+          onChange={setPriceText}
+          max={TARIF_MAX}
+          aide="En toutes lettres : « 5 € », « Gratuit », « 3 € adhérents ». Laissé vide, la page n'affiche aucun tarif — elle n'annonce pas la gratuité à votre place."
+          erreur={erreurs.priceText}
         />
 
         {/* ── Le visuel ────────────────────────────────────────────────────────────────

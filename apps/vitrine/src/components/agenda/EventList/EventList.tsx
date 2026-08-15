@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Tag } from "@repo/ui";
-import { formatRowDate, formatTime } from "@/lib/date-paris";
+import { formatPlageHoraire, formatRowDate } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import styles from "./EventList.module.css";
@@ -48,9 +48,13 @@ export interface EventRowProps {
 }
 
 export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
-  // UNE SEULE DATE, jamais une plage : la maquette écrit « 21-22/11 » pour Game in
-  // Reims, mais le modèle ne porte qu'un `starts_at`. Afficher une fin serait inventer
-  // une donnée. Écart de transcription assumé, tracé dans `formatRowDate`.
+  // UNE SEULE DATE DANS LA CASE DE GAUCHE, jamais une plage — et **le motif a changé le
+  // 2026-08-14 (Story 9.6)**. Il disait : « le modèle ne porte qu'un `starts_at`, afficher une
+  // fin serait inventer une donnée ». **Cette raison est morte** : `ends_at` existe. Le nouveau
+  // motif est un arbitrage de rendu (A6) — la case de gauche est un repère de calendrier
+  // compact, et la fin est dite **à sa place**, dans l'horaire, par `formatPlageHoraire`, qui
+  // nomme le jour dès qu'il diffère. L'information n'est donc jamais perdue : elle est ailleurs,
+  // et une seule fois. Raisonnement complet sur `formatRowDate`.
   //
   // 🔴 DEUX NATURES DEPUIS LA 9.5, ET AUCUNE N'EST FABRIQUÉE (A9) — voir `NextEventCard`.
   const evenement = rendezVous.nature === "evenement" ? rendezVous.evenement : null;
@@ -80,6 +84,17 @@ export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
     : null;
   const description = detailed ? cleanText(evenement?.description ?? null) : null;
 
+  // 🔴 Story 9.6 — la fin se rend sur les DEUX variantes (c'est un fait de l'horaire, et la
+  // ligne compacte porte déjà l'heure), le TARIF seulement en `detailed` : sur la home, la
+  // rangée n'a que trois informations et sa raison d'être est le RYTHME du roulement, pas le
+  // détail d'un rendez-vous — c'est le même partage que l'adresse et la description.
+  // ⚠️ `cleanText` sur le tarif, comme partout : `btrim` ne retire pas U+200B (dette R41), et un
+  // tarif fait uniquement d'invisible doit compter comme ABSENT plutôt que rendre un `<p>` vide.
+  const fin = evenement?.endsAt ?? tournoi?.endsAt ?? null;
+  const tarif = detailed
+    ? cleanText(evenement?.priceText ?? tournoi?.priceText ?? null)
+    : null;
+
   return (
     <li className={styles.row}>
       <div className={styles.rowDate}>{formatRowDate(rendezVous.startsAt)}</div>
@@ -90,13 +105,14 @@ export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
             en variante `detailed`, et la home ne l'affiche pas du tout. */}
         {place ? (
           <p>
-            {place} — {formatTime(rendezVous.startsAt)}
+            {place} — {formatPlageHoraire(rendezVous.startsAt, fin)}
           </p>
         ) : null}
-        {/* Les deux lignes ci-dessous n'existent qu'en `detailed`, et chacune
+        {/* Les trois lignes ci-dessous n'existent qu'en `detailed`, et chacune
             disparaît si sa donnée est absente ou blanche (NFR8) — jamais de
             paragraphe vide qui ouvrirait un blanc dans la liste. */}
         {address ? <p className={styles.rowAddress}>{address}</p> : null}
+        {tarif ? <p className={styles.rowPrice}>{tarif}</p> : null}
         {description ? <p className={styles.rowDescription}>{description}</p> : null}
       </div>
       {/* Libellés PUBLICS de l'enum : `schema.ts` dit explicitement qu'ils sont du

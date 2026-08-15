@@ -73,9 +73,10 @@
 }
 
 /* ── Variante `detailed` (page /agenda uniquement) ──
-   Deux lignes de plus sous le sous-titre. Elles n'existent pas sur la home : la
-   règle ne s'y applique donc jamais, et le rendu du hub reste celui prouvé
-   inchangé par la moitié A de la Story 3.3. */
+   TROIS lignes de plus sous le sous-titre depuis la Story 9.6 (le tarif rejoint
+   l'adresse et la description). Elles n'existent pas sur la home : la règle ne s'y
+   applique donc jamais, et le rendu du hub reste celui prouvé inchangé par la moitié
+   A de la Story 3.3. */
 
 .rowAddress {
   /* 13,5px, aligné sur le sous-titre : c'est une information de même rang (où),
@@ -86,6 +87,25 @@
   /* L'adresse est un repère secondaire : légèrement en retrait par l'italique,
      jamais par une couleur plus faible (--grey serait non conforme, voir plus bas). */
   font-style: italic;
+}
+
+/* Le tarif annoncé (Story 9.6). Même rang que l'adresse — une CONDITION DE VENUE, pas
+   un niveau de plus —, donc même taille et même couleur.
+
+   🔴 LA HIÉRARCHIE EST PORTÉE PAR LE POIDS, JAMAIS PAR LA COULEUR — et ce n'est pas du
+   style, c'est la conclusion des mesures de ce fichier. `--gold` était le choix tentant
+   (c'est l'information que le visiteur CHERCHE, et l'or est déjà le rôle « repère » de
+   `.rowDate`) : il rend 6,92:1 à plein mais **4,53:1 au plancher 0,75 du fondu**, pour
+   un seuil AA de 4,5:1 en 13,5px — conforme d'un centième, et le plancher réel de
+   `motion.reveal` a été RE-MESURÉ à **0,747** (Story 4.1), c'est-à-dire en dessous. On
+   ne pose pas une conformité qui tient à l'arrondi.
+   ⇒ `--light` (7,46:1 sous fondu, mesuré en fin de fichier) + `font-weight: 700`.
+   ⚠️ Ne PAS y mettre `--grey` : non conforme sous fondu (3,24:1). */
+.rowPrice {
+  font-size: 13.5px;
+  color: var(--light);
+  font-weight: 700;
+  margin-top: 2px;
 }
 
 .rowDescription {

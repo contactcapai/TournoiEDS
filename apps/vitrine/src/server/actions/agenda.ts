@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 
-import { diagnostiquerHeureMurale, parisWallClockFromInput } from "../../lib/date-paris";
+import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
 import { requireAdmin } from "../auth/guard";
 import { countEventsBlockingBarDeletion } from "../db/queries/events";
@@ -11,6 +11,7 @@ import { bar, event } from "../db/schema";
 import {
   erreursParChamp,
   identifiant,
+  lireHeureDeFin,
   messageErreurBase as traduireErreurBase,
   type ResultatAction,
 } from "./_commun";
@@ -75,6 +76,7 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
   event_recap_valide: "le compte-rendu",
   event_venue_name_valide: "le nom du lieu",
   event_venue_address_valide: "l'adresse du lieu",
+  event_price_text_valide: "le tarif", // Story 9.6
   bar_name_valide: "le nom du bar",
   bar_address_valide: "l'adresse du bar",
   bar_district_valide: "le quartier",
@@ -91,6 +93,15 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
 const CAS_PARTICULIERS: Record<string, string> = {
   event_has_venue:
     "Indiquez un bar du roulement ou le nom d'un lieu : un événement doit avoir un lieu.",
+  /**
+   * Story 9.6, même motif : elle regarde **deux** colonnes. Nommer « l'heure de fin » seule
+   * laisserait croire que la valeur est malformée, alors que c'est sa RELATION au début qui
+   * ne va pas. ⚠️ Le message parle du **jour** autant que de l'heure — la faute la plus
+   * probable est une fin après minuit saisie avec la date du début.
+   */
+  event_fin_apres_debut:
+    "L'heure de fin doit être après le début. Vérifiez le jour autant que l'heure : une fin " +
+    "après minuit tombe le lendemain.",
 };
 
 /**
@@ -179,6 +190,15 @@ export async function enregistrerEvenement(
     };
   }
 
+  // 🔴 L'heure de fin est FACULTATIVE, et sa lecture ne peut pas se faire comme celle du début
+  // (Story 9.6) : `null` y voudrait dire à la fois « pas renseigné » et « illisible », donc une
+  // faute de frappe EFFACERAIT une fin déjà enregistrée. Le raisonnement complet, et le motif
+  // déjà écrit dont il vient, vivent sur `lireHeureDeFin`.
+  const lectureFin = lireHeureDeFin(formData);
+  if (!lectureFin.ok) {
+    return { ok: false, error: lectureFin.error, fieldErrors: lectureFin.fieldErrors };
+  }
+
   const analyse = eventInputSchema.safeParse({
     type: formData.get("type") ?? undefined,
     title: formData.get("title"),
@@ -186,6 +206,8 @@ export async function enregistrerEvenement(
     venueName: formData.get("venueName"),
     venueAddress: formData.get("venueAddress"),
     startsAt: instant,
+    endsAt: lectureFin.fin,
+    priceText: formData.get("priceText"),
     games: formData.get("games"),
     description: formData.get("description"),
     recap: formData.get("recap"),
@@ -201,8 +223,15 @@ export async function enregistrerEvenement(
   }
 
   const valeurs = analyse.data;
-  const diagnostic = diagnostiquerHeureMurale(saisieDate);
-  const avertissement = diagnostic.cas === "ok" ? null : diagnostic.message;
+  // 🔴 LES DEUX BORNES, ET LA COMPOSITION VIT DANS `lib/date-paris.ts` (Story 9.6, corrigé en
+  // revue). Ce code écrivait un TERNAIRE sous un commentaire qui affirmait montrer les deux
+  // messages : il n'en rendait jamais qu'un, et jetait celui de la fin dès que le début en avait
+  // un. ⚠️ Et concaténer les deux messages bruts aurait menti autrement — « L'événement sera
+  // enregistré à 3h00 » est faux appliqué à une FIN. Le préfixage vit donc avec la règle.
+  const avertissement = avertissementHeuresMurales(
+    saisieDate,
+    String(formData.get("endsAt") ?? ""),
+  );
 
   try {
     if (idExistant === null) {

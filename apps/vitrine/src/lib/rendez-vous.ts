@@ -25,15 +25,28 @@ import type { RendezVous } from "@/server/db/queries/rendez-vous";
  * Ce rendez-vous est-il un **jeudi jeux** — la soirée hebdomadaire en bar ?
  *
  * 🔴 C'EST LE SEUL PRÉDICAT QUI AUTORISE LA COPIE FIXE DU HUB. Les quatre phrases de R48
- * décrivent **cette** soirée-là : elle n'a pas d'heure de fin annoncée, elle est gratuite, et
- * le matériel est sur place. Aucune des quatre n'est vérifiable pour un temps fort ni pour un
- * tournoi — d'où un prédicat unique plutôt qu'un test de `type` recopié quatre fois.
+ * décrivent **cette** soirée-là : elle est ouverte à tous, le matériel est sur place, et **à
+ * défaut d'information contraire** elle n'a ni prix ni heure de fin annoncés. Aucune des quatre
+ * n'est vérifiable pour un temps fort ni pour un tournoi — d'où un prédicat unique plutôt qu'un
+ * test de `type` recopié quatre fois.
+ *
+ * 🔴 **« À DÉFAUT D'INFORMATION CONTRAIRE » A ÉTÉ AJOUTÉ LE 2026-08-14 (Story 9.6), ET CE N'EST
+ * PAS UNE NUANCE DE STYLE.** Ce bloc affirmait, sans réserve : *« elle n'a pas d'heure de fin
+ * annoncée, **elle est gratuite** »*. C'était vrai **tant que le modèle ne portait ni prix ni
+ * fin** — il porte désormais `price_text` et `ends_at`, y compris sur un jeudi. Laisser la
+ * phrase aurait fait de ce prédicat partagé la justification écrite d'un **mensonge à l'écran**
+ * : un jeudi jeux payant rendant « Gratuit ».
+ * ⇒ **CE PRÉDICAT NE DÉCIDE PLUS SEUL.** Il dit la nature du rendez-vous ; la **valeur saisie
+ * l'emporte** sur la copie fixe, et la copie fixe est le **repli** quand rien n'est saisi
+ * (règle « un seul propriétaire par fait », note d'architecture §5). Le détail du partage vit
+ * dans `NextEventCard`, à l'endroit où il se rend.
  *
  * ⚠️ **UN TEMPS FORT (`special`) EN BAR PERD CES LIGNES, ET C'EST ASSUMÉ.** On échange une
  * **absence** contre un risque d'**affirmation fausse**, ce qui est la doctrine du projet
- * (UX-DR10 : masquer plutôt qu'annoncer ce qu'on ne garantit pas). Le modèle ne porte ni prix
- * ni jauge — et il ne doit pas commencer à en porter par ce biais, ce qui rouvrirait la
- * frontière Q6 (la prose éditoriale reste en dur).
+ * (UX-DR10 : masquer plutôt qu'annoncer ce qu'on ne garantit pas).
+ * ⚠️ **LA FRONTIÈRE Q6 TIENT** : ce que la 9.6 rend saisissable est le **tarif** et l'**heure de
+ * fin**, jamais les phrases qui les entourent. « ouvert à tous, même sans matériel » n'entre
+ * dans aucune colonne — c'est de la prose éditoriale, et elle reste en dur.
  */
 export function estJeudiJeux(rendezVous: RendezVous) {
   return rendezVous.nature === "evenement" && rendezVous.evenement.type === "thursday";

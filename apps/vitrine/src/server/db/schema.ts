@@ -39,6 +39,10 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+// ⚠️ `TARIF_MAX` EST ALIASÉ ICI AUSSI (Story 9.6) : `tournament.ts` en exporte un, propre à SON
+// domaine, et les importer nus serait une collision que TypeScript refuserait. La parade est
+// celle des trois blocs ci-dessous — **aliaser, jamais fusionner** —, et le bloc d'import de
+// `tournament.ts` l'annonçait mot pour mot avant que le cas n'arrive.
 import {
   BAR_ADRESSE_MAX,
   BAR_NOM_MAX,
@@ -50,6 +54,7 @@ import {
   LIEU_ADRESSE_MAX,
   LIEU_NOM_MAX,
   RECAP_MAX,
+  TARIF_MAX as EVENT_TARIF_MAX,
   TITRE_MAX,
 } from "../../lib/schemas/event";
 // ⚠️ ALIAS OBLIGATOIRES : `event.ts` exporte DÉJÀ un `DESCRIPTION_MAX` (celui d'un événement),
@@ -83,12 +88,16 @@ import {
 import { EXTENSIONS } from "../../lib/schemas/photo";
 import { EMAIL_MAX, MOTIF_EMAIL_SQL, URL_MAX } from "../../lib/schemas/site-setting";
 import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
-// ✅ AUCUN ALIAS ICI, ET C'EST UNE MESURE — contrairement à `partner`, `member` et `workshop`
-// ci-dessus. Les noms de bornes du domaine « tournoi » ont été choisis **après** avoir vérifié
-// qu'aucun n'entre en collision avec ceux déjà importés dans ce fichier : `NOM_MAX` cohabite
-// avec `TITRE_MAX`/`BAR_NOM_MAX`/`PRENOM_MAX`, `JEU_MAX` avec `JEUX_MAX`, `LIEU_MAX` avec
-// `LIEU_NOM_MAX`. Le jour où une collision apparaîtra, la parade est celle des trois blocs
-// ci-dessus — **aliaser**, jamais fusionner deux bornes de domaines différents.
+// 🔴 CE BLOC DISAIT « AUCUN ALIAS ICI, ET C'EST UNE MESURE » JUSQU'AU 2026-08-14 — LE JOUR
+// ANNONCÉ EST ARRIVÉ (Story 9.6). Il ajoutait : *« Le jour où une collision apparaîtra, la parade
+// est celle des trois blocs ci-dessus — aliaser, jamais fusionner deux bornes de domaines
+// différents. »* `TARIF_MAX` existe désormais des DEUX côtés (un tarif d'événement et un tarif de
+// tournoi sont deux objets éditoriaux distincts, saisis dans deux écrans différents), et les deux
+// sont donc **aliasés** — `EVENT_TARIF_MAX` et `TOURNAMENT_TARIF_MAX`. Les fusionner ferait
+// qu'ajuster le tarif d'un jeudi changerait celui d'un tournoi.
+// ✅ Le constat d'origine reste vrai pour TOUTES LES AUTRES bornes du domaine « tournoi », et il
+// avait été mesuré : `NOM_MAX` cohabite avec `TITRE_MAX`/`BAR_NOM_MAX`/`PRENOM_MAX`, `JEU_MAX`
+// avec `JEUX_MAX`, `LIEU_MAX` avec `LIEU_NOM_MAX` — un seul alias sur douze imports.
 // ⚠️ `URL_MAX` n'est PAS réimportée : `tournament.ts` consomme et ré-exporte celle de
 // `site-setting.ts` (une URL saisie par un bénévole est le même objet des deux côtés), et elle
 // est déjà importée quelques lignes plus haut. Deux imports du même symbole seraient une
@@ -106,6 +115,7 @@ import {
   PODIUM_MAX,
   REGISTRATION_MODES,
   REGISTRATION_STATES,
+  TARIF_MAX as TOURNAMENT_TARIF_MAX,
 } from "../../lib/schemas/tournament";
 // ⚠️ ALIAS OBLIGATOIRES, MÊME MOTIF QUE POUR `partner` CI-DESSUS : `event.ts` exporte déjà un
 // `TITRE_MAX` (celui d'un événement, 80 lui aussi — mais par COÏNCIDENCE d'alignement sur son
@@ -242,6 +252,32 @@ export const event = pgTable(
      * Construire la valeur avec `parisWallClock()`, jamais avec `new Date('…')`.
      */
     startsAt: timestamp({ withTimezone: true }).notNull(),
+    /**
+     * 🔴 L'HEURE DE FIN **ANNONCÉE** — FACULTATIVE, ET C'EST LE LIVRABLE (Story 9.6, dette R56).
+     *
+     * *« Jusqu'à quelle heure on vous attend. »* Un jeudi en bar n'en a pas (« on reste tant
+     * qu'on veut ») ; un temps fort en a une. L'exiger forcerait le bénévole à **inventer** une
+     * heure — c'est-à-dire le défaut qu'on corrige, retourné.
+     *
+     * ⚠️ **UNE SEULE COLONNE `timestamptz`, jamais une durée en minutes.** Une durée obligerait
+     * chaque lecture à refaire une arithmétique de calendrier, et se tromperait aux changements
+     * d'heure de fin mars et fin octobre — précisément ce que `parisWallClock` existe pour
+     * absorber. Et une fin après minuit doit pouvoir tomber **le lendemain** : c'est le cas
+     * nominal d'une soirée, pas un cas limite.
+     * ⚠️ Construire la valeur avec `parisWallClockFromInput`, **jamais** avec `new Date('…')`.
+     */
+    endsAt: timestamp({ withTimezone: true }),
+    /**
+     * Le **tarif annoncé**, en toutes lettres (Story 9.6, dette R55).
+     *
+     * 🔴 UN TEXTE ET NON UN MONTANT — même arbitrage que `tournament.formatText` : « 5 € sur
+     * place, 3 € en prévente » n'est pas un décimal. Le raisonnement complet, la borne et le
+     * point sur **FR16** vivent dans `lib/schemas/event.ts` (`TARIF_MAX`).
+     * ⚠️ **`NULL` NE VEUT PAS DIRE « GRATUIT »**, et c'est la règle la plus facile à casser au
+     * rendu : absent ⇒ la ligne **disparaît**. Déduire une gratuité d'une absence serait
+     * affirmer un fait qu'on n'a pas — la famille de la dette R48.
+     */
+    priceText: text(),
     /**
      * Jeux annoncés, en texte libre (« Smash, TFT, Mario Kart »). Volontairement pas un
      * `text[]` : rien ne requête là-dessus, et un tableau imposerait un composant de
@@ -383,6 +419,40 @@ export const event = pgTable(
       "event_venue_address_valide",
       sql`${table.venueAddress} is null or (length(btrim(${table.venueAddress})) > 0 and length(${table.venueAddress}) <= ${sql.raw(String(LIEU_ADRESSE_MAX))})`,
     ),
+    check(
+      "event_price_text_valide",
+      sql`${table.priceText} is null or (length(btrim(${table.priceText})) > 0 and length(${table.priceText}) <= ${sql.raw(String(EVENT_TARIF_MAX))})`,
+    ),
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     * 🔴 LA FIN EST APRÈS LE DÉBUT — ET LA NULL-SAFETY N'EST **PAS** CELLE D'`event_has_venue`
+     * ══════════════════════════════════════════════════════════════════════════════════════
+     *
+     * Le réflexe, sur ce fichier, est d'ajouter un `coalesce` : trois contraintes le portent, et
+     * `event_has_venue` a survécu **trois epics et sept portes vertes** faute de l'avoir. **Ici
+     * il serait inutile, et le croire nécessaire ferait écrire une garde qui ne garde rien.**
+     *
+     * Le membre à surveiller est celui qui peut valoir `NULL` :
+     *   · `ends_at is null` rend **toujours** un booléen — jamais `NULL` ;
+     *   · `ends_at > starts_at` ne vaut `NULL` que si l'un des deux est `NULL`. Or **`starts_at`
+     *     est `notNull`** : le seul cas est donc `ends_at IS NULL`, que la branche de gauche a
+     *     **déjà** court-circuité.
+     * ⇒ La contrainte est **null-safe par construction**, exactement comme
+     * `tournament_podium_sans_trou_2`. C'est la seule famille de ce fichier qui n'a pas à se
+     * poser la question, et le dire évite qu'on la « complète » par mimétisme.
+     * ⚠️ **Ce raisonnement TOMBE si `starts_at` cessait d'être `notNull`.** Il ne le sera pas —
+     * un rendez-vous sans date n'existe pas — mais la dépendance est écrite plutôt que supposée.
+     *
+     * ⚠️ **L'ÉGALITÉ EST REFUSÉE** (`>` et non `>=`) : un rendez-vous qui finit à la minute où il
+     * commence n'est pas un rendez-vous, c'est une saisie ratée — le plus souvent la date de
+     * début recopiée telle quelle dans le second champ.
+     *
+     * 🔴 ET ÇA NE SE MESURE **PAS** PAR UNE ÉCRITURE — leçon `gate:ateliers` ⑧ : la contre-épreuve
+     * « écrire une ligne à `NULL` » reste **VERTE** sur une contrainte cassée, parce que le défaut
+     * la rend aveugle par construction. Le seul témoin est une garde qui **LIT le texte de la
+     * contrainte** (`pg_get_constraintdef`), et `gate:agenda` en porte une.
+     */
+    check("event_fin_apres_debut", sql`${table.endsAt} is null or ${table.endsAt} > ${table.startsAt}`),
     // Sert la requête « prochaine date à venir » de la 3.2 et les listes de la 3.3 :
     // toutes filtrent sur `is_published` puis ordonnent par `starts_at`.
     index("event_published_starts_at_idx").on(table.isPublished, table.startsAt),
@@ -1436,11 +1506,40 @@ export const tournament = pgTable(
      * ⚠️ `timestamptz`, et UNE SEULE colonne — jamais date + heure séparées, qui rouvriraient
      * le piège de fuseau à chaque lecture. Construire la valeur avec `parisWallClockFromInput`,
      * jamais avec `new Date('…')`.
-     * ⚠️ **Aucune date de FIN** : aucun critère ne la demande, et elle se **déduira** des phases
-     * quand elles existeront (Story 10.1). Une colonne sans consommateur est une migration
-     * qu'il faudra défaire (règle de tête de fichier).
+     *
+     * 🔴 **CE BLOC DISAIT « Aucune date de FIN : aucun critère ne la demande, et elle se DÉDUIRA
+     * des phases (Story 10.1) » — CORRIGÉ LE 2026-08-14 (Story 9.6).** La phrase était juste sur
+     * son objet et **fausse sur son périmètre** : elle confondait la fin **DÉRIVÉE** (celle que
+     * les phases produiront) et la fin **ANNONCÉE** (`ends_at` : jusqu'à quelle heure on vous
+     * attend), qui est une donnée **éditoriale** et a désormais un critère explicite.
+     * ⚠️ Partage **identique** à celui de `format_text` (A23 ③) : l'annonce est éditoriale, **les
+     * phases feront foi** dès qu'elles existeront, et la fiche devra alors **DÉRIVER** ce qu'elle
+     * affiche plutôt que lire deux sources.
+     * ⚠️ Le motif d'origine — *« une colonne sans consommateur est une migration qu'il faudra
+     * défaire »* — reste valide ; il ne s'applique simplement plus : `ends_at` a **quatre**
+     * consommateurs de rendu dès la story qui la crée.
      */
     startsAt: timestamp({ withTimezone: true }).notNull(),
+    /**
+     * L'heure de fin **annoncée** (Story 9.6, dette R56). Facultative — voir le bloc de
+     * `starts_at` juste au-dessus pour la distinction « annoncée » / « dérivée », et le bloc
+     * jumeau d'`event.endsAt` pour le « pourquoi un `timestamptz` et pas une durée ».
+     * ⚠️ Une fin après minuit tombe **le lendemain**, et c'est le cas nominal d'un tournoi du
+     * soir — pas un cas limite. Le rendu le **dit** (`formatPlageHoraire`).
+     */
+    endsAt: timestamp({ withTimezone: true }),
+    /**
+     * Le **tarif annoncé**, en toutes lettres (Story 9.6, dette R55).
+     *
+     * 🔴 UN TEXTE ET NON UN MONTANT — même arbitrage que `formatText` plus bas. Le raisonnement
+     * complet, la borne et le point sur **FR16** vivent dans `lib/schemas/tournament.ts`
+     * (`TARIF_MAX`).
+     * ⚠️ **`NULL` NE VEUT PAS DIRE « GRATUIT »** : absent ⇒ la ligne **disparaît** au rendu.
+     * Déduire une gratuité d'une absence serait affirmer un fait qu'on n'a pas (famille R48).
+     * ⚠️ Ce n'est **PAS** le montant qu'un jour MATELY encaissera : cette colonne dit ce qu'on
+     * **annonce**, comme `format_text` dit ce qu'on **promet**.
+     */
+    priceText: text(),
     /**
      * Le lieu du tournoi. Absent → la ligne est masquée à l'affichage, jamais rendue vide
      * (NFR8, UX-DR10).
@@ -1677,6 +1776,27 @@ export const tournament = pgTable(
     check(
       "tournament_prizes_valide",
       sql`${table.prizes} is null or (length(btrim(${table.prizes})) > 0 and length(${table.prizes}) <= ${sql.raw(String(LOTS_MAX))})`,
+    ),
+    check(
+      "tournament_price_text_valide",
+      sql`${table.priceText} is null or (length(btrim(${table.priceText})) > 0 and length(${table.priceText}) <= ${sql.raw(String(TOURNAMENT_TARIF_MAX))})`,
+    ),
+    /**
+     * 🔴 LA FIN EST APRÈS LE DÉBUT — **PAS DE `coalesce` ICI, ET C'EST MESURÉ** (Story 9.6).
+     *
+     * Le raisonnement complet vit sur `event_fin_apres_debut`, à l'identique : le seul membre qui
+     * pourrait valoir `NULL` est `ends_at > starts_at`, et il ne le peut **que** si `ends_at` est
+     * `NULL` — cas déjà court-circuité par la branche de gauche, puisque `starts_at` est
+     * `notNull`. La contrainte est **null-safe par construction**, comme
+     * `tournament_podium_sans_trou_2`, et « la compléter » par mimétisme avec
+     * `tournament_a_un_lieu` ajouterait une garde qui ne garde rien.
+     * ⚠️ `>` et non `>=` : l'égalité est une saisie ratée, pas un tournoi.
+     * ⚠️ Et la null-safety ne se mesure **pas** par une écriture — `gate:tournois` porte la garde
+     * qui **LIT** le texte de la contrainte.
+     */
+    check(
+      "tournament_fin_apres_debut",
+      sql`${table.endsAt} is null or ${table.endsAt} > ${table.startsAt}`,
     ),
     /**
      * Bornes NUMÉRIQUES, mêmes des deux côtés que Zod. Le plafond n'est pas de la préciosité :

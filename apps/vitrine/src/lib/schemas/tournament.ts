@@ -14,7 +14,7 @@
  */
 import { z } from "zod";
 
-import { instantAvecFuseau } from "./instant";
+import { instantAvecFuseau, instantAvecFuseauOptionnel } from "./instant";
 import { texteOptionnel, urlHttpOptionnelle, visiblementVide } from "./texte";
 // 🔴 `URL_MAX` EST IMPORTÉE, JAMAIS RECOPIÉE. Une URL d'inscription et une URL de réseau
 // social sont **le même objet** (une adresse http(s) saisie par un bénévole) : deux bornes
@@ -130,6 +130,27 @@ export const LOTS_MAX = 200;
 
 /** Un nom de podium. Aligné sur la borne des noms courts du projet (`BAR_NOM_MAX`, `LIEU_MAX`). */
 export const PODIUM_MAX = 120;
+
+/**
+ * Le tarif annoncé, **en toutes lettres** (Story 9.6, dette R55). Aligné sur `NOM_MAX`.
+ *
+ * 🔴 UN TEXTE ET NON UN NOMBRE — **exactement** le raisonnement de `FORMAT_MAX` ci-dessous :
+ * « 5 € sur place, 3 € en prévente » n'est pas un décimal, et un montant typé obligerait à
+ * inventer une devise, un arrondi et une règle d'affichage pour un fait qui s'écrit en trois
+ * mots. ⚠️ Le jour où MATELY encaissera pour nous, ce **ne sera pas cette colonne** qui portera
+ * le montant : celle-ci dit ce qu'on **annonce**, comme `format_text` dit ce qu'on **promet**.
+ *
+ * ⚠️ **DEUX BORNES DE MÊME NOM DANS DEUX DOMAINES, ET C'EST LA DOCTRINE** : `event.ts` en
+ * déclare une aussi, et `server/db/schema.ts` les importe **aliasées** — jamais fusionnées. Le
+ * bloc d'import de ce fichier l'annonçait : *« Le jour où une collision apparaîtra, la parade
+ * est celle des trois blocs ci-dessus — **aliaser**, jamais fusionner deux bornes de domaines
+ * différents. »* Ce jour est celui de cette story. Fusionner ferait qu'ajuster le tarif d'un
+ * jeudi changerait celui d'un tournoi.
+ *
+ * ⚠️ **FR16 NE S'Y OPPOSE PAS** : voir `PLACES_MAX`, dont l'argument est identique et déjà
+ * arbitré — un chiffre de **communauté** est interdit, une **condition de venue** ne l'est pas.
+ */
+export const TARIF_MAX = 80;
 
 /**
  * Durée estimée d'un match, **en minutes**.
@@ -258,11 +279,25 @@ const trimmedText = z.string().trim();
  * **R2** — une grosse story qui bloque ou évapore ses volets.
  * ⚠️ L'**ABSENCE** de ces colonnes est gardée par `gate:tournois`, pas par ce commentaire.
  *
- * 🔴 ET IL N'Y A **AUCUNE** COLONNE DE DATE DE FIN. Un tournoi porte sa date de DÉBUT (A1),
- * parce que la Game'in Reims est **un** événement portant **dix** animations à des heures
- * différentes : sans date propre on ne peut ni les ordonner, ni dériver « à venir / passés »
- * à l'échelle du tournoi. La date de fin, elle, n'est demandée par aucun critère et se
- * **déduira** des phases quand elles existeront (Story 10.1).
+ * 🔴 LA DATE DE DÉBUT EST PROPRE AU TOURNOI (A1), parce que la Game'in Reims est **un**
+ * événement portant **dix** animations à des heures différentes : sans date propre on ne peut ni
+ * les ordonner, ni dériver « à venir / passés » à l'échelle du tournoi.
+ *
+ * 🔴 **ET CE BLOC DISAIT « AUCUNE COLONNE DE DATE DE FIN […] elle se DÉDUIRA des phases (Story
+ * 10.1) » — CORRIGÉ LE 2026-08-14 (Story 9.6).** La phrase était **juste sur son objet et fausse
+ * sur son périmètre** : elle confondait deux faits différents.
+ *   · la fin **DÉRIVÉE** — celle que les phases produiront (Story 10.1) : quand ça s'est
+ *     réellement terminé, ou quand la structure dit que ça se terminera ;
+ *   · la fin **ANNONCÉE** — `endsAt` : *jusqu'à quelle heure on vous attend*. C'est une donnée
+ *     **éditoriale**, saisie par un bénévole, et elle a un critère **explicite** depuis le
+ *     2026-08-14 (retour de Brice devant le rendu de staging).
+ * ⚠️ C'est **mot pour mot** le partage déjà arbitré pour `formatText` (A23 ③) : le texte annoncé
+ * est éditorial, **les phases feront foi** dès qu'elles existeront, et la fiche devra alors
+ * **DÉRIVER** ce qu'elle affiche au lieu de lire deux sources. Décidé maintenant pour ne pas
+ * l'être dans l'urgence.
+ * ⚠️ Le motif d'origine — *« une colonne sans consommateur est une migration qu'il faudra
+ * défaire »* — reste **entièrement valide** ; il ne s'applique simplement plus : la colonne a
+ * **quatre** consommateurs de rendu dès la story qui la crée.
  */
 export const tournamentInputSchema = z
   .object({
@@ -365,6 +400,26 @@ export const tournamentInputSchema = z
      * fuseau du process, ce que la garde existe pour refuser.
      */
     startsAt: instantAvecFuseau,
+    /**
+     * 🔴 L'HEURE DE FIN **ANNONCÉE** — FACULTATIVE (Story 9.6, dette R56, A5).
+     *
+     * *« Jusqu'à quelle heure on vous attend »*, et **pas** la fin que les phases dériveront un
+     * jour (Story 10.1) — la distinction est écrite en tête de ce schéma, et c'est elle qui rend
+     * les deux compatibles au lieu de concurrentes.
+     * ⚠️ Facultative **et c'est le livrable** : un jeudi en bar n'a pas de fin annoncée, un
+     * tournoi en a une. L'exiger forcerait à inventer une heure.
+     * ⚠️ `null` veut dire **absent**, et seulement ça : la distinction « vide » / « illisible »
+     * se fait à la frontière d'écriture (`parisWallClockOptionnelFromInput`), sans quoi une faute
+     * de frappe effacerait en silence une fin déjà enregistrée.
+     */
+    endsAt: instantAvecFuseauOptionnel,
+    /**
+     * Le **tarif annoncé** (Story 9.6, dette R55). Facultatif — **absent ⇒ la ligne disparaît**,
+     * jamais « Gratuit » par défaut : le site ne doit pas déduire une gratuité qu'on ne lui a pas
+     * dite. Voir `TARIF_MAX` pour le « pourquoi un texte », pour FR16 et pour la collision de
+     * bornes avec `event.ts`.
+     */
+    priceText: texteOptionnel(TARIF_MAX, "Le tarif"),
     /**
      * La salle ou l'espace, **en plus** du lieu de l'événement. Facultatif : l'événement
      * porte déjà son lieu, et la plupart des tournois n'ont rien à préciser. Absent → la
@@ -509,6 +564,25 @@ export const tournamentInputSchema = z
         message:
           "Sans événement d'agenda, indiquez où se tient le tournoi (une salle, une ville, " +
           "ou « En ligne ») : c'est ce lieu que l'agenda affichera.",
+      });
+    }
+    /**
+     * 🔴 LA FIN EST APRÈS LE DÉBUT — jumelle du `CHECK` `tournament_fin_apres_debut` (Story 9.6).
+     *
+     * ⚠️ L'**égalité** est refusée aussi : un tournoi qui finit à la minute où il commence n'est
+     * pas un tournoi, c'est une saisie ratée (le plus souvent la date de début recopiée telle
+     * quelle dans le second champ).
+     * ⚠️ Le message nomme le **jour** autant que l'heure : la faute la plus probable est une fin
+     * après minuit saisie avec la date du début, et « l'heure de fin doit être après le début »
+     * seul laisserait le bénévole chercher au mauvais endroit.
+     */
+    if (valeurs.endsAt !== null && valeurs.endsAt <= valeurs.startsAt) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endsAt"],
+        message:
+          "L'heure de fin doit être après le début. Vérifiez le jour autant que l'heure : une " +
+          "fin après minuit tombe le lendemain.",
       });
     }
     if (valeurs.registrationMode === "mately" && valeurs.registrationUrl === null) {

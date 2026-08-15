@@ -46,7 +46,13 @@ import {
   parisWallClockFromInput,
   toInputValue,
 } from "../../src/lib/date-paris";
-import { RECAP_MAX, TITRE_MAX, barInputSchema, eventInputSchema } from "../../src/lib/schemas/event";
+import {
+  RECAP_MAX,
+  TARIF_MAX,
+  TITRE_MAX,
+  barInputSchema,
+  eventInputSchema,
+} from "../../src/lib/schemas/event";
 import { lireDatabaseUrl } from "./env.mjs";
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
@@ -192,6 +198,23 @@ const ECRITURES_A_REFUSER: { libelle: string; requete: string }[] = [
     libelle: "nom de bar blanc",
     requete: `INSERT INTO bar (name, address, district) VALUES ('   ', 'Rue de contrôle', 'Centre')`,
   },
+  // ── Story 9.6 : le tarif et l'heure de fin ──
+  { libelle: "tarif blanc", requete: INSERT_EVENT(", price_text", `, '   '`) },
+  {
+    libelle: `tarif de ${TARIF_MAX + 1} caractères`,
+    requete: INSERT_EVENT(", price_text", `, repeat('a', ${TARIF_MAX + 1})`),
+  },
+  {
+    libelle: "fin AVANT le début",
+    requete: INSERT_EVENT(", ends_at", `, now() - interval '2 hours'`),
+  },
+  {
+    // ⚠️ L'ÉGALITÉ EST UN CAS À PART, et elle est refusée : un rendez-vous qui finit à la
+    // minute où il commence n'est pas un rendez-vous, c'est une saisie ratée (le plus souvent
+    // la date de début recopiée telle quelle). Sans ce cas, un `>=` posé par erreur passerait.
+    libelle: "fin ÉGALE au début",
+    requete: `INSERT INTO event (title, starts_at, venue_name, ends_at) SELECT 'Porte agenda', t, 'Lieu de contrôle', t FROM (SELECT now() AS t) s`,
+  },
 ];
 
 /** Cas symétriques : chacun DOIT être accepté — une porte qui refuse tout ne mesure rien. */
@@ -201,6 +224,22 @@ const ECRITURES_A_ACCEPTER: { libelle: string; requete: string }[] = [
     requete: `INSERT INTO event (title, starts_at, venue_name) VALUES (repeat('a', ${TITRE_MAX}), now(), 'Lieu')`,
   },
   { libelle: "compte-rendu absent (NULL)", requete: INSERT_EVENT("", "") },
+  // 🔴 Story 9.6 — LE FACULTATIF **EST** LE LIVRABLE (A5), donc il se prouve. Une garde qui ne
+  // vérifierait que les refus ci-dessus resterait verte le jour où `ends_at` deviendrait
+  // obligatoire, c'est-à-dire le jour où l'on casserait précisément ce que la story livre.
+  { libelle: "AUCUNE fin (le livrable de la 9.6)", requete: INSERT_EVENT("", "") },
+  {
+    libelle: "fin APRÈS le début",
+    requete: INSERT_EVENT(", ends_at", `, now() + interval '3 hours'`),
+  },
+  {
+    libelle: "fin LE LENDEMAIN (une soirée qui passe minuit)",
+    requete: INSERT_EVENT(", ends_at", `, now() + interval '1 day'`),
+  },
+  {
+    libelle: `tarif de ${TARIF_MAX} caractères (la borne elle-même)`,
+    requete: INSERT_EVENT(", price_text", `, repeat('a', ${TARIF_MAX})`),
+  },
 ];
 
 // En autotest on ajoute aux « doivent être refusées » une écriture parfaitement VALIDE :
@@ -222,6 +261,65 @@ for (const cas of ECRITURES_A_ACCEPTER) {
   const { refusee, detail } = await ecritureRefusee(cas.requete);
   if (refusee) ko("④ la base accepte", cas.libelle, `REFUSÉE alors qu'elle est valide — ${detail}`);
   else ok("④ la base accepte", cas.libelle, detail);
+}
+
+// ── ⑫  LE TEXTE DES DEUX CONTRAINTES NEUVES EST LU (Story 9.6) ─────────────────────
+//
+// 🔴 LES ÉCRITURES CI-DESSUS NE SUFFISENT PAS, ET C'EST UNE LEÇON PAYÉE ROUGE
+// (`gate:ateliers` ⑧) : la null-safety d'un `CHECK` ne se mesure **PAS** par une écriture,
+// parce qu'un `CHECK` qui vaut `NULL` **PASSE**. Avec la branche `is null` retirée, la
+// contre-épreuve « colonne à `NULL` » resterait **VERTE** — aveugle par construction. Le seul
+// témoin est le TEXTE de la contrainte.
+//
+// ⚠️ ET LE DANGER N'EST PAS OÙ ON L'ATTEND, d'où ce paragraphe : `starts_at` est `notNull`,
+// donc `ends_at > starts_at` ne peut valoir `NULL` que si `ends_at` l'est — cas déjà
+// court-circuité par la branche de gauche. `event_fin_apres_debut` est donc null-safe **par
+// construction**, comme `tournament_podium_sans_trou_2`, et un `coalesce` ajouté par mimétisme
+// avec `event_has_venue` serait une garde qui ne garde rien. Ce qu'on exige ici est la
+// **présence de la branche `is null`** et la **stricte** inégalité — pas un `coalesce`.
+{
+  const CONTRAINTES = [
+    { nom: "event_fin_apres_debut", motif: /IS NULL/i, quoi: "branche `is null` explicite" },
+    { nom: "event_price_text_valide", motif: /IS NULL/i, quoi: "branche `is null` explicite" },
+  ];
+
+  for (const c of CONTRAINTES) {
+    const lignes = await sql<{ definition: string }[]>`
+      select pg_get_constraintdef(oid) as definition from pg_constraint
+      where conrelid = 'event'::regclass and conname = ${c.nom}`;
+
+    if (lignes.length === 0) {
+      ko("⑫ null-safety lue", c.nom, "la contrainte N'EXISTE PAS en base");
+      continue;
+    }
+    const definition = lignes[0].definition;
+    // En autotest on exige une formule qui n'y est pas : la garde doit le voir.
+    const trouve = AUTOTEST ? /coalesce/i.test(definition) : c.motif.test(definition);
+    if (trouve) {
+      ok("⑫ null-safety lue", c.nom, `${c.quoi} — ${definition}`);
+    } else {
+      ko(
+        "⑫ null-safety lue",
+        c.nom,
+        `pas de ${c.quoi} : la contrainte vaudra NULL sur le cas qu'elle interdit, donc PASSERA — ${definition}`,
+      );
+    }
+  }
+
+  // La stricte inégalité, qui n'est pas une question de nullité mais de sens : une fin égale au
+  // début n'est pas une fin. Les écritures ci-dessus la prouvent aussi — les deux mesures se
+  // recoupent volontairement, parce qu'un `CHECK` peut être présent dans le texte et `NOT VALID`
+  // dans les faits, ou l'inverse (droppé sur la base réelle sans que le fichier bouge).
+  {
+    const [ligne] = await sql<{ definition: string }[]>`
+      select pg_get_constraintdef(oid) as definition from pg_constraint
+      where conrelid = 'event'::regclass and conname = 'event_fin_apres_debut'`;
+    if (ligne) {
+      const stricte = AUTOTEST ? />=/.test(ligne.definition) : />(?!=)/.test(ligne.definition);
+      if (stricte) ok("⑫ null-safety lue", "event_fin_apres_debut", "inégalité STRICTE");
+      else ko("⑫ null-safety lue", "event_fin_apres_debut", `non stricte : ${ligne.definition}`);
+    }
+  }
 }
 
 // ── ⑤  Aucun événement NON PUBLIÉ ne doit apparaître sur le site public ─────────────

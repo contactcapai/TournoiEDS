@@ -4,7 +4,7 @@ import { Brush, Button, ExternalIcon, PhotoFrame } from "@repo/ui";
 
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { formatLongDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
 import { podiumVisible } from "@/lib/podium";
@@ -62,6 +62,7 @@ export function FicheTournoi({
   const salle = cleanText(tournoi.venueName);
   const format = cleanText(tournoi.formatText);
   const lots = cleanText(tournoi.prizes);
+  const tarif = cleanText(tournoi.priceText);
 
   /**
    * 🔴 LE PODIUM NE SE REND QUE SUR UN TOURNOI PASSÉ — RÈGLE QU'AUCUN `CHECK` NE POUVAIT TENIR
@@ -170,12 +171,20 @@ export function FicheTournoi({
               🔴 CHAQUE LIGNE FACULTATIVE DISPARAÎT ENTIÈREMENT quand la donnée manque —
               jamais une étiquette orpheline, jamais « — », jamais « Non renseigné »
               (NFR8, UX-DR10). Seuls la date et le jeu sont inconditionnels : `starts_at`
-              et `game` sont `notNull` ET non vides (`tournament_game_valide`). */}
+              et `game` sont `notNull` ET non vides (`tournament_game_valide`).
+              🔴 CE BLOC EST LE CONTENU D'A23 ①, ET LA STORY 9.6 L'ÉTEND de deux faits — le
+              tarif et l'horaire de fin. La note d'architecture §13 est corrigée À LA SOURCE
+              plutôt que contredite en silence ici. */}
           <dl className={styles.essentiel}>
             <div className={styles.ligne}>
               <dt className={styles.terme}>Quand</dt>
+              {/* `densite="longue"` : la fiche a la place d'écrire la date en toutes lettres
+                  quand la fin tombe un autre jour, là où les cartes se contentent de
+                  « dim. 22/11 ». C'est le seul écart entre les quatre surfaces, et il a un
+                  consommateur réel de chaque côté — pas une prop « au cas où ». */}
               <dd className={styles.valeur}>
-                {formatLongDate(tournoi.startsAt)} · {formatTime(tournoi.startsAt)}
+                {formatLongDate(tournoi.startsAt)} ·{" "}
+                {formatPlageHoraire(tournoi.startsAt, tournoi.endsAt, "longue")}
               </dd>
             </div>
 
@@ -188,6 +197,19 @@ export function FicheTournoi({
               <div className={styles.ligne}>
                 <dt className={styles.terme}>Où</dt>
                 <dd className={styles.valeur}>{salle}</dd>
+              </div>
+            ) : null}
+
+            {/* Le tarif (Story 9.6, dette R55). Absent ⇒ la ligne disparaît ENTIÈREMENT —
+                surtout pas « Gratuit » par défaut : `null` veut dire « on ne l'a pas dit »,
+                et le déduire serait affirmer un fait qu'on n'a pas (famille R48).
+                ⚠️ Placé AVANT « Places » : combien ça coûte et combien il reste de places
+                répondent à la même question — « est-ce que je peux venir ? » — et le prix
+                est celui des deux qui fait renoncer. */}
+            {tarif ? (
+              <div className={styles.ligne}>
+                <dt className={styles.terme}>Tarif</dt>
+                <dd className={styles.valeur}>{tarif}</dd>
               </div>
             ) : null}
 

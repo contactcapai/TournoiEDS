@@ -6,7 +6,12 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
-import { diagnostiquerHeureMurale, parisWallClockFromInput, toInputValue } from "@/lib/date-paris";
+import {
+  avertissementHeuresMurales,
+  parisWallClockFromInput,
+  parisWallClockOptionnelFromInput,
+  toInputValue,
+} from "@/lib/date-paris";
 import {
   DESCRIPTION_MAX,
   EVENT_TYPES,
@@ -14,6 +19,7 @@ import {
   LIEU_ADRESSE_MAX,
   LIEU_NOM_MAX,
   RECAP_MAX,
+  TARIF_MAX,
   TITRE_MAX,
   eventInputSchema,
 } from "@/lib/schemas/event";
@@ -46,6 +52,11 @@ const ORDRE_CHAMPS = [
   "venueName",
   "venueAddress",
   "startsAt",
+  // Story 9.6 — à leur place VISUELLE, entre la date et les jeux. L'ordre de ce tableau décide
+  // où va le focus après une erreur : les ajouter en fin de liste ferait remonter la page au
+  // mauvais champ, sur un formulaire qui en compte désormais dix.
+  "endsAt",
+  "priceText",
   "games",
   "description",
   "recap",
@@ -83,6 +94,14 @@ export function EventForm({ bars, evenement }: EventFormProps) {
   const [startsAt, setStartsAt] = useState(
     evenement ? toInputValue(evenement.startsAt) : "",
   );
+  // Story 9.6 — `toInputValue` et JAMAIS `toISOString()` pour le pré-remplissage : le second
+  // afficherait l'heure UTC, et le bénévole « corrigerait » une heure qui était juste (piège ②
+  // en tête de la section SAISIE de `lib/date-paris.ts`). Absente ⇒ champ VIDE, jamais la
+  // chaîne « null » — et c'est le champ vide qui redira « pas de fin » au prochain envoi.
+  const [endsAt, setEndsAt] = useState(
+    evenement?.endsAt ? toInputValue(evenement.endsAt) : "",
+  );
+  const [priceText, setPriceText] = useState(evenement?.priceText ?? "");
   const [games, setGames] = useState(evenement?.games ?? "");
   const [description, setDescription] = useState(evenement?.description ?? "");
   const [recap, setRecap] = useState(evenement?.recap ?? "");
@@ -119,6 +138,19 @@ export function EventForm({ bars, evenement }: EventFormProps) {
         });
       }
 
+      // 🔴 L'heure de fin est FACULTATIVE : « vide » et « illisible » se distinguent, sans quoi
+      // une faute de frappe effacerait une fin déjà enregistrée. MÊME lecture que le serveur
+      // (`lireHeureDeFin`) — deux règles de fuseau divergentes seraient invisibles en local.
+      const lectureFin = parisWallClockOptionnelFromInput(String(formData.get("endsAt") ?? ""));
+      if (lectureFin.cas === "invalide") {
+        return echec({
+          error: "Cette heure de fin n'existe pas.",
+          fieldErrors: {
+            endsAt: "Vérifiez le jour, le mois et l'heure : cette date n'existe pas.",
+          },
+        });
+      }
+
       const analyse = eventInputSchema.safeParse({
         type: formData.get("type") ?? undefined,
         title: formData.get("title"),
@@ -126,6 +158,8 @@ export function EventForm({ bars, evenement }: EventFormProps) {
         venueName: formData.get("venueName"),
         venueAddress: formData.get("venueAddress"),
         startsAt: instant,
+        endsAt: lectureFin.cas === "ok" ? lectureFin.instant : null,
+        priceText: formData.get("priceText"),
         games: formData.get("games"),
         description: formData.get("description"),
         recap: formData.get("recap"),
@@ -179,8 +213,14 @@ export function EventForm({ bars, evenement }: EventFormProps) {
   const erreurs = etat.fieldErrors ?? {};
   /** Identifiant de l'événement une fois créé — décide du libellé du bouton. */
   const idCourant = etat.idEnregistre ?? evenement?.id ?? null;
-  const diagnostic = startsAt ? diagnostiquerHeureMurale(startsAt) : { cas: "ok" as const };
-  const avertissementHeure = diagnostic.cas === "ok" ? null : diagnostic.message;
+  // 🔴 LES DEUX BORNES, PAS SEULEMENT LE DÉBUT — CORRIGÉ EN REVUE (Story 9.6).
+  // Cet avertissement EN DIRECT ne regardait que `startsAt`. Depuis que le formulaire porte une
+  // heure de fin, une fin saisie dans l'heure inexistante de fin mars ou dans l'heure ambiguë de
+  // fin octobre n'était signalée **ni pendant la frappe, ni à l'envoi** — la Server Action
+  // portait le même défaut. La composition (et le préfixage, sans lequel « L'événement sera
+  // enregistré à 3h00 » serait faux appliqué à une fin) vit dans `lib/date-paris.ts`, en un seul
+  // endroit pour les trois consommateurs.
+  const avertissementHeure = avertissementHeuresMurales(startsAt, endsAt);
 
   return (
     <form action={soumettre} className={styles.form} noValidate>
@@ -281,6 +321,55 @@ export function EventForm({ bars, evenement }: EventFormProps) {
           {avertissementHeure}
         </p>
       ) : null}
+
+      {/* 🔴 L'HEURE DE FIN — FACULTATIVE, ET L'AIDE DIT CE QUE LE VISITEUR VERRA (Story 9.6).
+          Patron `AIDES_MODE_INSCRIPTION` de `TournoiForm` : on écrit au bénévole l'EFFET de son
+          geste sur le site public, pas le format attendu du champ (le navigateur s'en charge).
+          ⚠️ Elle nomme les DEUX cas — rempli et vide — parce que le vide est ici une décision,
+          pas un oubli : un jeudi en bar n'a pas de fin, et la phrase « on reste tant qu'on
+          veut » est précisément ce que le site rend à sa place. */}
+      <ChampTexte
+        id="evenement-endsAt"
+        name="endsAt"
+        label="Heure de fin (facultative)"
+        type="datetime-local"
+        valeur={endsAt}
+        onChange={setEndsAt}
+        aide={
+          "Heure de Reims. Laissée vide, le site n'annonce aucune fin — sur un jeudi il écrit " +
+          "« on reste tant qu'on veut ». Une fin après minuit se saisit avec la date du lendemain."
+        }
+        erreur={erreurs.endsAt}
+      />
+
+      {/* 🔴 L'AIDE SE DÉRIVE DE LA NATURE, ET C'EST UN CORRECTIF DE REVUE (Acceptance Auditor).
+          Elle disait, pour les deux types : *« Laissé vide, le site n'affiche aucun tarif — il
+          n'annonce pas la gratuité à votre place »*. **Faux pour un jeudi jeux**, qui est le
+          type le plus fréquent du site : sans tarif, sa carte rend « **Gratuit** · ouvert à
+          tous, même sans matériel » — c'est le REPLI d'A3, et c'est voulu. L'aide promettait
+          donc l'inverse de ce que le visiteur verrait, sur la nature majoritaire.
+          ⚠️ Le formulaire est UNIQUE pour les deux types (le sélecteur est en haut de cet
+          écran) : une aide fixe est nécessairement fausse pour l'un des deux. Elle suit donc
+          `type`, comme le rendu suit la nature — c'est la même règle, dite des deux côtés.
+          ⚠️ Et l'AC exige que l'aide dise **ce que le visiteur verra**, pas le format attendu du
+          champ (patron `AIDES_MODE_INSCRIPTION`). */}
+      <ChampTexte
+        id="evenement-priceText"
+        name="priceText"
+        label="Tarif"
+        valeur={priceText}
+        onChange={setPriceText}
+        max={TARIF_MAX}
+        aide={
+          type === "thursday"
+            ? "En toutes lettres : « 5 € », « 3 € adhérents ». Laissé vide, un jeudi jeux " +
+              "annonce « Gratuit · ouvert à tous, même sans matériel » — ne le renseignez que " +
+              "si la soirée est payante."
+            : "En toutes lettres : « 5 € », « Gratuit », « 3 € adhérents ». Laissé vide, le " +
+              "site n'affiche aucun tarif — il n'annonce pas la gratuité à votre place."
+        }
+        erreur={erreurs.priceText}
+      />
 
       <ChampTexte
         id="evenement-games"

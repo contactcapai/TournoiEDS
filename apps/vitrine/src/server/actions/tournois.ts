@@ -2,7 +2,7 @@
 
 import { and, eq } from "drizzle-orm";
 
-import { parisWallClockFromInput, diagnostiquerHeureMurale } from "../../lib/date-paris";
+import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { tournamentInputSchema } from "../../lib/schemas/tournament";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
@@ -11,6 +11,7 @@ import { tournament } from "../db/schema";
 import {
   erreursParChamp,
   identifiant,
+  lireHeureDeFin,
   messageErreurBase as traduireErreurBase,
   type ResultatAction,
 } from "./_commun";
@@ -54,7 +55,13 @@ import {
 /**
  * Nom lisible du champ derrière chaque contrainte de la table `tournament`.
  *
- * 🔴 LES QUATORZE NOMS SONT CEUX DE LA MIGRATION `0014`, VÉRIFIÉS DANS LE `.sql` GÉNÉRÉ. Une
+ * 🔴 LES NOMS SONT CEUX DES MIGRATIONS `0014`, `0015` ET `0017`, VÉRIFIÉS DANS LES `.sql`
+ * GÉNÉRÉS. ⚠️ **Ce bloc annonçait « les QUATORZE noms » — le compte est retiré le 2026-08-14
+ * (Story 9.6), et c'est le correctif.** Il valait pour les deux tables réunies au moment où il a
+ * été écrit ; il s'est désaligné à la première contrainte ajoutée, exactement comme les cinq
+ * comptes à la main que ce projet a déjà payés (`_sections.ts`, `CHAMPS_URL`, la couverture
+ * d'autotest de `gate:reseaux`, la liste `INTERDITS` de `gate:tournois`, l'en-tête de
+ * `tournament`). Ce qui fait foi est le `.sql`, pas un nombre recopié ici. Une
  * contrainte absente de cette table retombe sur un message générique qui **ne nomme aucun
  * champ** — c'est le défaut trouvé en revue de la 6.3, où huit contraintes sur dix y tombaient.
  * ⚠️ TABLE PROPRE À CE DOMAINE : le traducteur d'`_commun.ts` est partagé, sa table ne l'est
@@ -70,6 +77,8 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
   tournament_venue_name_valide: "le lieu du tournoi",
   tournament_format_text_valide: "le déroulé annoncé",
   tournament_prizes_valide: "les lots",
+  tournament_price_text_valide: "le tarif", // Story 9.6
+
   tournament_match_duration_valide: "la durée d'un match",
   tournament_capacity_valide: "le nombre de places",
   tournament_registration_url_valide: "l'adresse d'inscription",
@@ -106,6 +115,16 @@ const CAS_PARTICULIERS: Record<string, string> = {
     "Renseignez la première place du podium avant la deuxième.",
   tournament_podium_sans_trou_3:
     "Renseignez la deuxième place du podium avant la troisième.",
+  /**
+   * Story 9.6. Elle regarde **deux** colonnes, donc elle est ici et pas dans la table
+   * précédente : nommer « l'heure de fin » seule laisserait croire que la valeur est
+   * malformée, alors que c'est sa RELATION au début qui ne va pas.
+   * ⚠️ Le message parle du **jour** autant que de l'heure : la faute la plus probable est une
+   * fin après minuit saisie avec la date du début.
+   */
+  tournament_fin_apres_debut:
+    "L'heure de fin doit être après le début. Vérifiez le jour autant que l'heure : une fin " +
+    "après minuit tombe le lendemain.",
 };
 
 /**
@@ -229,6 +248,16 @@ export async function enregistrerTournoi(
     };
   }
 
+  // 🔴 Story 9.6 — l'heure de fin est FACULTATIVE, et sa lecture ne peut pas être celle du
+  // début : `null` y voudrait dire à la fois « pas renseigné » et « illisible », donc une faute
+  // de frappe EFFACERAIT une fin déjà enregistrée. C'est le symétrique exact de ce
+  // qu'`entierOptionnel` fait quelques lignes plus haut, et pour le même motif — d'où une
+  // lecture partagée, `lireHeureDeFin`, plutôt qu'une seconde règle de fuseau.
+  const lectureFin = lireHeureDeFin(formData);
+  if (!lectureFin.ok) {
+    return { ok: false, error: lectureFin.error, fieldErrors: lectureFin.fieldErrors };
+  }
+
   const analyse = tournamentInputSchema.safeParse({
     eventId: String(formData.get("eventId") ?? ""),
     photoId: formData.get("photoId"),
@@ -236,6 +265,8 @@ export async function enregistrerTournoi(
     game: formData.get("game"),
     slug: formData.get("slug"),
     startsAt: instant,
+    endsAt: lectureFin.fin,
+    priceText: formData.get("priceText"),
     venueName: formData.get("venueName"),
     formatText: formData.get("formatText"),
     prizes: formData.get("prizes"),
@@ -320,8 +351,14 @@ export async function enregistrerTournoi(
     };
   }
 
-  const diagnostic = diagnostiquerHeureMurale(saisieDate);
-  const avertissement = diagnostic.cas === "ok" ? null : diagnostic.message;
+  // 🔴 LES DEUX BORNES, ET LA COMPOSITION VIT DANS `lib/date-paris.ts` (Story 9.6, corrigé en
+  // revue). Ce code écrivait un TERNAIRE sous un commentaire qui affirmait montrer les deux
+  // messages — il n'en rendait jamais qu'un. Le défaut était COPIÉ À L'IDENTIQUE dans
+  // `actions/agenda.ts`, commentaire compris : deux exemplaires d'une même affirmation fausse.
+  const avertissement = avertissementHeuresMurales(
+    saisieDate,
+    String(formData.get("endsAt") ?? ""),
+  );
 
   try {
     if (idExistant === null) {
