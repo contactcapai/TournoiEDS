@@ -1,3 +1,4 @@
+// @porte surface=outillage effet=lecture story=retro-2
 // 🔬 AUTO-TEST DE L'INSTRUMENT — prouve que les trois détecteurs SAVENT ÉCHOUER.
 //
 // Sans lui, un « ✅ PORTE VERTE » est ambigu : le site est-il sain, ou le détecteur

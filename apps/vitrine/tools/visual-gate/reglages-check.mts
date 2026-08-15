@@ -1,3 +1,4 @@
+// @porte surface=reglages effet=base story=6.13
 // 🔬 SURFACE « RÉGLAGES » — LA 18ᵉ PORTE (Story 6.13)
 //
 // Pourquoi une porte dédiée — ce que ni lint, ni typecheck, ni build, ni Lighthouse, ni les

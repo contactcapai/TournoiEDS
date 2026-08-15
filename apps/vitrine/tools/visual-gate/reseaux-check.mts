@@ -1,3 +1,4 @@
+// @porte surface=reseaux effet=base tiers=faux story=6.7
 // 🔬 SURFACE « PUBLICATION RÉSEAUX » — LA 19ᵉ PORTE (Story 6.7)
 //
 // Pourquoi une porte dédiée — ce que ni lint, ni typecheck, ni build, ni Lighthouse, ni les

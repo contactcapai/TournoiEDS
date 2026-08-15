@@ -1,3 +1,4 @@
+// @porte surface=medias effet=lecture story=4.3
 // 🔬 GARDE DES IMAGES SERVIES (Story 4.3).
 //
 // ══════════════════════════════════════════════════════════════════════════════════

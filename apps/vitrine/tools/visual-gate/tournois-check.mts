@@ -1,3 +1,4 @@
+// @porte surface=tournois effet=base story=9.1
 // 🔬 GARDE DE LA SURFACE « TOURNOIS » (Story 9.1) — 21ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :

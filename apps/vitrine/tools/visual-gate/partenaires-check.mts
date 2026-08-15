@@ -1,3 +1,4 @@
+// @porte surface=partenaires effet=base+disque story=6.5
 // 🔬 GARDE DE LA SURFACE « PARTENAIRES » (Story 6.5) — 14ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :

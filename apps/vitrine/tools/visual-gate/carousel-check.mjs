@@ -1,3 +1,4 @@
+// @porte surface=agenda effet=lecture story=3.3
 // 🔬 GARDE COMPORTEMENTALE DU CARROUSEL « déjà passé » (/agenda, Story 3.3).
 //
 // Pourquoi un contrôle dédié : Lighthouse **n'audite pas** `scrollable-region-focusable`

@@ -1,3 +1,4 @@
+// @porte surface=membres effet=base+disque story=6.10
 // 🔬 GARDE DE LA SURFACE « MEMBRES » (Story 6.10) — 16ᵉ instrument du projet.
 //
 // Pourquoi un contrôle dédié — et ce que RIEN d'autre ne voit :

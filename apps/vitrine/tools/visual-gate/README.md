@@ -65,7 +65,32 @@ garde s'ajoute) :
 
 ## Les portes comportementales
 
-Une porte par surface dont le défaut ne se voit **ni au build, ni à l'œil** :
+Une porte par surface dont le défaut ne se voit **ni au build, ni à l'œil**.
+
+### 🗺️ « Je touche à ça, je passe quoi ? » — `gate:list`
+
+```bash
+pnpm --filter vitrine gate:list            # toutes les portes, groupées par surface
+pnpm --filter vitrine gate:list agenda     # celles qui gardent l'agenda
+```
+
+🔴 **C'EST LA SOURCE, ET LE TABLEAU CI-DESSOUS N'EN EST PLUS QU'UNE COPIE D'ILLUSTRATION.**
+La liste des portes vient de `package.json`, l'accès base vient de la **lecture du source** de
+chaque porte, et la surface/l'effet sont **déclarés dans le fichier de la porte elle-même**
+(`// @porte surface=… effet=…`, donc ça vit et ça meurt avec elle). `gate:list` sort en **code
+1** si une porte de `package.json` n'est pas déclarée, si son fichier a disparu, ou — la garde
+qui compte — si sa **déclaration contredit son code** (elle se dit `lecture` alors que son
+source ouvre une connexion Postgres).
+
+⚠️ **Motif : ce tableau a été faux DEUX fois** (2026-08-05, puis 2026-08-14). Une énumération
+alignée à la main se désaligne à l'ajout suivant — c'est le 5ᵉ exemplaire du même défaut sur ce
+projet (`_sections.ts`, `CHAMPS_URL`, la couverture d'autotest de `gate:reseaux`, ce tableau
+deux fois). On ne le réaligne donc plus : on le **dérive**.
+
+✅ **Et il a trouvé quelque chose dès sa première exécution** : les portes privées
+d'environnement par la règle du 2026-08-13 sont **SEPT**, pas six. `gate:reseaux` lit elle
+aussi `DATABASE_URL` dans le fichier `.env.local` et non dans `process.env` — un relevé fait à
+la main l'avait manquée le jour même.
 
 ```bash
 pnpm --filter vitrine gate:carousel      # carrousel des temps forts (3.3)
