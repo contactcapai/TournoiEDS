@@ -10,7 +10,9 @@ import {
   type ResultatDeManche,
 } from "../../../lib/tournoi/classement";
 import type { SourceResolue } from "../../../lib/tournoi/generation";
+import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
 import { calculerPropagation, issueDeRencontre } from "../../../lib/tournoi/progression";
+import type { PhaseKind } from "../../../lib/tournoi/structure";
 import { db } from "../client";
 import {
   tournament,
@@ -174,6 +176,51 @@ export async function getRencontresDePhase(phaseId: string) {
 }
 
 export type RencontreJouable = Awaited<ReturnType<typeof getRencontresDePhase>>[number];
+
+/**
+ * Le rang de chacun DANS une phase, déduit de sa structure (correctif du 2026-08-15).
+ *
+ * 🔴 IL EXISTE PARCE QUE LE CLASSEMENT AUX POINTS NE VOIT QUE LES LOBBIES. Mesuré sur le tournoi
+ * réel de Brice : 14 places au **score**, aucun rang, donc un classement vide sur une double
+ * élimination entièrement jouée. Le rang se **déduit** ici, il ne se saisit pas.
+ *
+ * ⚠️ Rend `null` pour `lobbies` et `finale` : là, le rang **est** le classement aux points, et en
+ * fabriquer un second à partir des places serait une deuxième définition du même fait.
+ */
+export function rangsDeLaPhase(kind: PhaseKind, rencontres: readonly RencontreJouable[]) {
+  if (kind === "lobbies" || kind === "finale") return null;
+
+  const nomParEngage = new Map<string, string>();
+  for (const rencontre of rencontres) {
+    for (const place of rencontre.places) {
+      if (place.entryId !== null && place.nom !== null) nomParEngage.set(place.entryId, place.nom);
+    }
+  }
+
+  const lignes =
+    kind === "poule"
+      ? rangsParVictoires(rencontres, nomParEngage)
+      : rangsParParcours(rencontres, nomParEngage);
+
+  return {
+    lignes: lignes.map((ligne) => ({ ...ligne, nom: nomParEngage.get(ligne.id) ?? "—" })),
+    nomParEngage,
+    /** Vrai quand la phase est jouée jusqu'au bout : un seul engagé au sommet, sans ex æquo. */
+    termine:
+      rencontres.length > 0 &&
+      rencontres.every((r) => r.issue.complete) &&
+      lignes.filter((l) => l.rang === 1).length === 1,
+  };
+}
+
+/**
+ * 🔴 UNE PHASE PORTE-T-ELLE UN RÉSULTAT, QUEL QU'IL SOIT ? Le classement aux points ne compte que
+ * les **rangs** ; cette question-ci compte aussi les **scores**. Sans elle, l'écran affichait
+ * « Aucun résultat saisi » sur un tournoi entièrement joué au score — la phrase fausse qui fait
+ * croire à une panne.
+ */
+export const aDesResultatsSaisis = (rencontres: readonly RencontreJouable[]) =>
+  rencontres.some((r) => r.places.some((p) => p.rank !== null || p.score !== null));
 
 /**
  * Le classement du tournoi, recalculé depuis **toutes** les manches classées.

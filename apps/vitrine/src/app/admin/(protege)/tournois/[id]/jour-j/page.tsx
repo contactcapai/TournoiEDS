@@ -4,16 +4,20 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
 import { JourJ } from "@/components/admin/JourJ/JourJ";
+import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { lireAdmin } from "@/server/auth/guard";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
+import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
+  aDesResultatsSaisis,
   getClassementDuTournoi,
   getPhasePourJeu,
   getPresentsDuTournoi,
   getRencontresDePhase,
   phaseADesResultats,
+  rangsDeLaPhase,
 } from "@/server/db/queries/rencontres";
 import styles from "@/styles/admin-page.module.css";
 import propre from "./jour-j.module.css";
@@ -46,8 +50,9 @@ export default async function JourJPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [tournoi, phases, engages, presents, classement] = await Promise.all([
+  const [tournoi, fiche, phases, engages, presents, classement] = await Promise.all([
     getTournoiPourEngages(id),
+    getTournamentById(id),
     getPhasesForTournament(id),
     getEngagesForTournament(id),
     getPresentsDuTournoi(id),
@@ -72,6 +77,13 @@ export default async function JourJPage({
         phaseADesResultats(active.id),
       ])
     : [undefined, [], false];
+
+  // 🔴 LE RANG DANS LA PHASE, DÉDUIT DE SA STRUCTURE — c'est lui qui manquait au tournoi réel du
+  // 2026-08-15 : un bracket joué au score ne produisait aucun classement, donc l'écran affirmait
+  // qu'aucun résultat n'était saisi. `null` pour les phases de tables : là, le classement aux
+  // points ci-dessous EST le rang.
+  const rangs = phaseComplete ? rangsDeLaPhase(phaseComplete.kind, rencontres) : null;
+  const resultatsSaisis = aDesResultatsSaisis(rencontres);
 
   return (
     <>
@@ -143,6 +155,72 @@ export default async function JourJPage({
               />
             ) : null}
           </div>
+
+          {/* ══════════════════════════════════════════════════════════════════════════════
+              LE RANG DANS CETTE PHASE — déduit, jamais saisi
+              ══════════════════════════════════════════════════════════════════════════
+              🔴 C'est ce qui manquait au tournoi réel du 2026-08-15 : une double élimination
+              entièrement jouée au score ne produisait AUCUN classement, et l'écran affirmait
+              qu'aucun résultat n'était saisi. Les rangs sont DENSES : quatre joueurs sortis au
+              premier tour sont tous 5ᵉ, parce que leur inventer un ordre serait un faux. */}
+          {rangs && rangs.lignes.length > 0 ? (
+            <section className={styles.section} aria-labelledby="jour-j-rangs">
+              <h2 className={styles.sectionTitre} id="jour-j-rangs">
+                Rang dans « {active?.name} »
+              </h2>
+              <div className={propre.tableWrap}>
+                <table className={propre.table}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rang</th>
+                      <th scope="col">Engagé</th>
+                      <th scope="col">
+                        {phaseComplete?.kind === "poule" ? "Victoires" : "Sorti au niveau"}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rangs.lignes.map((ligne) => (
+                      <tr key={ligne.id}>
+                        <td>
+                          {ligne.rang}
+                          {ligne.exAequo > 1 ? (
+                            <span className={propre.abandon}>
+                              {" "}
+                              ex æquo ({ligne.exAequo})
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>{ligne.nom}</td>
+                        <td>
+                          {phaseComplete?.kind === "poule"
+                            ? ligne.profondeur
+                            : ligne.profondeur === null
+                              ? "encore en course"
+                              : ligne.profondeur}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className={styles.mention} role="note">
+                {phaseComplete?.kind === "poule" ? (
+                  <>
+                    <strong>Classée aux victoires</strong>, puis à la différence de score. Dans une
+                    poule personne n&rsquo;est éliminé : chacun rencontre chacun.
+                  </>
+                ) : (
+                  <>
+                    <strong>Déduit du tableau</strong>, jamais saisi : votre rang est{" "}
+                    <em>jusqu&rsquo;où vous êtes allé</em>. En double élimination, une défaite chez
+                    les vainqueurs ne sort pas — elle fait descendre chez les perdants.
+                  </>
+                )}
+              </p>
+            </section>
+          ) : null}
         </>
       )}
 
@@ -158,9 +236,26 @@ export default async function JourJPage({
         </h2>
 
         {classement.length === 0 ? (
+          /* 🔴 CETTE PHRASE A MENTI, ET C'EST LE TOURNOI RÉEL DE BRICE QUI L'A MONTRÉ. Elle disait
+             « aucun résultat saisi » sur une double élimination ENTIÈREMENT jouée : le classement
+             aux points ne compte que les places portant un **rang**, et un bracket se saisit au
+             **score**. Une phrase fausse sur un écran de saisie fait chercher une panne qui
+             n'existe pas. Elle distingue donc désormais les deux cas. */
           <p className={styles.vide}>
-            Aucun résultat saisi pour l&rsquo;instant — le classement apparaîtra dès la première
-            rencontre dépouillée. Il se recalcule à chaque affichage : rien n&rsquo;est figé.
+            {resultatsSaisis ? (
+              <>
+                <strong>Ce classement-ci ne concerne que les tables</strong> (lobbies, finale) :
+                il compte les <strong>places</strong>, pas les scores. Vos résultats sont bien
+                enregistrés — c&rsquo;est le <strong>rang dans la phase</strong>, juste au-dessus,
+                qui les traduit.
+              </>
+            ) : (
+              <>
+                Aucun résultat saisi pour l&rsquo;instant — le classement apparaîtra dès la
+                première table dépouillée. Il se recalcule à chaque affichage : rien
+                n&rsquo;est figé.
+              </>
+            )}
           </p>
         ) : (
           <div className={propre.tableWrap}>
@@ -199,6 +294,29 @@ export default async function JourJPage({
             </table>
           </div>
         )}
+
+        {/* 🔴 CE QUI RELIE LE MOTEUR À CE QUE LE SITE PUBLIE. Sans ce bouton, on finit un tournoi
+            et on retape le podium à la main sur un autre écran — c'est ce qui est arrivé le
+            2026-08-15 : la grande finale avait un vainqueur, le podium était vide. */}
+        <div className={styles.barreActions}>
+          <PodiumDeduit
+            tournoiId={tournoi.id}
+            podiumActuel={{
+              premier: fiche?.podiumFirst ?? null,
+              deuxieme: fiche?.podiumSecond ?? null,
+              troisieme: fiche?.podiumThird ?? null,
+            }}
+          />
+        </div>
+
+        {fiche?.podiumFirst ? (
+          <p className={styles.mention} role="note">
+            <strong>Podium enregistré :</strong> 1ᵉʳ {fiche.podiumFirst}
+            {fiche.podiumSecond ? `, 2ᵉ ${fiche.podiumSecond}` : ""}
+            {fiche.podiumThird ? `, 3ᵉ ${fiche.podiumThird}` : ""}. Il paraît sur la fiche
+            publique du tournoi — la corriger se fait depuis « Modifier ».
+          </p>
+        ) : null}
 
         <p className={styles.mention} role="note">
           <strong>Départages, dans cet ordre :</strong> points totaux, puis premières places,
