@@ -7,7 +7,7 @@ import { tournamentInputSchema } from "../../lib/schemas/tournament";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
 import { slugDejaPris } from "../db/queries/tournaments";
-import { tournament } from "../db/schema";
+import { tournament, tournamentPhase } from "../db/schema";
 import {
   erreursParChamp,
   identifiant,
@@ -489,6 +489,27 @@ export async function definirPublicationTournoi(
  * La confirmation en DEUX TEMPS vit côté écran (`BoutonConfirmation`) : c'est là qu'elle
  * protège quelqu'un. Une seconde garde côté serveur n'empêcherait rien qu'un POST direct ne
  * contourne de toute façon — et `requireAdmin()` est la garde qui, elle, compte.
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LES PHASES PARTENT **AVANT** LE TOURNOI, ET CE N'EST PAS UNE PRÉCAUTION : SANS ÇA, LA
+ * SUPPRESSION ÉCHOUE — DÉFAUT MESURÉ LE 2026-08-15 SUR BASE JETABLE (Story 10.8).
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `tournament_match_slot.entry_id` est en **`ON DELETE RESTRICT`** (décision de la 10.1 : un
+ * engagé qui a joué ne se supprime pas). Le `DELETE` simple comptait sur les cascades, mais
+ * Postgres ne garantit **aucun ordre** entre deux chemins de cascade concurrents : celui qui
+ * détruit les engagés peut s'exécuter avant celui qui détruit les places de rencontre, et le
+ * `RESTRICT` tire alors — `23503`.
+ *
+ * ⚠️ LE CAS ÉTAIT INATTEIGNABLE JUSQU'À LA 10.8, et c'est pour ça que personne ne l'avait vu :
+ * rien ne créait de `tournament_match_slot`. Dès qu'une phase est générée, supprimer le tournoi
+ * échouait — et `messageErreurBase` traduisait le `23503` en *« L'élément choisi n'existe plus,
+ * rechargez la page »*, c'est-à-dire une phrase **fausse** invitant à recharger un écran qui
+ * afficherait exactement la même chose.
+ *
+ * ⇒ On détruit d'abord les **phases** (cascade : rencontres, puis places), ce qui retire toutes
+ * les références aux engagés ; puis le tournoi (cascade : engagés et leurs membres). Le
+ * `RESTRICT` garde tout son sens là où il compte — supprimer **un** engagé qui a joué.
  */
 export async function supprimerTournoi(id: string): Promise<ResultatAction<undefined>> {
   await requireAdmin();
@@ -498,10 +519,15 @@ export async function supprimerTournoi(id: string): Promise<ResultatAction<undef
   }
 
   try {
-    const [ligne] = await db
-      .delete(tournament)
-      .where(eq(tournament.id, id))
-      .returning({ id: tournament.id });
+    const ligne = await db.transaction(async (tx) => {
+      // Ordre EXPLICITE, jamais laissé au hasard des cascades — voir l'en-tête.
+      await tx.delete(tournamentPhase).where(eq(tournamentPhase.tournamentId, id));
+      const [supprime] = await tx
+        .delete(tournament)
+        .where(eq(tournament.id, id))
+        .returning({ id: tournament.id });
+      return supprime;
+    });
 
     if (!ligne) return { ok: false, error: "Ce tournoi a déjà été supprimé." };
     return { ok: true, data: undefined };
