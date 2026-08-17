@@ -17,15 +17,19 @@ import {
   saisieAdmissible,
   type PlaceJouee,
 } from "../../lib/tournoi/progression";
+import { podiumDepuis } from "../../lib/tournoi/parcours";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
+import { getPhasesForTournament } from "../db/queries/phases";
 import {
   getClassementDuTournoi,
   getPhasePourJeu,
   getPresentsDuTournoi,
+  getRencontresDePhase,
   phaseADesResultats,
+  rangsDeLaPhase,
 } from "../db/queries/rencontres";
-import { tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../db/schema";
+import { tournament, tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../db/schema";
 import {
   identifiant,
   messageErreurBase as traduireErreurBase,
@@ -169,7 +173,105 @@ async function propager(tx: Transaction, phaseId: string) {
       .where(inArray(tournamentMatch.id, enAttente));
   }
 
+  /**
+   * ⚠️ L'ÉTAT DE LA PHASE SE DÉRIVE AUSSI — défaut constaté sur le tournoi réel de Brice : ses
+   * deux phases restaient `en_cours` alors que **toutes** leurs rencontres étaient `terminee`, et
+   * l'écran du déroulé (10.4) l'affichait tel quel. Un état qui ne suit pas les faits est une
+   * invitation à s'y fier.
+   * ⚠️ `planifiee` n'est PAS rétabli ici : c'est l'état d'avant génération, et
+   * `effacerRencontres` est le seul geste qui y ramène.
+   */
+  if (etats.length > 0) {
+    await tx
+      .update(tournamentPhase)
+      .set({
+        state: enAttente.length === 0 ? "terminee" : "en_cours",
+        updatedAt: new Date(),
+      })
+      .where(eq(tournamentPhase.id, phaseId));
+  }
+
   return { deplacements: deplacements.length, termines: termines.length };
+}
+
+/**
+ * Pré-remplit le podium du tournoi depuis les résultats — **et un humain valide**.
+ *
+ * 🔴 NÉ DU TOURNOI RÉEL DE BRICE (2026-08-15) : sa grande finale avait un vainqueur, et le podium
+ * de `tournament` était **vide**, à taper à la main. Rien ne reliait ce que le moteur savait à ce
+ * que le site publie.
+ *
+ * 🔴 LE PODIUM VIENT DE LA **DERNIÈRE** PHASE QUI DÉSIGNE UN RANG, et c'est la seule règle
+ * défendable : c'est elle qui départage. Prendre la première, ou fusionner les phases, ferait
+ * dépendre le podium d'une poule de qualification.
+ *
+ * ⚠️ IL N'INVENTE JAMAIS UNE PLACE DISPUTÉE. Deux demi-finalistes sont 3ᵉ ex æquo : en écrire un
+ * seul serait une invention (`podiumDepuis`). La place reste vide et l'écran le dit.
+ * ⚠️ **IL ÉCRASE** un podium déjà saisi — d'où la confirmation côté écran. Pré-remplir sans le
+ * dire ferait perdre une saisie manuelle sans un mot.
+ */
+export async function prerremplirPodium(
+  tournoiId: string,
+): Promise<ResultatAction<{ premier: string | null; deuxieme: string | null; troisieme: string | null; phase: string }>> {
+  await requireAdmin();
+
+  if (!identifiant.safeParse(tournoiId).success) {
+    return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };
+  }
+
+  const phases = await getPhasesForTournament(tournoiId);
+  if (phases.length === 0) {
+    return { ok: false, error: "Ce tournoi n'a pas de déroulé : il n'y a rien d'où déduire un podium." };
+  }
+
+  // De la dernière phase vers la première : la première qui sait départager l'emporte.
+  for (const phase of [...phases].reverse()) {
+    const rencontres = await getRencontresDePhase(phase.id);
+    if (rencontres.length === 0) continue;
+
+    const rangs = rangsDeLaPhase(phase.kind, rencontres);
+
+    let proposition: { premier: string | null; deuxieme: string | null; troisieme: string | null };
+    if (rangs) {
+      if (!rangs.termine) continue;
+      proposition = podiumDepuis(rangs.lignes, rangs.nomParEngage);
+    } else {
+      // Phase de tables : c'est le classement AUX POINTS qui départage, pas le parcours.
+      const classement = await getClassementDuTournoi(tournoiId);
+      if (classement.length === 0) continue;
+      proposition = {
+        premier: classement[0]?.nom ?? null,
+        deuxieme: classement[1]?.nom ?? null,
+        troisieme: classement[2]?.nom ?? null,
+      };
+    }
+
+    if (proposition.premier === null) continue;
+
+    try {
+      await db
+        .update(tournament)
+        .set({
+          podiumFirst: proposition.premier,
+          podiumSecond: proposition.deuxieme,
+          podiumThird: proposition.troisieme,
+          updatedAt: new Date(),
+        })
+        .where(eq(tournament.id, tournoiId));
+
+      return { ok: true, data: { ...proposition, phase: phase.name } };
+    } catch (erreur) {
+      console.error("[prerremplirPodium] Échec de l'écriture :", erreur);
+      return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+    }
+  }
+
+  return {
+    ok: false,
+    error:
+      "Aucune phase ne désigne encore de vainqueur sans ambiguïté. Terminez une phase — ou " +
+      "saisissez le podium à la main depuis la fiche du tournoi.",
+  };
 }
 
 /**
