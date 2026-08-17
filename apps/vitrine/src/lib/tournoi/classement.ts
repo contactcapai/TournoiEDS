@@ -66,6 +66,25 @@ export type ResultatDeManche = {
   readonly placement: number;
   readonly points: number;
   readonly ordre: number;
+  /**
+   * 🔴 LA TAILLE DE **CETTE** TABLE — AJOUTÉE PAR LA STORY 10.8, QUI EN EST LE 1ᵉʳ CONSOMMATEUR.
+   *
+   * `statistiques()` recevait UNE taille pour toutes les manches d'un engagé. C'est juste quand
+   * tous les lobbies font 8 — et c'est faux dans le cas même que cette story existe pour
+   * servir : `repartirEnLobbies` rend **6, 6, 5** à 17 participants, et une manche suivante peut
+   * en rendre d'autres. `moitieHaute` était alors compté contre une taille qui n'était pas celle
+   * de la table jouée, donc **faux en silence** — et c'est le 3ᵉ départage de `classer()`, donc
+   * un ordre de classement faux sans rien à l'écran pour le dire.
+   *
+   * C'est exactement le motif que la 10.3 a corrigé sur les POINTS (le « 8 » codé en dur) sans
+   * l'appliquer à ce seuil-ci : le commentaire de `statistiques` disait déjà *« sur un lobby de
+   * 6, la moitié haute est le top 3 »* sans que rien ne le tienne pour des lobbies mélangés.
+   *
+   * ⚠️ Facultatif, et le repli est le paramètre de `statistiques()` : les appelants existants ne
+   * changent pas de comportement. Ce n'est donc pas une story mergée qu'on modifie, c'est un
+   * champ qu'on lui ajoute.
+   */
+  readonly tailleDuLobby?: number;
 };
 
 export type StatistiquesEngage = {
@@ -83,6 +102,13 @@ export type StatistiquesEngage = {
  * ⚠️ `moitieHaute` REMPLACE le `top4Count` de l'original, et ce n'est pas un renommage : « top
  * 4 » est la moitié haute **d'un lobby de 8**. Sur un lobby de 6, la moitié haute est le top 3
  * — compter les places 1 à 4 y récompenserait les deux tiers du plateau.
+ *
+ * 🔴 ET LE SEUIL SE CALCULE **PAR MANCHE** DEPUIS LA STORY 10.8, quand la manche porte sa propre
+ * taille (`ResultatDeManche.tailleDuLobby`). Un seul seuil pour toutes les manches d'un engagé
+ * était faux dès que les lobbies différaient — c'est-à-dire dans le cas nominal (17 participants
+ * donnent 6, 6, 5). Le raisonnement complet est sur le champ.
+ *
+ * @param tailleDuLobby repli, utilisé pour les manches qui ne portent pas la leur.
  */
 export const statistiques = (
   resultats: readonly ResultatDeManche[],
@@ -99,14 +125,14 @@ export const statistiques = (
     };
   }
 
-  const seuil = Math.ceil(tailleDuLobby / 2);
+  const seuilDe = (r: ResultatDeManche) => Math.ceil((r.tailleDuLobby ?? tailleDuLobby) / 2);
   const total = resultats.reduce((somme, r) => somme + r.points, 0);
   const derniere = resultats.reduce((tard, r) => (r.ordre > tard.ordre ? r : tard));
 
   return {
     total,
     premieres: resultats.filter((r) => r.placement === 1).length,
-    moitieHaute: resultats.filter((r) => r.placement <= seuil).length,
+    moitieHaute: resultats.filter((r) => r.placement <= seuilDe(r)).length,
     dernierPlacement: derniere.placement,
     manchesJouees: resultats.length,
     moyenne: Math.round((total / resultats.length) * 100) / 100,

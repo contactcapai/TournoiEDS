@@ -211,3 +211,50 @@ describe("méthode suisse", () => {
     );
   });
 });
+
+describe("statistiques — le seuil de moitié haute suit la taille de CHAQUE table (Story 10.8)", () => {
+  it("🔴 deux manches de tailles différentes ne partagent pas un seul seuil", () => {
+    // 17 participants donnent des lobbies de 6, 6, 5 (`repartirEnLobbies`). Une 3ᵉ place est
+    // dans la moitié haute d'un lobby de 6 (seuil 3) et PAS dans celle d'un lobby de 5
+    // (seuil 3 aussi)… il faut donc un écart plus net : 4ᵉ sur 8 (seuil 4, dedans) contre
+    // 4ᵉ sur 5 (seuil 3, dehors).
+    const s = statistiques(
+      [
+        { placement: 4, points: 5, ordre: 1, tailleDuLobby: 8 },
+        { placement: 4, points: 2, ordre: 2, tailleDuLobby: 5 },
+      ],
+      8,
+    );
+    assert.equal(
+      s.moitieHaute,
+      1,
+      "la 4ᵉ place compte sur une table de 8, pas sur une table de 5",
+    );
+  });
+
+  it("le repli reste le paramètre quand la manche ne porte pas sa taille", () => {
+    // Garde de non-régression : les appelants d'avant la 10.8 ne changent pas de comportement.
+    const s = statistiques([{ placement: 3, points: 4, ordre: 1 }], 6);
+    assert.equal(s.moitieHaute, 1);
+  });
+
+  it("un seul seuil global aurait donné un autre résultat — le test discrimine", () => {
+    const parTable = statistiques(
+      [
+        { placement: 3, points: 6, ordre: 1, tailleDuLobby: 8 },
+        { placement: 3, points: 1, ordre: 2, tailleDuLobby: 3 },
+      ],
+      8,
+    );
+    const seuilUnique = statistiques(
+      [
+        { placement: 3, points: 6, ordre: 1 },
+        { placement: 3, points: 1, ordre: 2 },
+      ],
+      8,
+    );
+    assert.equal(parTable.moitieHaute, 1);
+    assert.equal(seuilUnique.moitieHaute, 2);
+    assert.notEqual(parTable.moitieHaute, seuilUnique.moitieHaute);
+  });
+});

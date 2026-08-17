@@ -22,6 +22,27 @@ export type PlaceJouee = {
   readonly entryId: string | null;
   readonly score: number | null;
   readonly rank: number | null;
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 CETTE PLACE VIDE NE SERA-T-ELLE **JAMAIS** POURVUE ? DÉFAUT RÉEL, TROUVÉ PAR LE TEST.
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Une place vide est deux choses très différentes : une **exemption** (le tableau est plus
+   * grand que l'effectif, personne ne viendra jamais) ou une place qui **attend** le vainqueur
+   * d'une rencontre pas encore jouée. Ce module comptait les occupants sans les distinguer — son
+   * en-tête l'annonçait même — et la conséquence était grave : au 2ᵉ tour d'un tableau de 8 pour
+   * 5 présents, une rencontre « un occupant + une place en attente » était lue comme une
+   * exemption, et **le joueur montait en finale sans avoir joué**. Aucune erreur, aucune trace.
+   *
+   * ⚠️ LE DÉFAUT VAUT `false` — donc « elle peut encore être pourvue », donc **pas d'exemption**.
+   * C'est le sens sûr : à omettre l'information, on fait attendre à tort (visible, corrigeable)
+   * au lieu de faire monter à tort (invisible, et devant les joueurs).
+   *
+   * ⚠️ Elle se dérive **transitivement**, et c'est pour ça que `calculerPropagation` est le seul
+   * endroit qui la calcule : une place qui attend le PERDANT d'une exemption n'aura jamais
+   * personne non plus — il faut avoir dépouillé l'amont pour le savoir.
+   */
+  readonly jamaisPourvue?: boolean;
 };
 
 export type IssueDeRencontre = {
@@ -76,14 +97,23 @@ export function issueDeRencontre(places: readonly PlaceJouee[]): IssueDeRencontr
    * vainqueur qui n'a joué contre personne.
    */
   if (places.length === 2 && occupees.length === 1) {
-    return {
-      complete: true,
-      raison: null,
-      vainqueur: occupees[0].entryId,
-      perdant: null,
-      ordre: [occupees[0].entryId as string],
-      exemption: true,
-    };
+    const autre = places.find((p) => p.entryId === null);
+    // 🔴 SEULEMENT SI L'AUTRE PLACE NE SERA JAMAIS POURVUE. Sinon la rencontre ATTEND — voir
+    // `PlaceJouee.jamaisPourvue`, et le défaut qu'elle documente.
+    if (autre?.jamaisPourvue === true) {
+      return {
+        complete: true,
+        raison: null,
+        vainqueur: occupees[0].entryId,
+        perdant: null,
+        ordre: [occupees[0].entryId as string],
+        exemption: true,
+      };
+    }
+    return inachevee(
+      "Cette rencontre attend encore son second participant — la rencontre qui le désigne " +
+        "n'est pas dépouillée.",
+    );
   }
 
   if (occupees.length === 1) {
@@ -175,6 +205,67 @@ export function issueDeRencontre(places: readonly PlaceJouee[]): IssueDeRencontr
 }
 
 /**
+ * Une saisie est-elle ADMISSIBLE — indépendamment du fait qu'elle soit complète ?
+ *
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 DEUX QUESTIONS DIFFÉRENTES, ET LES CONFONDRE COÛTE DES POINTS FAUX
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `issueDeRencontre` répond à « la rencontre est-elle dépouillée ». Celle-ci répond à « peut-on
+ * ENREGISTRER ça ». Ce n'est pas la même chose : on saisit un lobby de 8 au fur et à mesure, donc
+ * une saisie **partielle** doit s'enregistrer. Mais une saisie partielle **fausse** ne doit pas.
+ *
+ * 🔴 LE CAS QUI COÛTE : DEUX JOUEURS AU MÊME RANG. `issueDeRencontre` le refuse — mais seulement
+ * quand la rencontre est complète. Deux rangs 1 sur un lobby de 8 à moitié saisi passeraient
+ * donc, et `getClassementDuTournoi` compte **toute** place portant un rang comme une manche
+ * jouée : deux premières places, des points doublés, et rien à l'écran pour le dire.
+ *
+ * ⚠️ Les règles de rang vivent ICI et nulle part ailleurs. Les recopier dans l'action en ferait
+ * une seconde définition, qui divergerait de celle du dépouillement.
+ */
+export function saisieAdmissible(
+  places: readonly PlaceJouee[],
+): { ok: true } | { ok: false; raison: string } {
+  const occupees = places.filter((p) => p.entryId !== null);
+  const borne = occupees.length;
+
+  const rangs: number[] = [];
+  for (const p of occupees) {
+    if (p.rank === null) continue;
+    if (!Number.isInteger(p.rank) || p.rank < 1 || p.rank > borne) {
+      return {
+        ok: false,
+        raison: `Une place doit être un entier entre 1 et ${borne}. Reçu : ${p.rank}.`,
+      };
+    }
+    if (rangs.includes(p.rank)) {
+      return { ok: false, raison: `La place ${p.rank} est attribuée deux fois.` };
+    }
+    rangs.push(p.rank);
+  }
+
+  for (const p of occupees) {
+    if (p.score === null) continue;
+    if (!Number.isInteger(p.score) || p.score < 0) {
+      return { ok: false, raison: `Un score doit être un entier positif. Reçu : ${p.score}.` };
+    }
+  }
+
+  // 🔴 UN RÉSULTAT SUR UNE PLACE VIDE EST REFUSÉ. Sans ça, un score saisi sur une place qui
+  // attend encore le vainqueur d'une rencontre amont serait écrasé sans un mot à la propagation
+  // suivante — ou, pire, compté au classement pour personne.
+  const vides = places.filter((p) => p.entryId === null && (p.rank !== null || p.score !== null));
+  if (vides.length > 0) {
+    return {
+      ok: false,
+      raison: "Un résultat est saisi sur une place qui n'a pas encore de participant.",
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
  * L'engagé qu'une provenance désigne, une fois la rencontre amont dépouillée.
  *
  * ⚠️ Rend `null` quand la rencontre amont n'est pas dépouillée — la place **attend**, elle n'est
@@ -188,3 +279,118 @@ export const occupantDepuis = (
   if (!issue.complete) return null;
   return de === "vainqueur" ? issue.vainqueur : issue.perdant;
 };
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA PROPAGATION — QUI MONTE OÙ. **PURE**, ET C'EST DÉLIBÉRÉ.
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Cette décision est la plus risquée de la Story 10.8 : elle avance des joueurs d'un tour à
+ * l'autre, et une erreur y fait jouer les mauvaises personnes. Elle vit donc **hors de la
+ * transaction**, où elle se teste sans base — l'action ne fait que lire, appeler, écrire.
+ *
+ * 🔴 ELLE SE RECALCULE EN ENTIER, ELLE NE S'APPLIQUE PAS PAR INCRÉMENTS. Une propagation
+ * incrémentale (« ce résultat vient de tomber, je pousse le vainqueur d'un cran ») est fausse dès
+ * la première **correction** : quand on rectifie un score du 1ᵉʳ tour, tout l'aval est déjà rempli
+ * avec l'ancien vainqueur et rien ne va le reprendre. Un tournoi d'association passe son temps à
+ * corriger des saisies faites dans le bruit d'une salle.
+ *
+ * ⚠️ UN SEUL PASSAGE SUFFIT, et ce n'est pas de la chance : `generation.ts` alloue les `position`
+ * de telle sorte qu'une source ne désigne jamais qu'une position **inférieure**. On dépouille donc
+ * dans l'ordre croissant, et l'aval est toujours traité après son amont.
+ *
+ * 🔴 ET UN CHANGEMENT D'OCCUPANT EFFACE LE RÉSULTAT DE SA PLACE. Si le vainqueur du tour 1 change,
+ * la place du tour 2 change d'occupant : y garder le score le rattacherait à quelqu'un qui n'a
+ * jamais joué cette rencontre. C'est le seul effacement automatique de cette story.
+ */
+export type PlaceAPropager = PlaceJouee & {
+  readonly slotId: string;
+  /** La provenance stockée. `null` ou une tête de série : la place ne bouge jamais. */
+  readonly source: { readonly de: string; readonly rencontre?: number } | null;
+};
+
+export type RencontreAPropager = {
+  readonly matchId: string;
+  readonly position: number;
+  readonly places: readonly PlaceAPropager[];
+};
+
+export type Propagation = {
+  /** Les places dont l'occupant change. Leur score et leur rang doivent être effacés. */
+  readonly deplacements: readonly { slotId: string; entryId: string | null }[];
+  /** L'issue de chaque rencontre, par `matchId` — pour tenir `state` à jour. */
+  readonly issues: ReadonlyMap<string, IssueDeRencontre>;
+};
+
+export function calculerPropagation(
+  rencontres: readonly RencontreAPropager[],
+): Propagation {
+  // Copie mutable : on avance les occupants au fil des tours avant de rendre les écritures.
+  const parPosition = new Map<
+    number,
+    { matchId: string; position: number; places: (PlaceJouee & { slotId: string; source: PlaceAPropager["source"] })[] }
+  >();
+  for (const rencontre of rencontres) {
+    parPosition.set(rencontre.position, {
+      matchId: rencontre.matchId,
+      position: rencontre.position,
+      places: rencontre.places.map((place) => ({ ...place })),
+    });
+  }
+
+  const deplacements: { slotId: string; entryId: string | null }[] = [];
+  const issues = new Map<string, IssueDeRencontre>();
+
+  for (const position of [...parPosition.keys()].sort((a, b) => a - b)) {
+    const rencontre = parPosition.get(position);
+    if (!rencontre) continue;
+
+    /**
+     * 🔴 ON DÉCIDE ICI, ET SEULEMENT ICI, SI UNE PLACE VIDE EST DÉFINITIVE. La règle est
+     * transitive, donc elle a besoin de l'amont déjà dépouillé — ce que l'ordre croissant des
+     * `position` garantit :
+     *   · une tête de série sans rang, ou une place sans provenance → jamais pourvue ;
+     *   · une place qui attend un vainqueur ou un perdant → jamais pourvue **si** l'amont est
+     *     dépouillé et ne désigne personne (le perdant d'une exemption, typiquement) ;
+     *   · sinon elle ATTEND, et sa rencontre n'est pas une exemption.
+     */
+    const places = rencontre.places.map((place) => {
+      if (place.entryId !== null) return place;
+      const source = place.source;
+      if (!source || (source.de !== "vainqueur" && source.de !== "perdant")) {
+        return { ...place, jamaisPourvue: true };
+      }
+      const amont = source.rencontre === undefined ? undefined : issues.get(
+        [...parPosition.values()].find((r) => r.position === source.rencontre)?.matchId ?? "",
+      );
+      if (amont === undefined || !amont.complete) return { ...place, jamaisPourvue: false };
+      return {
+        ...place,
+        jamaisPourvue: occupantDepuis(amont, source.de) === null,
+      };
+    });
+
+    const issue = issueDeRencontre(places);
+    issues.set(rencontre.matchId, issue);
+
+    for (const autre of parPosition.values()) {
+      if (autre.position <= position) continue;
+      for (let i = 0; i < autre.places.length; i += 1) {
+        const place = autre.places[i];
+        const source = place.source;
+        if (!source || source.rencontre !== position) continue;
+        if (source.de !== "vainqueur" && source.de !== "perdant") continue;
+
+        const voulu = occupantDepuis(issue, source.de);
+        if (voulu === place.entryId) continue;
+
+        // Muter la copie est sûr : `autre.position > position`, donc cette rencontre n'a pas
+        // encore été dépouillée dans cette boucle.
+        autre.places[i] = { ...place, entryId: voulu, score: null, rank: null };
+        deplacements.push({ slotId: place.slotId, entryId: voulu });
+      }
+    }
+  }
+
+  return { deplacements, issues };
+}

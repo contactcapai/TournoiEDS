@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { issueDeRencontre, occupantDepuis, type PlaceJouee } from "./progression";
+import {
+  issueDeRencontre,
+  occupantDepuis,
+  saisieAdmissible,
+  type PlaceJouee,
+} from "./progression";
 
 /**
  * Le dépouillement d'une rencontre (Story 10.8).
@@ -22,9 +27,25 @@ const place = (
   rank: extra.rank ?? null,
 });
 
+/**
+ * Une place qui ne sera **JAMAIS** pourvue — une exemption assumée.
+ *
+ * ⚠️ Il faut le DIRE : le défaut de `jamaisPourvue` est `false`, donc « elle peut encore être
+ * pourvue », donc pas d'exemption. C'est le sens sûr, et il vient d'un défaut réel — une place
+ * qui attendait un match non joué était lue comme une exemption, et le joueur montait en finale
+ * sans avoir joué.
+ */
+const morte = (position: number): PlaceJouee => ({
+  position,
+  entryId: null,
+  score: null,
+  rank: null,
+  jamaisPourvue: true,
+});
+
 describe("issueDeRencontre — l'exemption se résout SANS saisie", () => {
-  it("une place occupée sur deux : l'occupant passe, et c'est marqué exemption", () => {
-    const issue = issueDeRencontre([place(1, "alice"), place(2, null)]);
+  it("une place occupée sur deux, l'autre MORTE : l'occupant passe, et c'est une exemption", () => {
+    const issue = issueDeRencontre([place(1, "alice"), morte(2)]);
     assert.equal(issue.complete, true);
     assert.equal(issue.exemption, true);
     assert.equal(issue.vainqueur, "alice");
@@ -47,6 +68,26 @@ describe("issueDeRencontre — l'exemption se résout SANS saisie", () => {
     const issue = issueDeRencontre([place(1, null), place(2, null)]);
     assert.equal(issue.complete, false);
     assert.equal(issue.vainqueur, null);
+  });
+
+  it("🔴 une place qui ATTEND encore n'est PAS une exemption — le défaut qui faisait monter sans jouer", () => {
+    // Cas réel, mesuré : 2ᵉ tour d'un tableau de 8 pour 5 présents. La place gauche est pourvue
+    // par une exemption du 1ᵉʳ tour, la place droite attend le vainqueur d'une rencontre non
+    // jouée. La lire comme une exemption faisait monter le joueur EN FINALE sans qu'il joue —
+    // sans erreur, sans trace, devant les joueurs.
+    const issue = issueDeRencontre([place(1, "alice"), place(2, null)]);
+    assert.equal(issue.complete, false, "elle attend son second participant");
+    assert.equal(issue.exemption, false);
+    assert.equal(issue.vainqueur, null);
+    assert.match(issue.raison ?? "", /attend encore son second participant/);
+  });
+
+  it("⚠️ et le DÉFAUT est le sens sûr : sans information, on fait attendre", () => {
+    // Faire attendre à tort se voit et se corrige ; faire monter à tort ne se voit pas.
+    const sansInformation = issueDeRencontre([place(1, "alice"), place(2, null)]);
+    const declaree = issueDeRencontre([place(1, "alice"), morte(2)]);
+    assert.equal(sansInformation.complete, false);
+    assert.equal(declaree.complete, true);
   });
 });
 
@@ -188,8 +229,65 @@ describe("occupantDepuis — une place AMONT non dépouillée fait attendre, ell
   });
 
   it("🔴 sur une exemption, le vainqueur monte mais AUCUN perdant ne descend", () => {
-    const exemption = issueDeRencontre([place(1, "alice"), place(2, null)]);
+    const exemption = issueDeRencontre([place(1, "alice"), morte(2)]);
     assert.equal(occupantDepuis(exemption, "vainqueur"), "alice");
     assert.equal(occupantDepuis(exemption, "perdant"), null);
+  });
+});
+
+describe("saisieAdmissible — enregistrer une saisie PARTIELLE, jamais une saisie FAUSSE", () => {
+  it("accepte une saisie partielle : on remplit un lobby au fur et à mesure", () => {
+    const r = saisieAdmissible([
+      place(1, "a", { rank: 1 }),
+      place(2, "b"),
+      place(3, "c"),
+    ]);
+    assert.equal(r.ok, true);
+  });
+
+  it("🔴 refuse DEUX fois le même rang, même quand la saisie est incomplète", () => {
+    // C'est le cas qui coûte : `issueDeRencontre` ne le voit que sur une rencontre COMPLÈTE,
+    // et le classement compte toute place portant un rang. Deux rangs 1 = points doublés.
+    const r = saisieAdmissible([
+      place(1, "a", { rank: 1 }),
+      place(2, "b", { rank: 1 }),
+      place(3, "c"),
+    ]);
+    assert.equal(r.ok, false);
+    assert.match(r.ok === false ? r.raison : "", /attribuée deux fois/);
+  });
+
+  it("refuse un rang hors bornes", () => {
+    const r = saisieAdmissible([place(1, "a", { rank: 5 }), place(2, "b")]);
+    assert.equal(r.ok, false);
+    assert.match(r.ok === false ? r.raison : "", /entre 1 et 2/);
+  });
+
+  it("refuse un rang zéro ou non entier", () => {
+    assert.equal(saisieAdmissible([place(1, "a", { rank: 0 })]).ok, false);
+    assert.equal(saisieAdmissible([place(1, "a", { rank: 1.5 })]).ok, false);
+  });
+
+  it("refuse un score négatif, accepte zéro", () => {
+    assert.equal(saisieAdmissible([place(1, "a", { score: -1 })]).ok, false);
+    assert.equal(saisieAdmissible([place(1, "a", { score: 0 })]).ok, true);
+  });
+
+  it("🔴 refuse un résultat saisi sur une place SANS participant", () => {
+    const r = saisieAdmissible([place(1, "a", { rank: 1 }), place(2, null, { rank: 2 })]);
+    assert.equal(r.ok, false);
+    assert.match(r.ok === false ? r.raison : "", /pas encore de participant/);
+  });
+
+  it("les bornes se comptent sur les places OCCUPÉES, pas sur les places générées", () => {
+    // Lobby de 8 généré, 3 personnes assises : les rangs vont de 1 à 3.
+    const places = [
+      place(1, "a", { rank: 3 }),
+      place(2, "b", { rank: 1 }),
+      place(3, "c", { rank: 2 }),
+      ...[4, 5, 6, 7, 8].map((p) => place(p, null)),
+    ];
+    assert.equal(saisieAdmissible(places).ok, true);
+    assert.equal(saisieAdmissible([...places.slice(0, 1), place(2, "b", { rank: 4 })]).ok, false);
   });
 });
