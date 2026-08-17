@@ -1,0 +1,2231 @@
+{
+  "id": "2e3548f1-ed95-42fe-bcd8-d59c0e30a454",
+  "prevId": "647de4cb-8903-40f6-8569-779930248a18",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account": {
+      "name": "account",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_account_id": {
+          "name": "provider_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "token_type": {
+          "name": "token_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "session_state": {
+          "name": "session_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_user_id_user_id_fk": {
+          "name": "account_user_id_user_id_fk",
+          "tableFrom": "account",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "account_provider_provider_account_id_pk": {
+          "name": "account_provider_provider_account_id_pk",
+          "columns": [
+            "provider",
+            "provider_account_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.bar": {
+      "name": "bar",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "district": {
+          "name": "district",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Reims'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "bar_name_valide": {
+          "name": "bar_name_valide",
+          "value": "length(btrim(\"bar\".\"name\")) > 0 and length(\"bar\".\"name\") <= 120"
+        },
+        "bar_address_valide": {
+          "name": "bar_address_valide",
+          "value": "length(btrim(\"bar\".\"address\")) > 0 and length(\"bar\".\"address\") <= 200"
+        },
+        "bar_district_valide": {
+          "name": "bar_district_valide",
+          "value": "length(btrim(\"bar\".\"district\")) > 0 and length(\"bar\".\"district\") <= 120"
+        },
+        "bar_city_valide": {
+          "name": "bar_city_valide",
+          "value": "length(btrim(\"bar\".\"city\")) > 0 and length(\"bar\".\"city\") <= 80"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.event": {
+      "name": "event",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "type": {
+          "name": "type",
+          "type": "event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'thursday'"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bar_id": {
+          "name": "bar_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "venue_name": {
+          "name": "venue_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "venue_address": {
+          "name": "venue_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_text": {
+          "name": "price_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "games": {
+          "name": "games",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recap": {
+          "name": "recap",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "social_posted_at": {
+          "name": "social_posted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "event_published_starts_at_idx": {
+          "name": "event_published_starts_at_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "event_bar_id_bar_id_fk": {
+          "name": "event_bar_id_bar_id_fk",
+          "tableFrom": "event",
+          "tableTo": "bar",
+          "columnsFrom": [
+            "bar_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "event_has_venue": {
+          "name": "event_has_venue",
+          "value": "\"event\".\"bar_id\" is not null or coalesce(length(btrim(\"event\".\"venue_name\")), 0) > 0"
+        },
+        "event_title_valide": {
+          "name": "event_title_valide",
+          "value": "length(btrim(\"event\".\"title\")) > 0 and length(\"event\".\"title\") <= 80"
+        },
+        "event_games_valide": {
+          "name": "event_games_valide",
+          "value": "\"event\".\"games\" is null or (length(btrim(\"event\".\"games\")) > 0 and length(\"event\".\"games\") <= 120)"
+        },
+        "event_description_valide": {
+          "name": "event_description_valide",
+          "value": "\"event\".\"description\" is null or (length(btrim(\"event\".\"description\")) > 0 and length(\"event\".\"description\") <= 600)"
+        },
+        "event_recap_valide": {
+          "name": "event_recap_valide",
+          "value": "\"event\".\"recap\" is null or (length(btrim(\"event\".\"recap\")) > 0 and length(\"event\".\"recap\") <= 240)"
+        },
+        "event_venue_name_valide": {
+          "name": "event_venue_name_valide",
+          "value": "\"event\".\"venue_name\" is null or (length(btrim(\"event\".\"venue_name\")) > 0 and length(\"event\".\"venue_name\") <= 120)"
+        },
+        "event_venue_address_valide": {
+          "name": "event_venue_address_valide",
+          "value": "\"event\".\"venue_address\" is null or (length(btrim(\"event\".\"venue_address\")) > 0 and length(\"event\".\"venue_address\") <= 200)"
+        },
+        "event_price_text_valide": {
+          "name": "event_price_text_valide",
+          "value": "\"event\".\"price_text\" is null or (length(btrim(\"event\".\"price_text\")) > 0 and length(\"event\".\"price_text\") <= 80)"
+        },
+        "event_fin_apres_debut": {
+          "name": "event_fin_apres_debut",
+          "value": "\"event\".\"ends_at\" is null or \"event\".\"ends_at\" > \"event\".\"starts_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.member": {
+      "name": "member",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "portrait": {
+          "name": "portrait",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "member_portrait_unique": {
+          "name": "member_portrait_unique",
+          "columns": [
+            {
+              "expression": "portrait",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "member_published_order_idx": {
+          "name": "member_published_order_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "member_prenom_valide": {
+          "name": "member_prenom_valide",
+          "value": "length(btrim(\"member\".\"first_name\")) > 0 and length(\"member\".\"first_name\") <= 60"
+        },
+        "member_role_valide": {
+          "name": "member_role_valide",
+          "value": "length(btrim(\"member\".\"role\")) > 0 and length(\"member\".\"role\") <= 80"
+        },
+        "member_portrait_valide": {
+          "name": "member_portrait_valide",
+          "value": "\"member\".\"portrait\" is null or (length(\"member\".\"portrait\") <= 200 and \"member\".\"portrait\" ~ '^/medias/portraits/[a-z0-9][a-z0-9._-]*\\.webp$' and \"member\".\"portrait\" !~ '\\.\\.')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.partner": {
+      "name": "partner",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "logo": {
+          "name": "logo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "link": {
+          "name": "link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "partner_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "partner_logo_unique": {
+          "name": "partner_logo_unique",
+          "columns": [
+            {
+              "expression": "logo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "partner_published_category_order_idx": {
+          "name": "partner_published_category_order_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "partner_name_valide": {
+          "name": "partner_name_valide",
+          "value": "length(btrim(\"partner\".\"name\")) > 0 and length(\"partner\".\"name\") <= 120"
+        },
+        "partner_description_valide": {
+          "name": "partner_description_valide",
+          "value": "\"partner\".\"description\" is null or (length(btrim(\"partner\".\"description\")) > 0 and length(\"partner\".\"description\") <= 200)"
+        },
+        "partner_link_valide": {
+          "name": "partner_link_valide",
+          "value": "\"partner\".\"link\" is null or (length(btrim(\"partner\".\"link\")) > 0 and length(\"partner\".\"link\") <= 300)"
+        },
+        "partner_logo_valide": {
+          "name": "partner_logo_valide",
+          "value": "\"partner\".\"logo\" is null or (length(\"partner\".\"logo\") <= 200 and \"partner\".\"logo\" ~ '^(/medias/logos/|/partenaires/)[a-z0-9][a-z0-9._-]*\\.webp$' and \"partner\".\"logo\" !~ '\\.\\.')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.photo": {
+      "name": "photo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alt": {
+          "name": "alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "caption": {
+          "name": "caption",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "photo_published_order_idx": {
+          "name": "photo_published_order_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "photo_event_order_idx": {
+          "name": "photo_event_order_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "photo_event_id_event_id_fk": {
+          "name": "photo_event_id_event_id_fk",
+          "tableFrom": "photo",
+          "tableTo": "event",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "photo_filename_unique": {
+          "name": "photo_filename_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "filename"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "photo_filename_safe": {
+          "name": "photo_filename_safe",
+          "value": "\"photo\".\"filename\" ~ '^[a-z0-9][a-z0-9._-]*\\.(jpg|jpeg|png|webp|avif)$' and \"photo\".\"filename\" !~ '\\.\\.'"
+        },
+        "photo_alt_valide": {
+          "name": "photo_alt_valide",
+          "value": "length(btrim(\"photo\".\"alt\")) > 0 and length(\"photo\".\"alt\") <= 300"
+        },
+        "photo_caption_valide": {
+          "name": "photo_caption_valide",
+          "value": "\"photo\".\"caption\" is null or (length(btrim(\"photo\".\"caption\")) > 0 and length(\"photo\".\"caption\") <= 60)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "session_token": {
+          "name": "session_token",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires": {
+          "name": "expires",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.site_setting": {
+      "name": "site_setting",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "discord_url": {
+          "name": "discord_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "instagram_url": {
+          "name": "instagram_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "x_url": {
+          "name": "x_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkedin_url": {
+          "name": "linkedin_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "helloasso_url": {
+          "name": "helloasso_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "site_setting_ligne_unique": {
+          "name": "site_setting_ligne_unique",
+          "value": "\"site_setting\".\"id\" = 1"
+        },
+        "site_setting_discord_url_valide": {
+          "name": "site_setting_discord_url_valide",
+          "value": "\"site_setting\".\"discord_url\" is null or (length(\"site_setting\".\"discord_url\") <= 300 and \"site_setting\".\"discord_url\" ~ '^https?://')"
+        },
+        "site_setting_instagram_url_valide": {
+          "name": "site_setting_instagram_url_valide",
+          "value": "\"site_setting\".\"instagram_url\" is null or (length(\"site_setting\".\"instagram_url\") <= 300 and \"site_setting\".\"instagram_url\" ~ '^https?://')"
+        },
+        "site_setting_x_url_valide": {
+          "name": "site_setting_x_url_valide",
+          "value": "\"site_setting\".\"x_url\" is null or (length(\"site_setting\".\"x_url\") <= 300 and \"site_setting\".\"x_url\" ~ '^https?://')"
+        },
+        "site_setting_linkedin_url_valide": {
+          "name": "site_setting_linkedin_url_valide",
+          "value": "\"site_setting\".\"linkedin_url\" is null or (length(\"site_setting\".\"linkedin_url\") <= 300 and \"site_setting\".\"linkedin_url\" ~ '^https?://')"
+        },
+        "site_setting_helloasso_url_valide": {
+          "name": "site_setting_helloasso_url_valide",
+          "value": "\"site_setting\".\"helloasso_url\" is null or (length(\"site_setting\".\"helloasso_url\") <= 300 and \"site_setting\".\"helloasso_url\" ~ '^https?://')"
+        },
+        "site_setting_contact_email_valide": {
+          "name": "site_setting_contact_email_valide",
+          "value": "length(btrim(\"site_setting\".\"contact_email\")) > 0 and length(\"site_setting\".\"contact_email\") <= 254 and \"site_setting\".\"contact_email\" ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.solicitation": {
+      "name": "solicitation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_type": {
+          "name": "request_type",
+          "type": "solicitation_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consent_given": {
+          "name": "consent_given",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_processed": {
+          "name": "is_processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "solicitation_processed_created_at_idx": {
+          "name": "solicitation_processed_created_at_idx",
+          "columns": [
+            {
+              "expression": "is_processed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "solicitation_name_valide": {
+          "name": "solicitation_name_valide",
+          "value": "length(btrim(\"solicitation\".\"name\")) > 0 and length(\"solicitation\".\"name\") <= 120"
+        },
+        "solicitation_email_valide": {
+          "name": "solicitation_email_valide",
+          "value": "length(btrim(\"solicitation\".\"email\")) > 0 and position('@' in \"solicitation\".\"email\") > 0 and length(\"solicitation\".\"email\") <= 254"
+        },
+        "solicitation_message_valide": {
+          "name": "solicitation_message_valide",
+          "value": "length(btrim(\"solicitation\".\"message\")) > 0 and length(\"solicitation\".\"message\") <= 5000"
+        },
+        "solicitation_consent_given": {
+          "name": "solicitation_consent_given",
+          "value": "\"solicitation\".\"consent_given\" = true"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament": {
+      "name": "tournament",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game": {
+          "name": "game",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_text": {
+          "name": "price_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "venue_name": {
+          "name": "venue_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "format_text": {
+          "name": "format_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "prizes": {
+          "name": "prizes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "match_duration_minutes": {
+          "name": "match_duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "team_size": {
+          "name": "team_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "registration_mode": {
+          "name": "registration_mode",
+          "type": "tournament_registration_mode",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registration_url": {
+          "name": "registration_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_state": {
+          "name": "registration_state",
+          "type": "tournament_registration_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'fermees'"
+        },
+        "podium_first": {
+          "name": "podium_first",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "podium_second": {
+          "name": "podium_second",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "podium_third": {
+          "name": "podium_third",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "photo_id": {
+          "name": "photo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tournament_published_starts_at_idx": {
+          "name": "tournament_published_starts_at_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tournament_event_starts_at_idx": {
+          "name": "tournament_event_starts_at_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_event_id_event_id_fk": {
+          "name": "tournament_event_id_event_id_fk",
+          "tableFrom": "tournament",
+          "tableTo": "event",
+          "columnsFrom": [
+            "event_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "tournament_photo_id_photo_id_fk": {
+          "name": "tournament_photo_id_photo_id_fk",
+          "tableFrom": "tournament",
+          "tableTo": "photo",
+          "columnsFrom": [
+            "photo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tournament_slug_unique": {
+          "name": "tournament_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "tournament_mately_a_son_url": {
+          "name": "tournament_mately_a_son_url",
+          "value": "\"tournament\".\"registration_mode\" is null or \"tournament\".\"registration_mode\" <> 'mately' or \"tournament\".\"registration_url\" is not null"
+        },
+        "tournament_a_un_lieu": {
+          "name": "tournament_a_un_lieu",
+          "value": "\"tournament\".\"event_id\" is not null or coalesce(length(btrim(\"tournament\".\"venue_name\")), 0) > 0"
+        },
+        "tournament_name_valide": {
+          "name": "tournament_name_valide",
+          "value": "length(btrim(\"tournament\".\"name\")) > 0 and length(\"tournament\".\"name\") <= 80"
+        },
+        "tournament_game_valide": {
+          "name": "tournament_game_valide",
+          "value": "length(btrim(\"tournament\".\"game\")) > 0 and length(\"tournament\".\"game\") <= 120"
+        },
+        "tournament_slug_valide": {
+          "name": "tournament_slug_valide",
+          "value": "\"tournament\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and length(\"tournament\".\"slug\") <= 80"
+        },
+        "tournament_venue_name_valide": {
+          "name": "tournament_venue_name_valide",
+          "value": "\"tournament\".\"venue_name\" is null or (length(btrim(\"tournament\".\"venue_name\")) > 0 and length(\"tournament\".\"venue_name\") <= 120)"
+        },
+        "tournament_format_text_valide": {
+          "name": "tournament_format_text_valide",
+          "value": "\"tournament\".\"format_text\" is null or (length(btrim(\"tournament\".\"format_text\")) > 0 and length(\"tournament\".\"format_text\") <= 600)"
+        },
+        "tournament_prizes_valide": {
+          "name": "tournament_prizes_valide",
+          "value": "\"tournament\".\"prizes\" is null or (length(btrim(\"tournament\".\"prizes\")) > 0 and length(\"tournament\".\"prizes\") <= 200)"
+        },
+        "tournament_price_text_valide": {
+          "name": "tournament_price_text_valide",
+          "value": "\"tournament\".\"price_text\" is null or (length(btrim(\"tournament\".\"price_text\")) > 0 and length(\"tournament\".\"price_text\") <= 80)"
+        },
+        "tournament_fin_apres_debut": {
+          "name": "tournament_fin_apres_debut",
+          "value": "\"tournament\".\"ends_at\" is null or \"tournament\".\"ends_at\" > \"tournament\".\"starts_at\""
+        },
+        "tournament_match_duration_valide": {
+          "name": "tournament_match_duration_valide",
+          "value": "\"tournament\".\"match_duration_minutes\" is null or (\"tournament\".\"match_duration_minutes\" >= 1 and \"tournament\".\"match_duration_minutes\" <= 600)"
+        },
+        "tournament_capacity_valide": {
+          "name": "tournament_capacity_valide",
+          "value": "\"tournament\".\"capacity\" is null or (\"tournament\".\"capacity\" >= 1 and \"tournament\".\"capacity\" <= 4096)"
+        },
+        "tournament_registration_url_valide": {
+          "name": "tournament_registration_url_valide",
+          "value": "\"tournament\".\"registration_url\" is null or (length(\"tournament\".\"registration_url\") <= 300 and \"tournament\".\"registration_url\" ~ '^https?://')"
+        },
+        "tournament_podium_first_valide": {
+          "name": "tournament_podium_first_valide",
+          "value": "\"tournament\".\"podium_first\" is null or (length(btrim(\"tournament\".\"podium_first\")) > 0 and length(\"tournament\".\"podium_first\") <= 120)"
+        },
+        "tournament_podium_second_valide": {
+          "name": "tournament_podium_second_valide",
+          "value": "\"tournament\".\"podium_second\" is null or (length(btrim(\"tournament\".\"podium_second\")) > 0 and length(\"tournament\".\"podium_second\") <= 120)"
+        },
+        "tournament_podium_third_valide": {
+          "name": "tournament_podium_third_valide",
+          "value": "\"tournament\".\"podium_third\" is null or (length(btrim(\"tournament\".\"podium_third\")) > 0 and length(\"tournament\".\"podium_third\") <= 120)"
+        },
+        "tournament_podium_sans_trou_2": {
+          "name": "tournament_podium_sans_trou_2",
+          "value": "\"tournament\".\"podium_second\" is null or \"tournament\".\"podium_first\" is not null"
+        },
+        "tournament_podium_sans_trou_3": {
+          "name": "tournament_podium_sans_trou_3",
+          "value": "\"tournament\".\"podium_third\" is null or \"tournament\".\"podium_second\" is not null"
+        },
+        "tournament_podium_2_distinct": {
+          "name": "tournament_podium_2_distinct",
+          "value": "\"tournament\".\"podium_second\" is null or \"tournament\".\"podium_first\" is null or \"tournament\".\"podium_second\" <> \"tournament\".\"podium_first\""
+        },
+        "tournament_podium_3_distinct": {
+          "name": "tournament_podium_3_distinct",
+          "value": "\"tournament\".\"podium_third\" is null or (\"tournament\".\"podium_first\" is null or \"tournament\".\"podium_third\" <> \"tournament\".\"podium_first\") and (\"tournament\".\"podium_second\" is null or \"tournament\".\"podium_third\" <> \"tournament\".\"podium_second\")"
+        },
+        "tournament_team_size_positive": {
+          "name": "tournament_team_size_positive",
+          "value": "\"tournament\".\"team_size\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament_entry": {
+      "name": "tournament_entry",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tournament_id": {
+          "name": "tournament_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "tournament_entry_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'inscrit'"
+        },
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tournament_entry_external_unique": {
+          "name": "tournament_entry_external_unique",
+          "columns": [
+            {
+              "expression": "tournament_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"tournament_entry\".\"external_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tournament_entry_tournoi_idx": {
+          "name": "tournament_entry_tournoi_idx",
+          "columns": [
+            {
+              "expression": "tournament_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_entry_tournament_id_tournament_id_fk": {
+          "name": "tournament_entry_tournament_id_tournament_id_fk",
+          "tableFrom": "tournament_entry",
+          "tableTo": "tournament",
+          "columnsFrom": [
+            "tournament_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tournament_entry_display_name_non_blanc": {
+          "name": "tournament_entry_display_name_non_blanc",
+          "value": "length(btrim(\"tournament_entry\".\"display_name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament_entry_member": {
+      "name": "tournament_entry_member",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tournament_entry_member_ordre_unique": {
+          "name": "tournament_entry_member_ordre_unique",
+          "columns": [
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_entry_member_entry_id_tournament_entry_id_fk": {
+          "name": "tournament_entry_member_entry_id_tournament_entry_id_fk",
+          "tableFrom": "tournament_entry_member",
+          "tableTo": "tournament_entry",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tournament_entry_member_user_id_user_id_fk": {
+          "name": "tournament_entry_member_user_id_user_id_fk",
+          "tableFrom": "tournament_entry_member",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tournament_entry_member_position_positive": {
+          "name": "tournament_entry_member_position_positive",
+          "value": "\"tournament_entry_member\".\"position\" >= 1"
+        },
+        "tournament_entry_member_display_name_non_blanc": {
+          "name": "tournament_entry_member_display_name_non_blanc",
+          "value": "length(btrim(\"tournament_entry_member\".\"display_name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament_match": {
+      "name": "tournament_match",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round": {
+          "name": "round",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bracket": {
+          "name": "bracket",
+          "type": "tournament_match_bracket",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'principal'"
+        },
+        "state": {
+          "name": "state",
+          "type": "tournament_match_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'a_jouer'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tournament_match_ordre_unique": {
+          "name": "tournament_match_ordre_unique",
+          "columns": [
+            {
+              "expression": "phase_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_match_phase_id_tournament_phase_id_fk": {
+          "name": "tournament_match_phase_id_tournament_phase_id_fk",
+          "tableFrom": "tournament_match",
+          "tableTo": "tournament_phase",
+          "columnsFrom": [
+            "phase_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tournament_match_position_positive": {
+          "name": "tournament_match_position_positive",
+          "value": "\"tournament_match\".\"position\" >= 1"
+        },
+        "tournament_match_round_positive": {
+          "name": "tournament_match_round_positive",
+          "value": "\"tournament_match\".\"round\" is null or \"tournament_match\".\"round\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament_match_slot": {
+      "name": "tournament_match_slot",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "match_id": {
+          "name": "match_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score": {
+          "name": "score",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rank": {
+          "name": "rank",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "tournament_match_slot_ordre_unique": {
+          "name": "tournament_match_slot_ordre_unique",
+          "columns": [
+            {
+              "expression": "match_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tournament_match_slot_engage_unique": {
+          "name": "tournament_match_slot_engage_unique",
+          "columns": [
+            {
+              "expression": "match_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"tournament_match_slot\".\"entry_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_match_slot_match_id_tournament_match_id_fk": {
+          "name": "tournament_match_slot_match_id_tournament_match_id_fk",
+          "tableFrom": "tournament_match_slot",
+          "tableTo": "tournament_match",
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "tournament_match_slot_entry_id_tournament_entry_id_fk": {
+          "name": "tournament_match_slot_entry_id_tournament_entry_id_fk",
+          "tableFrom": "tournament_match_slot",
+          "tableTo": "tournament_entry",
+          "columnsFrom": [
+            "entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tournament_match_slot_position_positive": {
+          "name": "tournament_match_slot_position_positive",
+          "value": "\"tournament_match_slot\".\"position\" >= 1"
+        },
+        "tournament_match_slot_score_positif": {
+          "name": "tournament_match_slot_score_positif",
+          "value": "\"tournament_match_slot\".\"score\" is null or \"tournament_match_slot\".\"score\" >= 0"
+        },
+        "tournament_match_slot_rank_positif": {
+          "name": "tournament_match_slot_rank_positif",
+          "value": "\"tournament_match_slot\".\"rank\" is null or \"tournament_match_slot\".\"rank\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.tournament_phase": {
+      "name": "tournament_phase",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tournament_id": {
+          "name": "tournament_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "tournament_phase_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "tournament_phase_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'planifiee'"
+        },
+        "settings": {
+          "name": "settings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tournament_phase_ordre_unique": {
+          "name": "tournament_phase_ordre_unique",
+          "columns": [
+            {
+              "expression": "tournament_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tournament_phase_tournament_id_tournament_id_fk": {
+          "name": "tournament_phase_tournament_id_tournament_id_fk",
+          "tableFrom": "tournament_phase",
+          "tableTo": "tournament",
+          "columnsFrom": [
+            "tournament_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tournament_phase_position_positive": {
+          "name": "tournament_phase_position_positive",
+          "value": "\"tournament_phase\".\"position\" >= 1"
+        },
+        "tournament_phase_name_non_blanc": {
+          "name": "tournament_phase_name_non_blanc",
+          "value": "length(btrim(\"tournament_phase\".\"name\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.workshop": {
+      "name": "workshop",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audience": {
+          "name": "audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "family": {
+          "name": "family",
+          "type": "workshop_family",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "is_published": {
+          "name": "is_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "workshop_published_family_order_idx": {
+          "name": "workshop_published_family_order_idx",
+          "columns": [
+            {
+              "expression": "is_published",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "family",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sort_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "workshop_title_valide": {
+          "name": "workshop_title_valide",
+          "value": "length(btrim(\"workshop\".\"title\")) > 0 and length(\"workshop\".\"title\") <= 80"
+        },
+        "workshop_summary_valide": {
+          "name": "workshop_summary_valide",
+          "value": "\"workshop\".\"summary\" is null or (length(btrim(\"workshop\".\"summary\")) > 0 and length(\"workshop\".\"summary\") <= 200)"
+        },
+        "workshop_audience_valide": {
+          "name": "workshop_audience_valide",
+          "value": "\"workshop\".\"audience\" is null or (length(btrim(\"workshop\".\"audience\")) > 0 and length(\"workshop\".\"audience\") <= 120)"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.event_type": {
+      "name": "event_type",
+      "schema": "public",
+      "values": [
+        "thursday",
+        "special"
+      ]
+    },
+    "public.partner_category": {
+      "name": "partner_category",
+      "schema": "public",
+      "values": [
+        "sponsor",
+        "partenaire",
+        "soutien",
+        "participation"
+      ]
+    },
+    "public.solicitation_type": {
+      "name": "solicitation_type",
+      "schema": "public",
+      "values": [
+        "animation",
+        "partenariat",
+        "autre"
+      ]
+    },
+    "public.tournament_entry_state": {
+      "name": "tournament_entry_state",
+      "schema": "public",
+      "values": [
+        "inscrit",
+        "present",
+        "absent",
+        "abandonne"
+      ]
+    },
+    "public.tournament_match_bracket": {
+      "name": "tournament_match_bracket",
+      "schema": "public",
+      "values": [
+        "principal",
+        "vainqueurs",
+        "perdants",
+        "grande_finale"
+      ]
+    },
+    "public.tournament_match_state": {
+      "name": "tournament_match_state",
+      "schema": "public",
+      "values": [
+        "a_jouer",
+        "en_cours",
+        "terminee"
+      ]
+    },
+    "public.tournament_phase_kind": {
+      "name": "tournament_phase_kind",
+      "schema": "public",
+      "values": [
+        "poule",
+        "bracket",
+        "lobbies",
+        "finale"
+      ]
+    },
+    "public.tournament_phase_state": {
+      "name": "tournament_phase_state",
+      "schema": "public",
+      "values": [
+        "planifiee",
+        "en_cours",
+        "terminee"
+      ]
+    },
+    "public.tournament_registration_mode": {
+      "name": "tournament_registration_mode",
+      "schema": "public",
+      "values": [
+        "interne",
+        "mately"
+      ]
+    },
+    "public.tournament_registration_state": {
+      "name": "tournament_registration_state",
+      "schema": "public",
+      "values": [
+        "ouvertes",
+        "completes",
+        "fermees"
+      ]
+    },
+    "public.workshop_family": {
+      "name": "workshop_family",
+      "schema": "public",
+      "values": [
+        "atelier",
+        "sensibilisation",
+        "evenement"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

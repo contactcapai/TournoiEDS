@@ -148,6 +148,13 @@
       "when": 1786808512420,
       "tag": "0020_new_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786962962422,
+      "tag": "0021_late_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

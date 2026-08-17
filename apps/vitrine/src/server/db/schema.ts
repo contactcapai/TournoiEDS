@@ -120,6 +120,7 @@ import {
 } from "../../lib/schemas/tournament";
 import {
   ENTRY_STATES,
+  MATCH_BRACKETS,
   MATCH_STATES,
   PHASE_KINDS,
   PHASE_STATES,
@@ -1926,6 +1927,8 @@ export const tournamentPhaseKind = pgEnum("tournament_phase_kind", PHASE_KINDS);
 export const tournamentPhaseState = pgEnum("tournament_phase_state", PHASE_STATES);
 export const tournamentEntryState = pgEnum("tournament_entry_state", ENTRY_STATES);
 export const tournamentMatchState = pgEnum("tournament_match_state", MATCH_STATES);
+/** Le tableau auquel une rencontre appartient (Story 10.8) — voir `MATCH_BRACKETS`. */
+export const tournamentMatchBracket = pgEnum("tournament_match_bracket", MATCH_BRACKETS);
 
 /**
  * Une phase d'un tournoi. La structure saisie est un PLAN : elle se réécrit tant qu'aucune
@@ -2028,6 +2031,15 @@ export const tournamentMatch = pgTable(
       .references(() => tournamentPhase.id, { onDelete: "cascade" }),
     position: integer().notNull(),
     round: integer(),
+    /**
+     * 🔴 AJOUTÉE PAR LA STORY 10.8, ET C'EST UN TROU DU MODÈLE DE LA 10.1 QU'ELLE COMBLE.
+     * `eliminationDouble()` rend trois structures parallèles ; sans cette colonne, « tour 2 des
+     * perdants » et « tour 2 des vainqueurs » étaient indiscernables, donc la double élimination
+     * était **ingérable en base** — un générateur écrit et testé en 10.2 que rien ne pouvait
+     * restituer. Le dire plutôt que l'absorber en silence était la consigne de la 10.5.
+     * ⚠️ `notNull()` avec un défaut, jamais nullable : voir `MATCH_BRACKETS`.
+     */
+    bracket: tournamentMatchBracket().notNull().default("principal"),
     state: tournamentMatchState().notNull().default("a_jouer"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -2062,6 +2074,23 @@ export const tournamentMatchSlot = pgTable(
     entryId: uuid().references(() => tournamentEntry.id, { onDelete: "restrict" }),
     score: integer(),
     rank: integer(),
+    /**
+     * 🔴 D'OÙ VIENT L'OCCUPANT DE CETTE PLACE (Story 10.8). C'est le `Source` que
+     * `lib/tournoi/bracket.ts` rend déjà — tête de série, vainqueur d'une rencontre, ou perdant
+     * d'une rencontre — **stocké tel quel**, à ceci près que les coordonnées de bracket.ts
+     * (bracket + tour + rang dans le tour) sont traduites **une seule fois, à la génération**,
+     * en la `position` de la rencontre visée, qui est unique dans la phase.
+     *
+     * 🔴 C'EST CE QUI DONNE **UNE** DÉFINITION DE LA PROGRESSION. Re-dériver « le vainqueur du
+     * tour r rang p monte au tour r+1 rang ceil(p/2) » dans le code de saisie en ferait une
+     * SECONDE définition de la structure, à côté de celle de `bracket.ts` — et elles
+     * divergeraient au premier format ajouté, en silence. Ici la structure est décidée à un
+     * seul endroit, et la base en garde l'image résolue.
+     *
+     * ⚠️ Nullable : une place peut exister sans provenance (une exemption au 1ᵉʳ tour, une
+     * place saisie à la main). `null` ne veut donc PAS dire « vide ».
+     */
+    source: jsonb(),
   },
   (table) => [
     check("tournament_match_slot_position_positive", sql`${table.position} >= 1`),
