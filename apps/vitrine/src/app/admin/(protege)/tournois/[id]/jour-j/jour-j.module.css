@@ -1,0 +1,95 @@
+/* Ce qui n'est vrai que de l'écran du jour J (Story 10.8) : les onglets de phase et le tableau
+   de classement. Le reste vient d'`admin-page.module.css`.
+
+   ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT. Breakpoint 880px en LITTÉRAL. */
+
+/* ───────── Les phases en onglets ─────────
+   Des LIENS, jamais des boutons : l'URL porte la phase, donc l'écran se recharge, se partage et
+   survit à un réseau qui tombe — ce qui arrive dans un bar. */
+.onglets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.onglet,
+.ongletActif {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 6px 14px;
+  border-radius: var(--radius-button);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.onglet {
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  color: var(--light);
+}
+
+.onglet:hover {
+  border-color: var(--gold);
+}
+
+/* La phase courante est PLEINE, les autres creuses : l'état se lit sans lire le libellé — même
+   vocabulaire que la bascule de publication du reste du back-office. */
+.ongletActif {
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.ongletNature {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ───────── Le tableau de classement ─────────
+   🔴 `overflow-x: auto` SUR UN CONTENEUR, et ce n'est pas décoratif : `globals.css` pose
+   `overflow-x: clip` sur toutes les routes, donc un tableau trop large serait ROGNÉ EN SILENCE —
+   ni scrollbar, ni erreur, invisible à l'œil par construction (c'est tout le sujet de la porte
+   `gate`). Sept colonnes × 64 lignes ne tiennent pas sous 880px. */
+.tableWrap {
+  overflow-x: auto;
+  margin-top: 18px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 % */
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.table td {
+  color: var(--light);
+}
+
+/* Le nom peut être long ; les chiffres, non. Seule cette colonne s'enroule. */
+.table td:nth-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Un abandon garde ses points : c'est un FAIT, pas une alerte — d'où `--grey`. */
+.abandon {
+  font-size: 13px;
+  color: var(--grey);
+}

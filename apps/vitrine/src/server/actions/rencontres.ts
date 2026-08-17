@@ -1,0 +1,464 @@
+"use server";
+
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { z } from "zod";
+
+import {
+  rangsPlaces,
+  structureDePhase,
+  TAILLE_LOBBY_DEFAUT,
+  TAILLE_LOBBY_MAX,
+  TAILLE_LOBBY_MIN,
+  type SourceResolue,
+} from "../../lib/tournoi/generation";
+import {
+  calculerPropagation,
+  issueDeRencontre,
+  saisieAdmissible,
+  type PlaceJouee,
+} from "../../lib/tournoi/progression";
+import { requireAdmin } from "../auth/guard";
+import { db } from "../db/client";
+import {
+  getClassementDuTournoi,
+  getPhasePourJeu,
+  getPresentsDuTournoi,
+  phaseADesResultats,
+} from "../db/queries/rencontres";
+import { tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../db/schema";
+import {
+  identifiant,
+  messageErreurBase as traduireErreurBase,
+  type ResultatAction,
+} from "./_commun";
+
+/**
+ * Générer et jouer — les rencontres, les résultats, la progression (Story 10.8).
+ *
+ * Patron d'`actions/phases.ts` (10.4) et d'`actions/engages.ts` (10.5) : `await requireAdmin()`
+ * en PREMIÈRE LIGNE, `identifiant` sur tout `id` reçu, retour discriminé.
+ *
+ * 🔴 CE QUI EST PROPRE À CET ÉCRAN : LA PROPAGATION SE **RECALCULE EN ENTIER**, elle ne s'applique
+ * pas par incréments. Voir `propager()`.
+ */
+
+const CONTRAINTES: Record<string, string> = {
+  tournament_match_position_positive: "Le rang d'une rencontre est invalide. Rechargez la page.",
+  tournament_match_round_positive: "Le tour d'une rencontre est invalide. Rechargez la page.",
+  tournament_match_ordre_unique: "Deux rencontres occupent le même rang. Rechargez la page.",
+  tournament_match_slot_position_positive: "Le rang d'une place est invalide. Rechargez la page.",
+  tournament_match_slot_score_positif: "Un score ne peut pas être négatif.",
+  tournament_match_slot_rank_positif: "Une place ne peut pas être inférieure à 1.",
+  tournament_match_slot_ordre_unique: "Deux places occupent le même rang. Rechargez la page.",
+  tournament_match_slot_engage_unique:
+    "Le même engagé se retrouverait deux fois dans la même rencontre. C'est un défaut de " +
+    "génération : régénérez la phase.",
+};
+
+/** Ce que l'écran de génération soumet. Bornes de saisie, pas de règle de tournoi. */
+const reglagesSaisis = z.object({
+  tailleDeLobby: z.coerce
+    .number()
+    .int()
+    .min(TAILLE_LOBBY_MIN, `Une table compte au moins ${TAILLE_LOBBY_MIN} joueurs.`)
+    .max(TAILLE_LOBBY_MAX, `Une table ne peut pas dépasser ${TAILLE_LOBBY_MAX} joueurs.`)
+    .default(TAILLE_LOBBY_DEFAUT),
+  doubleElimination: z.coerce.boolean().default(false),
+  allerRetour: z.coerce.boolean().default(false),
+  /**
+   * D'où viennent les participants, **et dans quel ORDRE** — la décision qui compte.
+   * `presents` : ordre de saisie, pour une première manche. `classement` : ordre du classement,
+   * pour une manche suisse ou une finale. `generation.ts` ne tranche pas cet ordre exprès.
+   */
+  depuis: z.enum(["presents", "classement"]).default("presents"),
+});
+
+/**
+ * Une place telle que la propagation la manipule en mémoire.
+ *
+ * ⚠️ Champs MUTABLES, là où `PlaceJouee` (`progression.ts`) les déclare en lecture seule — et
+ * c'est volontaire des deux côtés : le dépouillement n'a aucune raison de modifier ce qu'il lit,
+ * la propagation en a une (elle avance les occupants d'un tour à l'autre avant de les écrire).
+ */
+type PlaceEnMemoire = {
+  slotId: string;
+  position: number;
+  entryId: string | null;
+  score: number | null;
+  rank: number | null;
+  source: SourceResolue | null;
+};
+type RencontreEnMemoire = { matchId: string; position: number; places: PlaceEnMemoire[] };
+
+/** Tout ce qu'une transaction sait faire ; suffisant pour `propager`. */
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Applique la propagation : **lire, appeler, écrire**.
+ *
+ * 🔴 LA DÉCISION N'EST PAS ICI. Elle est dans `calculerPropagation` (`lib/tournoi/progression.ts`),
+ * qui est **pure** et testée — parce que c'est la logique la plus risquée de la story (elle fait
+ * jouer des gens) et qu'une transaction n'est pas un endroit où on éprouve une règle. Cette
+ * fonction ne fait que la traduire en `UPDATE`.
+ */
+async function propager(tx: Transaction, phaseId: string) {
+  const lignes = await tx
+    .select({
+      matchId: tournamentMatch.id,
+      position: tournamentMatch.position,
+      slotId: tournamentMatchSlot.id,
+      slotPosition: tournamentMatchSlot.position,
+      entryId: tournamentMatchSlot.entryId,
+      score: tournamentMatchSlot.score,
+      rank: tournamentMatchSlot.rank,
+      source: tournamentMatchSlot.source,
+    })
+    .from(tournamentMatch)
+    .innerJoin(tournamentMatchSlot, eq(tournamentMatchSlot.matchId, tournamentMatch.id))
+    .where(eq(tournamentMatch.phaseId, phaseId))
+    .orderBy(asc(tournamentMatch.position), asc(tournamentMatchSlot.position));
+
+  const parPosition = new Map<number, RencontreEnMemoire>();
+  for (const ligne of lignes) {
+    let rencontre = parPosition.get(ligne.position);
+    if (!rencontre) {
+      rencontre = { matchId: ligne.matchId, position: ligne.position, places: [] };
+      parPosition.set(ligne.position, rencontre);
+    }
+    rencontre.places.push({
+      slotId: ligne.slotId,
+      position: ligne.slotPosition,
+      entryId: ligne.entryId,
+      score: ligne.score,
+      rank: ligne.rank,
+      source: (ligne.source as SourceResolue | null) ?? null,
+    });
+  }
+
+  const { deplacements, issues } = calculerPropagation([...parPosition.values()]);
+  const etats = [...issues.entries()].map(([matchId, issue]) => ({
+    matchId,
+    termine: issue.complete,
+  }));
+
+  for (const deplacement of deplacements) {
+    await tx
+      .update(tournamentMatchSlot)
+      .set({ entryId: deplacement.entryId, score: null, rank: null })
+      .where(eq(tournamentMatchSlot.id, deplacement.slotId));
+  }
+
+  /**
+   * ⚠️ `state` EST TENU À JOUR MAIS **AUCUNE DÉCISION N'EN DÉPEND** — le témoin reste le
+   * RÉSULTAT (doctrine `phaseLibrementModifiable`, 10.1). Il est écrit parce que la colonne
+   * existe et qu'une valeur périmée dans le modèle est une invitation à s'y fier ; il n'est
+   * jamais lu pour autoriser ou refuser quoi que ce soit.
+   */
+  const termines = etats.filter((e) => e.termine).map((e) => e.matchId);
+  const enAttente = etats.filter((e) => !e.termine).map((e) => e.matchId);
+  if (termines.length > 0) {
+    await tx
+      .update(tournamentMatch)
+      .set({ state: "terminee", updatedAt: new Date() })
+      .where(inArray(tournamentMatch.id, termines));
+  }
+  if (enAttente.length > 0) {
+    await tx
+      .update(tournamentMatch)
+      .set({ state: "a_jouer", updatedAt: new Date() })
+      .where(inArray(tournamentMatch.id, enAttente));
+  }
+
+  return { deplacements: deplacements.length, termines: termines.length };
+}
+
+/**
+ * Génère les rencontres d'une phase depuis les participants.
+ *
+ * 🔴 REFUSÉE DÈS QU'UN RÉSULTAT EXISTE. Régénérer détruit les rencontres (`CASCADE` sur les
+ * places) : sur une phase déjà jouée, ce serait effacer l'histoire sans un mot. Le témoin est le
+ * résultat, jamais l'état déclaré.
+ *
+ * 🔴 ET LES RÉGLAGES CHOISIS ICI SONT **ENREGISTRÉS** dans `phase.settings`. Ce n'est pas une
+ * commodité : c'est ce qui les rend atteignables. La 10.5 a buté sur `team_size`, écrit nulle
+ * part, donc une capacité entière hors d'atteinte — on ne refait pas ça. Le formulaire de
+ * génération est le seul endroit où « une table de 8 » et « double élimination » ont un sens :
+ * on annonce un tournoi des semaines avant, on choisit son format quand on sait qui est là.
+ */
+export async function genererPhase(
+  phaseId: string,
+  donnees: FormData,
+): Promise<ResultatAction<{ rencontres: number; participants: number }>> {
+  await requireAdmin();
+
+  if (!identifiant.safeParse(phaseId).success) {
+    return { ok: false, error: "Cette phase n'est pas valide. Rechargez la page." };
+  }
+
+  const phase = await getPhasePourJeu(phaseId);
+  if (!phase) return { ok: false, error: "Cette phase n'existe plus. Rechargez la page." };
+
+  if (await phaseADesResultats(phaseId)) {
+    return {
+      ok: false,
+      error:
+        "Des résultats sont déjà saisis dans cette phase : elle ne se régénère plus. " +
+        "Corrigez les rencontres concernées, ou créez une phase supplémentaire depuis le déroulé.",
+    };
+  }
+
+  const analyse = reglagesSaisis.safeParse({
+    tailleDeLobby: donnees.get("tailleDeLobby") ?? undefined,
+    doubleElimination: donnees.get("doubleElimination") ?? false,
+    allerRetour: donnees.get("allerRetour") ?? false,
+    depuis: donnees.get("depuis") ?? undefined,
+  });
+  if (!analyse.success) {
+    return { ok: false, error: analyse.error.issues[0]?.message ?? "Vérifiez les réglages." };
+  }
+  const reglages = analyse.data;
+
+  // 🔴 L'ORDRE DES PARTICIPANTS EST UNE DÉCISION, ET ELLE EST PRISE ICI — jamais dans
+  // `generation.ts`, qui l'ignore exprès. Un premier tour part de l'ordre de saisie ; une manche
+  // suisse ou une finale partent du CLASSEMENT, sinon les meilleurs ne se rencontrent pas.
+  const participants =
+    reglages.depuis === "classement"
+      ? (await getClassementDuTournoi(phase.tournoiId))
+          .filter((ligne) => !ligne.abandonne)
+          .map((ligne) => ({ id: ligne.id, nom: ligne.nom }))
+      : await getPresentsDuTournoi(phase.tournoiId);
+
+  if (participants.length === 0) {
+    return {
+      ok: false,
+      error:
+        reglages.depuis === "classement"
+          ? "Aucun classement pour l'instant : personne n'a encore de résultat. Générez depuis " +
+            "les présents."
+          : "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés.",
+    };
+  }
+
+  let structure;
+  try {
+    structure = structureDePhase(phase.kind, participants.length, reglages);
+  } catch (erreur) {
+    // `structureDePhase` LÈVE sur une coordonnée introuvable — c'est un défaut de traduction,
+    // pas une saisie fautive. On le remonte lisiblement plutôt que de l'écrire en base.
+    console.error("[genererPhase] Traduction impossible :", erreur);
+    return {
+      ok: false,
+      error:
+        "La structure n'a pas pu être construite pour cet effectif. C'est un défaut du " +
+        "générateur, pas de votre saisie — signalez-le.",
+    };
+  }
+
+  if (structure.length === 0) {
+    return {
+      ok: false,
+      error: `${participants.length} participant(s) : ce n'est pas assez pour générer des rencontres.`,
+    };
+  }
+
+  /**
+   * 🔴 AUCUN PRÉSENT NE DOIT ÊTRE OUBLIÉ, ET C'EST UNE GARDE, PAS UNE VÉRIFICATION DE POLITESSE.
+   * Un engagé pointé présent qui n'apparaît dans aucune rencontre est un défaut **muet** : le
+   * tournoi tourne sans lui, personne ne voit d'erreur, et lui attend.
+   */
+  const places = rangsPlaces(structure);
+  const oublies = participants.filter((_, index) => !places.has(index + 1));
+  if (oublies.length > 0) {
+    console.error("[genererPhase] Participants sans place :", oublies.map((p) => p.nom));
+    return {
+      ok: false,
+      error:
+        `La structure générée laisse ${oublies.length} participant(s) sans place ` +
+        `(${oublies.map((p) => p.nom).join(", ")}). Rien n'a été enregistré.`,
+    };
+  }
+
+  try {
+    const rencontres = await db.transaction(async (tx) => {
+      // Régénérer remplace : les anciennes rencontres partent, et leurs places avec elles
+      // (`CASCADE`). La garde ci-dessus a déjà établi qu'aucun résultat n'y était saisi.
+      await tx.delete(tournamentMatch).where(eq(tournamentMatch.phaseId, phaseId));
+
+      for (const rencontre of structure) {
+        const [ligne] = await tx
+          .insert(tournamentMatch)
+          .values({
+            phaseId,
+            position: rencontre.position,
+            round: rencontre.round,
+            bracket: rencontre.bracket,
+          })
+          .returning({ id: tournamentMatch.id });
+
+        await tx.insert(tournamentMatchSlot).values(
+          rencontre.places.map((place) => ({
+            matchId: ligne.id,
+            position: place.position,
+            // Seules les têtes de série sont pourvues d'emblée. Les autres places attendent la
+            // propagation — et une place de tête de série `null` est une exemption.
+            entryId:
+              place.source.de === "tete_de_serie" && place.source.rang !== null
+                ? participants[place.source.rang - 1].id
+                : null,
+            source: place.source,
+          })),
+        );
+      }
+
+      // Résout les exemptions dans le même geste : un tableau de 8 pour 5 présents fait monter
+      // trois joueurs d'office, et personne n'a à cliquer sur des rencontres qui n'ont pas eu
+      // lieu. C'est la MÊME fonction que celle qui propage un résultat saisi.
+      await propager(tx, phaseId);
+
+      await tx
+        .update(tournamentPhase)
+        .set({
+          settings: {
+            tailleDeLobby: reglages.tailleDeLobby,
+            doubleElimination: reglages.doubleElimination,
+            allerRetour: reglages.allerRetour,
+            depuis: reglages.depuis,
+          },
+          state: "en_cours",
+          updatedAt: new Date(),
+        })
+        .where(eq(tournamentPhase.id, phaseId));
+
+      return structure.length;
+    });
+
+    return { ok: true, data: { rencontres, participants: participants.length } };
+  } catch (erreur) {
+    console.error("[genererPhase] Échec de l'écriture :", erreur);
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}
+
+/**
+ * Saisit le résultat d'une rencontre, puis rejoue la propagation de toute la phase.
+ *
+ * ⚠️ Une saisie **partielle** s'enregistre (on remplit un lobby de 8 au fur et à mesure) ; une
+ * saisie **fausse** non. La frontière est tenue par `saisieAdmissible` (`progression.ts`), et
+ * elle n'est PAS réécrite ici : deux définitions des règles de rang divergeraient de celle du
+ * dépouillement.
+ */
+export async function saisirResultat(
+  matchId: string,
+  donnees: FormData,
+): Promise<ResultatAction<{ complete: boolean; raison: string | null }>> {
+  await requireAdmin();
+
+  if (!identifiant.safeParse(matchId).success) {
+    return { ok: false, error: "Cette rencontre n'est pas valide. Rechargez la page." };
+  }
+
+  const [rencontre] = await db
+    .select({ phaseId: tournamentMatch.phaseId })
+    .from(tournamentMatch)
+    .where(eq(tournamentMatch.id, matchId))
+    .limit(1);
+  if (!rencontre) return { ok: false, error: "Cette rencontre n'existe plus. Rechargez la page." };
+
+  const placesEnBase = await db
+    .select({
+      slotId: tournamentMatchSlot.id,
+      position: tournamentMatchSlot.position,
+      entryId: tournamentMatchSlot.entryId,
+    })
+    .from(tournamentMatchSlot)
+    .where(eq(tournamentMatchSlot.matchId, matchId))
+    .orderBy(asc(tournamentMatchSlot.position));
+
+  /**
+   * ⚠️ UN CHAMP VIDE VAUT « PAS SAISI » (`null`), ET JAMAIS ZÉRO. Confondre les deux effacerait
+   * un résultat en croyant ne rien toucher — c'est le motif exact de `lireHeureDeFin`
+   * (`_commun.ts`) : on ne transforme pas une absence en valeur.
+   * ⚠️ En revanche une valeur ILLISIBLE n'est pas non plus une absence : elle est refusée, pour
+   * qu'une faute de frappe ne vide pas silencieusement la place.
+   */
+  const lire = (champ: string): number | null | "illisible" => {
+    const brut = donnees.get(champ);
+    if (brut === null) return null;
+    const texte = String(brut).trim();
+    if (texte === "") return null;
+    const nombre = Number(texte);
+    return Number.isInteger(nombre) ? nombre : "illisible";
+  };
+
+  const saisie: PlaceJouee[] = [];
+  for (const place of placesEnBase) {
+    const rank = lire(`rang-${place.slotId}`);
+    const score = lire(`score-${place.slotId}`);
+    if (rank === "illisible" || score === "illisible") {
+      return {
+        ok: false,
+        error: "Une valeur saisie n'est pas un nombre entier. Rien n'a été enregistré.",
+      };
+    }
+    saisie.push({ position: place.position, entryId: place.entryId, score, rank });
+  }
+
+  const admissible = saisieAdmissible(saisie);
+  if (!admissible.ok) return { ok: false, error: admissible.raison };
+
+  try {
+    const issue = await db.transaction(async (tx) => {
+      for (let i = 0; i < placesEnBase.length; i += 1) {
+        await tx
+          .update(tournamentMatchSlot)
+          .set({ rank: saisie[i].rank, score: saisie[i].score })
+          .where(eq(tournamentMatchSlot.id, placesEnBase[i].slotId));
+      }
+      await propager(tx, rencontre.phaseId);
+      return issueDeRencontre(saisie);
+    });
+
+    return { ok: true, data: { complete: issue.complete, raison: issue.raison } };
+  } catch (erreur) {
+    console.error("[saisirResultat] Échec de l'écriture :", erreur);
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}
+
+/**
+ * Efface les rencontres d'une phase — refusé dès qu'un résultat existe.
+ *
+ * ⚠️ Le geste nominal n'est PAS celui-ci mais « régénérer » : effacer laisse une phase composée
+ * mais vide, ce qui n'est utile que pour repartir d'un effectif changé. Le dire à l'écran évite
+ * de chercher ce que ce bouton apporte de plus.
+ */
+export async function effacerRencontres(phaseId: string): Promise<ResultatAction<undefined>> {
+  await requireAdmin();
+
+  if (!identifiant.safeParse(phaseId).success) {
+    return { ok: false, error: "Cette phase n'est pas valide. Rechargez la page." };
+  }
+
+  if (await phaseADesResultats(phaseId)) {
+    return {
+      ok: false,
+      error:
+        "Des résultats sont saisis dans cette phase : ses rencontres ne s'effacent plus. " +
+        "Corrigez-les d'abord si c'est une erreur de saisie.",
+    };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.delete(tournamentMatch).where(eq(tournamentMatch.phaseId, phaseId));
+      await tx
+        .update(tournamentPhase)
+        .set({ state: "planifiee", updatedAt: new Date() })
+        .where(and(eq(tournamentPhase.id, phaseId)));
+    });
+    return { ok: true, data: undefined };
+  } catch (erreur) {
+    console.error("[effacerRencontres] Échec de la suppression :", erreur);
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}

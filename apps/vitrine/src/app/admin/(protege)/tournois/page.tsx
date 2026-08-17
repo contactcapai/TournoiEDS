@@ -122,6 +122,13 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
           Engagés
         </Link>
+        {/* 🔴 ENCORE UNE ENTRÉE À PART (Story 10.8), et c'est la troisième fois qu'on tient la
+            même règle : « Déroulé » se compose des semaines avant, « Engagés » se pointe à
+            l'arrivée, « Jour J » se joue pendant. Trois moments, trois personnes possibles, trois
+            entrées — les fondre ferait chercher la troisième là où rien ne la laisse deviner. */}
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/jour-j`}>
+          Jour J
+        </Link>
         <TournoiActions
           id={tournoi.id}
           nom={tournoi.name}

@@ -1,0 +1,161 @@
+/* Le jour J d'une phase (Story 10.8).
+
+   🔴 DIMENSIONNÉ POUR 64 LIGNES DÈS LA PREMIÈRE VERSION — leçon payée sur l'écran des engagés
+   le 2026-08-15. Un TFT à 64 donne 8 tables de 8 : la ligne est un FILET, jamais une carte, et
+   les explications se disent une fois au-dessus de la liste.
+
+   ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`) : une
+   variable inconnue rend la propriété invalide en silence. Breakpoint 880px en LITTÉRAL. */
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.enTete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.compte {
+  flex: 1 1 240px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--light);
+}
+
+.compte strong {
+  color: var(--gold);
+}
+
+.vide {
+  padding: 20px 22px;
+  border: 1px dashed rgba(146, 147, 173, 0.45); /* --grey à 45 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  max-width: 72ch;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.titreForm,
+.titreGroupe {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.liste {
+  border-top: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 %, filet sans token */
+  list-style: none;
+}
+
+.rencontre {
+  border-bottom: 1px solid rgba(146, 147, 173, 0.25);
+}
+
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 6px 0;
+}
+
+.rang {
+  flex: 0 0 auto;
+  min-width: 6ch;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* Les places d'une rencontre : deux côtés en bracket, jusqu'à 16 dans une table. Elles
+   s'enroulent plutôt que de comprimer les champs de saisie sous une taille utilisable. */
+.places {
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  min-width: 0;
+}
+
+.place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nom {
+  font-size: 15px;
+  color: var(--light);
+  overflow-wrap: anywhere;
+}
+
+/* Une place qui attend ou une exemption : c'est un FAIT, pas une alerte — d'où `--grey` et non
+   `--gold`, même raisonnement que `.trace` (admin-actions.module.css). */
+.attente {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--grey);
+}
+
+/* ⚠️ 44px de HAUTEUR tenue même sur un champ étroit : c'est la cible tactile du projet, et on
+   saisit ces nombres au doigt, debout, dans un bar. La largeur peut se réduire, pas la hauteur. */
+.saisie {
+  width: 5.5ch;
+  min-height: 44px;
+  padding: 4px 6px;
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 16px; /* 16px : en dessous, iOS zoome au focus */
+  text-align: center;
+}
+
+.saisie:focus-visible {
+  border-color: var(--gold);
+}
+
+.fin {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* L'état de la rencontre passe SOUS la ligne plutôt que de comprimer les champs : `.ligne` est
+   un `flex-wrap`, et une phrase insérée entre deux saisies les rétrécirait sous l'utilisable. */
+.etat,
+.verrou {
+  flex-basis: 100%;
+  max-width: 80ch;
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
+  .compte {
+    font-size: 22px;
+  }
+
+  .fin {
+    margin-left: 0;
+  }
+}

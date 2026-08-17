@@ -35,6 +35,25 @@ export const MATCH_STATES = ["a_jouer", "en_cours", "terminee"] as const;
 export type MatchState = (typeof MATCH_STATES)[number];
 
 /**
+ * À quel TABLEAU d'une phase une rencontre appartient (Story 10.8).
+ *
+ * 🔴 SANS CETTE VALEUR, LA DOUBLE ÉLIMINATION N'EST PAS STOCKABLE — trou du modèle de la 10.1,
+ * mesuré le 2026-08-15 en base. `eliminationDouble()` (10.2) rend **trois** structures
+ * parallèles, et `tournament_match` ne portait que `phase_id`, `position`, `round` : rien ne
+ * distinguait « tour 2 des perdants » de « tour 2 des vainqueurs ». Le générateur était donc
+ * écrit et testé sans qu'aucune écriture ne puisse le restituer — exactement la situation
+ * d'`effectifConforme()` avant la 10.5, à ceci près que celle-ci demandait une migration.
+ *
+ * ⚠️ `principal` EXISTE POUR QU'IL N'Y AIT JAMAIS DE `NULL` ICI. Une colonne nullable dans un
+ * index d'unicité est un trou silencieux : Postgres considère deux `NULL` comme distincts, donc
+ * deux rencontres au même rang passeraient. C'est le même mécanisme que le `CHECK` qui vaut
+ * `NULL` et PASSE (défaut mesuré en 6.3). Une poule, des lobbies, une finale et une élimination
+ * simple n'ont qu'un tableau : il s'appelle `principal`, il ne s'appelle pas « rien ».
+ */
+export const MATCH_BRACKETS = ["principal", "vainqueurs", "perdants", "grande_finale"] as const;
+export type MatchBracket = (typeof MATCH_BRACKETS)[number];
+
+/**
  * Un engagé porte EXACTEMENT l'effectif annoncé par le tournoi (`teamSize`).
  *
  * 🔴 Cet invariant n'est PAS exprimable par un `CHECK` : il porte sur le NOMBRE de lignes
