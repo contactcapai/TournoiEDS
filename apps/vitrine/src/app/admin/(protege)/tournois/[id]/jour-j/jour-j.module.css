@@ -5,12 +5,19 @@
 
 /* ───────── Les phases en onglets ─────────
    Des LIENS, jamais des boutons : l'URL porte la phase, donc l'écran se recharge, se partage et
-   survit à un réseau qui tombe — ce qui arrive dans un bar. */
+   survit à un réseau qui tombe — ce qui arrive dans un bar.
+
+   🔴 SECOND NIVEAU DEPUIS LA 13.1 : au-dessus vient `BarreJournees`, et on choisit d'abord
+   QUAND, ensuite QUOI. La hiérarchie se rend par la TAILLE — ces onglets sont plus petits et
+   creux, la barre de journées est plus grande et pleine. Deux rangées au même poids, c'était
+   l'état d'avant : rien ne disait laquelle commandait l'autre. */
 .onglets {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 26px;
+  /* 14px et non 26 : la barre de journées est juste au-dessus et les deux forment un bloc.
+     L'écart d'avant les séparait comme deux sections indépendantes. */
+  margin-top: 14px;
 }
 
 .onglet,
@@ -18,10 +25,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 44px; /* cible ≥ 44×44 */
+  min-height: 44px; /* cible ≥ 44×44 — plancher intouchable, même au second niveau */
   padding: 6px 14px;
   border-radius: var(--radius-button);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.3;
 }
 

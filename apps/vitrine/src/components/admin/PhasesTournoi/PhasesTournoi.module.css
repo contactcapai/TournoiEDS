@@ -1,16 +1,19 @@
-/* Le déroulé d'un tournoi : liste des phases + ajout (Story 10.4, refondu en 10.9).
+/* Le déroulé d'un tournoi : liste des phases + ajout (Story 10.4, refondu en 10.9, apparence
+   en 13.1).
 
    🔴 CE FICHIER RÉFÉRENÇAIT QUATRE TOKENS QUI N'EXISTENT PAS — `--paper`, `--ink-soft`,
-   `--rule`, `--alert`. Aucun n'est déclaré dans `packages/ui/src/styles/tokens.css` : un
+   `--rule`, `--alert`. Aucun n'était déclaré dans `packages/ui/src/styles/tokens.css` : un
    `var()` non résolu est IGNORÉ par le navigateur, sans erreur, sans avertissement. Fonds,
    bordures et couleurs de texte ne s'appliquaient donc pas, et l'écran retombait sur les
    couleurs héritées — c'est ça, le « très moche » du gate visuel du 2026-08-15, pas une
    affaire de goût. ⚠️ Mesuré le 2026-08-24 : c'était le SEUL fichier du projet dans ce cas.
    Ils venaient d'une palette CLAIRE (paper/ink) alors que le back-office est sombre.
+   ✅ `--alert` EXISTE DEPUIS LA PR #73 et il est consommé plus bas, à bon escient cette fois :
+   pour une règle qui BLOQUE, jamais pour décorer.
 
-   Le vocabulaire de formulaire vit dans `admin-form.module.css`, consommé par le composant :
-   ici, uniquement ce qui est propre au déroulé. Breakpoint 880 en littéral (§6 du CLAUDE.md,
-   et l'ancien disait 879). */
+   Le vocabulaire de formulaire vit dans `admin-form.module.css` et celui des commandes dans
+   `admin-actions.module.css`, tous deux consommés par le composant : ici, uniquement ce qui
+   est propre au déroulé. Breakpoint 880 en littéral (§6 du CLAUDE.md, et l'ancien disait 879). */
 
 .bloc {
   display: flex;
@@ -18,9 +21,81 @@
   gap: 32px;
 }
 
-.vide {
+/* ── Le déroulé vide : jamais de page blanche ────────────────────────────────────── */
+
+/* 🔴 UN EXEMPLE À AJUSTER BAT UNE NOTICE (principe ④ de l'exploration Stitch). Cette accroche
+   n'est pas décorative : elle dit ce qu'EST un déroulé à quelqu'un qui ouvre l'écran pour la
+   première fois, et c'est le seul endroit où le mot « phase » se définit. */
+.accroche {
+  padding: 20px 24px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--navy);
+}
+
+.accrocheTitre {
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--gold);
+}
+
+.accrocheTexte {
   max-width: 64ch;
   line-height: var(--lh-body);
+  color: var(--light);
+}
+
+/* Les deux portes, CÔTE À CÔTE. L'assistant tient la colonne large parce que c'est la voie
+   qu'on veut voir en premier ; la saisie manuelle reste entière à côté, pas repliée.
+   ⚠️ `minmax(0, …)` sur les deux colonnes : sans lui, une grille laisse ses pistes déborder
+   de leur contenu, et `overflow-x: clip` rognerait le dépassement SANS scrollbar. */
+.depart {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── Les journées ────────────────────────────────────────────────────────────────── */
+
+.journees {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.journee {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Le titre de journée porte la hiérarchie par LA TAILLE (principe ⑤), pas par une couleur
+   supplémentaire : le numéro en display, la date en corps de texte à côté. */
+.journeeTitre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+}
+
+.journeeNumero {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--gold);
+}
+
+.journeeDate {
+  font-size: 14px;
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
   color: var(--grey);
 }
 
@@ -72,8 +147,17 @@
   color: var(--grey);
 }
 
+/* 🔴 PREMIER CONSOMMATEUR DE `--alert` (PR #73) — et il tient sa règle : ceci BLOQUE. Une
+   phase dont les résultats sont saisis ne se déplace ni ne se supprime, ni ici ni côté
+   serveur. C'était de l'or, c'est-à-dire la couleur de ce qu'on met en avant.
+   ⚠️ LE MOT RESTE, la couleur ne le remplace pas (AA) : c'est la phrase qui porte le sens,
+   le corail ne fait que la trouver plus vite au milieu d'un déroulé de neuf lignes. */
 .figee {
-  color: var(--gold);
+  flex: none;
+  max-width: 22ch;
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--alert);
 }
 
 /* ── L'ajout ─────────────────────────────────────────────────────────────────────── */
@@ -91,11 +175,12 @@
   color: var(--gold);
 }
 
-/* Les quatre formats, visibles d'un coup. `auto-fit` plutôt qu'un nombre de colonnes fixe :
-   à quatre entrées il rend 2×2 sur un écran étroit et 4×1 sur un large, sans media query. */
+/* Les cinq formats, visibles d'un coup. `auto-fit` plutôt qu'un nombre de colonnes fixe : il
+   rend 2 ou 3 par rangée selon la largeur disponible, sans media query — ce qui compte ici,
+   la colonne de départ étant plus étroite que la pleine largeur d'un déroulé existant. */
 .formats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
 }
 
@@ -151,6 +236,11 @@
 }
 
 @media (max-width: 880px) {
+  /* Les deux portes s'empilent, l'assistant d'abord : c'est la voie qu'on propose. */
+  .depart {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .phase {
     /* La ligne passe en deux étages : à 360px, le nom et les trois boutons ne tiennent pas
        côte à côte — et `overflow-x: clip` les rognerait sans scrollbar. */
@@ -160,5 +250,12 @@
 
   .corps {
     flex-basis: calc(100% - 44px);
+  }
+
+  /* La raison du verrou prend sa propre ligne plutôt que de comprimer les commandes en
+     dessous de 44px — même arbitrage que `.trace` dans `admin-actions.module.css`. */
+  .figee {
+    flex-basis: 100%;
+    max-width: none;
   }
 }

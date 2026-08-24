@@ -6,6 +6,7 @@ import { Button } from "@repo/ui";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
+import { jourLisible } from "@/lib/date-paris";
 import { AIDES_ETAT_ENGAGE, LIBELLES_ETAT_ENGAGE } from "@/lib/libelles-tournoi";
 import { engageSaisie, NOM_ENGAGE_MAX, NOM_MEMBRE_MAX } from "@/lib/schemas/engage";
 import { ENTRY_STATES, type EntryState } from "@/lib/tournoi/structure";
@@ -183,6 +184,10 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
           c'est-à-dire une phrase qui se contredit. Le détail par état est donné juste dessous,
           où chaque mot a son sens strict. */}
       <div className={styles.enTete}>
+        {/* 🔴 LE COMPTEUR NOMME LA JOURNÉE QU'IL COMPTE (13.1). Il SUIT déjà la journée choisie
+            depuis la 10.12 — mais sans le dire : « 48 présents » au-dessus d'un tableau pointé
+            samedi 13 se lit comme un total du tournoi, et c'est le genre d'écart qu'on ne
+            remarque qu'en recomptant à la main un jour de tournoi. */}
         <p className={styles.compte} role="status">
           {total === 0 ? (
             "Aucun engagé pour l’instant."
@@ -192,6 +197,14 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                 {parEtat.present} présent{parEtat.present > 1 ? "s" : ""}
               </strong>{" "}
               sur {total} engagé{total > 1 ? "s" : ""}
+              {jour !== null ? (
+                <>
+                  {" — "}
+                  <time className={styles.compteJour} dateTime={jour}>
+                    {jourLisible(jour)}
+                  </time>
+                </>
+              ) : null}
             </>
           )}
         </p>
@@ -240,89 +253,166 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
           le tableau.
         </p>
       ) : (
-        <ul className={styles.liste}>
-          {engages.map((engage) => (
-            <li key={engage.id} className={styles.engage}>
-              <div className={styles.identite}>
-                <p className={styles.nom}>
-                  {engage.displayName}
-                  {engage.externalId ? (
-                    /* ⚠️ Un engagé venu de MATELY n'existe pas encore (Story 11.2), mais la
-                       colonne existe depuis la 10.1 : le marquer évite qu'on croie un jour
-                       avoir saisi à la main une ligne qu'une re-synchronisation réécrira. */
-                    <span className={styles.origine} title="Importé depuis MATELY">
-                      {" "}
-                      MATELY
-                    </span>
+        /* ══════════════════════════════════════════════════════════════════════════════════
+           🔴 UN TABLEAU, PARCE QUE LES COLONNES DOIVENT SE NOMMER — AC de la 13.1
+           ══════════════════════════════════════════════════════════════════════════════
+           La 10.12 a rendu le pointage PAR JOURNÉE, mais l'écran ne portait aucun en-tête :
+           les mêmes quatre boutons signifiaient « état dans le tournoi » ou « présence ce
+           samedi » selon un onglet situé bien plus haut. Deux gestes qu'on ne distingue qu'en
+           se souvenant d'où l'on vient sont deux gestes qu'on confond.
+           ⚠️ `<table>` et pas une liste maquillée : les en-têtes de colonne sont ANNONCÉS par
+           les lecteurs d'écran à chaque cellule (« Pointage — samedi 13 septembre »), ce
+           qu'aucune ligne de titre en `<div>` ne fait. */
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">{individuel ? "Joueur" : "Équipe"}</th>
+
+                {/* 🔴 LA COLONNE N'APPARAÎT QUE SI UNE JOURNÉE EST CHOISIE. Sur « tout le
+                    tournoi », l'état global EST celui qu'on pointe : deux colonnes
+                    identiques côte à côte feraient chercher une différence inexistante. */}
+                {jour !== null ? <th scope="col">Dans le tournoi</th> : null}
+
+                <th scope="col">
+                  {jour === null ? (
+                    "État dans le tournoi"
+                  ) : (
+                    <>
+                      Pointage —{" "}
+                      <time dateTime={jour} className={styles.enTeteJour}>
+                        {jourLisible(jour)}
+                      </time>
+                    </>
+                  )}
+                </th>
+
+                <th scope="col">
+                  <span className="sr-only">Retirer du tournoi</span>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {engages.map((engage) => (
+                <tr key={engage.id} className={styles.engage}>
+                  <td>
+                    <p className={styles.nom}>
+                      {engage.displayName}
+                      {engage.externalId ? (
+                        /* ⚠️ Un engagé venu de MATELY n'existe pas encore (Story 11.2), mais la
+                           colonne existe depuis la 10.1 : le marquer évite qu'on croie un jour
+                           avoir saisi à la main une ligne qu'une re-synchronisation réécrira. */
+                        <span className={styles.origine} title="Importé depuis MATELY">
+                          {" "}
+                          MATELY
+                        </span>
+                      ) : null}
+                    </p>
+                    {!individuel && engage.membres.length > 0 ? (
+                      <p className={styles.membres}>
+                        {engage.membres.map((membre) => membre.displayName).join(" · ")}
+                      </p>
+                    ) : null}
+                  </td>
+
+                  {/* ══════════════════════════════════════════════════════════════════════
+                      GESTE N° 1 — L'ÉTAT GLOBAL, EN PASTILLE : IL SE LIT, IL NE SE CLIQUE PAS
+                      ══════════════════════════════════════════════════════════════════
+                      🔴 DEUX GESTES VOISINS PRENNENT DEUX FORMES, JAMAIS DEUX COULEURS
+                      (principe ② de l'exploration Stitch). La forme sépare ici plus que
+                      l'apparence : sur une journée, un seul des deux est CLIQUABLE, donc on
+                      ne peut pas écraser l'état du tournoi en croyant pointer un samedi.
+                      L'état global se modifie depuis « Tout le tournoi », et l'onglet le dit.
+                      ⚠️ LE MOT EST ÉCRIT, jamais la couleur seule (AA) : la pastille porte le
+                      libellé en toutes lettres, elle n'est qu'un repère de plus. */}
+                  {jour !== null ? (
+                    <td>
+                      <span
+                        className={
+                          engage.stateGlobal === "abandonne"
+                            ? `${styles.pastille} ${styles.pastilleAbandon}`
+                            : styles.pastille
+                        }
+                        title={AIDES_ETAT_ENGAGE[engage.stateGlobal]}
+                      >
+                        {LIBELLES_ETAT_ENGAGE[engage.stateGlobal]}
+                      </span>
+                    </td>
                   ) : null}
-                </p>
-                {!individuel && engage.membres.length > 0 ? (
-                  <p className={styles.membres}>
-                    {engage.membres.map((membre) => membre.displayName).join(" · ")}
-                  </p>
-                ) : null}
-              </div>
 
-              {/* 🔴 LE POINTAGE EST UN CLIC, SANS ROUVRIR DE FORMULAIRE (AC 4). L'état courant
-                  est PLEIN, les autres sont creux : on lit l'état sans lire le libellé — même
-                  vocabulaire que la bascule de publication du reste du back-office, et c'est ce
-                  qui permet de supprimer la phrase d'état qui alourdissait chaque ligne. */}
-              <div className={styles.etats}>
-                {ENTRY_STATES.map((cible) => {
-                  const courant = engage.state === cible;
-                  return (
-                    <button
-                      key={cible}
-                      type="button"
-                      className={`${courant ? actions.basculePubliee : actions.bascule} ${styles.boutonEtat}`}
-                      aria-pressed={courant}
-                      title={AIDES_ETAT_ENGAGE[cible]}
-                      disabled={enCoursId === engage.id || courant}
-                      onClick={() => pointer(engage.id, engage.displayName, cible)}
-                    >
-                      {LIBELLES_ETAT_ENGAGE[cible]}
-                      <span className="sr-only"> — {engage.displayName}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                  {/* ══════════════════════════════════════════════════════════════════════
+                      GESTE N° 2 — LE POINTAGE, EN BOUTONS LARGES : C'EST LUI QU'ON FAIT
+                      ══════════════════════════════════════════════════════════════════
+                      🔴 UN CLIC, SANS ROUVRIR DE FORMULAIRE (AC 4 de la 10.5). L'état courant
+                      est PLEIN, les autres creux : on lit l'état sans lire le libellé — même
+                      vocabulaire que la bascule de publication du reste du back-office. */}
+                  <td>
+                    <div className={styles.etats}>
+                      {ENTRY_STATES.map((cible) => {
+                        const courant = engage.state === cible;
+                        return (
+                          <button
+                            key={cible}
+                            type="button"
+                            className={`${courant ? actions.basculePubliee : actions.bascule} ${styles.boutonEtat}`}
+                            aria-pressed={courant}
+                            title={AIDES_ETAT_ENGAGE[cible]}
+                            disabled={enCoursId === engage.id || courant}
+                            onClick={() => pointer(engage.id, engage.displayName, cible)}
+                          >
+                            {LIBELLES_ETAT_ENGAGE[cible]}
+                            <span className="sr-only"> — {engage.displayName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
 
-              <div className={styles.fin}>
-                {engage.supprimable ? (
-                  <BoutonConfirmation
-                    libelle="Supprimer"
-                    question={`Supprimer « ${engage.displayName} » de ce tournoi ?`}
-                    precision={
-                      "Cet engagé ne figure dans aucune rencontre : rien d’autre ne " +
-                      "disparaît. Si la personne était là et a arrêté en cours de route, " +
-                      "n’utilisez pas ce bouton — marquez-la « a abandonné », ses points " +
-                      "restent au classement."
-                    }
-                    onConfirmer={async () => {
-                      const resultat = await supprimerEngage(engage.id);
-                      if (resultat.ok) router.refresh();
-                      return resultat.ok ? { ok: true } : { ok: false, error: resultat.error };
-                    }}
-                  />
-                ) : (
-                  /* 🔴 LE REFUS REPOSE SUR LE MÊME TÉMOIN QUE LA BASE — l'existence d'une place
-                     de rencontre (`ON DELETE RESTRICT`). Ce n'est donc pas une seconde garde
-                     qui pourrait diverger : c'est le refus de la base, rendu lisible avant le
-                     clic. Si la course se produit quand même (une rencontre générée dans un
-                     autre onglet), le `23503` traduit par l'action dit la même chose.
-                     ⚠️ Le FAIT tient sur la ligne ; le QUOI FAIRE est dit une fois au-dessus. */
-                  <p
-                    className={styles.verrou}
-                    title="Un engagé qui figure dans une rencontre ne se supprime plus. S’il a arrêté en cours de route, marquez-le « a abandonné » : ses points restent au classement."
-                  >
-                    Dans {engage.placesDeRencontre} rencontre
-                    {engage.placesDeRencontre > 1 ? "s" : ""}
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <td>
+                    <div className={styles.fin}>
+                      {engage.supprimable ? (
+                        <BoutonConfirmation
+                          libelle="Supprimer"
+                          question={`Supprimer « ${engage.displayName} » de ce tournoi ?`}
+                          precision={
+                            "Cet engagé ne figure dans aucune rencontre : rien d’autre ne " +
+                            "disparaît. Si la personne était là et a arrêté en cours de route, " +
+                            "n’utilisez pas ce bouton — marquez-la « a abandonné », ses points " +
+                            "restent au classement."
+                          }
+                          onConfirmer={async () => {
+                            const resultat = await supprimerEngage(engage.id);
+                            if (resultat.ok) router.refresh();
+                            return resultat.ok
+                              ? { ok: true }
+                              : { ok: false, error: resultat.error };
+                          }}
+                        />
+                      ) : (
+                        /* 🔴 LE REFUS REPOSE SUR LE MÊME TÉMOIN QUE LA BASE — l'existence d'une
+                           place de rencontre (`ON DELETE RESTRICT`). Ce n'est donc pas une
+                           seconde garde qui pourrait diverger : c'est le refus de la base, rendu
+                           lisible avant le clic. Si la course se produit quand même (une
+                           rencontre générée dans un autre onglet), le `23503` traduit par
+                           l'action dit la même chose.
+                           ⚠️ Le FAIT tient sur la ligne ; le QUOI FAIRE est dit une fois
+                           au-dessus. */
+                        <p
+                          className={styles.verrou}
+                          title="Un engagé qui figure dans une rencontre ne se supprime plus. S’il a arrêté en cours de route, marquez-le « a abandonné » : ses points restent au classement."
+                        >
+                          Dans {engage.placesDeRencontre} rencontre
+                          {engage.placesDeRencontre > 1 ? "s" : ""}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {erreurListe ? (

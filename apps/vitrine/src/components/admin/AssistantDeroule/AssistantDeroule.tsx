@@ -10,12 +10,14 @@ import {
   LIBELLE_NATURE,
   MANCHES_PAR_JOURNEE_MAX,
 } from "@/lib/schemas/phase";
+import { decouperEnJournees, numeroDeJournee } from "@/lib/tournoi/journees";
 import { poserDerouleType } from "@/server/actions/phases";
 import actions from "@/styles/admin-actions.module.css";
 import formulaire from "@/styles/admin-form.module.css";
+import styles from "./AssistantDeroule.module.css";
 
 /**
- * L'assistant de déroulé — pose un TFT complet en une fois (2026-08-24).
+ * L'assistant de déroulé — pose un TFT complet en une fois (2026-08-24, apparence en 13.1).
  *
  * 🔴 IL EXISTE PARCE QUE LE CAS RÉEL DE BRICE DEMANDAIT 8 À 12 SAISIES. Un TFT en rondes
  * suisses sur quatre week-ends, c'est quatre journées de deux ou trois manches ; une phase à
@@ -28,17 +30,20 @@ import formulaire from "@/styles/admin-form.module.css";
  *
  * ⚠️ L'aperçu appelle `derouleType`, C'EST-À-DIRE LA FONCTION QUI ÉCRIT — pas une seconde
  * version « pour l'affichage ». Un aperçu calculé à part finit par mentir : on validerait ce
- * qu'on a lu, et autre chose serait écrit.
+ * qu'on a lu, et autre chose serait écrit. Il partage aussi le DÉCOUPAGE EN JOURNÉES du
+ * déroulé réel (`decouperEnJournees`), pour la même raison : ce qu'on lit avant et ce qu'on
+ * relit après doivent avoir la même forme, sinon on croit à une erreur d'écriture.
  *
- * ⚠️ Apparence volontairement minimale : les écrans de l'espace tournoi sont en cours de
- * refonte (Stitch, 2026-08-24). Ce composant consomme le vocabulaire de formulaire existant et
- * n'invente aucun style — c'est le FOND qui est livré ici.
+ * 🔴 CE QUE LA 13.1 A CHANGÉ. L'assistant vivait REPLIÉ derrière un bouton « Composer un
+ * déroulé type », et son aperçu tenait dans une liste à puces au bas du formulaire. Une
+ * assistance qu'il faut déplier est trouvée par qui la cherche, c'est-à-dire par qui n'en a
+ * pas besoin ; et un aperçu qu'on découvre après avoir tout saisi ne sert plus à décider.
+ * Il occupe désormais sa colonne d'emblée, et la prévisualisation a une vraie place.
  */
 export function AssistantDeroule({ tournoiId }: { tournoiId: string }) {
   const router = useRouter();
   const [enTransition, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const [ouvert, setOuvert] = useState(false);
 
   const [journees, setJournees] = useState("4");
   const [manches, setManches] = useState("2");
@@ -62,12 +67,13 @@ export function AssistantDeroule({ tournoiId }: { tournoiId: string }) {
     });
   }, [journees, manches, premierJour, finale]);
 
+  const groupes = apercu === null ? [] : decouperEnJournees(apercu);
+
   const soumettre = (donnees: FormData) => {
     demarrer(async () => {
       const resultat = await poserDerouleType(tournoiId, donnees);
       if (resultat.ok) {
         setErreur(null);
-        setOuvert(false);
         router.refresh();
         return;
       }
@@ -75,66 +81,57 @@ export function AssistantDeroule({ tournoiId }: { tournoiId: string }) {
     });
   };
 
-  if (!ouvert) {
-    return (
-      <div className={formulaire.regle}>
-        <p>
-          <strong>Un tournoi sur plusieurs week-ends ?</strong> L&rsquo;assistant pose les
-          journées, leurs manches et leurs dates d&rsquo;un coup — vous corrigez ensuite ce que
-          vous voulez.
-        </p>
-        <div className={formulaire.actions}>
-          <button type="button" className={actions.bouton} onClick={() => setOuvert(true)}>
-            Composer un déroulé type
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <form action={soumettre} className={formulaire.form}>
-      <h3 className={formulaire.legend}>Composer un déroulé type</h3>
+    <form action={soumettre} className={`${formulaire.form} ${styles.assistant}`}>
+      <h3 className={styles.titre}>L&rsquo;assistant</h3>
+      <p className={styles.chapo}>
+        Il pose les journées, leurs manches et leurs dates d&rsquo;un coup. Rien n&rsquo;est
+        écrit tant que vous n&rsquo;avez pas validé ce que vous lisez plus bas.
+      </p>
 
-      <div className={formulaire.champ}>
-        <label className={formulaire.label} htmlFor="assistant-journees">
-          Combien de journées ?
-        </label>
-        <input
-          id="assistant-journees"
-          name="journees"
-          type="number"
-          min={1}
-          max={JOURNEES_MAX}
-          className={formulaire.saisie}
-          value={journees}
-          onChange={(evenement) => setJournees(evenement.target.value)}
-        />
-        <p className={formulaire.sousChamp}>
-          <span>Une journée = un week-end de jeu. {JOURNEES_MAX} au maximum.</span>
-        </p>
-      </div>
+      {/* Les deux nombres côte à côte : ce sont eux qu'on ajuste en regardant l'aperçu, et
+          les séparer sur deux rangées éloignerait la cause de son effet. */}
+      <div className={styles.paire}>
+        <div className={formulaire.champ}>
+          <label className={formulaire.label} htmlFor="assistant-journees">
+            Combien de journées ?
+          </label>
+          <input
+            id="assistant-journees"
+            name="journees"
+            type="number"
+            min={1}
+            max={JOURNEES_MAX}
+            className={formulaire.saisie}
+            value={journees}
+            onChange={(evenement) => setJournees(evenement.target.value)}
+          />
+          <p className={formulaire.sousChamp}>
+            <span>Une journée = un week-end de jeu. {JOURNEES_MAX} au maximum.</span>
+          </p>
+        </div>
 
-      <div className={formulaire.champ}>
-        <label className={formulaire.label} htmlFor="assistant-manches">
-          Combien de manches par journée ?
-        </label>
-        <input
-          id="assistant-manches"
-          name="manchesParJournee"
-          type="number"
-          min={1}
-          max={MANCHES_PAR_JOURNEE_MAX}
-          className={formulaire.saisie}
-          value={manches}
-          onChange={(evenement) => setManches(evenement.target.value)}
-        />
-        <p className={formulaire.sousChamp}>
-          <span>
-            Le nombre de fois qu&rsquo;on refait les tables dans la journée.{" "}
-            {MANCHES_PAR_JOURNEE_MAX} au maximum.
-          </span>
-        </p>
+        <div className={formulaire.champ}>
+          <label className={formulaire.label} htmlFor="assistant-manches">
+            Combien de manches par journée ?
+          </label>
+          <input
+            id="assistant-manches"
+            name="manchesParJournee"
+            type="number"
+            min={1}
+            max={MANCHES_PAR_JOURNEE_MAX}
+            className={formulaire.saisie}
+            value={manches}
+            onChange={(evenement) => setManches(evenement.target.value)}
+          />
+          <p className={formulaire.sousChamp}>
+            <span>
+              Le nombre de fois qu&rsquo;on refait les tables dans la journée.{" "}
+              {MANCHES_PAR_JOURNEE_MAX} au maximum.
+            </span>
+          </p>
+        </div>
       </div>
 
       <div className={formulaire.champ}>
@@ -170,36 +167,68 @@ export function AssistantDeroule({ tournoiId }: { tournoiId: string }) {
         </label>
       </div>
 
-      {/* 🔴 CE QUI SERA ÉCRIT, AVANT DE CLIQUER. C'est ce qui fait de ce formulaire une
-          assistance et non une génération automatique. */}
+      {/* ══════════════════════════════════════════════════════════════════════════════════
+          CE QUI SERA ÉCRIT, AVANT DE CLIQUER — et ça occupe une vraie place
+          ══════════════════════════════════════════════════════════════════════════════
+          🔴 C'est ce qui fait de ce formulaire une assistance et non une génération
+          automatique. Il est rendu ICI, entre les réglages et le bouton : c'est l'ordre dans
+          lequel on décide — je règle, je regarde, je valide. */}
       {apercu ? (
-        <div className={formulaire.regle}>
-          <p>
-            <strong>
-              {apercu.length} phase{apercu.length > 1 ? "s" : ""} seront créées :
-            </strong>
-          </p>
-          <ol>
-            {apercu.map((phase) => (
-              <li key={phase.name}>
-                {phase.name} — {LIBELLE_NATURE[phase.kind]}
-                {phase.playedOn ? ` — ${jourLisible(phase.playedOn)}` : ""}
-              </li>
-            ))}
+        <section className={styles.apercu} aria-live="polite">
+          <h4 className={styles.apercuTitre}>
+            Ce qui sera créé — {apercu.length} phase{apercu.length > 1 ? "s" : ""}
+          </h4>
+
+          <ol className={styles.groupes}>
+            {groupes.map((groupe, rang) => {
+              const numero = numeroDeJournee(groupes, rang);
+              return (
+                <li key={`${groupe.jour ?? "sans-date"}-${rang}`} className={styles.groupe}>
+                  <p className={styles.groupeTitre}>
+                    {numero === null ? (
+                      "Sans jour fixé"
+                    ) : (
+                      <>
+                        <span className={styles.groupeNumero}>Journée {numero}</span>
+                        {groupe.jour ? (
+                          <time className={styles.groupeDate} dateTime={groupe.jour}>
+                            {jourLisible(groupe.jour)}
+                          </time>
+                        ) : null}
+                      </>
+                    )}
+                  </p>
+                  <ul className={styles.manches}>
+                    {groupe.phases.map(({ phase }) => (
+                      <li key={phase.name} className={styles.manche}>
+                        <span className={styles.mancheNom}>{phase.name}</span>
+                        <span className={styles.mancheNature}>{LIBELLE_NATURE[phase.kind]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ol>
-          <p>
+
+          <p className={styles.apercuRegle}>
             La <strong>première</strong> manche part des présents ; les suivantes se composent
             d&rsquo;après le <strong>classement</strong>, c&rsquo;est ce qui les rend suisses.
+            Tout se renomme et se déplace ensuite, tant qu&rsquo;aucun résultat n&rsquo;est
+            saisi.
           </p>
-        </div>
-      ) : null}
+        </section>
+      ) : (
+        /* ⚠️ L'aperçu disparaît dès qu'une saisie ne s'interprète pas. Sans cette phrase, le
+           bloc s'évanouit sans raison visible et on croit à une panne. */
+        <p className={styles.apercuVide} aria-live="polite">
+          Indiquez un nombre de journées et de manches pour voir la structure proposée.
+        </p>
+      )}
 
       <div className={formulaire.actions}>
         <button type="submit" className={actions.bouton} disabled={enTransition || !apercu}>
-          {enTransition ? "…" : "Créer ces phases"}
-        </button>
-        <button type="button" className={actions.bouton} onClick={() => setOuvert(false)}>
-          Annuler
+          {enTransition ? "…" : "Créer ce déroulé"}
         </button>
       </div>
 

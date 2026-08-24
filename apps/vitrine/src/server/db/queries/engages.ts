@@ -187,6 +187,16 @@ export async function getEngagesForTournament(tournoiId: string, jour: string | 
        * distinct d'« absent » — c'est l'information même qu'on cherche en début de journée.
        */
       state: etatAffiche(ligne.state, pointages.get(ligne.id)),
+      /**
+       * 🔴 L'ÉTAT GLOBAL DU TOURNOI, CONSERVÉ À CÔTÉ (Story 13.1). `state` ci-dessus l'ÉCRASE
+       * dès qu'une journée est choisie, et l'écran ne pouvait donc plus montrer que l'un des
+       * deux — alors que ce sont précisément DEUX GESTES qu'il faut distinguer sans se
+       * tromper : « inscrit au tournoi, a abandonné » d'un côté, « présent ce samedi » de
+       * l'autre. Un abandon reste vrai toutes journées confondues ; le pointage, non.
+       * ⚠️ Quand aucune journée n'est choisie, les deux valent la même chose — c'est normal,
+       * et c'est au rendu de ne pas afficher deux fois la même information.
+       */
+      stateGlobal: ligne.state,
       membres: parEngage.get(ligne.id) ?? [],
       /** La base refusera la suppression dès qu'une place existe — voir plus haut. */
       supprimable: ligne.placesDeRencontre === 0,

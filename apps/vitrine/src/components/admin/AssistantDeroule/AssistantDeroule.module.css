@@ -1,0 +1,144 @@
+/* L'assistant de déroulé (Story 10.10, apparence en 13.1). Tokens uniquement.
+
+   Ce composant n'avait AUCUN fichier de style : livré « au strict minimum » parce que les
+   écrans étaient en cours de refonte, il empruntait `admin-form.module.css` et s'arrêtait là.
+   Ce qui suit est ce qui lui est PROPRE — la prévisualisation, qui n'existe nulle part
+   ailleurs. Le vocabulaire de formulaire et de commandes reste emprunté.
+
+   Breakpoint 880 en littéral (§6 du CLAUDE.md). */
+
+.assistant {
+  padding: 20px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.titre {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--gold);
+}
+
+.chapo {
+  max-width: 56ch;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* ⚠️ `minmax(0, 1fr)` et non `1fr` : une piste de grille prend par défaut la largeur de son
+   contenu, et un `<input type="number">` a une largeur intrinsèque qui déborde à l'étroit.
+   `overflow-x: clip` rognerait le dépassement sans scrollbar ni erreur. */
+.paire {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* ── La prévisualisation ─────────────────────────────────────────────────────────── */
+
+/* 🔴 ELLE OCCUPE UNE VRAIE PLACE, et ce n'est pas cosmétique : c'est ce qu'on regarde pour
+   décider. Repliée en liste à puces au bas du formulaire, elle se lisait après avoir tout
+   saisi — donc trop tard pour changer d'avis sans re-parcourir l'écran. */
+.apercu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+}
+
+.apercuTitre {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--light);
+}
+
+.groupes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+}
+
+.groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupeTitre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--grey);
+}
+
+.groupeNumero {
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.groupeDate {
+  color: var(--grey);
+}
+
+/* Les manches en pastilles sur une rangée : à quatre journées de trois manches, une liste
+   verticale ferait 12 lignes et l'aperçu cesserait de tenir sous les réglages qu'il commente. */
+.manches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+}
+
+.manche {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--radius-button);
+  background: var(--navy);
+}
+
+.mancheNom {
+  font-size: 13px;
+  color: var(--light);
+}
+
+.mancheNature {
+  font-size: 12px;
+  color: var(--grey);
+}
+
+.apercuRegle {
+  max-width: 60ch;
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* ⚠️ Pas en `--alert` : ce n'est pas une erreur, c'est une saisie incomplète. Le corail est
+   réservé à ce qui bloque ou signale une faute (arbitrage du 2026-08-24). */
+.apercuVide {
+  padding: 16px;
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
+  .paire {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
