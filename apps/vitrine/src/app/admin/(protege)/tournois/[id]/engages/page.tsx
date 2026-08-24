@@ -41,33 +41,24 @@ export default async function EngagesTournoiPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Les engagés de « {tournoi.name} »</h1>
+      {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9). */}
+      <h2 className={styles.titre}>Les engagés</h2>
       <p className={styles.chapo}>
         Saisissez ici qui participe, puis <strong>pointez le jour J</strong>. Ce sont les{" "}
         <strong>présents</strong> qui entreront dans le tableau — pas les inscrits.
       </p>
 
-      <div className={styles.barreActions}>
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}`}>
-          Retour à la fiche
-        </Link>
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
-          Le déroulé
-        </Link>
-        <Link className={styles.lien} href="/admin/tournois">
-          Retour aux tournois
-        </Link>
-      </div>
-
-      {/* ⚠️ DIT ICI PARCE QUE C'EST ICI QU'ON SE POSE LA QUESTION : le tableau ne se génère pas
-          encore (Story 10.8). Sans cette phrase, on pointerait tout le monde en cherchant
-          ensuite un bouton « Lancer » qui n'existe pas — c'est la règle ① de
-          `pieges/integration-tierce.md` : tant qu'un maillon n'est pas livré, son absence
-          s'écrit sur l'écran de celui qui la subit. */}
+      {/* 🔴 CETTE MENTION DISAIT « le tableau ne se génère pas encore » — VRAI À L'ÉCRITURE
+          (10.5), FAUX DEPUIS LE MERGE DE LA 10.8 le jour même, et resté à l'écran neuf jours.
+          Une phrase qui décrit ce qui MANQUE devient fausse en silence dès qu'on le livre :
+          quand la chose existe, elle doit devenir un LIEN vers elle. */}
       <p className={styles.mention} role="note">
-        <strong>Le tableau ne se génère pas encore.</strong> Cet écran sert à tenir la liste et
-        à pointer ; la génération des rencontres arrive dans une prochaine étape et
-        consommera le nombre de présents affiché ci-dessous.
+        Une fois le pointage fait, c&rsquo;est au{" "}
+        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/jour-j`}>
+          jour J
+        </Link>{" "}
+        que les rencontres se génèrent — à partir des <strong>présents</strong>, pas des
+        inscrits.
       </p>
 
       <div className={styles.section}>

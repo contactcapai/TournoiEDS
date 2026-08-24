@@ -87,24 +87,19 @@ export default async function JourJPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Le jour J — « {tournoi.name} »</h1>
+      {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9). */}
+      <h2 className={styles.titre}>Le jour J</h2>
+      {/* 🔴 LE COMPTE DE PRÉSENTS RESTE, ET IL A CHANGÉ DE PLACE. Il vivait dans le libellé
+          d'un lien de la barre de navigation, que le menu de l'espace remplace (R61) — or
+          c'est le chiffre qu'on regarde en premier ici : il décide de ce qui se génère. */}
       <p className={styles.chapo}>
         On génère depuis les <strong>présents</strong>, on saisit les résultats, le classement se
-        recalcule. Le pointage vit sur l&rsquo;écran des <strong>engagés</strong> ; le déroulé
-        (les phases) se compose ailleurs.
-      </p>
-
-      <div className={styles.barreActions}>
+        recalcule. Pour l&rsquo;instant,{" "}
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
-          Les engagés ({engages.parEtat.present} présents)
-        </Link>
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
-          Le déroulé
-        </Link>
-        <Link className={styles.lien} href="/admin/tournois">
-          Retour aux tournois
-        </Link>
-      </div>
+          <strong>{engages.parEtat.present} présents</strong> au pointage
+        </Link>{" "}
+        — ce sont eux qui entreront dans le tableau, pas les inscrits.
+      </p>
 
       {phases.length === 0 ? (
         /* ⚠️ Un état vide qui dirait « aucune phase » se lirait comme une panne. Celui-ci dit

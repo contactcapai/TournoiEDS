@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -42,22 +41,15 @@ export default async function ComposerTournoiPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Composer « {tournoi.name} »</h1>
+      {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9) —
+          « Composer « X » » le répétait à un cran au-dessus. */}
+      <h2 className={styles.titre}>Le déroulé</h2>
       <p className={styles.chapo}>
         Le déroulé se compose en phases, jouées dans l&rsquo;ordre. Ce que vous saisissez ici
         est un <strong>plan</strong> : le pointage du jour J révèle qui est réellement là, et
         la structure peut encore être refaite à ce moment-là — tant qu&rsquo;aucune rencontre
         n&rsquo;a de résultat.
       </p>
-
-      <div className={styles.barreActions}>
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}`}>
-          Retour à la fiche
-        </Link>
-        <Link className={styles.lien} href="/admin/tournois">
-          Retour aux tournois
-        </Link>
-      </div>
 
       <div className={styles.section}>
         <PhasesTournoi tournoiId={tournoi.id} phases={phases} />

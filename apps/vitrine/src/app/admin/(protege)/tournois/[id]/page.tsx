@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -63,7 +62,8 @@ export default async function ModifierTournoiPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier un tournoi</h1>
+      {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9). */}
+      <h2 className={styles.titre}>La fiche</h2>
       {/* ⚠️ L'état de publication n'est PAS modifiable ici : il vit sur la ligne de la liste,
           et c'est ce découpage qui empêche ce formulaire d'écraser une bascule faite ailleurs
           pendant qu'il était ouvert (dette R35 rendue sans objet). L'écran le DIT quand même,
@@ -93,15 +93,6 @@ export default async function ModifierTournoiPage({
           </>
         )}
       </p>
-
-      <div className={styles.barreActions}>
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
-          Composer le déroulé
-        </Link>
-        <Link className={styles.lien} href="/admin/tournois">
-          Retour aux tournois
-        </Link>
-      </div>
 
       <div className={styles.section}>
         <TournoiForm
