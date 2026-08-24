@@ -18,6 +18,7 @@ import {
   type PlaceJouee,
 } from "../../lib/tournoi/progression";
 import { podiumDepuis } from "../../lib/tournoi/parcours";
+import { participantsDepuisLeClassement } from "../../lib/tournoi/participants";
 import { partDuClassement } from "../../lib/tournoi/structure";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
@@ -331,23 +332,35 @@ export async function genererPhase(
   // règle vit donc dans le FORMAT et non dans une case à cocher qu'on oublie au 3e week-end.
   const depuisLeClassement = partDuClassement(phase.kind) || reglages.depuis === "classement";
 
-  const participants = depuisLeClassement
-    ? (await getClassementDuTournoi(phase.tournoiId))
-        .filter((ligne) => !ligne.abandonne)
-        .map((ligne) => ({ id: ligne.id, nom: ligne.nom }))
-    : await getPresentsDuTournoi(phase.tournoiId);
+  /**
+   * 🔴 ON PART TOUJOURS DES PRÉSENTS ; LE CLASSEMENT NE DONNE QUE L'ORDRE (correctif du
+   * 2026-08-24). La version d'avant lisait le classement filtré sur `!abandonne`, et se
+   * trompait des DEUX côtés, en silence : un présent qui n'avait pas encore joué n'était dans
+   * aucune table (il n'apparaît pas dans un classement construit depuis les places), et un
+   * ABSENT déjà classé gardait une chaise à chaque manche — sa table jouait à sept.
+   * Le moteur TFT historique traitait le premier cas en toutes lettres ; voir `participants.ts`.
+   */
+  const presents = await getPresentsDuTournoi(phase.tournoiId);
 
+  const participants = depuisLeClassement
+    ? participantsDepuisLeClassement(
+        (await getClassementDuTournoi(phase.tournoiId)).map((ligne) => ({
+          id: ligne.id,
+          nom: ligne.nom,
+        })),
+        presents,
+      )
+    : presents;
+
+  // ⚠️ UN SEUL MESSAGE, ET IL EST REDEVENU VRAI. Il y en avait trois, dont deux parlaient
+  // d'un classement absent — impossible désormais : on part des présents, donc une liste vide
+  // ne peut avoir qu'une cause. Une phase suisse jouée sans classement n'échoue plus, elle
+  // part de l'ordre d'arrivée ; c'est l'écran du jour J qui le DIT avant de générer.
   if (participants.length === 0) {
     return {
       ok: false,
-      error: !depuisLeClassement
-        ? "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés."
-        : partDuClassement(phase.kind)
-          ? // Le cas le plus probable d'une manche suisse : on l'a placée en première position.
-            "Une manche suisse se compose d'après le classement, et aucun résultat n'est encore " +
-            "saisi. Jouez d'abord une première manche (format « Lobbies »), puis revenez ici."
-          : "Aucun classement pour l'instant : personne n'a encore de résultat. Générez depuis " +
-            "les présents.",
+      error:
+        "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés.",
     };
   }
 
