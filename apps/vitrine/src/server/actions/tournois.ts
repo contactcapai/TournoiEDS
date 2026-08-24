@@ -6,7 +6,7 @@ import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/d
 import { tournamentInputSchema } from "../../lib/schemas/tournament";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
-import { slugDejaPris } from "../db/queries/tournaments";
+import { slugDejaPris, tournoiADesEngages } from "../db/queries/tournaments";
 import { tournament, tournamentPhase } from "../db/schema";
 import {
   erreursParChamp,
@@ -272,6 +272,9 @@ export async function enregistrerTournoi(
     prizes: formData.get("prizes"),
     matchDurationMinutes: entierOptionnel(formData.get("matchDurationMinutes")),
     capacity: entierOptionnel(formData.get("capacity")),
+    // `?? 1` : la colonne est `notNull`, un champ vidé retombe sur l'individuel. Une saisie
+    // ILLISIBLE reste `NaN` et se fait refuser — c'est tout l'intérêt d'`entierOptionnel`.
+    teamSize: entierOptionnel(formData.get("teamSize")) ?? 1,
     registrationMode: formData.get("registrationMode"),
     registrationUrl: formData.get("registrationUrl"),
     registrationState: formData.get("registrationState") ?? undefined,
@@ -318,7 +321,7 @@ export async function enregistrerTournoi(
 
   if (idExistant !== null) {
     const actuel = await db.query.tournament.findFirst({
-      columns: { slug: true, isPublished: true },
+      columns: { slug: true, isPublished: true, teamSize: true },
       where: (table, { eq: egal }) => egal(table.id, idExistant),
     });
     if (!actuel) {
@@ -331,6 +334,28 @@ export async function enregistrerTournoi(
         ok: false,
         error: "L'adresse d'un tournoi publié ne peut plus changer.",
         fieldErrors: { slug: MESSAGE_ADRESSE_FIGEE },
+      };
+    }
+
+    /**
+     * 🔴 L'EFFECTIF D'ÉQUIPE SE FIGE AU PREMIER ENGAGÉ. `effectifConforme` exige d'un engagé
+     * exactement `team_size` membres, et cette règle vit à la frontière d'écriture, pas dans
+     * un `CHECK` : passer de 1 à 5 sous 20 engagés les rendrait tous non conformes SANS UN MOT.
+     * ⚠️ La comparaison porte sur le CHANGEMENT, pas sur la valeur — sinon corriger une faute
+     * de frappe dans les lots deviendrait impossible dès le premier inscrit.
+     * ⚠️ Course assumée, comme `slugDejaPris` : le pire est un effectif à corriger à la main.
+     */
+    if (valeurs.teamSize !== actuel.teamSize && (await tournoiADesEngages(idExistant))) {
+      return {
+        ok: false,
+        error: "L'effectif d'équipe ne change plus une fois des engagés saisis.",
+        fieldErrors: {
+          teamSize:
+            `Ce tournoi a déjà des engagés, saisis pour des équipes de ${actuel.teamSize} ` +
+            `joueur${actuel.teamSize > 1 ? "s" : ""}. Passer à ${valeurs.teamSize} les rendrait ` +
+            "tous incomplets sans les corriger. Pour changer l'effectif, retirez d'abord les " +
+            "engagés — ou créez un autre tournoi.",
+        },
       };
     }
   }

@@ -1,6 +1,6 @@
 name: CI
 
-# Valide le monorepo (lint + typecheck + build via Turborepo) sur chaque push
+# Valide le monorepo (lint + typecheck + build + test via Turborepo) sur chaque push
 # sur main et sur chaque pull request ciblant main. Aucun secret requis.
 # Le job de deploiement VPS (docker compose up) sera ajoute apres la Story 1.8.
 on:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   validate:
-    name: Lint, typecheck & build
+    name: Lint, typecheck, build & test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,7 +38,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Turborepo ordonne les taches via dependsOn: ["^build"]. Lance les 3 portes qualite ;
+      # Turborepo ordonne les taches via dependsOn: ["^build"]. Lance les 4 portes qualite ;
       # echoue (rouge, PR bloquante) si l'une echoue.
-      - name: Lint, typecheck & build
-        run: pnpm turbo run lint typecheck build
+      #
+      # 🔴 `test` ajoute le 2026-08-24 : les scripts existaient depuis la Story 8.8 sans que
+      # ce fichier soit repris, donc 237 tests tournaient a la main et ne gardaient RIEN au
+      # merge. ~4 secondes, ni base ni secret requis.
+      - name: Lint, typecheck, build & test
+        run: pnpm turbo run lint typecheck build test

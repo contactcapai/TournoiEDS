@@ -88,6 +88,9 @@ const COLONNES_ADMIN = {
   prizes: true,
   matchDurationMinutes: true,
   capacity: true,
+  // Sans elle, le formulaire s'ouvrirait sur le défaut (1) et le premier enregistrement
+  // écraserait un « 5 » déjà saisi — même défaut que celui décrit plus haut pour `endsAt`.
+  teamSize: true,
   registrationMode: true,
   registrationUrl: true,
   registrationState: true,
@@ -520,6 +523,20 @@ export async function slugDejaPris(slug: string, idExclu: string | null) {
   if (!ligne) return null;
   if (idExclu !== null && ligne.id === idExclu) return null;
   return ligne;
+}
+
+/**
+ * Ce tournoi porte-t-il au moins un engagé ? Décide si `team_size` est encore modifiable —
+ * le raisonnement complet est sur la garde d'`enregistrerTournoi`, qui est celle qui compte.
+ *
+ * ⚠️ Une EXISTENCE, pas un compte : « peut-on encore changer ? » se répond pareil à 1 et à 64.
+ */
+export async function tournoiADesEngages(tournoiId: string) {
+  const ligne = await db.query.tournamentEntry.findFirst({
+    columns: { id: true },
+    where: (table, { eq }) => eq(table.tournamentId, tournoiId),
+  });
+  return ligne !== undefined;
 }
 
 /**

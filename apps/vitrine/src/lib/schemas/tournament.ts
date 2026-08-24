@@ -180,6 +180,15 @@ export const DUREE_MATCH_MAX = 600;
 export const PLACES_MAX = 4096;
 
 /**
+ * L'effectif d'un engagé — 1 en individuel, 5 pour du LoL en équipes.
+ *
+ * ⚠️ À NE PAS CONFONDRE AVEC `PLACES_MAX` : la capacité compte les ENGAGÉS, celle-ci les
+ * JOUEURS DANS un engagé. « 16 équipes de 5 » se dit `capacity = 16`, `teamSize = 5`.
+ * Plafond à 16 : au-delà ce n'est plus une équipe d'esport, c'est une faute de frappe.
+ */
+export const TAILLE_EQUIPE_MAX = 16;
+
+/**
  * ══════════════════════════════════════════════════════════════════════════════════════
  * 🔴 L'IDENTIFIANT LISIBLE — AUCUN `slug` N'EXISTE DANS CE PROJET, TOUT EST À DÉCIDER ICI
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -483,6 +492,24 @@ export const tournamentInputSchema = z
       .max(PLACES_MAX, `Le nombre de places ne peut pas dépasser ${PLACES_MAX}.`)
       .nullable()
       .default(null),
+    /**
+     * L'effectif d'un engagé. **Ni facultatif ni nullable** : l'individuel n'est pas l'absence
+     * d'équipe, c'est une équipe d'un membre — un seul chemin de code (cf. `engage.ts`).
+     *
+     * 🔴 CETTE LIGNE REND LE CHEMIN « ÉQUIPE » ATTEIGNABLE. La colonne et tout ce qui la lit
+     * existent depuis la 10.1, mais AUCUNE surface n'écrivait la valeur : tous les tournois
+     * valaient 1, et le chemin « équipe » était écrit et testé sans être atteignable.
+     */
+    teamSize: z
+      // Même motif que `matchDurationMinutes` plus haut — voir son bloc.
+      .number({ error: "L'effectif d'une équipe doit être un nombre, en chiffres." })
+      .int("L'effectif d'une équipe doit être un nombre entier.")
+      .min(1, "L'effectif d'une équipe est d'au moins 1 joueur (1 = tournoi individuel).")
+      .max(
+        TAILLE_EQUIPE_MAX,
+        `L'effectif d'une équipe ne peut pas dépasser ${TAILLE_EQUIPE_MAX} joueurs.`,
+      )
+      .default(1),
     /** Comment on s'inscrit (A23 ②). Voir `REGISTRATION_MODES`. */
     registrationMode: z.enum(REGISTRATION_MODES),
     /**
