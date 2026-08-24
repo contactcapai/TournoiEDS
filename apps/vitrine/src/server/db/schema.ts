@@ -28,6 +28,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -1946,6 +1947,21 @@ export const tournamentPhase = pgTable(
     position: integer().notNull(),
     name: text().notNull(),
     kind: tournamentPhaseKind().notNull(),
+    /**
+     * Le JOUR où cette phase se joue. `null` = non daté, et c'est le cas nominal d'un tournoi
+     * qui tient sur une journée : on ne force personne à saisir une date sans objet.
+     *
+     * 🔴 UN `date` ET NON UN `timestamp` — LE SEUL DU SCHÉMA, ET C'EST UNE PARADE. La question
+     * posée est « quel week-end ? », pas « à quelle seconde ». Un `timestamptz` rouvrirait
+     * tout le piège d'heure murale que `lib/date-paris.ts` documente, pour une information qui
+     * n'a pas d'heure. En `mode: "string"`, « 2026-09-06 » traverse la base et le rendu SANS
+     * jamais devenir un instant : aucun fuseau ne peut le décaler d'un jour.
+     *
+     * ⚠️ Ce n'est PAS une redite de `tournament.starts_at` : celui-là dit quand le tournoi
+     * commence, celle-ci quand CETTE manche se joue. Un TFT en rondes suisses sur quatre
+     * week-ends a une seule date de début et quatre journées.
+     */
+    playedOn: date({ mode: "string" }),
     state: tournamentPhaseState().notNull().default("planifiee"),
     /**
      * Réglages PROPRES au format (taille des lobbies, nombre de tours…), validés à

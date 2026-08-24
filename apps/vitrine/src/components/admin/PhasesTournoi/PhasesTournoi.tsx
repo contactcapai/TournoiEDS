@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { AssistantDeroule } from "@/components/admin/AssistantDeroule/AssistantDeroule";
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
+import { jourLisible } from "@/lib/date-paris";
 import { AIDE_NATURE, LIBELLE_NATURE, NOM_PHASE_MAX, NOM_SUGGERE } from "@/lib/schemas/phase";
-import { PHASE_KINDS, type PhaseKind } from "@/lib/tournoi/structure";
+import { ORDRE_FORMATS, type PhaseKind } from "@/lib/tournoi/structure";
 import { ajouterPhase, deplacerPhase, supprimerPhase } from "@/server/actions/phases";
 import type { PhaseListee } from "@/server/db/queries/phases";
 import actions from "@/styles/admin-actions.module.css";
@@ -41,6 +43,7 @@ export function PhasesTournoi({
 
   const [nom, setNom] = useState("");
   const [kind, setKind] = useState<PhaseKind | "">("");
+  const [jour, setJour] = useState("");
 
   /**
    * 🔴 LE NOM SUIT LE FORMAT TANT QUE PERSONNE NE L'A TOUCHÉ — patron d'`adresseLiee`
@@ -62,6 +65,9 @@ export function PhasesTournoi({
         setChamps({});
         setNom("");
         setKind("");
+        // ⚠️ LE JOUR N'EST PAS RÉINITIALISÉ, à la différence du nom et du format : on saisit
+        // plusieurs manches d'une MÊME journée à la suite, et le remettre à vide obligerait à
+        // le retaper à chaque fois. C'est le seul champ dont la valeur précédente sert encore.
         setNomLie(true);
         router.refresh();
         return;
@@ -82,10 +88,16 @@ export function PhasesTournoi({
   return (
     <div className={styles.bloc}>
       {phases.length === 0 ? (
-        <p className={styles.vide}>
-          Ce tournoi n&rsquo;a pas encore de déroulé. Ajoutez une première phase ci-dessous.
-          Vous pourrez la réécrire tant qu&rsquo;aucune rencontre n&rsquo;a de résultat.
-        </p>
+        <>
+          <p className={styles.vide}>
+            Ce tournoi n&rsquo;a pas encore de déroulé. Ajoutez une première phase ci-dessous.
+            Vous pourrez la réécrire tant qu&rsquo;aucune rencontre n&rsquo;a de résultat.
+          </p>
+          {/* ⚠️ Sur un déroulé VIDE seulement : l'assistant est un point de DÉPART, et
+              compléter un déroulé existant demanderait de deviner où insérer les phases et
+              lesquelles doivent partir du classement. Le serveur refuse de toute façon. */}
+          <AssistantDeroule tournoiId={tournoiId} />
+        </>
       ) : (
         <ol className={styles.liste}>
           {phases.map((phase, index) => (
@@ -102,6 +114,12 @@ export function PhasesTournoi({
                 {/* Une seule ligne d'état, séparateurs au milieu : la version d'avant en
                     empilait deux par phase, ce qui rendait une liste de six illisible. */}
                 <p className={styles.etat}>
+                  {phase.playedOn ? (
+                    <>
+                      <time dateTime={phase.playedOn}>{jourLisible(phase.playedOn)}</time>
+                      {" · "}
+                    </>
+                  ) : null}
                   {LIBELLE_NATURE[phase.kind]}
                   {" · "}
                   {phase.rencontres === 0
@@ -173,7 +191,7 @@ export function PhasesTournoi({
         <fieldset className={formulaire.champ}>
           <legend className={formulaire.legend}>Quel format ?</legend>
           <div className={styles.formats}>
-            {PHASE_KINDS.map((valeur) => (
+            {ORDRE_FORMATS.map((valeur) => (
               <label
                 key={valeur}
                 className={
@@ -209,6 +227,31 @@ export function PhasesTournoi({
           aide="C’est ce que les joueurs liront. Choisissez un format ci-dessus et il se remplit tout seul — vous pouvez le réécrire."
           erreur={champs.name}
         />
+
+        {/* 🔴 LE JOUR, ET C'EST CE QUI REND UN TOURNOI SUR PLUSIEURS WEEK-ENDS EXPRIMABLE.
+            Un `<input type="date">` natif : il poste « 2026-09-06 », exactement la chaîne que
+            la colonne attend, sans qu'aucun `Date` soit construit nulle part. */}
+        <div className={formulaire.champ}>
+          <label className={formulaire.label} htmlFor="phase-playedOn">
+            Le jour de cette phase (facultatif)
+          </label>
+          <input
+            id="phase-playedOn"
+            name="playedOn"
+            type="date"
+            className={formulaire.saisie}
+            value={jour}
+            onChange={(evenement) => setJour(evenement.target.value)}
+            aria-describedby="phase-playedOn-aide"
+          />
+          <p className={formulaire.sousChamp}>
+            <span id="phase-playedOn-aide">
+              À renseigner quand le tournoi s&rsquo;étale sur plusieurs journées ou week-ends.
+              Laissez vide s&rsquo;il tient sur une seule.
+            </span>
+          </p>
+          {champs.playedOn && <p className={formulaire.erreur}>{champs.playedOn}</p>}
+        </div>
 
         <div className={formulaire.actions}>
           <button type="submit" className={actions.bouton} disabled={enTransition}>

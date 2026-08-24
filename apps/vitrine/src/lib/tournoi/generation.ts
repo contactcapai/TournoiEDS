@@ -33,7 +33,7 @@ import {
   type TourGenere,
 } from "./bracket";
 import { repartirEnLobbies } from "./classement";
-import type { MatchBracket, PhaseKind } from "./structure";
+import { estParTables, type MatchBracket, type PhaseKind } from "./structure";
 
 /** Cible par défaut d'un lobby TFT. C'est le format que l'association fait tourner. */
 export const TAILLE_LOBBY_DEFAUT = 8;
@@ -142,10 +142,12 @@ export function structureDePhase(
     sources: readonly Source[];
   }[] = [];
 
-  // `lobbies` et `finale` ne passent PAS par `bracket.ts` : une table de 8 n'est pas une
-  // rencontre à deux places. Elles passent par `repartirEnLobbies` (10.3), qui est justement
-  // ce qui rend un lobby à 7 correct au lieu de fabriquer un lobby à 2.
-  if (kind === "lobbies" || kind === "finale") {
+  // Les formats PAR TABLES ne passent PAS par `bracket.ts` : une table de 8 n'est pas une
+  // rencontre à deux places. Ils passent par `repartirEnLobbies` (10.3), qui est justement ce
+  // qui rend un lobby à 7 correct au lieu de fabriquer un lobby à 2.
+  // ⚠️ `estParTables` et non une liste recopiée — `suisse` produit EXACTEMENT la structure de
+  // `lobbies` (seul l'ordre d'entrée diffère, et il est décidé par l'appelant).
+  if (estParTables(kind)) {
     const cible = reglages.tailleDeLobby ?? TAILLE_LOBBY_DEFAUT;
     const rangs = Array.from({ length: nombre }, (_, i) => i + 1);
 

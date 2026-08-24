@@ -21,6 +21,8 @@ export async function getPhasesForTournament(tournoiId: string) {
       name: tournamentPhase.name,
       kind: tournamentPhase.kind,
       state: tournamentPhase.state,
+      /** Le jour de cette manche — `null` sur un tournoi qui tient sur une journée. */
+      playedOn: tournamentPhase.playedOn,
       rencontres: sql<number>`count(distinct ${tournamentMatch.id})`.mapWith(Number),
       avecResultat: sql<number>`count(distinct ${tournamentMatch.id}) filter (where ${or(
         isNotNull(tournamentMatchSlot.score),
