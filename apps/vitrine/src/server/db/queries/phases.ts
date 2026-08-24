@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, or, sql } from "drizzle-orm";
 
 import { db } from "../client";
 import { tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../schema";
@@ -41,3 +41,23 @@ export async function getPhasesForTournament(tournoiId: string) {
 }
 
 export type PhaseListee = Awaited<ReturnType<typeof getPhasesForTournament>>[number];
+
+/**
+ * Les journées d'un tournoi — les jours DISTINCTS de ses phases, dans l'ordre (2026-08-24).
+ *
+ * 🔴 UNE JOURNÉE N'EST PAS UN OBJET, C'EST UNE DATE PARTAGÉE. Trois manches du même samedi ne
+ * font qu'une journée : on pointe une fois, pas trois. Dériver la liste plutôt que créer une
+ * table « journée » évite d'avoir deux endroits qui savent quand se joue une phase.
+ *
+ * ⚠️ Rend un tableau VIDE pour un tournoi dont aucune phase n'est datée — le cas d'un tournoi
+ * qui tient sur une journée. L'écran retombe alors sur l'état global, comme avant.
+ */
+export async function getJourneesDuTournoi(tournoiId: string): Promise<string[]> {
+  const lignes = await db
+    .selectDistinct({ jour: tournamentPhase.playedOn })
+    .from(tournamentPhase)
+    .where(and(eq(tournamentPhase.tournamentId, tournoiId), isNotNull(tournamentPhase.playedOn)))
+    .orderBy(asc(tournamentPhase.playedOn));
+
+  return lignes.map((ligne) => ligne.jour).filter((jour): jour is string => jour !== null);
+}

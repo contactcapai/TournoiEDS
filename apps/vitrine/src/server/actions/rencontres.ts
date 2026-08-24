@@ -340,7 +340,10 @@ export async function genererPhase(
    * ABSENT déjà classé gardait une chaise à chaque manche — sa table jouait à sept.
    * Le moteur TFT historique traitait le premier cas en toutes lettres ; voir `participants.ts`.
    */
-  const presents = await getPresentsDuTournoi(phase.tournoiId);
+  // ⚠️ LE JOUR DE LA PHASE, ET NON « aujourd'hui » : on prépare souvent une manche la veille,
+  // et on rejoue parfois une génération après coup. Lire l'horloge ferait dépendre le tableau
+  // du moment où l'on clique — c'est exactement le piège que `date-paris.ts` documente.
+  const presents = await getPresentsDuTournoi(phase.tournoiId, phase.playedOn);
 
   const participants = depuisLeClassement
     ? participantsDepuisLeClassement(

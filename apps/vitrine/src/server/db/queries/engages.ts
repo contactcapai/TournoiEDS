@@ -1,12 +1,14 @@
 import "server-only";
 
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
+import { etatAffiche, pointagesDuJour } from "../../../lib/tournoi/presence";
 import { ENTRY_STATES, type EntryState } from "../../../lib/tournoi/structure";
 import { db } from "../client";
 import {
   tournament,
   tournamentEntry,
+  tournamentEntryAttendance,
   tournamentEntryMember,
   tournamentMatchSlot,
 } from "../schema";
@@ -62,7 +64,7 @@ export async function getTournoiPourEngages(tournoiId: string) {
   return ligne;
 }
 
-export async function getEngagesForTournament(tournoiId: string) {
+export async function getEngagesForTournament(tournoiId: string, jour: string | null = null) {
   /**
    * 🔴 LE TÉMOIN DE L'AC 6 EST **L'EXISTENCE D'UNE PLACE DE RENCONTRE**, exactement ce que
    * `ON DELETE RESTRICT` regarde (`tournament_match_slot.entry_id`, Story 10.1) — et non
@@ -101,12 +103,49 @@ export async function getEngagesForTournament(tournoiId: string) {
     .from(tournamentEntry)
     .where(eq(tournamentEntry.tournamentId, tournoiId));
 
-  const parEtat: DecompteEngages = {
-    inscrit: decompte?.inscrit ?? 0,
-    present: decompte?.present ?? 0,
-    absent: decompte?.absent ?? 0,
-    abandonne: decompte?.abandonne ?? 0,
-  };
+  /**
+   * 🔴 QUAND UNE JOURNÉE EST CHOISIE, C'EST ELLE QUI DÉCIDE DE L'ÉTAT AFFICHÉ (2026-08-24) —
+   * et le décompte SQL ci-dessus, qui ne connaît que l'état global, doit alors être REFAIT.
+   * Le laisser tel quel donnerait un écran où les lignes disent une chose et le total une
+   * autre : le genre d'incohérence qu'on met une heure à comprendre le jour J.
+   * ⚠️ `jour === null` ⇒ rien ne change : c'est le comportement d'avant, celui des tournois
+   * qui tiennent sur une journée.
+   */
+  const pointages = pointagesDuJour(
+    jour === null
+      ? []
+      : await db
+          .select({
+            entryId: tournamentEntryAttendance.entryId,
+            playedOn: tournamentEntryAttendance.playedOn,
+            state: tournamentEntryAttendance.state,
+          })
+          .from(tournamentEntryAttendance)
+          .innerJoin(tournamentEntry, eq(tournamentEntry.id, tournamentEntryAttendance.entryId))
+          .where(
+            and(
+              eq(tournamentEntry.tournamentId, tournoiId),
+              eq(tournamentEntryAttendance.playedOn, jour),
+            ),
+          ),
+    jour,
+  );
+
+  const parEtat: DecompteEngages =
+    jour === null
+      ? {
+          inscrit: decompte?.inscrit ?? 0,
+          present: decompte?.present ?? 0,
+          absent: decompte?.absent ?? 0,
+          abandonne: decompte?.abandonne ?? 0,
+        }
+      : lignes.reduce<DecompteEngages>(
+          (total, ligne) => {
+            total[etatAffiche(ligne.state, pointages.get(ligne.id))] += 1;
+            return total;
+          },
+          { inscrit: 0, present: 0, absent: 0, abandonne: 0 },
+        );
 
   // Une seconde lecture plutôt qu'une jointure : joindre les membres à la requête ci-dessus
   // multiplierait les lignes, et le `count` des places de rencontre avec elles.
@@ -140,6 +179,14 @@ export async function getEngagesForTournament(tournoiId: string) {
   return {
     engages: lignes.map((ligne) => ({
       ...ligne,
+      /**
+       * 🔴 `state` EST CELUI DE LA JOURNÉE CHOISIE, PAS L'ÉTAT GLOBAL. C'est ce champ que les
+       * boutons de pointage rendent « actif » : y laisser l'état global montrerait « présent »
+       * au 3ᵉ week-end parce que quelqu'un l'était au 1ᵉʳ.
+       * ⚠️ `etatAffiche` et non `joueCeJourLa` : « pas encore pointé » (`inscrit`) doit rester
+       * distinct d'« absent » — c'est l'information même qu'on cherche en début de journée.
+       */
+      state: etatAffiche(ligne.state, pointages.get(ligne.id)),
       membres: parEngage.get(ligne.id) ?? [],
       /** La base refusera la suppression dès qu'une place existe — voir plus haut. */
       supprimable: ligne.placesDeRencontre === 0,

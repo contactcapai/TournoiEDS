@@ -5,7 +5,9 @@ import { z } from "zod";
 
 import { EngagesTournoi } from "@/components/admin/EngagesTournoi/EngagesTournoi";
 import { lireAdmin } from "@/server/auth/guard";
+import { jourLisible } from "@/lib/date-paris";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
+import { getJourneesDuTournoi } from "@/server/db/queries/phases";
 import styles from "@/styles/admin-page.module.css";
 
 // Les engagés d'un tournoi — saisie à la main et pointage (Story 10.5).
@@ -24,8 +26,10 @@ export const dynamic = "force-dynamic";
 
 export default async function EngagesTournoiPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ jour?: string }>;
 }) {
   const admin = await lireAdmin();
   if (admin === null) redirect("/admin/login");
@@ -33,9 +37,21 @@ export default async function EngagesTournoiPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
+  const journees = await getJourneesDuTournoi(id);
+
+  /**
+   * 🔴 LA JOURNÉE VIENT DE L'URL, ET ELLE EST VÉRIFIÉE CONTRE LES JOURNÉES RÉELLES. Un
+   * `?jour=` arbitraire irait sinon lire un pointage qui n'existe pour aucune phase, et
+   * l'écran afficherait un état que rien ne joue.
+   * ⚠️ Le défaut est `null` = **tout le tournoi**, l'état global : c'est le comportement d'un
+   * tournoi d'un seul jour, donc de tous ceux d'avant le 2026-08-24.
+   */
+  const { jour: jourDemande } = await searchParams;
+  const jour = jourDemande !== undefined && journees.includes(jourDemande) ? jourDemande : null;
+
   const [tournoi, donnees] = await Promise.all([
     getTournoiPourEngages(id),
-    getEngagesForTournament(id),
+    getEngagesForTournament(id, jour),
   ]);
   if (!tournoi) notFound();
 
@@ -61,11 +77,46 @@ export default async function EngagesTournoiPage({
         inscrits.
       </p>
 
+      {/* 🔴 LE SÉLECTEUR N'APPARAÎT QUE SI LE TOURNOI A DES JOURNÉES. Un tournoi qui tient sur
+          un jour n'a rien à choisir, et lui montrer un choix à une seule option ferait croire
+          qu'il en manque. Apparence minimale : les écrans sont en cours de refonte. */}
+      {journees.length > 0 ? (
+        <div className={styles.barreActions}>
+          <Link
+            className={styles.lien}
+            href={`/admin/tournois/${tournoi.id}/engages`}
+            aria-current={jour === null ? "page" : undefined}
+          >
+            {jour === null ? "▸ " : ""}Tout le tournoi
+          </Link>
+          {journees.map((journee) => (
+            <Link
+              key={journee}
+              className={styles.lien}
+              href={`/admin/tournois/${tournoi.id}/engages?jour=${journee}`}
+              aria-current={jour === journee ? "page" : undefined}
+            >
+              {jour === journee ? "▸ " : ""}
+              {jourLisible(journee)}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {jour !== null ? (
+        <p className={styles.mention} role="note">
+          Vous pointez la journée du <strong>{jourLisible(jour)}</strong>. Ce pointage ne
+          concerne <strong>que ce jour</strong> — celui des autres journées reste inchangé, et
+          c&rsquo;est lui qui décide de qui entre dans les tables de cette journée.
+        </p>
+      ) : null}
+
       <div className={styles.section}>
         <EngagesTournoi
           tournoiId={tournoi.id}
           teamSize={tournoi.teamSize}
           donnees={donnees}
+          jour={jour}
         />
       </div>
     </>

@@ -2012,6 +2012,55 @@ export const tournamentEntry = pgTable(
 );
 
 /**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * LA PRÉSENCE D'UN ENGAGÉ **À UNE JOURNÉE** (2026-08-24)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 ELLE EXISTE PARCE QUE `tournament_entry.state` EST GLOBAL AU TOURNOI. Sur un TFT étalé
+ * sur quatre week-ends, « présent au 2ᵉ, absent au 3ᵉ, revenu au 4ᵉ » n'était pas exprimable :
+ * pointer le 3ᵉ ÉCRASAIT le 2ᵉ, et l'historique du week-end précédent disparaissait.
+ *
+ * ⚠️ **ELLE NE REMPLACE PAS `entry.state`, ELLE LE PRÉCISE** — et l'ordre compte, une seule
+ * règle, écrite dans `lib/tournoi/presence.ts` : un **abandon** est global et l'emporte
+ * toujours (qui a arrêté ne revient pas) ; sinon, la ligne de CETTE journée décide ; sinon,
+ * l'état global sert de repli. Sans ce repli, un tournoi d'un jour — qui n'a aucune date de
+ * phase — n'aurait plus personne de présent : c'est-à-dire que **tous les tournois existants
+ * cesseraient de se générer**.
+ *
+ * ⚠️ La clé est la **DATE**, pas la phase : on pointe une fois par journée, pas à chaque
+ * manche. Trois manches le même samedi partagent le même pointage.
+ */
+export const tournamentEntryAttendance = pgTable(
+  "tournament_entry_attendance",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    entryId: uuid()
+      .notNull()
+      .references(() => tournamentEntry.id, { onDelete: "cascade" }),
+    /** Le jour pointé — la valeur de `tournament_phase.played_on`, une chaîne « AAAA-MM-JJ ». */
+    playedOn: date({ mode: "string" }).notNull(),
+    state: tournamentEntryState().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    /**
+     * ⚠️ SEULEMENT `present` OU `absent`. `inscrit` ne veut rien dire pour une journée (on
+     * s'inscrit au tournoi, pas au samedi), et `abandonne` est GLOBAL : le noter par journée
+     * laisserait écrire « abandonné le 12, présent le 19 », ce qui n'a pas de sens et
+     * fabriquerait deux vérités. L'enum est partagé pour ne pas en créer un second ; c'est ce
+     * `CHECK` qui le borne.
+     */
+    check(
+      "tournament_entry_attendance_etat_du_jour",
+      sql`${table.state} in ('present', 'absent')`,
+    ),
+    /** Un seul pointage par engagé et par journée — repointer MET À JOUR, jamais n'ajoute. */
+    uniqueIndex("tournament_entry_attendance_unique").on(table.entryId, table.playedOn),
+  ],
+);
+
+/**
  * Un membre d'un engagé. `userId` est facultatif et le restera : un seul membre de l'équipe
  * peut avoir un compte, les autres ne sont que des noms — une inscription n'est pas un compte.
  */
