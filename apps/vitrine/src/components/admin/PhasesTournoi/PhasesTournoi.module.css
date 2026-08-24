@@ -1,112 +1,164 @@
+/* Le déroulé d'un tournoi : liste des phases + ajout (Story 10.4, refondu en 10.9).
+
+   🔴 CE FICHIER RÉFÉRENÇAIT QUATRE TOKENS QUI N'EXISTENT PAS — `--paper`, `--ink-soft`,
+   `--rule`, `--alert`. Aucun n'est déclaré dans `packages/ui/src/styles/tokens.css` : un
+   `var()` non résolu est IGNORÉ par le navigateur, sans erreur, sans avertissement. Fonds,
+   bordures et couleurs de texte ne s'appliquaient donc pas, et l'écran retombait sur les
+   couleurs héritées — c'est ça, le « très moche » du gate visuel du 2026-08-15, pas une
+   affaire de goût. ⚠️ Mesuré le 2026-08-24 : c'était le SEUL fichier du projet dans ce cas.
+   Ils venaient d'une palette CLAIRE (paper/ink) alors que le back-office est sombre.
+
+   Le vocabulaire de formulaire vit dans `admin-form.module.css`, consommé par le composant :
+   ici, uniquement ce qui est propre au déroulé. Breakpoint 880 en littéral (§6 du CLAUDE.md,
+   et l'ancien disait 879). */
+
 .bloc {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
 .vide {
-  margin: 0;
-  color: var(--ink-soft);
-  line-height: 1.6;
+  max-width: 64ch;
+  line-height: var(--lh-body);
+  color: var(--grey);
 }
+
+/* ── La liste des phases ─────────────────────────────────────────────────────────── */
 
 .liste {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
+  gap: 8px;
   list-style: none;
 }
 
+/* Une ligne, pas une carte : à six phases, l'empilement d'avant (deux paragraphes chacune)
+   demandait de faire défiler pour voir un déroulé qui tient en six lignes. */
 .phase {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--paper);
-}
-
-.entete {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: var(--radius-button);
+  background: var(--surface);
 }
 
 .rang {
   display: grid;
   place-items: center;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  flex: none;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--navy);
-  color: var(--paper);
-  font-weight: 700;
+  background: var(--navy-deep);
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 
-.nom {
-  margin: 0;
-  font-weight: 700;
+.corps {
+  flex: 1;
+  min-width: 0;
 }
 
-.nature,
-.etat {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  line-height: 1.5;
+.nom {
+  color: var(--light);
 }
+
+.etat {
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.figee {
+  color: var(--gold);
+}
+
+/* ── L'ajout ─────────────────────────────────────────────────────────────────────── */
 
 .ajout {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border: 1px dashed var(--rule);
-  border-radius: 6px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  background: var(--surface);
 }
 
 .titreAjout {
-  margin: 0;
-  font-size: 1rem;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
 }
 
-.champ {
+/* Les quatre formats, visibles d'un coup. `auto-fit` plutôt qu'un nombre de colonnes fixe :
+   à quatre entrées il rend 2×2 sur un écran étroit et 4×1 sur un large, sans media query. */
+.formats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.format {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 12px 14px;
+  border: 1px solid var(--navy-deep);
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  cursor: pointer;
 }
 
-.champ input,
-.champ select {
-  /* Cible tactile confortable — règle du projet, jamais en dessous de 44px. */
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  font: inherit;
+.format:hover {
+  border-color: var(--grey);
 }
 
-.aide {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.85rem;
-  line-height: 1.5;
+.formatChoisi {
+  border-color: var(--gold);
 }
 
-.erreur,
-.erreurChamp {
-  margin: 0;
-  color: var(--alert);
-  font-size: 0.9rem;
+/* Le bouton radio réel reste dans le flux pour le clavier et les lecteurs d'écran — il est
+   seulement rendu invisible. ⚠️ Ni `display: none` ni `visibility: hidden` : les deux le
+   sortent de l'ordre de tabulation, et la carte deviendrait inatteignable au clavier. */
+.formatRadio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-@media (max-width: 879px) {
+/* Le focus se voit sur la CARTE, puisque c'est elle qu'on perçoit comme le contrôle. */
+.format:focus-within {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.formatNom {
+  color: var(--light);
+}
+
+.formatChoisi .formatNom {
+  color: var(--gold);
+}
+
+.formatAide {
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
   .phase {
-    padding: 12px;
+    /* La ligne passe en deux étages : à 360px, le nom et les trois boutons ne tiennent pas
+       côte à côte — et `overflow-x: clip` les rognerait sans scrollbar. */
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+
+  .corps {
+    flex-basis: calc(100% - 44px);
   }
 }

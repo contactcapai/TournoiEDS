@@ -1,0 +1,164 @@
+/* Le chrome de l'espace d'un tournoi (Story 10.9, dette R61) : en-tête d'objet + menu des
+   cinq surfaces. Tokens uniquement, breakpoint 880px en littéral (project-context.md §5).
+
+   🔴 IL REMPLACE CINQ BARRES DE LIENS AD HOC. Chaque page en portait une, écrite à la main,
+   et aucune n'atteignait les quatre autres. Le vocabulaire de PAGE reste dans
+   `admin-page.module.css` — ici il n'y a que ce qui est propre à cet espace. */
+
+.espace {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── L'en-tête : de QUEL tournoi parle-t-on, et est-il en ligne ? ────────────────── */
+
+.fil {
+  font-size: var(--fs-nav);
+}
+
+.filLien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  color: var(--gold);
+}
+
+.titre {
+  font-family: var(--font-display);
+  font-size: var(--fs-block-heading);
+  letter-spacing: var(--ls-display);
+  line-height: var(--lh-display);
+  color: var(--light);
+}
+
+.etat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--fs-nav);
+  color: var(--grey);
+}
+
+/* Les pastilles sont DÉCORATIVES : le texte à côté dit déjà l'état, elles ne le remplacent
+   pas. D'où `aria-hidden` sur les <span> — jamais une couleur seule pour porter un sens. */
+.pastillePubliee,
+.pastilleBrouillon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.pastillePubliee {
+  background: var(--gold);
+}
+
+.pastilleBrouillon {
+  background: var(--grey);
+}
+
+/* ── Le corps : menu à gauche, vue à droite ─────────────────────────────────────── */
+
+.corps {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 32px;
+  margin-top: 32px;
+  align-items: start;
+}
+
+/* `minmax(0, 1fr)` et non `1fr` : sans lui, une grille imbriquée large (le tableau du jour J)
+   pousse la colonne au-delà de la fenêtre — et `globals.css` pose `overflow-x: clip`, donc
+   ça se ROGNE en silence, sans scrollbar. C'est exactement ce que `pnpm gate` mesure. */
+
+.menu {
+  position: sticky;
+  top: 24px;
+}
+
+.menuListe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  list-style: none;
+}
+
+.menuLien {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  min-height: 56px; /* > 44px : deux lignes de texte */
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-button);
+  color: var(--light);
+}
+
+.menuLien:hover {
+  background: var(--surface);
+}
+
+.menuLienActif {
+  background: var(--surface);
+  border-left-color: var(--gold);
+}
+
+.menuLibelle {
+  font-size: var(--fs-nav);
+}
+
+.menuLienActif .menuLibelle {
+  color: var(--gold);
+}
+
+.menuMoment {
+  font-size: 13px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+.vue {
+  min-width: 0; /* même motif que `minmax(0, 1fr)` ci-dessus */
+}
+
+/* ── Sous 880px : le menu repasse au-dessus, en bande horizontale ───────────────── */
+
+@media (max-width: 880px) {
+  .corps {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  /* Plus sticky : collé en haut, il mangerait la moitié d'un écran de téléphone. */
+  .menu {
+    position: static;
+    /* La bande défile horizontalement plutôt que de déborder — `overflow-x: clip` du
+       document rognerait la 5e entrée SANS scrollbar ni erreur. */
+    overflow-x: auto;
+  }
+
+  .menuListe {
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .menuLien {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    white-space: nowrap;
+  }
+
+  .menuLienActif {
+    border-left-color: transparent;
+    border-bottom-color: var(--gold);
+  }
+
+  /* Le second niveau saute : sur une bande horizontale il double la largeur de chaque
+     entrée pour une information que la page elle-même redonne. */
+  .menuMoment {
+    display: none;
+  }
+}

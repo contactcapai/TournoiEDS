@@ -531,6 +531,18 @@ export async function slugDejaPris(slug: string, idExclu: string | null) {
  *
  * ⚠️ Une EXISTENCE, pas un compte : « peut-on encore changer ? » se répond pareil à 1 et à 64.
  */
+/**
+ * Le strict nécessaire au chrome de l'espace tournoi (Story 10.9) : de quoi titrer et dire
+ * si c'est un brouillon. `cache()` parce que le layout et la fiche la lisent dans le MÊME
+ * rendu — patron de `getTournamentBySlug`, et pour la même raison.
+ */
+export const getTournoiPourEspace = cache(async function getTournoiPourEspace(id: string) {
+  return db.query.tournament.findFirst({
+    columns: { id: true, name: true, isPublished: true, slug: true },
+    where: (table, { eq }) => eq(table.id, id),
+  });
+});
+
 export async function tournoiADesEngages(tournoiId: string) {
   const ligne = await db.query.tournamentEntry.findFirst({
     columns: { id: true },

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -59,22 +58,16 @@ export default async function ApercuTournoiPage({
 
   return (
     <>
-      <h1 className={admin.titre}>Aperçu</h1>
+      {/* 🔴 CET ÉCRAN N'A PAS DE TITRE PROPRE, ET C'EST DÉLIBÉRÉ (10.9). Le `<h1>` est le nom
+          du tournoi (layout de l'espace) et la fiche rendue porte le sien en `<h2>` — lui en
+          ajouter un troisième forcerait `FicheTournoi` au niveau 3, donc élargirait le type
+          d'un composant PUBLIC pour un besoin d'aperçu. Le menu dit déjà où l'on est. */}
       <p className={admin.chapo}>
         Voici le tournoi tel qu&rsquo;il apparaîtra sur le site.{" "}
         {tournoi.isPublished
           ? "Il est déjà publié."
           : "Il n'est pas publié : personne d'autre que vous ne le voit."}
       </p>
-
-      <div className={admin.barreActions}>
-        <Link className={admin.lien} href={`/admin/tournois/${tournoi.id}`}>
-          Modifier
-        </Link>
-        <Link className={admin.lien} href="/admin/tournois">
-          Retour à la liste
-        </Link>
-      </div>
 
       {/* ⚠️ CE QUE L'APERÇU NE MONTRE PAS, ET POURQUOI IL LE DIT. Deux faits peuvent
           surprendre un bénévole qui compare son formulaire à cet écran, et les taire coûte un
