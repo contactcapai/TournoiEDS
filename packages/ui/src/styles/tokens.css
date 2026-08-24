@@ -26,6 +26,12 @@
   --light: #edeffd;
   --cream: #f3efe3;
 
+  /* Alerte — SEUL rôle hors palette maquette (arbitrage Brice, 2026-08-24) : réservé à ce
+     qui bloque ou signale une erreur, jamais décoratif — l'accent reste --gold. Retenu
+     parce qu'il passe AA sur les trois fonds sombres (7,89 / 7,26 / 5,22), ce que les
+     rouges plus profonds ne font pas. */
+  --alert: #ff8a75;
+
   /* ── Familles de polices ───────────────────────────────────────────────── */
   /* Les --font-* sont fournies par next/font (vitrine). Fallback de famille. */
   --font-display: var(--font-bebas, "Bebas Neue", sans-serif);
