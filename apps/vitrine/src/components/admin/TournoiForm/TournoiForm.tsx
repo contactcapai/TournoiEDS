@@ -28,6 +28,7 @@ import {
   NOM_MAX,
   PLACES_MAX,
   PODIUM_MAX,
+  TAILLE_EQUIPE_MAX,
   TARIF_MAX,
   REGISTRATION_MODES,
   REGISTRATION_STATES,
@@ -126,6 +127,8 @@ export interface TournoiFormProps {
     prizes: string | null;
     matchDurationMinutes: number | null;
     capacity: number | null;
+    /** L'effectif d'un engagé — 1 en individuel. Jamais `null` : la colonne est `notNull`. */
+    teamSize: number;
     registrationMode: TournamentRegistrationMode;
     registrationUrl: string | null;
     registrationState: TournamentRegistrationState;
@@ -135,6 +138,8 @@ export interface TournoiFormProps {
     photoId: string | null;
     /** Décide si l'identifiant d'adresse est encore modifiable (A3). */
     isPublished: boolean;
+    /** Décide si l'effectif d'équipe est encore modifiable. Vrai dès le PREMIER engagé. */
+    aDesEngages: boolean;
   };
   /**
    * Les événements d'agenda proposables au rattachement — **facultatif depuis la 9.5**.
@@ -180,6 +185,9 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
     tournoi?.matchDurationMinutes?.toString() ?? "",
   );
   const [capacity, setCapacity] = useState(tournoi?.capacity?.toString() ?? "");
+  // `"1"` et non `""` à la création : l'individuel est le cas NOMINAL, pas une absence — un
+  // champ vide laisserait croire qu'il y a quelque chose à décider.
+  const [teamSize, setTeamSize] = useState((tournoi?.teamSize ?? 1).toString());
   const [registrationMode, setRegistrationMode] = useState<TournamentRegistrationMode>(
     tournoi?.registrationMode ?? "mately",
   );
@@ -206,6 +214,11 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   // laisser le serveur refuser après coup. La garde qui compte reste côté serveur — celle-ci
   // n'est que l'explication, au bon endroit.
   const adresseFigee = tournoi?.isPublished === true;
+
+  // 🔴 MÊME FORME QUE `adresseFigee` : le champ EXPLIQUE, le serveur REFUSE. Il reste
+  // ÉDITABLE — un `disabled` ne poste rien, donc l'action retomberait sur le défaut `1` et
+  // ÉCRASERAIT l'effectif au lieu de le préserver.
+  const effectifFige = tournoi?.aDesEngages === true;
 
   const [etat, soumettre, enCours] = useActionState(
     async (_precedent: EtatForm, formData: FormData): Promise<EtatForm> => {
@@ -616,6 +629,22 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           onChange={setCapacity}
           aide={`Combien de joueurs ou d'équipes sont attendus. Laissez vide si ce n'est pas décidé. Maximum ${PLACES_MAX}.`}
           erreur={erreurs.capacity}
+        />
+
+        {/* 🔴 CE CHAMP REND LE TOURNOI PAR ÉQUIPES ATTEIGNABLE : l'écran des engagés sait
+            saisir une équipe depuis la 10.5, mais rien n'écrivait `team_size`. */}
+        <ChampTexte
+          id="tournoi-teamSize"
+          name="teamSize"
+          label="Joueurs par équipe"
+          valeur={teamSize}
+          onChange={setTeamSize}
+          aide={
+            effectifFige
+              ? `Ce tournoi a déjà des engagés, saisis pour des équipes de ${tournoi?.teamSize} joueur${(tournoi?.teamSize ?? 1) > 1 ? "s" : ""} : l'effectif est FIGÉ. Le changer maintenant rendrait tous ces engagés incomplets sans les corriger. Pour le modifier, retirez d'abord les engagés.`
+              : `Combien de joueurs composent une équipe. Laissez 1 pour un tournoi individuel — c'est le cas le plus courant, et le mot « équipe » n'apparaîtra alors nulle part. Mettez 5 pour du LoL en équipes. Maximum ${TAILLE_EQUIPE_MAX}. Cet effectif se fige dès le premier engagé saisi.`
+          }
+          erreur={erreurs.teamSize}
         />
       </fieldset>
 

@@ -10,6 +10,7 @@ import {
   getEventsPourRattachement,
   getPhotosPourVisuel,
   getTournamentById,
+  tournoiADesEngages,
 } from "@/server/db/queries/tournaments";
 import styles from "@/styles/admin-page.module.css";
 
@@ -50,10 +51,13 @@ export default async function ModifierTournoiPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [tournoi, evenements, photos] = await Promise.all([
+  // `aDesEngages` décide si le champ d'effectif d'équipe s'explique ou s'invite ; la garde
+  // qui compte est dans `enregistrerTournoi`.
+  const [tournoi, evenements, photos, aDesEngages] = await Promise.all([
     getTournamentById(id),
     getEventsPourRattachement(EVENEMENTS_MAX),
     getPhotosPourVisuel(PHOTOS_MAX),
+    tournoiADesEngages(id),
   ]);
   if (!tournoi) notFound();
 
@@ -100,7 +104,11 @@ export default async function ModifierTournoiPage({
       </div>
 
       <div className={styles.section}>
-        <TournoiForm tournoi={tournoi} evenements={evenements} photos={photos} />
+        <TournoiForm
+          tournoi={{ ...tournoi, aDesEngages }}
+          evenements={evenements}
+          photos={photos}
+        />
       </div>
     </>
   );
