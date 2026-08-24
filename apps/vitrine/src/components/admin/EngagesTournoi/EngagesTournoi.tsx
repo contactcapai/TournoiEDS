@@ -68,10 +68,12 @@ export interface EngagesTournoiProps {
    * modifiable : le serveur le relit de toute façon, il ne fait jamais confiance au formulaire.
    */
   teamSize: number;
+  /** La journée pointée, ou `null` pour l'état global du tournoi (2026-08-24). */
+  jour: string | null;
   donnees: EngagesDuTournoi;
 }
 
-export function EngagesTournoi({ tournoiId, teamSize, donnees }: EngagesTournoiProps) {
+export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTournoiProps) {
   const router = useRouter();
   const individuel = teamSize === 1;
 
@@ -150,7 +152,9 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees }: EngagesTournoiP
     demarrer(async () => {
       setErreurListe(null);
       try {
-        const resultat = await pointerEngage(id, cible);
+        // ⚠️ LE JOUR EST TRANSMIS, ET C'EST CE QUI ÉVITE D'ÉCRASER LA SEMAINE PRÉCÉDENTE.
+        // `null` ⇒ on pointe l'état global du tournoi, comme avant le 2026-08-24.
+        const resultat = await pointerEngage(id, cible, jour);
         if (!resultat.ok) {
           setErreurListe(resultat.error);
           return;

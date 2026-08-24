@@ -12,11 +12,13 @@ import {
 import type { SourceResolue } from "../../../lib/tournoi/generation";
 import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
 import { calculerPropagation, issueDeRencontre } from "../../../lib/tournoi/progression";
+import { joueCeJourLa, pointagesDuJour } from "../../../lib/tournoi/presence";
 import { estParTables, type PhaseKind } from "../../../lib/tournoi/structure";
 import { db } from "../client";
 import {
   tournament,
   tournamentEntry,
+  tournamentEntryAttendance,
   tournamentMatch,
   tournamentMatchSlot,
   tournamentPhase,
@@ -45,6 +47,8 @@ export async function getPhasePourJeu(phaseId: string) {
       kind: tournamentPhase.kind,
       state: tournamentPhase.state,
       settings: tournamentPhase.settings,
+      /** Le jour de cette phase — il décide de QUEL pointage fait foi (2026-08-24). */
+      playedOn: tournamentPhase.playedOn,
     })
     .from(tournamentPhase)
     .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
@@ -316,12 +320,51 @@ export async function getClassementDuTournoi(tournoiId: string) {
  * ⚠️ `abandonne` EST EXCLU AUSSI : il a joué, ses points restent au classement, mais il n'entre
  * pas dans une manche suivante (`lobbiesSuisses` applique déjà la même règle).
  */
-export async function getPresentsDuTournoi(tournoiId: string) {
-  return db
-    .select({ id: tournamentEntry.id, nom: tournamentEntry.displayName })
+export async function getPresentsDuTournoi(tournoiId: string, jour: string | null = null) {
+  const engages = await db
+    .select({
+      id: tournamentEntry.id,
+      nom: tournamentEntry.displayName,
+      etat: tournamentEntry.state,
+    })
     .from(tournamentEntry)
-    .where(and(eq(tournamentEntry.tournamentId, tournoiId), eq(tournamentEntry.state, "present")))
+    .where(eq(tournamentEntry.tournamentId, tournoiId))
     .orderBy(asc(tournamentEntry.createdAt), asc(tournamentEntry.id));
+
+  /**
+   * 🔴 LE FILTRE N'EST PLUS DANS LE `WHERE`, ET C'EST LE POINT (2026-08-24). Un `state =
+   * 'present'` en SQL ne peut pas exprimer « présent CE JOUR-LÀ » : la réponse dépend de deux
+   * tables et d'un ordre de priorité. La règle vit donc dans `lib/tournoi/presence.ts`, une
+   * seule fois, testée — et le SQL se contente de rapporter les faits.
+   * ⚠️ `jour === null` (phase non datée, tournoi d'un jour) ⇒ aucun pointage lu, repli sur
+   * l'état global : exactement le comportement d'avant.
+   */
+  const lignes =
+    jour === null
+      ? []
+      : await db
+          .select({
+            entryId: tournamentEntryAttendance.entryId,
+            playedOn: tournamentEntryAttendance.playedOn,
+            state: tournamentEntryAttendance.state,
+          })
+          .from(tournamentEntryAttendance)
+          .innerJoin(
+            tournamentEntry,
+            eq(tournamentEntry.id, tournamentEntryAttendance.entryId),
+          )
+          .where(
+            and(
+              eq(tournamentEntry.tournamentId, tournoiId),
+              eq(tournamentEntryAttendance.playedOn, jour),
+            ),
+          );
+
+  const pointages = pointagesDuJour(lignes, jour);
+
+  return engages
+    .filter((engage) => joueCeJourLa(engage.etat, pointages.get(engage.id)))
+    .map((engage) => ({ id: engage.id, nom: engage.nom }));
 }
 
 /**

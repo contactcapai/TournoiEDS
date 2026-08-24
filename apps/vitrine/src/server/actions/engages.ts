@@ -4,11 +4,15 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { engageSaisie } from "../../lib/schemas/engage";
-import { ENTRY_STATES } from "../../lib/tournoi/structure";
+import { ENTRY_STATES, type EntryState } from "../../lib/tournoi/structure";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
 import { getTournoiPourEngages } from "../db/queries/engages";
-import { tournamentEntry, tournamentEntryMember } from "../db/schema";
+import {
+  tournamentEntry,
+  tournamentEntryAttendance,
+  tournamentEntryMember,
+} from "../db/schema";
 import {
   erreursParChamp,
   identifiant,
@@ -126,6 +130,11 @@ export async function ajouterEngage(
 export async function pointerEngage(
   id: string,
   etat: string,
+  /**
+   * Le jour pointé (2026-08-24). `null` ⇒ on pointe l'état GLOBAL du tournoi, exactement
+   * comme avant — c'est le cas d'un tournoi qui tient sur une journée.
+   */
+  jour: string | null = null,
 ): Promise<ResultatAction<undefined>> {
   await requireAdmin();
 
@@ -137,6 +146,8 @@ export async function pointerEngage(
   if (!analyse.success) {
     return { ok: false, error: "Ce pointage n'est pas reconnu. Rechargez la page." };
   }
+
+  if (jour !== null) return pointerLaJournee(id, analyse.data, jour);
 
   try {
     const [ligne] = await db
@@ -207,6 +218,59 @@ export async function supprimerEngage(id: string): Promise<ResultatAction<undefi
       };
     }
 
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}
+
+/**
+ * Pointe un engagé POUR UNE JOURNÉE (2026-08-24) — le cas des tournois sur plusieurs
+ * week-ends, où l'état global écrasait le pointage de la semaine précédente.
+ *
+ * 🔴 UN ABANDON RESTE GLOBAL, ET IL EST ÉCRIT SUR L'ENGAGÉ, PAS SUR LA JOURNÉE. Qui arrête
+ * n'arrête pas « pour le samedi » : le noter par journée laisserait écrire « abandonné le 12,
+ * présent le 19 », c'est-à-dire deux vérités. `presence.ts` fait d'ailleurs primer l'abandon
+ * sur tout pointage — les deux moitiés de la règle doivent rester d'accord.
+ *
+ * ⚠️ `onConflictDoUpdate` et non un `insert` : repointer quelqu'un MET À JOUR sa ligne du
+ * jour. Sans ça, l'index unique refuserait le deuxième clic — et corriger un pointage est
+ * exactement ce qu'on fait le jour J.
+ */
+async function pointerLaJournee(
+  id: string,
+  etat: EntryState,
+  jour: string,
+): Promise<ResultatAction<undefined>> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) {
+    return { ok: false, error: "Cette journée n'est pas valide. Rechargez la page." };
+  }
+
+  try {
+    // L'abandon ne se range pas dans une journée : il vaut pour la suite du tournoi.
+    if (etat === "abandonne" || etat === "inscrit") {
+      const [ligne] = await db
+        .update(tournamentEntry)
+        .set({ state: etat, updatedAt: new Date() })
+        .where(eq(tournamentEntry.id, id))
+        .returning({ id: tournamentEntry.id });
+      if (!ligne) return { ok: false, error: "Cet engagé n'existe plus. Rechargez la page." };
+      return { ok: true, data: undefined };
+    }
+
+    const [ligne] = await db
+      .insert(tournamentEntryAttendance)
+      .values({ entryId: id, playedOn: jour, state: etat })
+      .onConflictDoUpdate({
+        target: [tournamentEntryAttendance.entryId, tournamentEntryAttendance.playedOn],
+        set: { state: etat, updatedAt: new Date() },
+      })
+      .returning({ id: tournamentEntryAttendance.id });
+
+    // Même témoin que le pointage global : on vérifie l'EFFET, pas l'absence d'erreur.
+    if (!ligne) return { ok: false, error: "Ce pointage n'a rien enregistré. Rechargez la page." };
+
+    return { ok: true, data: undefined };
+  } catch (erreur) {
+    console.error("[pointerLaJournee] Échec du pointage :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
 }
