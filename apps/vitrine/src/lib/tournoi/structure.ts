@@ -6,9 +6,45 @@
  * dans `server/db/schema.ts`, là où Postgres le fait respecter.
  */
 
-/** Nature d'une phase. `lobbies` = le format TFT actuel, N joueurs par table. */
-export const PHASE_KINDS = ["poule", "bracket", "lobbies", "finale"] as const;
+/**
+ * Nature d'une phase. `lobbies` = N joueurs par table, le format TFT.
+ *
+ * 🔴 `suisse` EST AJOUTÉ EN FIN DE LISTE, ET C'EST DÉLIBÉRÉ. Ce tableau construit l'enum
+ * Postgres `tournament_phase_kind` : ajouter une valeur à la FIN se migre par un simple
+ * `ALTER TYPE … ADD VALUE`, alors que l'insérer au milieu peut faire recréer le type. L'ordre
+ * d'AFFICHAGE ne se lit donc jamais ici — il vit dans `ORDRE_FORMATS`.
+ */
+export const PHASE_KINDS = ["poule", "bracket", "lobbies", "finale", "suisse"] as const;
 export type PhaseKind = (typeof PHASE_KINDS)[number];
+
+/**
+ * L'ordre dans lequel on PROPOSE les formats, qui n'est pas celui de l'enum : « suisse » se lit
+ * juste après « lobbies », dont il est la suite naturelle.
+ */
+export const ORDRE_FORMATS = ["lobbies", "suisse", "poule", "bracket", "finale"] as const;
+
+/**
+ * 🔴 LES FORMATS JOUÉS À PLUSIEURS PAR TABLE — ET CE PRÉDICAT EXISTE POUR NE PAS ÊTRE RECOPIÉ.
+ *
+ * Au 2026-08-24, **cinq** endroits testaient `kind === "lobbies" || kind === "finale"` : la
+ * génération, la lecture des rencontres, `rangsDeLaPhase`, l'écran du jour J. Ajouter un
+ * cinquième format en oubliant l'un d'eux ne casse rien de visible — ça fabrique un second
+ * classement à partir des places, ou génère un tableau à élimination là où on attend des
+ * tables. Le défaut serait MUET, donc la règle vit ici, une seule fois.
+ */
+export const estParTables = (kind: PhaseKind) =>
+  kind === "lobbies" || kind === "suisse" || kind === "finale";
+
+/**
+ * Les formats dont l'ordre d'entrée vient du CLASSEMENT et non de la saisie.
+ *
+ * ⚠️ C'est TOUTE la différence entre `lobbies` et `suisse` : la structure produite est la même
+ * (des tables de N joueurs), seul l'ordre change — et c'est lui qui met les meilleurs
+ * ensemble. Une manche suisse générée dans l'ordre de saisie n'est pas « un peu fausse »,
+ * elle n'est pas suisse du tout. D'où un format qui porte la règle, plutôt qu'une case à
+ * cocher qu'on oublie au troisième week-end.
+ */
+export const partDuClassement = (kind: PhaseKind) => kind === "suisse";
 
 /**
  * Cycle de vie d'une phase. Une phase `planifiee` se réécrit librement ; dès qu'un résultat

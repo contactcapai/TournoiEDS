@@ -18,6 +18,7 @@ import {
   type PlaceJouee,
 } from "../../lib/tournoi/progression";
 import { podiumDepuis } from "../../lib/tournoi/parcours";
+import { partDuClassement } from "../../lib/tournoi/structure";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
@@ -323,21 +324,30 @@ export async function genererPhase(
   // 🔴 L'ORDRE DES PARTICIPANTS EST UNE DÉCISION, ET ELLE EST PRISE ICI — jamais dans
   // `generation.ts`, qui l'ignore exprès. Un premier tour part de l'ordre de saisie ; une manche
   // suisse ou une finale partent du CLASSEMENT, sinon les meilleurs ne se rencontrent pas.
-  const participants =
-    reglages.depuis === "classement"
-      ? (await getClassementDuTournoi(phase.tournoiId))
-          .filter((ligne) => !ligne.abandonne)
-          .map((ligne) => ({ id: ligne.id, nom: ligne.nom }))
-      : await getPresentsDuTournoi(phase.tournoiId);
+  //
+  // 🔴 UNE PHASE `suisse` NE LAISSE PAS LE CHOIX, ET C'EST TOUT SON INTÉRÊT. « Suisse » veut
+  // dire « composé d'après le classement » : le générer dans l'ordre de saisie n'en ferait pas
+  // une manche suisse un peu approximative, ça n'en ferait pas une manche suisse du tout. La
+  // règle vit donc dans le FORMAT et non dans une case à cocher qu'on oublie au 3e week-end.
+  const depuisLeClassement = partDuClassement(phase.kind) || reglages.depuis === "classement";
+
+  const participants = depuisLeClassement
+    ? (await getClassementDuTournoi(phase.tournoiId))
+        .filter((ligne) => !ligne.abandonne)
+        .map((ligne) => ({ id: ligne.id, nom: ligne.nom }))
+    : await getPresentsDuTournoi(phase.tournoiId);
 
   if (participants.length === 0) {
     return {
       ok: false,
-      error:
-        reglages.depuis === "classement"
-          ? "Aucun classement pour l'instant : personne n'a encore de résultat. Générez depuis " +
-            "les présents."
-          : "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés.",
+      error: !depuisLeClassement
+        ? "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés."
+        : partDuClassement(phase.kind)
+          ? // Le cas le plus probable d'une manche suisse : on l'a placée en première position.
+            "Une manche suisse se compose d'après le classement, et aucun résultat n'est encore " +
+            "saisi. Jouez d'abord une première manche (format « Lobbies »), puis revenez ici."
+          : "Aucun classement pour l'instant : personne n'a encore de résultat. Générez depuis " +
+            "les présents.",
     };
   }
 

@@ -12,7 +12,7 @@ import {
 import type { SourceResolue } from "../../../lib/tournoi/generation";
 import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
 import { calculerPropagation, issueDeRencontre } from "../../../lib/tournoi/progression";
-import type { PhaseKind } from "../../../lib/tournoi/structure";
+import { estParTables, type PhaseKind } from "../../../lib/tournoi/structure";
 import { db } from "../client";
 import {
   tournament,
@@ -184,11 +184,11 @@ export type RencontreJouable = Awaited<ReturnType<typeof getRencontresDePhase>>[
  * réel de Brice : 14 places au **score**, aucun rang, donc un classement vide sur une double
  * élimination entièrement jouée. Le rang se **déduit** ici, il ne se saisit pas.
  *
- * ⚠️ Rend `null` pour `lobbies` et `finale` : là, le rang **est** le classement aux points, et en
- * fabriquer un second à partir des places serait une deuxième définition du même fait.
+ * ⚠️ Rend `null` pour tout format PAR TABLES : là, le rang **est** le classement aux points, et
+ * en fabriquer un second à partir des places serait une deuxième définition du même fait.
  */
 export function rangsDeLaPhase(kind: PhaseKind, rencontres: readonly RencontreJouable[]) {
-  if (kind === "lobbies" || kind === "finale") return null;
+  if (estParTables(kind)) return null;
 
   const nomParEngage = new Map<string, string>();
   for (const rencontre of rencontres) {

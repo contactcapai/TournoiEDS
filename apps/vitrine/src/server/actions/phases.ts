@@ -2,7 +2,7 @@
 
 import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
 
-import { phaseSaisie } from "../../lib/schemas/phase";
+import { derouleType, derouleTypeSaisi, phaseSaisie } from "../../lib/schemas/phase";
 import { requireAdmin } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
@@ -35,6 +35,12 @@ const CONTRAINTES: Record<string, string> = {
  * sinon il suffirait de la repasser à « planifiée » pour effacer des scores.
  */
 
+/** Vide ⇒ `null`. La chaîne n'est jamais convertie en `Date` : voir `schemas/phase.ts`. */
+const jourOptionnel = (valeur: FormDataEntryValue | null): string | null => {
+  const texte = String(valeur ?? "").trim();
+  return texte.length === 0 ? null : texte;
+};
+
 /** Le rang libre suivant. Calculé en base pour ne pas dépendre d'une lecture périmée. */
 const prochainePosition = async (tournoiId: string) => {
   const [ligne] = await db
@@ -57,6 +63,9 @@ export async function ajouterPhase(
   const analyse = phaseSaisie.safeParse({
     name: donnees.get("name"),
     kind: donnees.get("kind"),
+    // Un `<input type="date">` vide poste la chaîne VIDE, pas `null` : sans ce repli, la
+    // validation refuserait un jour facultatif qu'on a simplement laissé tranquille.
+    playedOn: jourOptionnel(donnees.get("playedOn")),
   });
   if (!analyse.success) {
     return { ok: false, error: "Vérifiez la saisie.", fieldErrors: erreursParChamp(analyse.error.issues) };
@@ -70,6 +79,7 @@ export async function ajouterPhase(
         position: await prochainePosition(tournoiId),
         name: analyse.data.name,
         kind: analyse.data.kind,
+        playedOn: analyse.data.playedOn,
       })
       .returning({ id: tournamentPhase.id });
 
@@ -195,4 +205,101 @@ export async function deplacerPhase(
     console.error("[deplacerPhase] Échec du déplacement :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
+}
+
+/**
+ * Pose un déroulé TFT complet d'un coup — l'assistant (2026-08-24).
+ *
+ * 🔴 IL NE S'APPLIQUE QUE SUR UN DÉROULÉ VIDE, ET C'EST CE QUI LE REND SÛR. Compléter un
+ * déroulé existant demanderait de deviner si la manche posée doit partir du classement ou de
+ * l'ordre de saisie, où l'insérer, et quoi faire des dates déjà là. Un point de DÉPART se
+ * raisonne ; un ajout au milieu se devine — et ce qu'on devine ici s'écrit en base.
+ *
+ * ⚠️ TOUT OU RIEN : une transaction. Un déroulé à moitié posé serait pire que pas de déroulé —
+ * il faudrait deviner ce qui manque avant de recommencer.
+ */
+export async function poserDerouleType(
+  tournoiId: string,
+  donnees: FormData,
+): Promise<ResultatAction<{ posees: number }>> {
+  await requireAdmin();
+
+  if (!identifiant.safeParse(tournoiId).success) {
+    return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };
+  }
+
+  const analyse = derouleTypeSaisi.safeParse({
+    journees: entierSaisi(donnees.get("journees")),
+    manchesParJournee: entierSaisi(donnees.get("manchesParJournee")),
+    premierJour: jourOptionnel(donnees.get("premierJour")),
+    finale: donnees.get("finale") === "true",
+  });
+  if (!analyse.success) {
+    return {
+      ok: false,
+      error: analyse.error.issues[0]?.message ?? "Vérifiez les réglages.",
+      fieldErrors: erreursParChamp(analyse.error.issues),
+    };
+  }
+
+  // 🔴 LA GARDE EST LUE ICI **ET** TENUE PAR LE `WHERE` DE L'ÉCRITURE (voir plus bas) : cette
+  // lecture existe pour le MESSAGE, pas pour la sûreté.
+  const existantes = await getPhasesForTournament(tournoiId);
+  if (existantes.length > 0) {
+    return {
+      ok: false,
+      error:
+        `Ce tournoi a déjà ${existantes.length} phase${existantes.length > 1 ? "s" : ""}. ` +
+        "L'assistant ne sert qu'à partir de zéro : supprimez le déroulé existant, ou ajoutez " +
+        "vos phases une par une.",
+    };
+  }
+
+  const aPoser = derouleType(analyse.data);
+
+  try {
+    await db.transaction(async (tx) => {
+      // ⚠️ La condition « aucune phase » est REPOSÉE dans la transaction, sur la base et non
+      // sur la lecture d'avant : deux clics rapides poseraient sinon deux déroulés l'un sur
+      // l'autre, et `tournament_phase_ordre_unique` ne les distinguerait même pas puisque les
+      // positions repartiraient de 1. Défaut de la même famille que celui mesuré en 6.4.
+      const [dejaLa] = await tx
+        .select({ nombre: sql<number>`count(*)`.mapWith(Number) })
+        .from(tournamentPhase)
+        .where(eq(tournamentPhase.tournamentId, tournoiId));
+      if ((dejaLa?.nombre ?? 0) > 0) {
+        throw new Error("DEROULE_DEJA_POSE");
+      }
+
+      await tx.insert(tournamentPhase).values(
+        aPoser.map((phase, index) => ({
+          tournamentId: tournoiId,
+          position: index + 1,
+          name: phase.name,
+          kind: phase.kind,
+          playedOn: phase.playedOn,
+        })),
+      );
+    });
+
+    return { ok: true, data: { posees: aPoser.length } };
+  } catch (erreur) {
+    if (erreur instanceof Error && erreur.message === "DEROULE_DEJA_POSE") {
+      return {
+        ok: false,
+        error:
+          "Un déroulé vient d'être posé sur ce tournoi. Rechargez la page pour le voir — rien " +
+          "n'a été écrit en double.",
+      };
+    }
+    console.error("[poserDerouleType] Échec de l'écriture :", erreur);
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}
+
+/** Comme `entierOptionnel` des tournois : vide ⇒ `NaN`, pour que le message soit le nôtre. */
+function entierSaisi(valeur: FormDataEntryValue | null): number {
+  const texte = String(valeur ?? "").trim();
+  if (!/^\d+$/.test(texte)) return Number.NaN;
+  return Number(texte);
 }

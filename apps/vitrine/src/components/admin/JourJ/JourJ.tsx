@@ -11,7 +11,7 @@ import {
   TAILLE_LOBBY_MAX,
   TAILLE_LOBBY_MIN,
 } from "@/lib/tournoi/generation";
-import type { PhaseKind } from "@/lib/tournoi/structure";
+import { estParTables, partDuClassement, type PhaseKind } from "@/lib/tournoi/structure";
 import { effacerRencontres, genererPhase, saisirResultat } from "@/server/actions/rencontres";
 import type { RencontreJouable } from "@/server/db/queries/rencontres";
 import actions from "@/styles/admin-actions.module.css";
@@ -61,7 +61,7 @@ export function JourJ({ phase, rencontres, presents, aUnClassement, aDesResultat
   const [erreur, setErreur] = useState<string | null>(null);
   const [messageParRencontre, setMessageParRencontre] = useState<Record<string, string>>({});
 
-  const parTables = phase.kind === "lobbies" || phase.kind === "finale";
+  const parTables = estParTables(phase.kind);
   const tailleActuelle = phase.settings.tailleDeLobby ?? TAILLE_LOBBY_DEFAUT;
 
   const generer = (donnees: FormData) => {
@@ -179,9 +179,22 @@ export function JourJ({ phase, rencontres, presents, aUnClassement, aDesResultat
             </div>
           ) : null}
 
-          {/* 🔴 L'ORDRE DES PARTICIPANTS EST LA DÉCISION QUI COMPTE, et elle est prise ici.
-              Un premier tour part de l'ordre de saisie ; une manche suisse ou une finale
-              partent du CLASSEMENT, sinon les meilleurs ne se rencontrent pas. */}
+          {/* 🔴 L'ORDRE DES PARTICIPANTS EST LA DÉCISION QUI COMPTE, et elle est prise ici —
+              SAUF pour une phase « Manche suisse », qui porte la réponse dans son format. On
+              ne pose donc plus la question : un choix dont une seule réponse est correcte
+              n'est pas un choix, c'est une occasion de se tromper au 3e week-end. */}
+          {partDuClassement(phase.kind) ? (
+            <p className={formulaire.regle}>
+              Cette phase est une <strong>manche suisse</strong> : les tables se composent
+              d&rsquo;après le <strong>classement actuel</strong>, pour que chacun rejoue contre
+              son niveau. {aUnClassement ? null : (
+                <>
+                  Aucun résultat n&rsquo;est encore saisi — jouez d&rsquo;abord une première
+                  manche.
+                </>
+              )}
+            </p>
+          ) : (
           <div className={formulaire.champ}>
             <span className={formulaire.legend}>Qui entre, et dans quel ordre</span>
             <label className={formulaire.choixLabel}>
@@ -200,6 +213,7 @@ export function JourJ({ phase, rencontres, presents, aUnClassement, aDesResultat
               </span>
             </p>
           </div>
+          )}
 
           <div className={formulaire.actions}>
             <Button type="submit">{enTransition ? "Génération…" : "Générer les rencontres"}</Button>

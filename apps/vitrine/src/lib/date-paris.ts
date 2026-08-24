@@ -585,3 +585,48 @@ export function diagnostiquerHeureMurale(valeur: string): DiagnosticHeure {
 
   return { cas: "ok" };
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LES JOURS-CALENDRIERS — « quel week-end ? », et non « à quelle seconde ? » (2026-08-24)
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 CE QUI SUIT NE MANIPULE AUCUN INSTANT, ET C'EST TOUTE LA RAISON D'ÊTRE DE CE BLOC.
+// `tournament_phase.played_on` est un `date` Postgres lu en `mode: "string"` : « 2026-09-06 »
+// entre et sort tel quel, sans jamais devenir un moment. La question posée par une journée de
+// tournoi est un QUANTIÈME, pas une heure — et un quantième n'a pas de fuseau.
+//
+// ⚠️ L'INTERDIT `toISOString().slice(0, 10)` DU HAUT DE CE FICHIER VISE UN AUTRE CAS, et il
+// faut savoir lequel pour ne pas croire ce bloc en infraction : il interdit d'extraire un jour
+// d'un INSTANT (une horloge, un `starts_at`), parce que le fuseau décide alors du résultat.
+// Ici, la `Date` est fabriquée par `Date.UTC` à partir de trois nombres — elle ne vient
+// d'aucune horloge, et son quantième UTC est celui qu'on y a mis, partout dans le monde.
+//
+// ⚠️ Ces deux fonctions vivent ICI et pas dans `schemas/phase.ts` où elles ont été écrites
+// d'abord : ce fichier est le SEUL endroit du dépôt qui a le droit de raisonner sur des dates,
+// et le laisser contourner par « ce n'est qu'un petit calcul » est précisément comment le
+// piège `date-tz.md` se repaie.
+
+/** Décale un jour ISO (« 2026-09-06 ») de N jours, en restant une chaîne. */
+export function ajouterJours(jour: string, nombre: number): string {
+  const [annee, mois, quantieme] = jour.split("-").map(Number);
+  return new Date(Date.UTC(annee, mois - 1, quantieme + nombre)).toISOString().slice(0, 10);
+}
+
+/**
+ * « 2026-09-06 » → « samedi 6 septembre ». Sans année : on lit une journée dans un déroulé
+ * dont l'année est déjà connue par le tournoi.
+ *
+ * 🔴 `timeZone: "UTC"` EST OBLIGATOIRE ET NON DÉCORATIF. Sans lui, `toLocaleDateString`
+ * répond dans le fuseau de qui exécute : minuit UTC est encore **la veille** partout à
+ * l'ouest de Greenwich. Une journée de tournoi s'afficherait au bon jour à Reims et au
+ * mauvais ailleurs — un décalage d'un cran que personne ne verrait en local.
+ */
+export function jourLisible(jour: string): string {
+  const [annee, mois, quantieme] = jour.split("-").map(Number);
+  return new Date(Date.UTC(annee, mois - 1, quantieme)).toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+}
