@@ -12,6 +12,21 @@
 
 /* ── L'en-tête : de QUEL tournoi parle-t-on, et est-il en ligne ? ────────────────── */
 
+/* 🔴 CETTE CLASSE ÉTAIT CONSOMMÉE SANS EXISTER — troisième fantôme mesuré le 2026-08-25, sur
+   les sept que portait l'espace tournoi. Le bloc n'avait donc AUCUNE mise en page : ses trois
+   étages (fil d'Ariane, nom du tournoi, état) se collaient les uns aux autres et touchaient le
+   menu qui suit, sur les CINQ surfaces à la fois. Même mécanisme muet que les quatre tokens
+   fantômes de la 10.9 — et l'écran « fait moche » sans que rien ne le signale.
+   ⚠️ La marge basse se paie ICI, une fois, et non en haut de chaque vue : cinq marges
+   écrites à la main divergeraient, c'est exactement la dette que ce layout a soldée. */
+.entete {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 %, filet sans token */
+}
+
 .fil {
   font-size: var(--fs-nav);
 }

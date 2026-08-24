@@ -3,6 +3,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
+import {
+  BarreJournees,
+  type EntreeJournee,
+} from "@/components/admin/BarreJournees/BarreJournees";
 import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
@@ -70,6 +74,33 @@ export default async function JourJPage({
       : undefined;
   const active = choisie ?? phases[0];
 
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     ON CHOISIT D'ABORD LA JOURNÉE, PUIS LA PHASE — Story 13.1
+     ══════════════════════════════════════════════════════════════════════════════════
+     🔴 UNE SEULE SOURCE DE VÉRITÉ DANS L'URL, ET C'EST `?phase=`. La journée n'y est PAS
+     portée : elle se DÉDUIT de la phase affichée, et le bandeau pointe vers la première phase
+     de chaque jour. Un second paramètre `?jour=` pourrait contredire le premier — « samedi 13 »
+     surligné pendant qu'on saisit une manche du samedi 6 — et rien dans le code n'empêcherait
+     cet état. Ce qui ne peut pas être incohérent n'a pas besoin d'être gardé.
+     ⚠️ Les jours DISTINCTS dans l'ordre des positions, `null` compris : une finale sans date
+     est un groupe légitime, et l'omettre la rendrait inatteignable dès qu'une autre phase est
+     datée. */
+  const joursDuTournoi: (string | null)[] = [];
+  for (const phase of phases) {
+    if (!joursDuTournoi.includes(phase.playedOn)) joursDuTournoi.push(phase.playedOn);
+  }
+
+  /* ⚠️ UN SEUL GROUPE ⇒ AUCUN BANDEAU. Un tournoi d'un seul jour n'a rien à choisir, et lui
+     montrer un choix à une entrée ferait croire qu'il en manque — même règle que le déroulé. */
+  const aDesJournees = joursDuTournoi.length > 1;
+  const journeeActive = active?.playedOn ?? null;
+
+  /* Les onglets de phases ne montrent alors que celles de la journée choisie : neuf manches à
+     plat, c'est la lecture que la 13.1 remplace. */
+  const phasesDuJour = aDesJournees
+    ? phases.filter((phase) => phase.playedOn === journeeActive)
+    : phases;
+
   const [phaseComplete, rencontres, aDesResultats] = active
     ? await Promise.all([
         getPhasePourJeu(active.id),
@@ -111,10 +142,34 @@ export default async function JourJPage({
         </p>
       ) : (
         <>
-          {/* Les phases en onglets — des LIENS, donc partageables et utilisables sans
-              JavaScript. Le jour J, l'écran est ouvert sur un téléphone qui perd le réseau. */}
-          <nav className={propre.onglets} aria-label="Les phases du tournoi">
-            {phases.map((phase) => {
+          {/* ══════════════════════════════════════════════════════════════════════════════
+              ① LA JOURNÉE — au-dessus, et plus grosse que les phases
+              ══════════════════════════════════════════════════════════════════════════
+              La hiérarchie se rend par LA TAILLE (principe ⑤ de l'exploration Stitch). Avant
+              la 13.1, les neuf manches d'un TFT sur quatre week-ends s'alignaient à plat : le
+              jour du tournoi, on cherchait « samedi 13, manche 2 » dans une rangée qui ne
+              nommait aucun samedi. */}
+          {aDesJournees ? (
+            <BarreJournees
+              intitule="La journée jouée"
+              entrees={joursDuTournoi.map((jour): EntreeJournee => {
+                /* La première phase de ce jour — la destination du lien, et la garantie que la
+                   journée surlignée est toujours celle de la phase affichée. */
+                const premiere = phases.find((phase) => phase.playedOn === jour);
+                const href = `/admin/tournois/${tournoi.id}/jour-j?phase=${premiere?.id ?? ""}`;
+                const actif = jour === journeeActive;
+                return jour === null
+                  ? { jour: null, libelle: "Sans jour fixé", href, actif }
+                  : { jour, href, actif };
+              })}
+            />
+          ) : null}
+
+          {/* ② LA PHASE — ensuite, et au second plan. Des LIENS, donc partageables et
+              utilisables sans JavaScript : le jour J, l'écran est ouvert sur un téléphone qui
+              perd le réseau. */}
+          <nav className={propre.onglets} aria-label="Les phases de cette journée">
+            {phasesDuJour.map((phase) => {
               const courante = active?.id === phase.id;
               return (
                 <Link
@@ -229,6 +284,22 @@ export default async function JourJPage({
         <h2 className={styles.sectionTitre} id="jour-j-classement">
           Classement
         </h2>
+
+        {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT ENFIN (13.1). Le fait était vrai
+            depuis toujours et écrit dans le commentaire ci-dessus, c'est-à-dire nulle part
+            pour la personne qui pointe. Sur un TFT étalé sur quatre week-ends, un classement
+            posé sous une journée choisie se lit comme le classement DE cette journée — et
+            l'écart ne se remarque qu'en recomptant les points à la main, un jour de tournoi.
+            ⚠️ La phrase n'est rendue QUE si le tournoi a plusieurs journées : sur un tournoi
+            d'un seul jour, « tout le tournoi » et « cette journée » sont la même chose, et le
+            préciser inventerait une distinction qui n'existe pas. */}
+        {aDesJournees ? (
+          <p className={styles.mention} role="note">
+            Ce classement porte sur <strong>tout le tournoi</strong>, pas sur la journée
+            affichée au-dessus — il cumule les points de toutes les manches déjà jouées.
+            C&rsquo;est lui qui compose la manche suivante.
+          </p>
+        ) : null}
 
         {classement.length === 0 ? (
           /* 🔴 CETTE PHRASE A MENTI, ET C'EST LE TOURNOI RÉEL DE BRICE QUI L'A MONTRÉ. Elle disait

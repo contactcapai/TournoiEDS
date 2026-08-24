@@ -1,0 +1,86 @@
+/* Le choix d'une journée (Story 13.1). Tokens uniquement, breakpoint 880 en littéral.
+
+   🔴 LA JOURNÉE PASSE AVANT LA PHASE, ET ÇA SE VOIT À LA TAILLE (principe ⑤ de l'exploration
+   Stitch). Sur le jour J, ce bandeau surmonte les onglets de phases, qui sont plus petits :
+   on choisit d'abord QUAND, ensuite QUOI. Les deux au même poids, c'était deux rangées
+   d'onglets impossibles à distinguer — l'état d'avant la 13.1. */
+
+.barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-button);
+  background: var(--navy);
+}
+
+.intitule {
+  font-size: 12px;
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+.liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+.onglet {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-button);
+  /* 16px contre 14 aux onglets de phase du jour J : c'est CET écart qui dit lequel des deux
+     commande l'autre, et il est le seul — les deux gardent la même forme et la même couleur
+     d'état courant, vocabulaire du back-office. */
+  font-size: 16px;
+  text-decoration: none;
+  color: var(--light);
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.onglet:hover {
+  border-color: var(--grey);
+}
+
+/* 🔴 L'ENTRÉE COURANTE EST PLEINE, LES AUTRES CREUSES — même vocabulaire que la bascule de
+   publication du back-office, et le MÊME que `MenuTournoi`. L'écran ne doit jamais laisser
+   deviner où l'on se trouve : c'est le défaut mesuré de la 13.2, un cran plus haut. */
+.actif {
+  border-color: var(--gold);
+  background: var(--gold);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.actif:hover {
+  border-color: var(--gold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onglet {
+    transition: none;
+  }
+}
+
+@media (max-width: 880px) {
+  /* Le bandeau défile DANS son conteneur plutôt que de replier huit journées sur quatre
+     rangées : `overflow-x: clip` sur `globals.css` rognerait un dépassement sans scrollbar,
+     et une barre pliée en quatre cesse de se lire comme un choix unique.
+     ⚠️ `flex-wrap: nowrap` sur la liste seule — l'intitulé, lui, reste au-dessus. */
+  .liste {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .onglet {
+    white-space: nowrap;
+  }
+}

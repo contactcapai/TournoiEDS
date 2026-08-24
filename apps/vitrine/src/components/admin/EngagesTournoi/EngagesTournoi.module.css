@@ -65,28 +65,74 @@
   color: var(--light);
 }
 
-/* ───────── La liste ─────────
+/* La journée que le compteur compte : elle est en or parce qu'elle QUALIFIE le chiffre en or
+   juste avant — « 48 présents » n'a pas le même sens selon la journée qu'on regarde. */
+.compteJour {
+  color: var(--gold-soft);
+}
+
+/* ───────── Le tableau ─────────
    🔴 UN FILET, PAS UNE CARTE. Soixante-quatre cartes empilées, c'est soixante-quatre bordures,
    soixante-quatre fonds et soixante-quatre respirations : le chrome finit par coûter plus que
-   le contenu. Le filet suffit à séparer deux lignes, et il ne se répète pas visuellement. */
-.liste {
-  border-top: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 %, filet sans token */
-  list-style: none;
+   le contenu. Le filet suffit à séparer deux lignes, et il ne se répète pas visuellement.
+
+   🔴 DEVENU UN VRAI `<table>` EN 13.1 — les colonnes doivent se NOMMER. La 10.12 a rendu le
+   pointage par journée sans qu'aucun en-tête ne le dise : les mêmes quatre boutons voulaient
+   dire « dans le tournoi » ou « ce samedi » selon un onglet situé bien plus haut.
+   ⚠️ Les 57 px de la ligne sont INCHANGÉS : `padding: 6px` + le bouton de 44 px + le filet.
+   Le passage en tableau ne coûte pas un pixel de hauteur, c'est vérifié règle par règle ici. */
+.tableWrap {
+  /* La parade du projet contre `overflow-x: clip`, qui rognerait EN SILENCE : ce qui est trop
+     large défile DANS son conteneur, jamais dans la page. */
+  overflow-x: auto;
 }
 
-.engage {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 16px;
-  padding: 6px 0;
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 0 12px 8px 0;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 %, filet sans token */
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  color: var(--grey);
+}
+
+/* La journée dans l'en-tête : c'est ELLE qui distingue cette colonne de la précédente, donc
+   elle se lit, et l'espacement de titre la rendrait illisible en minuscules accentuées. */
+.enTeteJour {
+  letter-spacing: 0.5px;
+  text-transform: none;
+  color: var(--gold-soft);
+}
+
+.table td {
+  padding: 6px 12px 6px 0;
   border-bottom: 1px solid rgba(146, 147, 173, 0.25);
+  vertical-align: middle;
 }
 
-.identite {
-  flex: 1 1 200px;
+/* La colonne des noms prend ce qui reste ; les autres se dimensionnent sur leur contenu. */
+.table td:first-child,
+.table th:first-child {
+  width: 100%;
   /* Sans ça, un nom long refuse de se réduire et déborde la ligne. */
   min-width: 0;
+}
+
+/* Le survol tient la ligne d'un bout à l'autre. À quatre colonnes et 64 lignes, l'œil perd le
+   fil entre un nom à gauche et les boutons à droite — c'est ce que le filet seul ne fait pas.
+   ⚠️ Sur `<tr>` et non sur `<td>` : un fond posé cellule par cellule laisse voir les filets
+   verticaux entre elles. */
+.engage:hover td {
+  background: var(--navy);
 }
 
 .nom {
@@ -137,6 +183,32 @@
   cursor: default;
 }
 
+/* ───────── La pastille : l'état GLOBAL du tournoi, qui se lit et ne se clique pas ─────────
+   🔴 DEUX GESTES VOISINS PRENNENT DEUX FORMES, JAMAIS DEUX COULEURS (principe ② de
+   l'exploration Stitch). D'un côté un bouton de 44 px qu'on presse ; de l'autre une étiquette
+   plate, sans bordure ni cible, qu'on ne peut pas presser. La différence de forme dit la
+   différence de nature avant qu'on lise quoi que ce soit.
+   ⚠️ ELLE PORTE SON LIBELLÉ EN TOUTES LETTRES — jamais la couleur seule (AA). Le corail
+   ci-dessous ne fait que rendre l'abandon repérable en balayant 64 lignes ; retirez la
+   couleur, l'information est toujours là. */
+.pastille {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-tag);
+  background: var(--navy-deep);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  color: var(--grey);
+}
+
+/* 🔴 SEUL L'ABANDON PASSE EN CORAIL, et c'est la règle du token (PR #73) : il BLOQUE. Un
+   abandon est le seul état global qui survit à toutes les journées et qui change le
+   classement — « absent samedi » se rattrape le samedi suivant, pas lui. */
+.pastilleAbandon {
+  color: var(--alert);
+}
+
 .fin {
   display: flex;
   flex: 0 0 auto;
@@ -170,8 +242,16 @@
     font-size: 26px;
   }
 
-  /* Sous 880px la ligne se replie en deux : identité au-dessus, commandes en dessous. Les
-     boutons gardent leurs 44 px — c'est justement là qu'on pointe au doigt. */
+  /* 🔴 LES QUATRE ÉTATS PASSENT EN 2 × 2. Sur une seule rangée ils font ~360 px : à eux seuls
+     ils dépassent la largeur d'un téléphone, et le tableau partirait en défilement horizontal
+     pour le geste le plus fréquent de l'écran — pointer, au doigt, dans un bar, le jour J.
+     ⚠️ Les 44 px de hauteur sont intacts : c'est la LARGEUR qu'on plie, jamais la cible. */
+  .etats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 190px;
+  }
+
   .fin {
     margin-left: 0;
   }

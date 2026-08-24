@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
+import { BarreJournees } from "@/components/admin/BarreJournees/BarreJournees";
 import { EngagesTournoi } from "@/components/admin/EngagesTournoi/EngagesTournoi";
 import { lireAdmin } from "@/server/auth/guard";
 import { jourLisible } from "@/lib/date-paris";
@@ -81,26 +82,22 @@ export default async function EngagesTournoiPage({
           un jour n'a rien à choisir, et lui montrer un choix à une seule option ferait croire
           qu'il en manque. Apparence minimale : les écrans sont en cours de refonte. */}
       {journees.length > 0 ? (
-        <div className={styles.barreActions}>
-          <Link
-            className={styles.lien}
-            href={`/admin/tournois/${tournoi.id}/engages`}
-            aria-current={jour === null ? "page" : undefined}
-          >
-            {jour === null ? "▸ " : ""}Tout le tournoi
-          </Link>
-          {journees.map((journee) => (
-            <Link
-              key={journee}
-              className={styles.lien}
-              href={`/admin/tournois/${tournoi.id}/engages?jour=${journee}`}
-              aria-current={jour === journee ? "page" : undefined}
-            >
-              {jour === journee ? "▸ " : ""}
-              {jourLisible(journee)}
-            </Link>
-          ))}
-        </div>
+        <BarreJournees
+          intitule="La journée pointée"
+          entrees={[
+            {
+              jour: null,
+              libelle: "Tout le tournoi",
+              href: `/admin/tournois/${tournoi.id}/engages`,
+              actif: jour === null,
+            },
+            ...journees.map((journee) => ({
+              jour: journee,
+              href: `/admin/tournois/${tournoi.id}/engages?jour=${journee}`,
+              actif: jour === journee,
+            })),
+          ]}
+        />
       ) : null}
 
       {jour !== null ? (

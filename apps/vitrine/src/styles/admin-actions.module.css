@@ -11,8 +11,10 @@
    l'état se lit sans lire le libellé. C'est le seul endroit du back-office où un état
    binaire doit se voir d'un coup d'œil sur une liste.
 
-   ⚠️ Ce qui est propre à un écran reste chez lui : les commandes d'ORDRE de la galerie
-   (`.rang`, `.deplacer`) vivent dans `PhotoActions.module.css`, l'agenda n'en a pas. */
+   ⚠️ CETTE PHRASE DISAIT LE CONTRAIRE DE CE QUE FAIT LE FICHIER : elle affirmait que `.rang`
+   et `.deplacer` vivaient dans `PhotoActions.module.css` — la 6.5 les a déplacés ICI le jour
+   même, sans la reprendre. Trois écrans les consomment (ateliers, membres, partenaires) ;
+   l'agenda n'en a pas. Corrigé le 2026-08-25. */
 
 .bloc {
   display: flex;
@@ -80,9 +82,60 @@
   color: var(--grey);
 }
 
+/* ═════════ Le bouton d'action ordinaire, et la rangée qui en groupe plusieurs ═════════
+   🔴 CES DEUX CLASSES ÉTAIENT CONSOMMÉES SANS EXISTER — défaut mesuré le 2026-08-25, même
+   famille que les quatre tokens fantômes de la 10.9 et exactement aussi muet : une classe
+   absente d'un `*.module.css` vaut `undefined`, `className={undefined}` ne rend AUCUN
+   attribut, et le navigateur affiche son bouton gris par défaut. Ni erreur, ni avertissement,
+   ni typecheck — les CSS Modules sont typés `Record<string, string>`.
+   Sept usages, tous sur les DEUX écrans livrés « sans travail d'apparence » par les PR #69 et
+   #70 : le déroulé (flèches ↑ ↓ et « Ajouter la phase ») et l'assistant. Le rendre visible
+   est le premier geste de la 13.1, avant toute mise en page.
+   ⚠️ Distinct de `.bascule`, qui porte un ÉTAT binaire, et de `.deplacer`, qui est une flèche
+   carrée sans libellé. Celui-ci est le bouton à texte des formulaires du back-office. */
+.groupe {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.bouton:hover:not(:disabled) {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+/* ⚠️ `disabled` a ici DEUX sens qu'il faut distinguer au curseur : l'attente d'un
+   aller-retour (`progress`) et le refus définitif d'une phase figée (`not-allowed`). On ne
+   sait pas lequel depuis le CSS — `not-allowed` est retenu parce que c'est le cas le plus
+   fréquent en cours de tournoi, et parce que la RAISON est écrite à côté, en toutes lettres. */
+.bouton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bascule,
-  .basculePubliee {
+  .basculePubliee,
+  .bouton {
     transition: none;
   }
 }
