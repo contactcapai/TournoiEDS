@@ -3,11 +3,9 @@ import "server-only";
 import { and, asc, eq, isNotNull, or } from "drizzle-orm";
 
 import {
+  agregerParEngage,
   classer,
-  pointsDePlacement,
-  statistiques,
-  type EngageClassable,
-  type ResultatDeManche,
+  type PlaceLue,
 } from "../../../lib/tournoi/classement";
 import type { SourceResolue } from "../../../lib/tournoi/generation";
 import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
@@ -227,23 +225,30 @@ export const aDesResultatsSaisis = (rencontres: readonly RencontreJouable[]) =>
   rencontres.some((r) => r.places.some((p) => p.rank !== null || p.score !== null));
 
 /**
- * Le classement du tournoi, recalculé depuis **toutes** les manches classées.
+ * Les places de tables d'un tournoi, dans l'ordre du déroulé — matière première du classement.
  *
- * 🔴 LA TAILLE DE CHAQUE TABLE EST CELLE DE **CETTE** TABLE, comptée au passage. C'est ce qui
- * rend les points justes quand les lobbies font 6, 6 et 5 — et c'est aussi ce que
- * `ResultatDeManche.tailleDuLobby` sert à porter jusqu'à `statistiques()` (défaut trouvé par
- * cette story : un seuil unique de moitié haute était faux dès que les tailles différaient).
+ * ⚠️ **L'ORDRE EST LE CONTRAT** de `agregerParEngage` : elle en dérive `ordre`, qui départage
+ * le 4ᵉ critère de `classer()`. On trie par (position de phase, position de rencontre) et
+ * **jamais par une horloge** — deux rencontres créées dans la même transaction portent le même
+ * `createdAt`.
  *
- * ⚠️ **UNE PLACE VIDE NE COMPTE PAS DANS LA TAILLE.** Un lobby de 8 généré où 6 personnes se
- * sont assises est un lobby de **6** : compter 8 donnerait 3 points au dernier au lieu de 1, et
- * gonflerait tout le tableau. C'est le même défaut que le « 8 codé en dur » de la 10.3.
+ * ⚠️ L'`innerJoin` sur `tournamentEntry` écarte les places VIDES : une place que personne
+ * n'occupe ne doit pas compter dans la taille de la table (un lobby de 8 où 6 personnes se
+ * sont assises est un lobby de 6).
+ *
+ * @param exigerPublie 🔴 LA GARDE DE LA LECTURE PUBLIQUE, ET ELLE EST **DANS LA REQUÊTE**.
+ * Une lecture publique qui déléguerait sa garde à son appelant finirait par être appelée
+ * d'ailleurs — et rendrait le classement d'un tournoi en brouillon à qui devinerait son `id`.
+ * Aucune porte visuelle ne le verrait : une page qui affiche une section de plus n'a pas l'air
+ * cassée. Même raisonnement, mot pour mot, que `getDeroulePublic` (14.1).
  */
-export async function getClassementDuTournoi(tournoiId: string) {
+async function lirePlacesClassables(
+  tournoiId: string,
+  exigerPublie: boolean,
+): Promise<PlaceLue[]> {
   const lignes = await db
     .select({
-      phasePosition: tournamentPhase.position,
       matchId: tournamentMatch.id,
-      matchPosition: tournamentMatch.position,
       entryId: tournamentMatchSlot.entryId,
       rank: tournamentMatchSlot.rank,
       nom: tournamentEntry.displayName,
@@ -253,62 +258,52 @@ export async function getClassementDuTournoi(tournoiId: string) {
     .innerJoin(tournamentMatch, eq(tournamentMatch.id, tournamentMatchSlot.matchId))
     .innerJoin(tournamentPhase, eq(tournamentPhase.id, tournamentMatch.phaseId))
     .innerJoin(tournamentEntry, eq(tournamentEntry.id, tournamentMatchSlot.entryId))
-    .where(eq(tournamentPhase.tournamentId, tournoiId))
+    .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+    .where(
+      exigerPublie
+        ? and(eq(tournamentPhase.tournamentId, tournoiId), eq(tournament.isPublished, true))
+        : eq(tournamentPhase.tournamentId, tournoiId),
+    )
     .orderBy(asc(tournamentPhase.position), asc(tournamentMatch.position));
 
-  // Taille RÉELLE de chaque table : le nombre de places occupées, pas la taille générée.
-  const tailleParMatch = new Map<string, number>();
-  for (const ligne of lignes) {
-    tailleParMatch.set(ligne.matchId, (tailleParMatch.get(ligne.matchId) ?? 0) + 1);
-  }
-
-  // `ordre` situe la manche dans le temps — il départage `dernierPlacement` (4ᵉ critère de
-  // `classer`). Il se dérive de (rang de la phase, position de la rencontre), jamais d'une
-  // horloge : deux rencontres créées dans la même transaction porteraient le même `createdAt`.
-  const ordreParMatch = new Map<string, number>();
-  for (const ligne of lignes) {
-    if (!ordreParMatch.has(ligne.matchId)) ordreParMatch.set(ligne.matchId, ordreParMatch.size + 1);
-  }
-
-  const parEngage = new Map<
-    string,
-    { nom: string; abandonne: boolean; manches: ResultatDeManche[] }
-  >();
-
-  for (const ligne of lignes) {
-    const entryId = ligne.entryId as string;
-    let engage = parEngage.get(entryId);
-    if (!engage) {
-      engage = {
-        nom: ligne.nom,
-        abandonne: ligne.etatEngage === "abandonne",
-        manches: [],
-      };
-      parEngage.set(entryId, engage);
-    }
-
-    // Une place sans rang n'est pas une manche jouée — elle est en attente de saisie.
-    if (ligne.rank === null) continue;
-
-    const taille = tailleParMatch.get(ligne.matchId) ?? 0;
-    engage.manches.push({
-      placement: ligne.rank,
-      points: pointsDePlacement(ligne.rank, taille),
-      ordre: ordreParMatch.get(ligne.matchId) ?? 0,
-      tailleDuLobby: taille,
-    });
-  }
-
-  const classables: EngageClassable[] = [...parEngage.entries()].map(([id, engage]) => ({
-    id,
-    nom: engage.nom,
-    abandonne: engage.abandonne,
-    // Le repli n'a plus de consommateur ici — chaque manche porte sa taille —, mais le
-    // paramètre reste obligatoire : on lui passe la taille de la dernière table connue.
-    stats: statistiques(engage.manches, engage.manches.at(-1)?.tailleDuLobby ?? 1),
+  return lignes.map((ligne) => ({
+    matchId: ligne.matchId,
+    entryId: ligne.entryId as string,
+    nom: ligne.nom,
+    abandonne: ligne.etatEngage === "abandonne",
+    rank: ligne.rank,
   }));
+}
 
-  return classer(classables);
+/**
+ * Le classement du tournoi, recalculé depuis **toutes** les manches classées.
+ *
+ * 🔴 LA TAILLE DE CHAQUE TABLE EST CELLE DE **CETTE** TABLE, et les points la suivent — c'est
+ * ce qui les rend justes quand les lobbies font 6, 6 et 5. Le calcul lui-même vit dans
+ * `lib/tournoi/classement.ts` (`agregerParEngage`) depuis la 14.2 : la lecture publique pose sa
+ * propre garde et ne peut donc pas appeler celle-ci, et deux copies du calcul trancheraient un
+ * jour à l'envers l'une de l'autre.
+ *
+ * ⚠️ **ELLE REND AUSSI LES ENGAGÉS QUI N'ONT ENCORE RIEN JOUÉ**, à 0 point : une place générée
+ * mais pas dépouillée crée quand même sa ligne. C'est voulu ici — le back-office compose la
+ * manche suivante depuis ce classement et doit voir tout le plateau. ⚠️ C'est aussi pourquoi la
+ * surface publique ne peut pas rendre cette liste telle quelle : voir `classementPubliable`.
+ */
+export async function getClassementDuTournoi(tournoiId: string) {
+  return classer(agregerParEngage(await lirePlacesClassables(tournoiId, false)));
+}
+
+/**
+ * Le classement d'un tournoi **PUBLIÉ** (Story 14.2).
+ *
+ * ⚠️ **ELLE NE FILTRE PAS ELLE-MÊME CE QU'ON A LE DROIT DE NOMMER** — c'est `classementPubliable`
+ * qui le fait, dans la lib, parce que **deux** surfaces posent la question : cette page-ci et
+ * l'aperçu du bénévole, qui lit un BROUILLON et ne peut donc pas passer par cette requête. La
+ * garde de publication et la règle de nommage sont deux choses, à deux endroits, chacune avec
+ * son appelant. Les fondre ici laisserait l'aperçu montrer autre chose que le site.
+ */
+export async function getClassementPublic(tournoiId: string) {
+  return classer(agregerParEngage(await lirePlacesClassables(tournoiId, true)));
 }
 
 /**

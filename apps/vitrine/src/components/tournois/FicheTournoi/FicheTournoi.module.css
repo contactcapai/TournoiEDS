@@ -355,3 +355,104 @@
 .phaseEtatEnCours {
   color: var(--gold);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LE CLASSEMENT EN DIRECT (Story 14.2)
+   ══════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ⚠️ LE CADRE DÉFILE, LA PAGE NON. `globals.css` pose `overflow-x: clip` : un tableau trop
+   large serait rogné EN SILENCE — ni scrollbar, ni erreur, invisible à l'œil par construction.
+   ⚠️ Le conteneur est ici un BLOC (`Wrap`), pas un enfant flex : `overflow-x: auto` suffit, et
+   la parade `width: 0` + `flex-grow: 1` du back-office ne s'applique pas. */
+.classementCadre {
+  overflow-x: auto;
+}
+
+.classement {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+  color: var(--light);
+}
+
+.classementLegende {
+  margin-bottom: 12px;
+  text-align: left;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.classement th {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(218, 178, 101, 0.35); /* --gold à 35 % */
+  text-align: left;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.classement td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(146, 147, 173, 0.2); /* --grey à 20 % */
+}
+
+.classement tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.classementRang {
+  width: 1%;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+/* Le pseudo peut être long : c'est la seule colonne qui a le droit de prendre la place. */
+.classementNom {
+  width: 100%;
+}
+
+/* ⚠️ LE MOT PORTE L'INFORMATION, la couleur ne fait que la répéter (AA) — et c'est le MÊME mot
+   que le back-office (« drop », 2026-08-25), pas un synonyme : deux surfaces qui nommeraient
+   différemment le même état feraient croire à deux états. */
+.classementDrop {
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.classementChiffre {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* `.classement th` porte `text-align: left` avec une spécificité plus forte : la remonter ici
+   plutôt qu'ajouter un `!important`. */
+.classement th.classementChiffre {
+  text-align: right;
+}
+
+.classementFraicheur {
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
+  .classement {
+    font-size: 15px;
+  }
+
+  .classement th,
+  .classement td {
+    padding: 8px;
+  }
+
+  .classementRang {
+    font-size: 18px;
+  }
+}

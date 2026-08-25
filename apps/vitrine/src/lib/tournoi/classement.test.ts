@@ -1,12 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  agregerParEngage,
+  classementPubliable,
   classer,
   lobbiesSuisses,
   pointsDePlacement,
   repartirEnLobbies,
   statistiques,
   type EngageClassable,
+  type PlaceLue,
 } from "./classement";
 
 const stats = (
@@ -256,5 +259,123 @@ describe("statistiques — le seuil de moitié haute suit la taille de CHAQUE ta
     assert.equal(parTable.moitieHaute, 1);
     assert.equal(seuilUnique.moitieHaute, 2);
     assert.notEqual(parTable.moitieHaute, seuilUnique.moitieHaute);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DES PLACES LUES EN BASE À UN CLASSEMENT (Story 14.2)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+const place = (
+  matchId: string,
+  entryId: string,
+  rank: number | null,
+  abandonne = false,
+): PlaceLue => ({ matchId, entryId, nom: entryId, abandonne, rank });
+
+describe("agrégat — les places d'une table deviennent un classement", () => {
+  it("compte la taille RÉELLE de la table, pas la taille générée", () => {
+    // Trois personnes assises à une table : le 1ᵉʳ marque 3, pas 8.
+    const lignes = agregerParEngage([
+      place("m1", "a", 1),
+      place("m1", "b", 2),
+      place("m1", "c", 3),
+    ]);
+    const parNom = new Map(lignes.map((l) => [l.nom, l.stats.total]));
+    assert.deepEqual([parNom.get("a"), parNom.get("b"), parNom.get("c")], [3, 2, 1]);
+  });
+
+  it("une place SANS RANG ne compte pas comme manche jouée — mais crée quand même la ligne", () => {
+    // C'est le comportement du back-office, et c'est exactement ce que `classementPubliable`
+    // existe pour ne PAS publier. Le figer ici évite qu'on le « corrige » côté admin.
+    const [ligne] = agregerParEngage([place("m1", "a", null), place("m1", "b", null)]);
+    assert.equal(ligne.stats.manchesJouees, 0);
+    assert.equal(ligne.stats.total, 0);
+  });
+
+  it("l'ORDRE reçu situe les manches dans le temps — il départage le dernier résultat", () => {
+    // Deux engagés à égalité parfaite de points, de premières et de moitié haute : seul le
+    // MEILLEUR DERNIER résultat les sépare, donc l'ordre d'arrivée des tables décide.
+    const lignes = agregerParEngage([
+      place("m1", "a", 1),
+      place("m1", "b", 2),
+      place("m2", "a", 2),
+      place("m2", "b", 1),
+    ]);
+    const derniers = new Map(lignes.map((l) => [l.nom, l.stats.dernierPlacement]));
+    assert.equal(derniers.get("a"), 2);
+    assert.equal(derniers.get("b"), 1);
+    assert.equal(classer(lignes)[0].nom, "b");
+  });
+
+  it("l'abandon remonte jusqu'à la ligne, sans lui retirer ses points", () => {
+    const [ligne] = agregerParEngage([place("m1", "a", 1, true), place("m1", "b", 2)]);
+    assert.equal(ligne.abandonne, true);
+    assert.equal(ligne.stats.total, 2);
+  });
+});
+
+describe("publication — on nomme qui a JOUÉ (Story 14.2)", () => {
+  it("retire les engagés sans aucune manche jouée", () => {
+    // Le cas réel : une manche générée, une seule table dépouillée. Les autres sont assis,
+    // pas encore joués — les nommer à 0 point serait nommer quelqu'un pour rien.
+    const classement = classer(
+      agregerParEngage([
+        place("m1", "a", 1),
+        place("m1", "b", 2),
+        place("m2", "c", null),
+        place("m2", "d", null),
+      ]),
+    );
+    assert.equal(classement.length, 4);
+    const publie = classementPubliable(classement);
+    assert.deepEqual(
+      publie.map((l) => l.nom),
+      ["a", "b"],
+    );
+  });
+
+  it("un tournoi joué au SCORE ne publie RIEN — aucune place ne porte de rang", () => {
+    // Un bracket se dépouille au score : `getClassementDuTournoi` rend alors tout le plateau
+    // à 0 point. Sans ce filtre, la fiche publique nommerait tout le monde pour rien.
+    const classement = classer(
+      agregerParEngage([place("m1", "a", null), place("m1", "b", null)]),
+    );
+    assert.equal(classement.length, 2);
+    assert.equal(classementPubliable(classement).length, 0);
+  });
+
+  it("un DROP qui a joué garde sa ligne, son pseudo et sa place", () => {
+    const publie = classementPubliable(
+      classer(agregerParEngage([place("m1", "a", 1, true), place("m1", "b", 2)])),
+    );
+    assert.deepEqual(
+      publie.map((l) => l.nom),
+      ["a", "b"],
+    );
+    assert.equal(publie[0].abandonne, true);
+  });
+
+  it("les rangs restent 1..N, sans trou, et sans bouger ceux du haut", () => {
+    // Une manche jouée vaut au moins 1 point : les lignes retirées sont toujours strictement
+    // dernières, donc la renumérotation ne déplace personne. Ce test le PROUVE au lieu de le
+    // supposer — c'est la seule raison pour laquelle le classement public et celui du
+    // back-office peuvent afficher les mêmes numéros le même jour.
+    const classement = classer(
+      agregerParEngage([
+        place("m1", "a", 1),
+        place("m1", "b", 2),
+        place("m1", "c", 3),
+        place("m2", "z", null),
+      ]),
+    );
+    const publie = classementPubliable(classement);
+    assert.deepEqual(
+      publie.map((l) => l.rang),
+      [1, 2, 3],
+    );
+    for (const ligne of publie) {
+      assert.equal(ligne.rang, classement.find((l) => l.id === ligne.id)?.rang);
+    }
   });
 });

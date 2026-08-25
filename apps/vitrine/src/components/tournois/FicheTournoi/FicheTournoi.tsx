@@ -64,6 +64,24 @@ export type PhaseAffichee = {
 };
 
 /**
+ * Une ligne de classement telle que la fiche la rend (Story 14.2).
+ *
+ * ⚠️ **STRUCTUREL ET MINIMAL, comme `PhaseAffichee`** : `LigneDeClassement` (lib) en est un
+ * sur-ensemble, si bien que les deux consommateurs — la page publique et l'aperçu du bénévole —
+ * le satisfont sans qu'aucune conversion soit écrite. ⚠️ `stats` ne remonte ici que les deux
+ * grandeurs affichées : les trois autres (premières places, moitié haute, moyenne) sont des
+ * critères de **départage**, pas des colonnes. Les faire entrer dans ce type ferait croire
+ * qu'elles sont publiables, et quelqu'un finirait par les afficher.
+ */
+export type LigneClassementAffichee = {
+  id: string;
+  rang: number;
+  nom: string;
+  abandonne?: boolean;
+  stats: { total: number; manchesJouees: number };
+};
+
+/**
  * Ce que la fiche sait du tournoi **à l'instant où on la regarde** (Story 14.1).
  *
  * 🔴 L'ÉTAT EST CALCULÉ PAR L'APPELANT, PAS ICI, et ce n'est pas un caprice : ce composant
@@ -71,7 +89,17 @@ export type PhaseAffichee = {
  * `react-hooks/purity` refuse — deux rendus du même arbre pourraient répondre différemment.
  * La page lit l'heure UNE fois et passe le résultat.
  */
-export type SuiviPublic = { etat: EtatDuJour; phases: readonly PhaseAffichee[] };
+export type SuiviPublic = {
+  etat: EtatDuJour;
+  phases: readonly PhaseAffichee[];
+  /**
+   * 🔴 DÉJÀ FILTRÉ PAR L'APPELANT (`classementPubliable`), ET CE N'EST PAS UN DÉTAIL. Ce
+   * composant a deux consommateurs dont l'un lit un BROUILLON : la règle de nommage ne peut
+   * donc pas vivre dans la requête publique. Elle vit dans la lib, les deux pages l'appliquent,
+   * et ce qui arrive ici est ce qui se publie — un composant ne décide pas d'un droit.
+   */
+  classement: readonly LigneClassementAffichee[];
+};
 
 export function FicheTournoi({
   tournoi,
@@ -125,6 +153,8 @@ export function FicheTournoi({
    * raisonnement complet, et le défaut qu'il corrige, vivent sur la fonction.
    */
   const podium = tournoi.estPasse ? podiumVisible(tournoi) : [];
+
+  const classement = suivi?.classement ?? [];
 
   /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE**, et la décision se prend ici.
@@ -533,6 +563,92 @@ export function FicheTournoi({
                   </div>
                 ) : null}
               </dl>
+            </div>
+          </Wrap>
+        </section>
+      ) : null}
+
+      {/* ══════════════════════════════════════════════════════════════════════════
+          LE CLASSEMENT (Story 14.2) — LA PREMIÈRE SURFACE DU SITE QUI NOMME QUELQU'UN
+          ══════════════════════════════════════════════════════════════════════════
+          🔴 IL VIENT APRÈS LE PODIUM ET NE LE REMPLACE JAMAIS. Ce sont deux questions, pas
+          deux versions d'une seule : le podium dit QUI A GAGNÉ, le classement dit OÙ CHACUN
+          A FINI. ⚠️ Et faire dériver le premier du second serait faux — sur un tableau, le
+          vainqueur sort de l'ARBRE, pas des points : le calcul ne sait pas toujours répondre.
+          C'est la limite exacte de la décision 9.3, qu'on n'étend donc pas jusqu'ici.
+
+          ⚠️ LA SECTION N'EXISTE PAS QUAND AUCUNE LIGNE N'EST PUBLIABLE, et c'est ce silence
+          qui couvre les deux cas muets d'un seul geste : un tournoi joué au SCORE (bracket,
+          poule) ne produit aucun rang, et une manche générée mais pas encore dépouillée n'en
+          produit pas encore. Écrire « aucun résultat » ici expliquerait au public une
+          mécanique interne — et la phrase deviendrait fausse sans que rien ne le dise. */}
+      {classement.length > 0 ? (
+        <section className={editorial.section} aria-labelledby="classement-title">
+          <Wrap>
+            <SectionHead
+              headingLevel={niveauSection}
+              eyebrow={tournoi.estPasse ? "Résultats" : "En direct"}
+              titleId="classement-title"
+              title="Le classement"
+            />
+
+            <div className={motion.reveal}>
+              <div className={styles.classementCadre}>
+                <table className={styles.classement}>
+                  {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT — même acquis qu'en 13.1
+                      sur l'écran du jour J : le fait était vrai depuis toujours et écrit dans
+                      un commentaire, c'est-à-dire dit à personne. Sur un TFT étalé sur quatre
+                      week-ends, un classement posé sous un déroulé par journées se lit comme
+                      le classement DE la journée affichée. */}
+                  <caption className={styles.classementLegende}>
+                    Classement aux points, cumulé sur <strong>tout le tournoi</strong>.
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Rang</th>
+                      <th scope="col">Engagé</th>
+                      <th className={styles.classementChiffre} scope="col">
+                        Points
+                      </th>
+                      <th className={styles.classementChiffre} scope="col">
+                        Manches
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classement.map((ligne) => (
+                      <tr key={ligne.id}>
+                        <td className={styles.classementRang}>{ligne.rang}</td>
+                        <td className={styles.classementNom}>
+                          {ligne.nom}
+                          {/* 🔴 UN DROP GARDE SES POINTS ET SON RANG (R60) — et l'écran le
+                              DIT, sinon on croirait à une erreur de saisie. Même mot que le
+                              back-office : « drop », pas « a abandonné ». */}
+                          {ligne.abandonne ? (
+                            <span className={styles.classementDrop}> — drop</span>
+                          ) : null}
+                        </td>
+                        <td className={styles.classementChiffre}>{ligne.stats.total}</td>
+                        <td className={styles.classementChiffre}>{ligne.stats.manchesJouees}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 🔴 « DIRECT » VEUT DIRE FRAIS AU RECHARGEMENT, ET ON L'ÉCRIT (arbitrage de
+                  l'Epic 14). La page est `force-dynamic` : ce tableau est recalculé à chaque
+                  affichage, il n'est jamais figé — mais elle ne se met PAS à jour toute seule.
+                  Promettre le second en livrant le premier ferait rester quelqu'un devant un
+                  écran qui ne bougera pas. ⚠️ La phrase ne se rend que sur un tournoi qui
+                  n'est pas encore passé : sur un tournoi joué, « rechargez » n'a plus d'objet
+                  et inventerait une attente. */}
+              {!tournoi.estPasse ? (
+                <p className={styles.classementFraicheur} role="note">
+                  Recalculé à chaque affichage&nbsp;: rechargez la page pour la dernière
+                  version. Elle ne se met pas à jour toute seule.
+                </p>
+              ) : null}
             </div>
           </Wrap>
         </section>

@@ -195,3 +195,122 @@ export const lobbiesSuisses = (
     classer(engages).filter((e) => !e.abandonne),
     cible,
   );
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DES PLACES LUES EN BASE À UN CLASSEMENT — EXTRAIT PAR LA STORY 14.2
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Une place de table telle que la base la rend : l'engagé, sa table, son rang s'il est saisi. */
+export type PlaceLue = {
+  readonly matchId: string;
+  readonly entryId: string;
+  readonly nom: string;
+  readonly abandonne: boolean;
+  /** `null` = place générée mais **pas encore dépouillée**. Ce n'est pas une manche jouée. */
+  readonly rank: number | null;
+};
+
+/**
+ * Agrège des places en engagés classables.
+ *
+ * 🔴 EXTRAIT DE `getClassementDuTournoi` SANS CHANGER SON COMPORTEMENT, parce que la lecture
+ * PUBLIQUE pose sa propre garde `is_published` dans son `WHERE` (doctrine 14.1) et ne peut donc
+ * pas appeler la lecture d'admin. Sans cette extraction, les deux requêtes porteraient deux
+ * copies de ce calcul — et c'est la recopie qui a déjà coûté un défaut muet au 5ᵉ cas sur ce
+ * projet (`estParTables`, 10.10).
+ *
+ * ⚠️ **L'ORDRE DES PLACES REÇUES PORTE DU SENS, ET RIEN ICI NE LE VÉRIFIE.** `ordre` situe la
+ * manche dans le temps ; il se dérive du rang d'arrivée de chaque table dans la liste, et il
+ * départage `dernierPlacement` — 4ᵉ critère de `classer()`. L'appelant doit trier par (position
+ * de phase, position de rencontre), **jamais par une horloge** : deux rencontres créées dans la
+ * même transaction portent le même `createdAt`. Un test fige ce contrat.
+ *
+ * ⚠️ **UNE PLACE VIDE NE COMPTE PAS DANS LA TAILLE.** Un lobby de 8 où 6 personnes se sont
+ * assises est un lobby de **6** : compter 8 donnerait 3 points au dernier au lieu de 1, et
+ * gonflerait tout le tableau. L'appelant ne remonte que les places qui portent un engagé.
+ */
+export const agregerParEngage = (places: readonly PlaceLue[]): EngageClassable[] => {
+  // Taille RÉELLE de chaque table : le nombre de places occupées, pas la taille générée.
+  const tailleParMatch = new Map<string, number>();
+  for (const place of places) {
+    tailleParMatch.set(place.matchId, (tailleParMatch.get(place.matchId) ?? 0) + 1);
+  }
+
+  const ordreParMatch = new Map<string, number>();
+  for (const place of places) {
+    if (!ordreParMatch.has(place.matchId)) {
+      ordreParMatch.set(place.matchId, ordreParMatch.size + 1);
+    }
+  }
+
+  const parEngage = new Map<
+    string,
+    { nom: string; abandonne: boolean; manches: ResultatDeManche[] }
+  >();
+
+  for (const place of places) {
+    let engage = parEngage.get(place.entryId);
+    if (!engage) {
+      engage = { nom: place.nom, abandonne: place.abandonne, manches: [] };
+      parEngage.set(place.entryId, engage);
+    }
+
+    // Une place sans rang n'est pas une manche jouée — elle est en attente de saisie.
+    if (place.rank === null) continue;
+
+    const taille = tailleParMatch.get(place.matchId) ?? 0;
+    engage.manches.push({
+      placement: place.rank,
+      points: pointsDePlacement(place.rank, taille),
+      ordre: ordreParMatch.get(place.matchId) ?? 0,
+      tailleDuLobby: taille,
+    });
+  }
+
+  return [...parEngage.entries()].map(([id, engage]) => ({
+    id,
+    nom: engage.nom,
+    abandonne: engage.abandonne,
+    // Le repli n'a plus de consommateur — chaque manche porte sa taille —, mais le paramètre
+    // reste obligatoire : on lui passe la taille de la dernière table connue.
+    stats: statistiques(engage.manches, engage.manches.at(-1)?.tailleDuLobby ?? 1),
+  }));
+};
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 CE QU'ON A LE DROIT DE PUBLIER — ON NOMME QUI A **JOUÉ** (Story 14.2)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * C'est la **première surface du site qui publie des pseudos**, et l'arbitrage écrit le matin
+ * du 2026-08-25 disait « les PRÉSENTS, et eux seuls ». Appliqué tel quel, il ne tient pas : le
+ * classement **cumule tout le tournoi** pendant que la présence se lit **par journée** depuis
+ * la 10.12. Quelqu'un qui a joué samedi et manque le suivant a de vrais points — lire le seul
+ * état du jour l'effacerait d'un classement où il figure à bon droit.
+ *
+ * ⇒ La règle retenue (arbitrage de Brice, même jour, à froid) est plus simple **et** plus
+ * stricte : **une ligne se publie quand elle porte un résultat saisi.** C'est la doctrine déjà
+ * écrite deux fois dans ce dépôt (`phaseADesResultats`, `aDesResultatsSaisis`) — l'état est
+ * *saisi*, le résultat est un *fait*. Elle règle les trois cas sans exception particulière :
+ *
+ *   · un `inscrit` ou un `absent` n'a jamais de rang ⇒ **jamais nommé**. Personne n'est nommé
+ *     publiquement pour n'être pas venu, ce qui était tout le sens de l'arbitrage ;
+ *   · une place **générée mais pas encore dépouillée** ne nomme personne — et c'est le trou
+ *     réel, pas une précaution : `agregerParEngage` crée l'engagé **avant** de regarder son
+ *     rang, si bien que le classement d'admin porte une ligne à 0 point par place en attente.
+ *     Sur un tournoi joué au **score** (bracket, poule), aucune place ne porte de rang : c'est
+ *     donc **tout le plateau** qui serait nommé à 0 ;
+ *   · un **drop qui a joué** garde sa ligne, son rang et son pseudo. Cet arbitrage-là **amende**
+ *     le « jamais un `abandonne` » du matin : il est venu, il a joué, ses points comptent (R60),
+ *     et le retirer décalerait les rangs de tous ceux d'en dessous — le classement public et
+ *     celui du back-office se contrediraient le même jour, sur le même tournoi.
+ *
+ * ⚠️ LES RANGS SONT RENUMÉROTÉS, et ce n'est **pas** une divergence : une manche jouée vaut au
+ * moins 1 point (`pointsDePlacement`), donc les lignes retirées sont toujours **strictement
+ * dernières** et les numéros du haut ne bougent pas. La renumérotation interdit seulement un
+ * trou dans la suite — qui se lirait comme une panne.
+ */
+export const classementPubliable = (lignes: readonly LigneDeClassement[]): LigneDeClassement[] =>
+  lignes
+    .filter((ligne) => ligne.stats.manchesJouees > 0)
+    .map((ligne, index) => ({ ...ligne, rang: index + 1 }));
