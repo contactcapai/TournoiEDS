@@ -1,4 +1,14 @@
-import type { IconeSection as CleIcone } from "../../_sections";
+import type { IconeSection as CleSection } from "../../_sections";
+
+/**
+ * 🔴 LE TABLEAU DE BORD N'EST PAS UNE SECTION, ET SON DESSIN NE PEUT DONC PAS VIVRE DANS
+ * `IconeSection` (le champ obligatoire du registre). `/admin` est ouvert à TOUT compte
+ * connecté — il figure dans `CHEMINS_CONNECTE`, pas dans `SECTIONS_ADMIN` : il n'a ni rôle,
+ * ni famille, ni aperçu. Élargir le type du registre pour l'y loger permettrait à une
+ * section de réclamer ce dessin, alors qu'elle n'en a pas le droit. On élargit donc ICI,
+ * là où le chrome dessine, et le registre reste strict.
+ */
+export type CleIcone = CleSection | "tableau-de-bord";
 
 /**
  * Les dessins de la barre latérale (Story 13.2).
@@ -17,6 +27,16 @@ import type { IconeSection as CleIcone } from "../../_sections";
  * personne ait à tenir une seconde palette d'accord avec la première.
  */
 const CHEMINS: Record<CleIcone, React.ReactNode> = {
+  // Un tableau : un panneau haut à gauche, deux empilés à droite. ⚠️ Volontairement
+  // DIFFÉRENT des deux plaques côte à côte de `partenaires` — deux dessins qui se
+  // ressemblent dans une même colonne ne servent plus à reconnaître, seulement à décorer.
+  "tableau-de-bord": (
+    <>
+      <rect x="3" y="4" width="7" height="16" rx="1.5" />
+      <rect x="14" y="4" width="7" height="6" rx="1.5" />
+      <rect x="14" y="14" width="7" height="6" rx="1.5" />
+    </>
+  ),
   // Calendrier : la grille des jeudis.
   agenda: (
     <>

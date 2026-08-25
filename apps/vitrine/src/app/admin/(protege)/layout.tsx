@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/server/auth/config";
@@ -81,7 +82,14 @@ export default async function AdminLayout({
           n'existe dans le produit — les dessiner promettrait des fonctions absentes, ce que
           `_sections.ts` combat depuis deux occurrences (« une porte sans pièce »). */}
       <aside className={styles.rail}>
-        <div className={styles.identite}>
+        {/* 🔴 LE BLOC DE MARQUE EST UN LIEN VERS `/admin` — IL NE L'A JAMAIS ÉTÉ (2026-08-25).
+            C'est la convention que tout le monde essaie en premier, et elle ne répondait pas :
+            le chrome ne contenait QUE les neuf liens de sections, on revenait au tableau de
+            bord en tapant l'URL. ⚠️ Le lien ne se suffit PAS à lui-même — une marque cliquable
+            est une affordance invisible, c'est exactement celle qui a échoué ici. L'entrée
+            « Tableau de bord » du menu est la parade qui se VOIT ; celle-ci est la parade qui
+            se DEVINE. Les deux, parce qu'elles ne servent pas la même personne. */}
+        <Link className={styles.identite} href="/admin">
           {/* `/logo-eds-blanc.png` est déjà déclaré dans next.config.ts → localPatterns.
               ⚠️ Une image locale absente de cette liste répond 400 : c'est exactement la
               régression qui a fait disparaître le logo des 5 pages en Story 4.3, avec sept
@@ -95,7 +103,7 @@ export default async function AdminLayout({
             priority
           />
           <span className={styles.marque}>Back-office</span>
-        </div>
+        </Link>
 
         {/* 🔴 LA NAVIGATION EST UN COMPOSANT CLIENT, ET CE LAYOUT RESTE UN RSC. Le menu a
             besoin de `usePathname()` pour marquer l'entrée courante — un RSC ne connaît pas

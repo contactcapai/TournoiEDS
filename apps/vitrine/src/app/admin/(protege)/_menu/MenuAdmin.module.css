@@ -137,3 +137,14 @@
     display: flex;
   }
 }
+
+/* ── Le retour au tableau de bord (défaut vu par Brice le 2026-08-25) ───────── */
+
+/* Un filet SOUS l'entrée, et rien d'autre. `/admin` n'est pas une section : il ne se range
+   sous aucune famille, et le séparer d'elles est ce qui le dit à l'œil. ⚠️ Le filet est en
+   `padding-bottom` plutôt qu'en `margin`, sinon il se collerait au lien : le `gap` de 18px
+   du <nav> sépare déjà les blocs, il ne sépare pas le trait de son contenu. */
+.accueil {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, comme le rail */
+}

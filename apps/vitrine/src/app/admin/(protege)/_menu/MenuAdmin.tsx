@@ -34,17 +34,27 @@ import styles from "./MenuAdmin.module.css";
  *   ② huit entrées à plat, ajoutées une par une, aucune ne connaissant les autres ;
  *   ③ la phrase de chaque section n'existait QUE sur le tableau de bord.
  */
+const TABLEAU_DE_BORD = "/admin";
+
 export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
   const chemin = usePathname();
   const [deplie, setDeplie] = useState(false);
 
-  // Un menu vide ne se rend pas : c'est le cas d'un compte sans rôle, à qui le tableau de
-  // bord explique la situation. Un <nav> vide ressemblerait à une panne.
-  if (sections.length === 0) return null;
-
   const groupes = grouperParFamille(sections);
   const titrer = famillesUtiles(groupes);
   const courante = sectionCourante(chemin, sections);
+
+  // 🔴 ÉGALITÉ STRICTE, JAMAIS `cheminCouvertPar` — ET C'EST LE PIÈGE DE CETTE ENTRÉE.
+  // `/admin` est le préfixe des ONZE autres écrans : la règle « la plus longue l'emporte »
+  // qui départage les sections ne s'applique pas ici, il n'y a rien à départager. Un test de
+  // préfixe marquerait le tableau de bord actif sur tout le back-office, en même temps que
+  // la vraie section — deux entrées surlignées, dont une fausse.
+  const surTableauDeBord = chemin === TABLEAU_DE_BORD;
+
+  // Ce que le bouton de repli annonce sous 880 px. ⚠️ `courante` ne connaît que les SECTIONS :
+  // sans cette ligne, le bouton dirait « Menu » tout court sur le tableau de bord, c'est-à-dire
+  // le seul écran où l'on ne saurait pas où l'on est.
+  const libelleCourant = surTableauDeBord ? "Tableau de bord" : (courante?.libelle ?? null);
 
   return (
     <div className={styles.bloc}>
@@ -60,8 +70,8 @@ export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
         {/* Le MOT dit l'état — une icône seule ne dit rien à un lecteur d'écran, et
             `aria-expanded` seul ne dit rien à l'œil. */}
         {deplie ? "Fermer le menu" : "Menu"}
-        {courante !== null && !deplie && (
-          <span className={styles.basculeCourante}> — {courante.libelle}</span>
+        {libelleCourant !== null && !deplie && (
+          <span className={styles.basculeCourante}> — {libelleCourant}</span>
         )}
       </button>
 
@@ -77,8 +87,51 @@ export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
         id="menu-admin"
         className={styles.nav}
         data-deplie={deplie ? "oui" : "non"}
-        aria-label="Sections du back-office"
+        aria-label="Navigation du back-office"
       >
+        {/* ══════════════════════════════════════════════════════════════════════════════
+            LE RETOUR AU TABLEAU DE BORD — DÉFAUT VU PAR BRICE LE 2026-08-25
+            ══════════════════════════════════════════════════════════════════════════════
+            Le chrome ne contenait QUE les neuf liens de sections : rien ne ramenait à
+            `/admin`, et le bloc logo + « Back-office » était un <div>. On y revenait en
+            tapant l'URL. Le défaut est ancien — il ne se sentait pas tant que le tableau de
+            bord n'était qu'un annuaire redondant avec ce menu. La 13.3 lui a donné un
+            contenu qu'on ne trouve nulle part ailleurs, et l'a rendu coûteux du même coup.
+
+            🔴 HORS DES FAMILLES, ET CE N'EST PAS COSMÉTIQUE : `/admin` n'est PAS une section.
+            Il vit dans `CHEMINS_CONNECTE` (ouvert à tout compte connecté, sans rôle), il n'a
+            ni rôle, ni aperçu, ni brouillon. Le ranger sous « Publication » ou « Gestion »
+            en ferait une destination de plus parmi ses subordonnées. Même raisonnement que
+            le bloc du compte, volontairement séparé en bas de colonne.
+
+            ⚠️ IL SE REND MÊME QUAND `sections` EST VIDE. C'était l'ancien cas de sortie
+            anticipée du composant : un compte sans rôle n'avait AUCUN menu — donc, depuis
+            `/admin/refus`, aucun moyen de revenir à l'écran qui lui explique sa situation.
+            Le seul lien qu'il peut suivre est justement celui-ci. */}
+        <ul className={styles.liste}>
+          <li className={styles.accueil}>
+            <Link
+              className={
+                surTableauDeBord ? `${styles.lien} ${styles.lienActif}` : styles.lien
+              }
+              href={TABLEAU_DE_BORD}
+              aria-current={surTableauDeBord ? "page" : undefined}
+              onClick={() => setDeplie(false)}
+            >
+              <IconeSection nom="tableau-de-bord" />
+              <span className={styles.libelle}>Tableau de bord</span>
+            </Link>
+            {/* ⚠️ Une phrase VRAIE POUR TOUT LE MONDE. « où en sont l'agenda et la galerie »
+                serait faux pour un administrateur de tournoi, qui n'ouvre ni l'un ni l'autre —
+                et une phrase fausse en silence est le défaut que ce projet paie le plus. */}
+            {surTableauDeBord && (
+              <p className={styles.description}>
+                Ce qui attend une réponse, avant toute liste.
+              </p>
+            )}
+          </li>
+        </ul>
+
         {groupes.map((groupe) => (
           <div className={styles.groupe} key={groupe.famille}>
             {/* ⚠️ Le titre disparaît quand il ne reste qu'UNE famille : il n'y a alors plus
