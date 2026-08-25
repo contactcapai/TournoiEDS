@@ -76,32 +76,52 @@ export type EtatDuJour =
   | { nature: "rien" };
 
 /**
- * 🔴 L'ORDRE DES TROIS RÈGLES EST LA RÈGLE — le plus fort d'abord.
+ * Le tournoi se joue-t-il **aujourd'hui**, au calendrier ?
  *
- * ① Une phase `en_cours` l'emporte sur tout : quelqu'un l'a **déclarée** lancée, et c'est plus
- *    sûr que n'importe quel calcul de date.
- * ② Sinon, une phase datée d'aujourd'hui : le déroulé dit que ça se joue.
- * ③ Sinon **et seulement si AUCUNE phase n'est datée**, la date de début du tournoi. La
- *    condition « aucune phase datée » n'est pas une précaution : sur un tournoi étalé sur
- *    plusieurs week-ends (10.10), `starts_at` est le **premier** jour et le rester à jamais —
- *    sans elle, un TFT de trois samedis s'annoncerait « ça se joue » tous les jours du premier.
+ * 🔴 LE DÉROULÉ BAT LA DATE DE DÉBUT — même préséance que `fusionnerCeQuiSeJoue`.
+ * ⚠️ La condition « aucune phase datée » n'est pas une précaution : sur un tournoi étalé sur
+ * plusieurs week-ends (10.10), `starts_at` est le **premier** jour et le reste à jamais. Sans
+ * elle, un TFT de trois samedis s'annoncerait « ça se joue » **tous les jours du premier**.
+ */
+function seJoueAujourdHui(
+  phases: readonly PhaseDuDeroule[],
+  jourDeDebut: string,
+  aujourdHui: string,
+): boolean {
+  const datees = phases.filter((phase) => phase.playedOn !== null);
+  if (datees.length > 0) return datees.some((phase) => phase.playedOn === aujourdHui);
+  return jourDeDebut === aujourdHui;
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE CALENDRIER EST LA PORTE ; `en_cours` N'EST QU'UNE PRÉCISION — DÉFAUT MESURÉ
+ * ══════════════════════════════════════════════════════════════════════════════════════
  *
- * ⚠️ Même préséance que `fusionnerCeQuiSeJoue` : le déroulé bat la date de début.
+ * Cette fonction a d'abord été écrite dans l'autre sens : *« une phase `en_cours` l'emporte
+ * sur tout, quelqu'un l'a DÉCLARÉE lancée, c'est plus sûr qu'un calcul de date »*. Ça se tient
+ * en principe, et **c'est faux en pratique** — mesuré sur staging **le jour du déploiement** :
+ * `tournoi-tft` commence le **15 septembre 2026** et porte **deux phases restées `en_cours`**.
+ * La fiche annonçait donc « En ce moment » pour un tournoi qui ne se jouait pas.
+ *
+ * 🔴 LA CAUSE EST STRUCTURELLE, PAS UNE DONNÉE SALE : **rien ne referme une phase.** Aucun
+ * écran, aucune tâche, aucune contrainte ne repasse `en_cours` à `terminee` quand la journée
+ * s'achève. Un état que personne n'a le devoir d'éteindre ne peut pas servir de source unique
+ * à une affirmation **périssable**.
+ *
+ * ⇒ Le calendrier décide **si** on parle, la phase décide **de quoi** on parle. Et c'est ce
+ * qui fait que la fiche et la liste `/tournois` ne peuvent plus se contredire : les deux sont
+ * gardées par la même règle de calendrier.
  */
 export function etatDuJour(
   phases: readonly PhaseDuDeroule[],
   jourDeDebut: string,
   aujourdHui: string,
 ): EtatDuJour {
+  if (!seJoueAujourdHui(phases, jourDeDebut, aujourdHui)) return { nature: "rien" };
+
   const enCours = phases.find((phase) => phase.state === "en_cours");
-  if (enCours) return { nature: "manche_en_cours", manche: enCours.name };
-
-  const datees = phases.filter((phase) => phase.playedOn !== null);
-  if (datees.length > 0) {
-    return datees.some((phase) => phase.playedOn === aujourdHui)
-      ? { nature: "aujourd_hui" }
-      : { nature: "rien" };
-  }
-
-  return jourDeDebut === aujourdHui ? { nature: "aujourd_hui" } : { nature: "rien" };
+  return enCours
+    ? { nature: "manche_en_cours", manche: enCours.name }
+    : { nature: "aujourd_hui" };
 }
