@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/server/auth/config";
 import { lireCompte } from "@/server/auth/guard";
 import { sectionsPour } from "../_sections";
+import { MenuAdmin } from "./_menu/MenuAdmin";
 import styles from "./layout.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -85,22 +85,14 @@ export default async function AdminLayout({
           <span className={styles.marque}>Back-office</span>
         </div>
 
-        {/* Navigation LUE DEPUIS LE REGISTRE, jamais écrite en dur, et FILTRÉE PAR RÔLE
-            depuis la 8.1. Le <nav> disparaît plutôt que de rendre une liste vide : c'est le
-            cas d'un compte sans rôle, à qui le tableau de bord explique pourquoi. */}
-        {sections.length > 0 && (
-          <nav className={styles.nav} aria-label="Sections du back-office">
-            <ul className={styles.navListe}>
-              {sections.map((section) => (
-                <li key={section.href}>
-                  <Link className={styles.navLien} href={section.href}>
-                    {section.libelle}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+        {/* 🔴 LA NAVIGATION EST UN COMPOSANT CLIENT DEPUIS LA 13.2, ET CE LAYOUT RESTE UN RSC.
+            Le menu a besoin de `usePathname()` pour marquer l'entrée courante — un RSC ne
+            connaît pas la route, et c'est exactement pourquoi le menu ne la marquait PAS
+            jusqu'ici. La frontière client reste MINIMALE : ce layout lit toujours la session
+            et filtre par rôle, `MenuAdmin` ne reçoit que des sections déjà triées.
+            ⚠️ Le <nav> disparaît de lui-même quand il n'y a rien à montrer (compte sans
+            rôle) — c'est le tableau de bord qui explique alors la situation. */}
+        <MenuAdmin sections={sections} />
 
         <div className={styles.compte}>
           <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>

@@ -42,6 +42,28 @@ export type SectionAdmin = {
    * exactement celui-là.
    */
   role: RoleAdmin;
+  /**
+   * 🔴 LA FAMILLE SE DÉCLARE ICI, JAMAIS DANS LE RENDU (Story 13.2) — même doctrine que le
+   * `role` et que le registre lui-même : la suppression d'une section emporte son
+   * classement. Un regroupement écrit dans le composant de menu serait une SECONDE liste,
+   * fausse au premier ajout et verte pendant tout ce temps.
+   *
+   * ⚠️ Le découpage n'est pas décoratif, il RECOUPE le code : `publication` est exactement
+   * l'ensemble des sections qui portent « Voir le rendu avant de publier » ; `gestion` ce
+   * qui se pilote ou se reçoit ; `configuration` ce qui s'applique SANS brouillon.
+   */
+  famille: FamilleAdmin;
+};
+
+/** Les familles, dans l'ordre où elles s'affichent. */
+export const FAMILLES_ADMIN = ["publication", "gestion", "configuration"] as const;
+
+export type FamilleAdmin = (typeof FAMILLES_ADMIN)[number];
+
+export const LIBELLE_FAMILLE: Record<FamilleAdmin, string> = {
+  publication: "Publication",
+  gestion: "Gestion",
+  configuration: "Configuration",
 };
 
 export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
@@ -51,6 +73,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les jeudis, les temps forts et les bars du roulement. Voir le rendu avant de publier.",
     role: "admin_site",
+    famille: "publication",
   },
   {
     href: "/admin/galerie",
@@ -58,6 +81,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
     role: "admin_site",
+    famille: "publication",
   },
   {
     href: "/admin/partenaires",
@@ -65,6 +89,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Sponsors, partenaires, soutiens et participations : logos, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
+    famille: "publication",
   },
   {
     href: "/admin/ateliers",
@@ -72,6 +97,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "L'offre d'animations : intitulés, familles, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
+    famille: "publication",
   },
   {
     href: "/admin/membres",
@@ -79,6 +105,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "L'équipe présentée sur la page « L'asso » : prénom, rôle, portrait, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
+    famille: "publication",
   },
   {
     href: "/admin/sollicitations",
@@ -91,6 +118,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les demandes reçues par le formulaire : les lire, les marquer traitées, les supprimer quand elles n'ont plus lieu d'être.",
     role: "admin_site",
+    famille: "gestion",
   },
   {
     href: "/admin/reglages",
@@ -104,6 +132,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les adresses de vos comptes (Discord, réseaux, HelloAsso) et l'e-mail de contact. " +
       "Elles s'appliquent à tout le site dès l'enregistrement, sans brouillon.",
     role: "admin_site",
+    famille: "configuration",
   },
   {
     href: "/admin/tournois",
@@ -138,6 +167,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les tournois de l'association : jeu, date, inscriptions, lots et podium. " +
       "Voir le rendu avant de publier.",
     role: "admin_tournoi",
+    famille: "gestion",
   },
   {
     href: "/admin/acces",
@@ -148,6 +178,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Qui peut entrer dans le back-office, et pour quoi faire. " +
       "Un rôle retiré prend effet immédiatement, sans attendre la fin de session.",
     role: "admin_site",
+    famille: "configuration",
   },
 ] as const;
 
@@ -164,4 +195,66 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
  */
 export function sectionsPour(roles: readonly RoleAdmin[]): readonly SectionAdmin[] {
   return SECTIONS_ADMIN.filter((section) => detientRole(roles, section.role));
+}
+
+/**
+ * Un chemin est-il couvert par ce préfixe de section ?
+ *
+ * 🔴 DÉFINIE ICI ET NON DANS `server/auth/sections.ts`, QUI L'IMPORTE. Deux consommateurs :
+ * la garde du proxy (« quel rôle ce chemin exige-t-il ? ») et le menu (« quelle entrée est
+ * courante ? »). Deux copies répondraient un jour différemment à la même question — et c'est
+ * la porte fermée d'un côté, marquée active de l'autre.
+ *
+ * ⚠️ `=== ` OU `préfixe + "/"`, jamais un `startsWith` nu : `/admin/agendas` n'est pas
+ * `/admin/agenda`, et les confondre marquerait la mauvaise entrée (ou pire, ouvrirait une
+ * route inconnue avec le rôle de sa voisine).
+ */
+export function cheminCouvertPar(chemin: string, prefixe: string): boolean {
+  return chemin === prefixe || chemin.startsWith(`${prefixe}/`);
+}
+
+/**
+ * La section à laquelle appartient le chemin courant, ou `null`.
+ *
+ * ⚠️ La PLUS LONGUE l'emporte — même règle que la garde du proxy : si un jour une section
+ * vivait sous une autre, c'est la plus précise qui doit être marquée.
+ */
+export function sectionCourante(
+  chemin: string,
+  sections: readonly SectionAdmin[],
+): SectionAdmin | null {
+  return (
+    [...sections]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((section) => cheminCouvertPar(chemin, section.href)) ?? null
+  );
+}
+
+/** Une famille et les sections qu'elle contient réellement. */
+export type GroupeAdmin = { famille: FamilleAdmin; sections: SectionAdmin[] };
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE GROUPEMENT DOIT SAVOIR DÉGRADER — CONSÉQUENCE DIRECTE DE LA STORY 8.1
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * La 13.2 a été cadrée le 2026-08-24, quand le menu montrait ses huit entrées à tout le
+ * monde. Depuis la 8.1, il est FILTRÉ PAR RÔLE : un « admin tournoi » ne voit qu'**une**
+ * entrée. Trois titres de famille au-dessus d'un seul lien ne rangeraient rien — ils
+ * ajouteraient trois lignes de chrome à un menu qui en compte une.
+ *
+ * Deux règles, et elles se testent :
+ *   ① une famille sans aucune section visible ne s'affiche pas ;
+ *   ② s'il ne reste qu'UNE famille, on ne titre pas — il n'y a plus rien à distinguer.
+ */
+export function grouperParFamille(sections: readonly SectionAdmin[]): GroupeAdmin[] {
+  return FAMILLES_ADMIN.map((famille) => ({
+    famille,
+    sections: sections.filter((section) => section.famille === famille),
+  })).filter((groupe) => groupe.sections.length > 0);
+}
+
+/** Faut-il afficher les titres de famille ? Non quand il n'y a plus rien à distinguer. */
+export function famillesUtiles(groupes: readonly GroupeAdmin[]): boolean {
+  return groupes.length > 1;
 }
