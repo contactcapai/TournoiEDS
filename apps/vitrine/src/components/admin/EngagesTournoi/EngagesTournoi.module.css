@@ -87,8 +87,13 @@
   overflow-x: auto;
 }
 
+/* 🔴 LE TABLEAU NE S'ÉTIRE PAS — IL PREND SA LARGEUR NATURELLE, ALIGNÉ À GAUCHE.
+   Avec `width: 100%`, l'espace excédentaire allait dans la colonne des noms : à pleine
+   largeur d'écran, « gorki » se retrouvait à 1200px de ses propres boutons, et l'œil perdait
+   la ligne en la traversant. Un tableau de 64 lignes se lit en COLONNES SERRÉES.
+   ⚠️ Ce n'est pas un retour en arrière sur la pleine largeur du back-office (PR #76) : c'est
+   le CONTENEUR qui prend l'écran, pas chaque bloc qui doit s'y étirer. */
 .table {
-  width: 100%;
   border-collapse: collapse;
 }
 
@@ -119,12 +124,20 @@
   vertical-align: middle;
 }
 
-/* La colonne des noms prend ce qui reste ; les autres se dimensionnent sur leur contenu. */
+/* 🔴 C'EST CETTE RÈGLE QUI PLIAIT LES BOUTONS SUR TROIS LIGNES. Elle portait `width: 100%` :
+   la colonne des noms réclamait toute la table, donc l'algorithme réduisait les colonnes
+   suivantes à leur MIN-CONTENT — et le min-content d'un `flex-wrap: wrap` est la largeur d'UN
+   bouton. Les quatre états s'empilaient sur trois rangées : 3 × 44 (cible tactile) + 2 × 6
+   (gouttière) + 12 (marge de cellule) + 1 (filet) = 157px la ligne, soit ~10 000px à 64
+   joueurs. C'est exactement le défaut que le gate visuel du 2026-08-15 avait fait corriger
+   (« c'est gros, imagine 64 joueurs »), réintroduit par le passage en `<table>` de la 13.1.
+   ⚠️ Une largeur PLANCHER et une largeur PLAFOND, pas une largeur imposée : le plancher évite
+   que la colonne saute d'une ligne à l'autre selon la longueur des pseudos, le plafond évite
+   qu'un nom écrit en base par du SQL direct repousse les boutons hors de l'écran. */
 .table td:first-child,
 .table th:first-child {
-  width: 100%;
-  /* Sans ça, un nom long refuse de se réduire et déborde la ligne. */
-  min-width: 0;
+  min-width: 200px;
+  max-width: 40ch;
 }
 
 /* Le survol tient la ligne d'un bout à l'autre. À quatre colonnes et 64 lignes, l'œil perd le
@@ -165,15 +178,42 @@
 
    ⚠️ `min-height` N'EST PAS TOUCHÉE : elle reste aux 44 px de la classe partagée. C'est la
    seule dimension de cette feuille qu'on n'a pas le droit de gagner. */
+/* 🔴 `nowrap` ET C'EST LA GARDE, PAS UNE PRÉFÉRENCE. Avec `wrap`, le min-content de ce bloc
+   vaut la largeur d'UN bouton : n'importe quelle colonne voisine un peu gourmande peut alors
+   l'écraser et empiler les quatre états, sans que rien ne le signale. En `nowrap`, le
+   min-content vaut les quatre côte à côte — la colonne ne PEUT plus être comprimée, et la
+   ligne tient ses 57px par construction. */
 .etats {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 
 .boutonEtat {
   padding: 0 12px;
   font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ───────── L'or ne marque QUE l'état réel ─────────
+   🔴 À 64 LIGNES, QUATRE BOUTONS BORDÉS D'OR FONT 256 BORDURES D'ACCENT. On ne lit plus rien :
+   l'œil cherche l'état courant au milieu de trois voisins qui crient aussi fort. Les trois
+   états qu'on peut CHOISIR passent donc en filet gris ; l'état ACTUEL garde l'or plein.
+   En balayant la liste on voit alors 64 marques alignées — le pointage se relit d'un coup.
+   ⚠️ Le vocabulaire plein/creux du back-office est INTACT : c'est toujours le remplissage qui
+   dit l'état, pas la couleur. On retire de l'accent aux boutons inactifs, on n'en ajoute nulle
+   part, et les quatre libellés restent écrits en toutes lettres (AC 5 de la 10.5).
+   ⚠️ Sélecteur à DEUX classes pour passer devant `.bascule` d'`admin-actions.module.css` sans
+   dépendre de l'ordre d'injection des feuilles, qui n'est pas une garantie. */
+.etats .etatAutre {
+  border-color: rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  color: var(--grey);
+}
+
+.etats .etatAutre:hover {
+  border-color: var(--gold);
+  background: transparent;
+  color: var(--gold);
 }
 
 /* ⚠️ `disabled` porte ici DEUX sens : l'état courant (le bouton plein, qu'on ne re-clique pas)
@@ -250,6 +290,14 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 190px;
+  }
+
+  /* Le plancher de la colonne des noms se resserre : à 200px il poussait le tableau en
+     défilement horizontal dès un téléphone de 360px. Le défilement reste possible dans
+     `.tableWrap` — c'est la parade —, mais autant ne pas le déclencher pour rien. */
+  .table td:first-child,
+  .table th:first-child {
+    min-width: 140px;
   }
 
   .fin {

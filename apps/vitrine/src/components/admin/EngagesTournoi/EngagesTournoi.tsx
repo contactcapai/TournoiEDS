@@ -355,7 +355,17 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                           <button
                             key={cible}
                             type="button"
-                            className={`${courant ? actions.basculePubliee : actions.bascule} ${styles.boutonEtat}`}
+                            /* 🔴 UNE CLASSE LOCALE EXPLICITE POUR CHAQUE CAS, et non un
+                               `:not(:disabled)` : le bouton courant EST `disabled` (on ne le
+                               re-clique pas), mais TOUS le deviennent pendant l'aller-retour
+                               d'un pointage — les trois autres reprendraient alors la couleur
+                               d'accent le temps de la requête. L'état ne doit jamais clignoter
+                               sur une liste qu'on parcourt à 64 lignes. */
+                            className={
+                              courant
+                                ? `${actions.basculePubliee} ${styles.boutonEtat}`
+                                : `${actions.bascule} ${styles.boutonEtat} ${styles.etatAutre}`
+                            }
                             aria-pressed={courant}
                             title={AIDES_ETAT_ENGAGE[cible]}
                             disabled={enCoursId === engage.id || courant}
