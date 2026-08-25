@@ -11,45 +11,15 @@
   background: var(--navy-deep);
   color: var(--light);
   font-family: var(--font-body);
-
-  /* ══════════════════════════════════════════════════════════════════════════════════
-     🔴 LA MESURE DU BACK-OFFICE — DÉLIBÉRÉMENT DISTINCTE DE `--wrap-max`
-     ══════════════════════════════════════════════════════════════════════════════
-     `--wrap-max` (1160px) est la mesure de la MAQUETTE DU SITE PUBLIC : la longueur de
-     ligne confortable d'une page éditoriale. La Story 6.1 l'a reprise telle quelle pour
-     l'administration, et c'est une contrainte de PROSE appliquée à de la DONNÉE — or ici
-     on affiche un tableau de 64 engagés sur 4 colonnes, un bracket, une grille de tables
-     au jour J. Mesuré sur un écran de 1889px : 1160px centrés laissaient 364px de vide
-     de chaque côté, et la colonne de vue de l'espace tournoi tombait à 844px.
-     ⚠️ UN PLAFOND, JAMAIS `none` : sur un écran de 2560px, une ligne de tableau étirée
-     bord à bord se perd entre le nom à gauche et les boutons à droite — c'est le défaut
-     inverse, et il est pire parce qu'il ne se voit pas sur l'écran de celui qui code.
-     ⚠️ Valeur LITTÉRALE et non un token : `tokens.css` est la charte du SITE, partagée
-     avec le front tournoi ; y déclarer une mesure d'administration la polluerait. Même
-     arbitrage que les 820px de `QuoteBand.module.css`, justifiés sur place.
-     Déclarée sur `.shell` pour que l'en-tête et le contenu la lisent au même endroit —
-     deux valeurs écrites séparément finiraient par diverger, et le désalignement du logo
-     avec le fil d'Ariane ne se remarque pas en relisant un diff. */
-  --largeur-admin: 1440px;
 }
 
 .head {
   display: flex;
   align-items: center;
   gap: 32px;
-  /* 🔴 FOND PLEINE LARGEUR, CONTENU ALIGNÉ SUR `.contenu`. Le header du site public est
-     borné par `<Wrap>` : sa navigation s'aligne sur le texte. Ici il ne l'était pas, donc
-     le logo se collait au bord pendant que la page commençait 364px plus loin — c'est ce
-     décalage, plus que le centrage lui-même, qui donne l'impression d'un écran flottant.
-     Le padding porte l'alignement plutôt qu'un `<div>` intérieur : le fond et le filet
-     doivent rester bord à bord, et un conteneur supplémentaire aurait obligé à déplacer
-     `display: flex`, `gap` et `flex-wrap` sur lui.
-     ⚠️ `max()` garantit le padding minimal : sous 1440px, `(100% - 1440px)` est négatif. */
-  padding-block: 0;
-  padding-inline: max(
-    var(--wrap-pad),
-    calc((100% - var(--largeur-admin)) / 2 + var(--wrap-pad))
-  );
+  /* Le logo commence au même endroit que le contenu de la page : les deux ne portent que
+     `--wrap-pad`, donc rien à synchroniser entre eux. */
+  padding: 0 var(--wrap-pad);
   min-height: var(--head-height);
   background: var(--navy);
   border-bottom: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, pas de token de filet */
@@ -139,13 +109,23 @@
   color: var(--ink);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   🔴 PLEINE LARGEUR, ALIGNÉ À GAUCHE — ARBITRAGE DE BRICE, 2026-08-25
+   ══════════════════════════════════════════════════════════════════════════════════
+   Ni `max-width`, ni `margin: 0 auto`, et c'est DÉLIBÉRÉ. Le back-office a porté
+   successivement `--wrap-max` (1160px, la mesure de la maquette du SITE PUBLIC, reprise
+   telle quelle par la Story 6.1) puis un plafond propre de 1440px — Brice a tranché après
+   avoir vu les deux : l'administration prend l'écran qu'on lui donne.
+   ⚠️ NE PAS « RÉTABLIR » UN PLAFOND en croyant corriger un oubli. La réserve a été posée et
+   écartée : sur un très grand écran, une ligne de tableau étirée bord à bord éloigne le nom
+   à gauche des boutons à droite. C'est un choix assumé, pas une régression — le back-office
+   est un OUTIL (64 engagés sur 4 colonnes, un bracket, une grille de tables au jour J), pas
+   une page qui se lit.
+   ⚠️ `--wrap-pad` de chaque côté, comme l'en-tête : c'est ce qui aligne le logo sur le fil
+   d'Ariane. Le seul alignement à tenir désormais. */
 .contenu {
   flex: 1;
   width: 100%;
-  /* Voir la justification de `--largeur-admin` sur `.shell` : ce n'est PLUS `--wrap-max`,
-     qui est la mesure du site public. */
-  max-width: var(--largeur-admin);
-  margin: 0 auto;
   padding: 48px var(--wrap-pad) 72px;
 }
 
