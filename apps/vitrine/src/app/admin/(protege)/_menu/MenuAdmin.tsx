@@ -11,6 +11,7 @@ import {
   grouperParFamille,
   sectionCourante,
 } from "../../_sections";
+import { IconeSection } from "./IconeSection";
 import styles from "./MenuAdmin.module.css";
 
 /**
@@ -102,7 +103,8 @@ export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
                       aria-current={active ? "page" : undefined}
                       onClick={() => setDeplie(false)}
                     >
-                      {section.libelle}
+                      <IconeSection nom={section.icone} />
+                      <span className={styles.libelle}>{section.libelle}</span>
                     </Link>
                     {/* ③ LA PHRASE, SOUS L'ENTRÉE ACTIVE SEULEMENT. La rendre partout ferait
                         neuf paragraphes dans une barre de navigation ; ne la rendre nulle

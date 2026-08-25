@@ -53,7 +53,31 @@ export type SectionAdmin = {
    * qui se pilote ou se reçoit ; `configuration` ce qui s'applique SANS brouillon.
    */
   famille: FamilleAdmin;
+  /**
+   * Le dessin qui accompagne le libellé dans la barre latérale (Story 13.2).
+   *
+   * ⚠️ UNE CLÉ, PAS UN COMPOSANT NI UN CHEMIN SVG. Le registre est importé par le proxy
+   * (côté serveur) autant que par le menu (côté client) : y poser du JSX le rendrait
+   * inutilisable de l'un des deux côtés. Le dessin vit dans `_menu/IconeSection.tsx`.
+   *
+   * 🔴 CHAMP OBLIGATOIRE, comme `role` et `famille` : une section neuve ne compile pas tant
+   * qu'elle n'a pas choisi. C'est ce qui évite l'entrée sans dessin qui casse l'alignement
+   * de toute la colonne — et personne ne relit un alignement.
+   */
+  icone: IconeSection;
 };
+
+/** Les dessins disponibles. Un par section, aucun en réserve. */
+export type IconeSection =
+  | "agenda"
+  | "galerie"
+  | "partenaires"
+  | "ateliers"
+  | "membres"
+  | "sollicitations"
+  | "reglages"
+  | "tournois"
+  | "acces";
 
 /** Les familles, dans l'ordre où elles s'affichent. */
 export const FAMILLES_ADMIN = ["publication", "gestion", "configuration"] as const;
@@ -74,6 +98,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les jeudis, les temps forts et les bars du roulement. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
+    icone: "agenda",
   },
   {
     href: "/admin/galerie",
@@ -82,6 +107,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
+    icone: "galerie",
   },
   {
     href: "/admin/partenaires",
@@ -90,6 +116,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Sponsors, partenaires, soutiens et participations : logos, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
+    icone: "partenaires",
   },
   {
     href: "/admin/ateliers",
@@ -98,6 +125,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "L'offre d'animations : intitulés, familles, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
+    icone: "ateliers",
   },
   {
     href: "/admin/membres",
@@ -106,6 +134,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "L'équipe présentée sur la page « L'asso » : prénom, rôle, portrait, ordre, publication. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
+    icone: "membres",
   },
   {
     href: "/admin/sollicitations",
@@ -119,6 +148,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Les demandes reçues par le formulaire : les lire, les marquer traitées, les supprimer quand elles n'ont plus lieu d'être.",
     role: "admin_site",
     famille: "gestion",
+    icone: "sollicitations",
   },
   {
     href: "/admin/reglages",
@@ -133,6 +163,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Elles s'appliquent à tout le site dès l'enregistrement, sans brouillon.",
     role: "admin_site",
     famille: "configuration",
+    icone: "reglages",
   },
   {
     href: "/admin/tournois",
@@ -168,6 +199,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Voir le rendu avant de publier.",
     role: "admin_tournoi",
     famille: "gestion",
+    icone: "tournois",
   },
   {
     href: "/admin/acces",
@@ -179,6 +211,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
       "Un rôle retiré prend effet immédiatement, sans attendre la fin de session.",
     role: "admin_site",
     famille: "configuration",
+    icone: "acces",
   },
 ] as const;
 

@@ -89,6 +89,7 @@ const SECTION = (href: string, famille: SectionAdmin["famille"]): SectionAdmin =
   description: "peu importe",
   role: "admin_site",
   famille,
+  icone: "agenda",
 });
 
 test("une famille sans section visible ne s'affiche pas", () => {
