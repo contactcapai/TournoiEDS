@@ -1,5 +1,6 @@
 import "server-only";
 
+import { delaiLisible } from "../../lib/delai";
 import { COMPTE_SMTP, getMailTransport } from "./client";
 
 /**
@@ -40,10 +41,11 @@ export async function envoyerLienMagique({
   // sur un message qui demande de cliquer.
   const domaine = new URL(url).host;
 
-  const minutes = Math.max(
-    1,
-    Math.round((expiration.getTime() - Date.now()) / 60_000),
-  );
+  // 🔴 DÉFAUT MESURÉ SUR STAGING LE 2026-08-25, avec 222 tests au vert : cette phrase
+  // rendait toujours des minutes, et la durée de vie par défaut d'un lien Auth.js étant de
+  // 24 h, le courriel réel annonçait « expire dans 1440 minutes ». La règle vit maintenant
+  // dans `lib/delai.ts`, où elle est testée — un formatage se trompe SANS RIEN CASSER.
+  const delai = delaiLisible(expiration.getTime() - Date.now());
 
   await transport.sendMail({
     from: COMPTE_SMTP,
@@ -56,7 +58,7 @@ export async function envoyerLienMagique({
       "",
       url,
       "",
-      `Ce lien ne fonctionne qu'une seule fois et expire dans ${minutes} minutes.`,
+      `Ce lien ne fonctionne qu'une seule fois et expire dans ${delai}.`,
       "",
       // 🔴 CETTE PHRASE N'EST PAS UNE FORMULE DE POLITESSE. Un lien magique est une clé
       // envoyée par courriel : la personne qui en reçoit un sans l'avoir demandé doit savoir
