@@ -38,14 +38,29 @@ describe("ce qu'on peut dire d'un tournoi aujourd'hui", () => {
     ...p,
   });
 
-  it("une manche déclarée en cours l'emporte sur toute date", () => {
-    // Elle est SAISIE par l'organisateur : plus sûre que n'importe quel calcul.
+  it("🔴 une manche « en cours » ne fait PAS parler un tournoi d'un autre jour", () => {
+    // DÉFAUT MESURÉ SUR STAGING LE JOUR DU DÉPLOIEMENT, et ce test est né de lui : la règle
+    // disait d'abord « une phase en_cours l'emporte sur toute date ». Or `tournoi-tft`
+    // commence le 15 septembre 2026 et porte DEUX phases restées `en_cours` — la fiche
+    // annonçait « En ce moment » pour un tournoi qui ne se jouait pas.
+    // 🔴 La cause est structurelle : RIEN ne referme une phase. Aucun écran ne repasse
+    // `en_cours` à `terminee` quand la journée s'achève.
     const etat = etatDuJour(
-      [PHASE({ name: "Demi-finales", state: "en_cours", playedOn: "2026-01-01" })],
-      "2026-01-01",
-      "2026-09-06",
+      [PHASE({ name: "Poule A", state: "en_cours", playedOn: null })],
+      "2026-09-15",
+      "2026-08-25",
     );
-    assert.deepEqual(etat, { nature: "manche_en_cours", manche: "Demi-finales" });
+    assert.deepEqual(etat, { nature: "rien" });
+  });
+
+  it("le calendrier ouvre la porte, la manche dit de quoi on parle", () => {
+    const phases = [PHASE({ name: "Demi-finales", state: "en_cours", playedOn: "2026-09-06" })];
+    assert.deepEqual(etatDuJour(phases, "2026-09-06", "2026-09-06"), {
+      nature: "manche_en_cours",
+      manche: "Demi-finales",
+    });
+    // Le MÊME état de phase, un autre jour : on se tait.
+    assert.deepEqual(etatDuJour(phases, "2026-09-06", "2026-09-07"), { nature: "rien" });
   });
 
   it("une phase datée d'aujourd'hui suffit à dire que ça se joue", () => {
