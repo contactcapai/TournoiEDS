@@ -1,4 +1,4 @@
-import type { EntryState } from "./tournoi/structure";
+import type { EntryState, MatchBracket } from "./tournoi/structure";
 import type {
   TournamentRegistrationMode,
   TournamentRegistrationState,
@@ -108,4 +108,24 @@ export const AIDES_ETAT_ENGAGE: Record<EntryState, string> = {
   abandonne:
     "Était là, a joué, puis a arrêté en cours de route. Ses points et ses manches RESTENT " +
     "au classement — les effacer réécrirait les parties où ses adversaires l'ont battu.",
+};
+
+/**
+ * Le tableau d'où vient une rencontre (Story 14.3).
+ *
+ * 🔴 **REMONTÉ ICI DEPUIS `JourJ`, PARCE QU'IL A UN SECOND CONSOMMATEUR** : la fiche publique.
+ * Deux copies diraient un jour deux choses du **même** objet, sur deux surfaces — et l'écart ne
+ * se verrait que sur l'une des deux (leçon `estParTables`, 10.10).
+ *
+ * ⚠️ `principal` est **VIDE À DESSEIN** : une élimination simple n'a qu'un tableau, et le nommer
+ * « Tableau principal » inventerait une distinction qui n'existe pas pour qui la regarde. Le
+ * libellé se compose alors du seul « Tour N ».
+ * ⚠️ `Record<MatchBracket, string>` **exhaustif** : ajouter une valeur à l'enum sans libellé
+ * casse le typecheck, plutôt que de rendre une étiquette vide à l'écran.
+ */
+export const LIBELLE_TABLEAU: Record<MatchBracket, string> = {
+  principal: "",
+  vainqueurs: "Tableau des vainqueurs",
+  perdants: "Tableau des perdants",
+  grande_finale: "Grande finale",
 };

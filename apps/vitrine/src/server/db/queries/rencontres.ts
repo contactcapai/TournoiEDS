@@ -7,6 +7,7 @@ import {
   classer,
   type PlaceLue,
 } from "../../../lib/tournoi/classement";
+import { regrouperRencontresPubliques } from "../../../lib/tournoi/rencontres-publiques";
 import {
   estDeLaFinale,
   issueDeLaFinale,
@@ -495,4 +496,74 @@ export async function phaseADesResultats(phaseId: string) {
     .limit(1);
 
   return ligne !== undefined;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LES RENCONTRES, CÔTÉ PUBLIC — LECTURE NÉE DE LA STORY 14.3
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Toutes les rencontres d'un tournoi **PUBLIÉ**, phases comprises, telles que le visiteur peut
+ * les voir.
+ *
+ * 🔴 ELLE FILTRE `is_published` **ELLE-MÊME**, SUR UNE JOINTURE — troisième fois que ce patron
+ * est posé (14.1 puis 14.2), et pour la même raison : une lecture publique qui délègue sa garde
+ * à son appelant finit par être appelée d'ailleurs, et **aucune porte visuelle ne verrait la
+ * fuite** (une page qui affiche une section de plus n'a pas l'air cassée).
+ *
+ * 🔴 **ON PUBLIE LE NOM DE QUI EST ASSIS À UNE TABLE** (arbitrage de Brice, 2026-08-25) — ce qui
+ * **étend** la règle de la 14.2 (« on nomme qui a un résultat saisi »), et il fallait le décider :
+ * « qui joue contre qui » parle précisément de gens qui **n'ont pas encore joué**. La raison
+ * d'origine tient toujours — *personne n'est nommé pour n'être PAS venu* : une place n'est
+ * occupée que par quelqu'un que la génération a tiré parmi les **présents** du jour.
+ *
+ * ⚠️ **SAUF UN QUI A DROPPÉ ET DONT LA TABLE N'EST PAS ENCORE JOUÉE.** Sa place existe encore —
+ * rien ne la libère tant que le bénévole n'a pas régénéré (c'est tout le sujet de la 10.13) —,
+ * mais écrire son nom sous « qui joue » affirmerait qu'il joue, ce qui est faux. Son nom est donc
+ * tu **tant que la rencontre n'a aucun résultat**. ⚠️ Sur une rencontre **déjà dépouillée**, le
+ * nom reste : il a joué, et l'effacer réécrirait la partie.
+ *
+ * ⚠️ **NI `score` NI `source` NE REMONTENT.** `source` est une grandeur de propagation (« le
+ * vainqueur de la rencontre 3 »), utile au moteur et illisible pour un visiteur ; la remonter
+ * ferait croire au type dérivé qu'elle est publiable. Le `score` reste, lui : c'est le résultat
+ * d'un tableau, exactement comme `rank` est celui d'une table.
+ */
+export async function getRencontresPubliques(tournoiId: string, exigerPublie = true) {
+  const lignes = await db
+    .select({
+      phaseId: tournamentPhase.id,
+      phasePosition: tournamentPhase.position,
+      phaseName: tournamentPhase.name,
+      phaseKind: tournamentPhase.kind,
+      phaseState: tournamentPhase.state,
+      phasePlayedOn: tournamentPhase.playedOn,
+      matchId: tournamentMatch.id,
+      matchPosition: tournamentMatch.position,
+      round: tournamentMatch.round,
+      bracket: tournamentMatch.bracket,
+      slotPosition: tournamentMatchSlot.position,
+      nom: tournamentEntry.displayName,
+      etatEngage: tournamentEntry.state,
+      score: tournamentMatchSlot.score,
+      rank: tournamentMatchSlot.rank,
+    })
+    .from(tournamentPhase)
+    .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+    .innerJoin(tournamentMatch, eq(tournamentMatch.phaseId, tournamentPhase.id))
+    .leftJoin(tournamentMatchSlot, eq(tournamentMatchSlot.matchId, tournamentMatch.id))
+    .leftJoin(tournamentEntry, eq(tournamentEntry.id, tournamentMatchSlot.entryId))
+    .where(
+      exigerPublie
+        ? and(eq(tournamentPhase.tournamentId, tournoiId), eq(tournament.isPublished, true))
+        : eq(tournamentPhase.tournamentId, tournoiId),
+    )
+    .orderBy(
+      asc(tournamentPhase.position),
+      asc(tournamentMatch.bracket),
+      asc(tournamentMatch.round),
+      asc(tournamentMatch.position),
+      asc(tournamentMatchSlot.position),
+    );
+
+  return regrouperRencontresPubliques(lignes);
 }

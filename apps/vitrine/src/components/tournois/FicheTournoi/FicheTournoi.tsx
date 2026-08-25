@@ -8,9 +8,11 @@ import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-paris";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
+import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import type { EtatDuJour } from "@/lib/tournoi/en-cours";
 import { decouperEnJournees, numeroDeJournee } from "@/lib/tournoi/journees";
-import type { PhaseKind, PhaseState } from "@/lib/tournoi/structure";
+import { estParTables, type PhaseKind, type PhaseState } from "@/lib/tournoi/structure";
+import type { PhaseAvecRencontres } from "@/lib/tournoi/rencontres-publiques";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
 import { podiumVisible } from "@/lib/podium";
@@ -122,6 +124,22 @@ export type SuiviPublic = {
    * aucune finale : une phrase vraie et hors sujet, donc trompeuse.
    */
   finale?: FinalePubliee | null;
+  /**
+   * Qui joue contre qui (Story 14.3).
+   *
+   * ⚠️ **LE TYPE VIENT DE LA LIB, IL N'EST PAS REDÉCLARÉ ICI** — contrairement à `PhaseAffichee`
+   * et `LigneClassementAffichee` au-dessus. La raison est la même dans les deux cas : on prend le
+   * type **minimal qui décrit ce qui se publie**. Pour les phases et le classement, les lectures
+   * rendaient un sur-ensemble d'administration qu'il fallait rétrécir ; ici
+   * `regrouperRencontresPubliques` produit **déjà** la forme publique, et la recopier n'ajouterait
+   * qu'un endroit de plus à tenir d'accord.
+   */
+  rencontres?: readonly PhaseAvecRencontres[];
+  /**
+   * Le jour de Paris, lu **par la page** et jamais ici — lire l'horloge pendant un rendu est
+   * l'impureté que `react-hooks/purity` refuse. Il décide quelle journée s'ouvre d'emblée.
+   */
+  aujourdHui?: string;
 };
 
 export function FicheTournoi({
@@ -179,6 +197,26 @@ export function FicheTournoi({
 
   const classement = suivi?.classement ?? [];
   const finale = suivi?.finale ?? null;
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     LES RENCONTRES, GROUPÉES PAR JOURNÉE (Story 14.3)
+     ══════════════════════════════════════════════════════════════════════════════════════
+     ⚠️ MÊME DÉCOUPAGE QUE LE DÉROULÉ, ET LA MÊME FONCTION : deux découpages du même déroulé
+     finiraient par ne plus s'accorder, et la page dirait « Journée 2 » à un endroit et
+     « Journée 3 » à l'autre pour les mêmes phases. */
+  const journeesDeRencontres = decouperEnJournees(suivi?.rencontres ?? []);
+
+  /**
+   * 🔴 QUELLE JOURNÉE S'OUVRE D'EMBLÉE — « celle du jour, SINON LA DERNIÈRE ».
+   *
+   * La seconde moitié n'est pas un ornement : sans elle, un tournoi **déjà joué** n'aurait
+   * aucune journée du jour, donc **tout serait replié** et le visiteur ne verrait qu'une pile
+   * de titres. Un écran qui n'affiche rien par défaut a l'air cassé, pas économe.
+   */
+  const journeeDuJour = journeesDeRencontres.findIndex(
+    (journee) => journee.jour === suivi?.aujourdHui,
+  );
+  const journeeOuverte = journeeDuJour !== -1 ? journeeDuJour : journeesDeRencontres.length - 1;
 
   /**
    * ══════════════════════════════════════════════════════════════════════════════════════
@@ -746,6 +784,62 @@ export function FicheTournoi({
         </section>
       ) : null}
 
+      {/* ═══════════════════════════════════════════════════════════════════════
+          LES RENCONTRES (Story 14.3) — QUI JOUE CONTRE QUI, ET CE QUI RESTE
+          ═══════════════════════════════════════════════════════════════════════
+          🔴 UNE SEULE PRÉSENTATION POUR TOUS LES FORMATS : des groupes (tableau, tour) et,
+          dans chacun, les rencontres avec leurs places. Ce n'est pas un pis-aller faute
+          d'arbre — c'est la présentation avec laquelle un VRAI tournoi a été joué de bout en
+          bout au back-office le 2026-08-15, et la seule qui couvre AUSSI les formats par
+          tables, qui n'ont pas d'arbre du tout. Un arbre resterait possible plus tard, sur
+          des données déjà publiées.
+
+          🔴 LE REPLI EST UN `<details>` NATIF, DONC ZÉRO JAVASCRIPT : la fiche reste
+          entièrement RSC, et le pliage marche au clavier, au lecteur d'écran et sans script.
+          Un composant client aurait été le premier de cette page, pour une fonction que le
+          navigateur rend déjà. */}
+      {journeesDeRencontres.length > 0 ? (
+        <section className={editorial.section} aria-labelledby="rencontres-title">
+          <Wrap>
+            <SectionHead
+              headingLevel={niveauSection}
+              eyebrow={enDirect ? "En direct" : "Le détail"}
+              titleId="rencontres-title"
+              title="Les rencontres"
+            />
+
+            <div className={motion.reveal}>
+              {journeesDeRencontres.map((journee, rang) => {
+                const numero = numeroDeJournee(journeesDeRencontres, rang);
+                const phases = journee.phases.map(({ phase }) => (
+                  <PhaseDeRencontres key={phase.id} phase={phase} />
+                ));
+
+                // ⚠️ UN TOURNOI D'UN SEUL JOUR N'A AUCUNE JOURNÉE À NOMMER (`playedOn` est
+                // nullable) : on ne l'enferme pas dans un repli au titre vide.
+                if (journee.jour === null) {
+                  return <div key={`sans-date-${rang}`}>{phases}</div>;
+                }
+
+                return (
+                  <details
+                    className={styles.journeeRepli}
+                    key={journee.jour}
+                    open={rang === journeeOuverte}
+                  >
+                    <summary className={styles.journeeResume}>
+                      {numero !== null ? `Journée ${numero} — ` : ""}
+                      {jourLisible(journee.jour)}
+                    </summary>
+                    {phases}
+                  </details>
+                );
+              })}
+            </div>
+          </Wrap>
+        </section>
+      ) : null}
+
       {/* ④ LE VISUEL — omis complètement quand il n'y en a pas (cas NOMINAL). */}
       {visuel ? (
         <section className={`${editorial.section} ${motion.reveal}`}>
@@ -861,6 +955,87 @@ function TableauDeClassement({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Le résultat d'une place, tel qu'on l'écrit. */
+function resultatDePlace(place: { rank: number | null; score: number | null }) {
+  // ⚠️ LE RANG PASSE AVANT LE SCORE, jamais les deux : une table se dépouille au RANG, un
+  // tableau au SCORE (leçon 10.8, où un bracket joué au score ne produisait aucun classement).
+  // Les afficher tous les deux inventerait une double lecture d'un résultat unique.
+  if (place.rank !== null) return place.rank === 1 ? "1ᵉʳ" : `${place.rank}ᵉ`;
+  if (place.score !== null) return String(place.score);
+  return null;
+}
+
+/**
+ * Une phase et ses rencontres, groupées par tableau puis par tour.
+ *
+ * ⚠️ **LOCAL À CE FICHIER**, comme `TableauDeClassement` : un seul consommateur, et le sortir
+ * maintenant serait construire pour un besoin futur.
+ * ⚠️ **AUCUN TITRE `<h*>` ICI** : la section porte déjà le sien, et un niveau de plus devrait
+ * suivre `headingLevel` sur les deux consommateurs de la fiche. Les noms de phase et de tour
+ * sont donc des paragraphes stylés — ils nomment, ils ne structurent pas le document.
+ */
+function PhaseDeRencontres({ phase }: { phase: PhaseAvecRencontres }) {
+  const parTables = estParTables(phase.kind);
+
+  return (
+    <div className={styles.phaseBloc}>
+      <p className={styles.phaseBlocTitre}>
+        {phase.name}
+        <span className={styles.phaseBlocNature}>{LIBELLE_NATURE[phase.kind]}</span>
+      </p>
+
+      {phase.groupes.map((groupe) => {
+        /* ⚠️ `principal` A UN LIBELLÉ VIDE À DESSEIN : une élimination simple n'a qu'un
+           tableau, le nommer inventerait une distinction. Et une phase par TABLES n'a pas de
+           tour du tout — son groupe unique ne se nomme donc pas non plus. */
+        const titre = parTables
+          ? null
+          : [LIBELLE_TABLEAU[groupe.bracket], `Tour ${groupe.round}`].filter(Boolean).join(" — ");
+
+        return (
+          <div className={styles.groupe} key={groupe.clef}>
+            {titre ? <p className={styles.groupeTitre}>{titre}</p> : null}
+
+            <ol className={styles.rencontres}>
+              {groupe.rencontres.map((rencontre) => (
+                <li className={styles.rencontre} key={rencontre.id}>
+                  <p className={styles.rencontreTitre}>
+                    {parTables ? `Table ${rencontre.position}` : `Rencontre ${rencontre.position}`}
+                    {/* ⚠️ L'ÉTAT S'ÉCRIT, il ne se code pas en couleur seule (AA). Et le témoin
+                        est le RÉSULTAT, jamais l'état déclaré de la rencontre : doctrine tenue
+                        partout ailleurs sur ce moteur. */}
+                    {!rencontre.depouillee ? (
+                      <span className={styles.rencontreAttente}>à jouer</span>
+                    ) : null}
+                  </p>
+
+                  <ol className={styles.places}>
+                    {rencontre.places.map((place) => {
+                      const resultat = resultatDePlace(place);
+                      return (
+                        <li className={styles.place} key={place.position}>
+                          {/* ⚠️ `—` QUAND LE NOM EST TU : la place existe, elle est simplement
+                              sans nom publiable (un drop dont la table n'est pas jouée, ou une
+                              place vide). Masquer la LIGNE ferait croire à une table plus
+                              petite qu'elle n'est, donc à un barème de points différent. */}
+                          <span className={styles.placeNom}>{place.nom ?? "—"}</span>
+                          {resultat ? (
+                            <span className={styles.placeResultat}>{resultat}</span>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+      })}
     </div>
   );
 }

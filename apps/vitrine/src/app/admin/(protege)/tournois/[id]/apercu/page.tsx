@@ -9,7 +9,11 @@ import { classementPubliable } from "@/lib/tournoi/classement";
 import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
-import { getClassement, getFinale } from "@/server/db/queries/rencontres";
+import {
+  getClassement,
+  getFinale,
+  getRencontresPubliques,
+} from "@/server/db/queries/rencontres";
 import { getTournamentApercuById } from "@/server/db/queries/tournaments";
 import admin from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
@@ -85,12 +89,26 @@ export default async function ApercuTournoiPage({
   // l'aperçu montre le rendu réel et pas un sur-ensemble.
   const finaleLue = await getFinale(tournoi.id);
   const finale = finaleLue ? finalePubliable(finaleLue) : null;
+
+  // ⚠️ `exigerPublie: false` POUR LA MÊME RAISON QUE LES PHASES ET LA FINALE : sur un BROUILLON,
+  // la garde publique ne rendrait rien et l'aperçu serait vide au moment précis où le bénévole
+  // vérifie ce que le public verra. La règle de NOMMAGE, elle, s'applique — elle est dans la
+  // lecture, pas dans la garde.
+  const rencontres = await getRencontresPubliques(tournoi.id, false);
+
+  // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS — jamais pendant le rendu (`react-hooks/purity`), et
+  // désormais dans une CONSTANTE : depuis la 14.3 elle a deux consommateurs (l'état du jour et
+  // la journée qui s'ouvre d'emblée). Deux `new Date()` répondraient la même chose 364 jours
+  // sur 365, et se contrediraient la nuit du changement de jour — au pire endroit possible.
+  const aujourdHui = jourParis(new Date());
+
   const suivi = {
-    // L'horloge se lit ICI, une fois, jamais pendant le rendu (`react-hooks/purity`).
-    etat: etatDuJour(phases, jourParis(tournoi.startsAt), jourParis(new Date())),
+    etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
     phases,
     classement,
     finale,
+    rencontres,
+    aujourdHui,
   };
 
   return (
