@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
+import { jourParis } from "@/lib/date-paris";
+import { etatDuJour } from "@/lib/tournoi/en-cours";
+import { getDeroulePublic } from "@/server/db/queries/phases";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -112,5 +115,24 @@ export default async function FicheTournoiPage({
   const tournoi = await getTournamentBySlug(slug);
   if (!tournoi) notFound();
 
-  return <FicheTournoi tournoi={tournoi} />;
+  // 🔴 SECONDE LECTURE, ET ELLE POSE SA PROPRE GARDE. `getDeroulePublic` refiltre
+  // `is_published` sur une jointure plutôt que de faire confiance à l'identifiant qu'on lui
+  // passe : une lecture publique qui délègue sa garde à son appelant finit par être appelée
+  // d'ailleurs. Voir le bloc de tête de `queries/phases.ts`.
+  const phases = await getDeroulePublic(tournoi.id);
+
+  // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS LE COMPOSANT. Lire l'heure pendant un
+  // rendu est une impureté que `react-hooks/purity` refuse, et deux rendus du même arbre
+  // pourraient répondre différemment. `FicheTournoi` reçoit un état déjà calculé.
+  const aujourdHui = jourParis(new Date());
+
+  return (
+    <FicheTournoi
+      tournoi={tournoi}
+      suivi={{
+        etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
+        phases,
+      }}
+    />
+  );
 }

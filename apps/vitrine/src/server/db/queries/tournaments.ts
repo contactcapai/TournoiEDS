@@ -6,6 +6,7 @@ import { and, eq, gte, lte, min } from "drizzle-orm";
 import { cache } from "react";
 
 import { ajouterJours, debutDuJourParis, jourParis } from "@/lib/date-paris";
+import { fusionnerCeQuiSeJoue } from "@/lib/tournoi/en-cours";
 import { db } from "../client";
 import { tournament, tournamentPhase } from "../schema";
 
@@ -317,13 +318,38 @@ async function getPastTournaments(limite: number, maintenant: Date) {
  * `/admin/tournois`. Elles ne sont **pas** corrigées ici : ce sont cinq surfaces mergées,
  * hors périmètre de cette story. Dette **R49**, consignée avec sa condition de réouverture.
  */
-export async function getPublicTournaments(aVenirMax: number, passesMax: number) {
+export async function getPublicTournaments(
+  aVenirMax: number,
+  passesMax: number,
+  enCoursMax: number,
+) {
+  // 🔴 UNE SEULE LECTURE D'HORLOGE POUR LES TROIS LISTES (patron `getUpcomingRendezVous`).
+  // La dette R49 recense CINQ surfaces qui lisent l'heure deux fois pour deux listes
+  // complémentaires ; l'ajout d'un troisième panier était l'occasion d'en créer une sixième.
+  // ⚠️ Et l'horloge reste lue DANS LA COUCHE DONNÉES, jamais pendant le rendu : lire l'heure
+  // dans un composant est une impureté que `react-hooks/purity` refuse.
   const maintenant = new Date();
-  const [aVenir, passes] = await Promise.all([
+  const [aVenir, passes, enCours] = await Promise.all([
     getUpcomingTournaments(aVenirMax, maintenant),
     getPastTournaments(passesMax, maintenant),
+    getTournoisEnCoursPublies(maintenant, enCoursMax),
   ]);
-  return { aVenir, passes };
+
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 LE DÉDOUBLONNAGE N'EST PAS UN CONFORT — SANS LUI, UN TOURNOI PARAÎT DEUX FOIS
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // Et il tombe dans l'un OU l'autre des deux paniers selon l'heure qu'il est : un tournoi
+  // qui se joue ce matin a `starts_at` dans le passé, donc il est dans « passés » — pendant
+  // qu'il se joue. Un tournoi qui commence ce soir est dans « à venir ». **Les deux cas
+  // existent le même jour**, d'où un filtre sur les DEUX listes et pas seulement sur une.
+  // ⚠️ C'est aussi ce qui répare une incohérence antérieure à cette story : jusqu'ici, un
+  // tournoi en train de se jouer s'affichait sous le titre « Déjà joués ».
+  const enCoursIds = new Set(enCours.map((tournoi) => tournoi.id));
+  return {
+    enCours,
+    aVenir: aVenir.filter((tournoi) => !enCoursIds.has(tournoi.id)),
+    passes: passes.filter((tournoi) => !enCoursIds.has(tournoi.id)),
+  };
 }
 
 /**
@@ -795,39 +821,108 @@ export async function getTournoisQuiSeJouent(
     }),
   ]);
 
-  const parTournoi = new Map<string, { id: string; nom: string; journee: string }>();
-
-  for (const ligne of parJournee) {
-    // `min()` est typé nullable — le `GROUP BY` ne rend pourtant que des groupes non vides.
-    // On traite la branche plutôt que d'affirmer avec un `!` non vérifié (patron `photos.ts`).
-    if (ligne.journee === null) continue;
-    parTournoi.set(ligne.id, { id: ligne.id, nom: ligne.nom, journee: ligne.journee });
-  }
-
-  for (const ligne of parDateDeDebut) {
-    // 🔴 LE DÉROULÉ L'EMPORTE SUR LA DATE DE DÉBUT quand les deux répondent : `played_on`
-    // est ce que quelqu'un a écrit journée par journée, `starts_at` est la date d'ouverture
-    // du tournoi. Les deux sont vraies, l'une est plus précise.
-    if (parTournoi.has(ligne.id)) continue;
-    parTournoi.set(ligne.id, {
+  // 🔴 LA FUSION ET SA PRÉSÉANCE VIVENT DANS `lib/tournoi/en-cours.ts`, PAS ICI — la lecture
+  // publique de `/tournois` pose la même question, et deux copies trancheraient un jour à
+  // l'envers l'une de l'autre : la liste et la fiche diraient alors deux choses différentes
+  // du même tournoi, le même jour. Une règle, deux appelants, un test (leçon `estParTables`).
+  // ⚠️ `min()` est typé nullable — le `GROUP BY` ne rend pourtant que des groupes non vides.
+  // On traite la branche plutôt que d'affirmer avec un `!` non vérifié (patron `photos.ts`).
+  return fusionnerCeQuiSeJoue(
+    parJournee.flatMap((ligne) =>
+      ligne.journee === null ? [] : [{ id: ligne.id, nom: ligne.nom, journee: ligne.journee }],
+    ),
+    parDateDeDebut.map((ligne) => ({
       id: ligne.id,
       nom: ligne.name,
-      journee: jourParis(ligne.startsAt),
-    });
-  }
-
-  // Ordre TOTAL (doctrine du dépôt) : la journée, puis le nom, puis l'identifiant. Sans le
-  // dernier terme, deux tournois de même jour et de même nom se réordonneraient d'une
-  // visite à l'autre — la page est `force-dynamic`, donc rejouée à chaque fois.
-  return [...parTournoi.values()]
-    .sort(
-      (a, b) =>
-        a.journee.localeCompare(b.journee) ||
-        a.nom.localeCompare(b.nom, "fr") ||
-        a.id.localeCompare(b.id, "fr"),
-    )
-    .slice(0, limite);
+      jour: jourParis(ligne.startsAt),
+    })),
+  ).slice(0, limite);
 }
 
 /** Un tournoi qui se joue dans la fenêtre, tel que le tableau de bord l'annonce. */
 export type TournoiQuiSeJoue = Awaited<ReturnType<typeof getTournoisQuiSeJouent>>[number];
+
+/**
+ * Les tournois **PUBLIÉS** qui se jouent **aujourd'hui** — pour la liste publique (Story 14.1).
+ *
+ * 🔴 JUMELLE DE `getTournoisQuiSeJouent`, ET LA DIFFÉRENCE TIENT EN DEUX LIGNES — c'est la
+ * frontière décrite en tête de `queries/events.ts` : celle-ci filtre `is_published`, l'autre
+ * non. ⚠️ **NE JAMAIS relâcher ce filtre « pour réutiliser »** : un tournoi en brouillon qui
+ * apparaîtrait sur `/tournois` est une fuite qu'**aucune porte visuelle ne verrait** — une
+ * liste qui affiche une carte de plus n'a pas l'air cassée.
+ *
+ * ⚠️ **AUJOURD'HUI SEULEMENT**, là où la jumelle du back-office regarde deux jours de plus.
+ * « En ce moment » sur un site public doit vouloir dire *en ce moment* : annoncer le samedi
+ * dès le jeudi viderait la section de son sens en une semaine.
+ *
+ * 🔴 **TROIS REQUÊTES, ET LA TROISIÈME EST CE QUI REND LA SECTION IDENTIQUE AUX DEUX AUTRES** :
+ * elle relit les tournois retenus avec `COLONNES_PUBLIQUES` et leur visuel, donc la carte rendue
+ * est **exactement** celle de « à venir » et de « passés ». Fabriquer ici une forme approchante
+ * aurait donné une troisième définition de « une carte de tournoi ».
+ */
+export async function getTournoisEnCoursPublies(maintenant: Date, limite: number) {
+  const aujourdHui = jourParis(maintenant);
+  const debut = debutDuJourParis(aujourdHui);
+  const finExclue = debutDuJourParis(ajouterJours(aujourdHui, 1));
+
+  const [parJournee, parDateDeDebut] = await Promise.all([
+    db
+      .select({ id: tournament.id, nom: tournament.name })
+      .from(tournamentPhase)
+      .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+      .where(
+        and(
+          eq(tournament.isPublished, true),
+          eq(tournamentPhase.playedOn, aujourdHui),
+        ),
+      )
+      .groupBy(tournament.id, tournament.name)
+      .limit(limite),
+
+    db.query.tournament.findMany({
+      columns: { id: true, name: true, startsAt: true },
+      where: (table, { and: et, eq: egal, gte: apres, lt: avant }) =>
+        et(
+          egal(table.isPublished, true),
+          apres(table.startsAt, debut),
+          avant(table.startsAt, finExclue),
+        ),
+      orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
+      limit: limite,
+    }),
+  ]);
+
+  const retenus = fusionnerCeQuiSeJoue(
+    parJournee.map((ligne) => ({ id: ligne.id, nom: ligne.nom, journee: aujourdHui })),
+    parDateDeDebut.map((ligne) => ({
+      id: ligne.id,
+      nom: ligne.name,
+      jour: jourParis(ligne.startsAt),
+    })),
+  ).slice(0, limite);
+
+  // Garde de FORME, pas d'optimisation : `inArray(col, [])` génère `IN ()`, invalide en SQL.
+  // Le cas est le plus fréquent de tous — aucun tournoi ne se joue la plupart des jours.
+  if (retenus.length === 0) return [];
+
+  const cartes = await db.query.tournament.findMany({
+    columns: COLONNES_PUBLIQUES,
+    where: (table, { and: et, eq: egal, inArray: parmi }) =>
+      et(
+        egal(table.isPublished, true),
+        parmi(
+          table.id,
+          retenus.map((t) => t.id),
+        ),
+      ),
+    with: RELATION_VISUEL,
+  });
+
+  // On rend dans l'ordre de la fusion, pas dans celui que Postgres a servi : c'est la règle
+  // partagée qui décide de l'ordre, et elle est totale.
+  const parId = new Map(cartes.map((carte) => [carte.id, carte]));
+  return retenus.flatMap((t) => {
+    const carte = parId.get(t.id);
+    return carte ? [carte] : [];
+  });
+}
