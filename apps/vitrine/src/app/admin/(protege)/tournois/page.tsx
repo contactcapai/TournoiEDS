@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { TournoiActions } from "@/components/admin/TournoiActions/TournoiActions";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
@@ -9,7 +8,7 @@ import {
   LIBELLES_MODE_INSCRIPTION,
 } from "@/lib/libelles-tournoi";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   getPastTournamentsForAdmin,
   getUpcomingTournamentsForAdmin,
@@ -140,8 +139,7 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
 }
 
 export default async function AdminTournoisPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   // 🔴 « À VENIR » ET « PASSÉS » SE DÉRIVENT DES DATES, ET LA LECTURE DE L'HORLOGE VIT DANS LA
   // COUCHE DONNÉES — jamais dans le rendu (`react-hooks/purity`). Patron mesuré le 2026-08-13

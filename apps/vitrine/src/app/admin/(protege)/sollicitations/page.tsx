@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { SollicitationActions } from "@/components/admin/SollicitationActions/SollicitationActions";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { SOLICITATION_TYPE_LABELS } from "@/lib/schemas/solicitation";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   compterSollicitations,
   getSollicitationsForAdmin,
@@ -83,8 +82,7 @@ function LigneSollicitation({ demande }: { demande: AdminSollicitation }) {
 }
 
 export default async function AdminSollicitationsPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const [aTraiter, traitees, totaux] = await Promise.all([
     getSollicitationsForAdmin(false, SOLLICITATIONS_MAX),

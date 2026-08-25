@@ -169,6 +169,13 @@
       "when": 1787603220225,
       "tag": "0023_yielding_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787641911391,
+      "tag": "0024_silky_miss_america",
+      "breakpoints": true
     }
   ]
 }

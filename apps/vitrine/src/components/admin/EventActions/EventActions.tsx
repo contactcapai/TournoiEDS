@@ -76,7 +76,7 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
             } catch {
               // 🔴 CE `catch` N'EST PAS DÉFENSIF « AU CAS OÙ » — IL ATTRAPE LE MÉCANISME DE
               // SÉCURITÉ LE PLUS MIS EN AVANT DU PROJET. Trouvé en revue (Blind Hunter) :
-              // `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **lève** ;
+              // `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **lève** ;
               // elle ne rend donc pas `{ ok: false }` quand la session a expiré ou que le
               // compte vient d'être retiré de l'allowlist. Or `guard.ts` re-vérifie
               // l'allowlist à CHAQUE requête, précisément pour qu'un retrait « prenne effet

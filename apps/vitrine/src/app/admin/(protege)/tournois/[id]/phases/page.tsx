@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PhasesTournoi } from "@/components/admin/PhasesTournoi/PhasesTournoi";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import styles from "@/styles/admin-page.module.css";
@@ -27,8 +27,7 @@ export default async function ComposerTournoiPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

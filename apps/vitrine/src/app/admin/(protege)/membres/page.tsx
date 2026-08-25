@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { MembreActions } from "@/components/admin/MembreActions/MembreActions";
 import { sourcePortrait } from "@/lib/portraits";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   getMembersForAdmin,
   MEMBRES_MAX,
@@ -107,8 +106,7 @@ function LigneMembre({
 }
 
 export default async function AdminMembresPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const membres = await getMembersForAdmin(MEMBRES_MAX);
   const ordre = membres.map((m) => m.id);

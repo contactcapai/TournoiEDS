@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { EventActions } from "@/components/admin/EventActions/EventActions";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   getPastEventsForAdmin,
   getUpcomingEventsForAdmin,
@@ -90,8 +89,7 @@ function LigneEvenement({ evenement }: { evenement: AgendaEvent }) {
 }
 
 export default async function AdminAgendaPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const [aVenir, passes] = await Promise.all([
     getUpcomingEventsForAdmin(A_VENIR_MAX),

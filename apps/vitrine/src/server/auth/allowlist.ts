@@ -3,19 +3,21 @@
 import "server-only";
 
 /**
- * Allowlist du rôle admin unique (FR27, AR-SEC2).
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * NOYAU DE SECOURS (Story 8.1) — CE N'EST PLUS LA PORTE D'ENTRÉE
+ * ══════════════════════════════════════════════════════════════════════════════════════
  *
- * 🔴 UNE ALLOWLIST VIDE REFUSE TOUT LE MONDE — JAMAIS L'INVERSE.
- * C'est l'arbitrage n°2 de la Story 6.1, et il n'est pas théorique : `AUTH_ADMIN_DISCORD_IDS`
- * est absente en CI, absente au premier `pnpm dev` d'un nouveau poste, et absente sur le VPS
- * tant que personne ne l'a posée. Si l'absence ouvrait l'accès, le back-office serait ouvert
- * à tout compte Discord de la planète **exactement dans les états où personne ne regarde**.
- * Un back-office injoignable est un incident visible ; un back-office ouvert est un incident
- * silencieux.
+ * 🔴 SON RÔLE A CHANGÉ, SON CODE NON. Jusqu'à la 8.1 cette liste décidait QUI SE CONNECTE
+ * (`callbacks.signIn`, fail-closed). Les portes sont désormais tenues par la table
+ * `user_role` ; cette liste n'accorde plus qu'une chose, `admin_site`, et pour une seule
+ * raison : l'écran d'attribution des accès peut se refermer sur son dernier administrateur
+ * — erreur de manipulation, révocation croisée, base restaurée d'une sauvegarde antérieure.
+ * Il faut un chemin de retour qui NE DÉPEND PAS de la base.
  *
- * ⚠️ La lecture se fait À L'APPEL et non à l'import : un module qui lirait `process.env` au
- * chargement figerait la valeur au moment du bundling et rendrait le comportement dépendant
- * de l'ordre des imports.
+ * ⚠️ CONSÉQUENCE À NE PAS MANQUER : une allowlist vide ne ferme plus rien. Elle signifie
+ * seulement « pas de secours configuré ». Le `console.error` ci-dessous a donc été réécrit :
+ * tel quel, il aurait annoncé une fermeture qui n'a plus lieu — un message faux est pire
+ * qu'un message absent.
  */
 export function identifiantsAdminAutorises(): string[] {
   return (process.env.AUTH_ADMIN_DISCORD_IDS ?? "")
@@ -25,7 +27,7 @@ export function identifiantsAdminAutorises(): string[] {
 }
 
 /**
- * Le compte Discord donné a-t-il le droit d'entrer ?
+ * Le compte Discord donné fait-il partie du noyau de secours ?
  *
  * 🔴 La comparaison porte sur l'IDENTIFIANT NUMÉRIQUE Discord (`providerAccountId`), jamais
  * sur le pseudo ni sur l'e-mail : les deux se changent en un clic depuis l'application
@@ -39,14 +41,14 @@ export function estAdminAutorise(identifiantDiscord: string | null | undefined):
 
   const autorises = identifiantsAdminAutorises();
 
-  // Fail-closed explicite. Le `includes` ci-dessous rendrait déjà `false` sur un tableau
-  // vide — la branche existe pour que la garde soit LISIBLE et pour porter le journal :
-  // sans lui, un back-office qui refuse tout le monde ressemble à une panne.
+  // La branche existe pour porter le journal : un secours non configuré est un fait à
+  // dire, pas une panne. `includes` rendrait déjà `false` sur un tableau vide.
   if (autorises.length === 0) {
-    console.error(
-      "[auth] AUTH_ADMIN_DISCORD_IDS est absente ou vide : AUCUN compte n'est autorisé " +
-        "(fail-closed volontaire, Story 6.1). Renseigner l'identifiant numérique Discord " +
-        "de l'administrateur dans l'environnement.",
+    console.warn(
+      "[auth] AUTH_ADMIN_DISCORD_IDS est absente ou vide : AUCUN NOYAU DE SECOURS n'est " +
+        "configuré (Story 8.1). Les accès restent tenus par la table `user_role` — mais si " +
+        "plus aucun compte ne porte `admin_site`, le seul recours sera un accès SQL au " +
+        "serveur. Renseigner l'identifiant numérique Discord d'un responsable.",
     );
     return false;
   }

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { PhotoUploader } from "@/components/admin/PhotoUploader/PhotoUploader";
 import { formatLongDate } from "@/lib/date-paris";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPastEventsForAdmin, getUpcomingEventsForAdmin } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -28,8 +27,7 @@ const PASSES_MAX = 50;
 const A_VENIR_MAX = 20;
 
 export default async function NouvellesPhotosPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const [passes, aVenir] = await Promise.all([
     getPastEventsForAdmin(PASSES_MAX),

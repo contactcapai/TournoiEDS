@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { signIn } from "@/server/auth/config";
-import { lireAdmin } from "@/server/auth/guard";
+import { lireCompte } from "@/server/auth/guard";
 import { redirect } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -55,8 +55,8 @@ export default async function AdminLoginPage({
   // Déjà connecté ⇒ on ne montre pas un écran de connexion, on emmène au back-office.
   // Sans ça, revenir sur /admin/login avec une session valide afficherait un bouton
   // « Se connecter » trompeur.
-  const admin = await lireAdmin();
-  if (admin !== null) redirect("/admin");
+  const compte = await lireCompte();
+  if (compte !== null) redirect("/admin");
 
   const messageErreur =
     params.error === undefined

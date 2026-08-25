@@ -45,7 +45,7 @@ export type ResultatAction<T> =
  * ⚠️ Les pages valident déjà l'`id` de route avant d'atteindre la base, mais une Server
  * Action n'est **pas** une page : elle est atteignable par un POST direct. Sans cette
  * garde, un identifiant malformé y lève le `22P02` brut de Postgres — derrière
- * `requireAdmin()`, donc sans risque, mais incohérent avec la doctrine du projet.
+ * la garde de rôle de l'action, donc sans risque, mais incohérent avec la doctrine du projet.
  */
 export const identifiant = z.uuid();
 

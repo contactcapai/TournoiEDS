@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { barInputSchema, eventInputSchema } from "../../lib/schemas/event";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { countEventsBlockingBarDeletion } from "../db/queries/events";
 import { db } from "../db/client";
 import { bar, event } from "../db/schema";
@@ -22,7 +22,7 @@ import {
  * 🔴 PREMIÈRE SURFACE DE SAISIE DU PROJET — ce fichier est le PATRON que reprennent les
  * Stories 6.4, 6.5, 6.9, 6.10, 6.11 et 6.13. Trois règles y sont non négociables :
  *
- * ① `await requireAdmin()` EN PREMIÈRE LIGNE DE CHAQUE ACTION. Ce n'est pas une ceinture
+ * ① `await exigerRoleAction("admin_site")` EN PREMIÈRE LIGNE DE CHAQUE ACTION. Ce n'est pas une ceinture
  *    en plus du proxy : c'est la SEULE couche qui protège les mutations. La doc Next
  *    (`proxy.js`, § Execution order) est littérale — *« Server Functions are not separate
  *    routes in this chain … Always verify authentication and authorization inside each
@@ -42,7 +42,7 @@ import {
  *    n'existe pas. Une saisie est visible **au rechargement suivant**.
  *
  * ⚠️ CE QUI NE SE RECOPIE PAS DE LA STORY 5.1 : le honeypot et le rate-limit. Ils
- * protègent une surface PUBLIQUE non authentifiée ; derrière `requireAdmin()` ils n'ont
+ * protègent une surface PUBLIQUE non authentifiée ; derrière `exigerRoleAction("admin_site")` ils n'ont
  * aucun sens, et les poser « par symétrie » ferait croire à une garde là où il n'y aurait
  * qu'un décor.
  *
@@ -171,7 +171,7 @@ export async function enregistrerEvenement(
   idExistant: string | null,
   formData: FormData,
 ): Promise<ResultatAction<EvenementEnregistre>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (idExistant !== null && !identifiant.safeParse(idExistant).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -268,7 +268,7 @@ export async function definirPublicationEvenement(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -298,7 +298,7 @@ export async function definirPublicationEvenement(
  * détruire des photos n'osera pas supprimer un doublon.
  */
 export async function supprimerEvenement(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -319,7 +319,7 @@ export async function enregistrerBar(
   idExistant: string | null,
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (idExistant !== null && !identifiant.safeParse(idExistant).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -374,7 +374,7 @@ export async function enregistrerBar(
  * attrapé, et traduit.
  */
 export async function supprimerBar(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

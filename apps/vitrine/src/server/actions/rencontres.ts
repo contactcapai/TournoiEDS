@@ -20,7 +20,7 @@ import {
 import { podiumDepuis } from "../../lib/tournoi/parcours";
 import { participantsDepuisLeClassement } from "../../lib/tournoi/participants";
 import { partDuClassement } from "../../lib/tournoi/structure";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
 import {
@@ -41,7 +41,7 @@ import {
 /**
  * Générer et jouer — les rencontres, les résultats, la progression (Story 10.8).
  *
- * Patron d'`actions/phases.ts` (10.4) et d'`actions/engages.ts` (10.5) : `await requireAdmin()`
+ * Patron d'`actions/phases.ts` (10.4) et d'`actions/engages.ts` (10.5) : `await exigerRoleAction("admin_tournoi")`
  * en PREMIÈRE LIGNE, `identifiant` sur tout `id` reçu, retour discriminé.
  *
  * 🔴 CE QUI EST PROPRE À CET ÉCRAN : LA PROPAGATION SE **RECALCULE EN ENTIER**, elle ne s'applique
@@ -215,7 +215,7 @@ async function propager(tx: Transaction, phaseId: string) {
 export async function prerremplirPodium(
   tournoiId: string,
 ): Promise<ResultatAction<{ premier: string | null; deuxieme: string | null; troisieme: string | null; phase: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(tournoiId).success) {
     return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };
@@ -293,7 +293,7 @@ export async function genererPhase(
   phaseId: string,
   donnees: FormData,
 ): Promise<ResultatAction<{ rencontres: number; participants: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(phaseId).success) {
     return { ok: false, error: "Cette phase n'est pas valide. Rechargez la page." };
@@ -479,7 +479,7 @@ export async function saisirResultat(
   matchId: string,
   donnees: FormData,
 ): Promise<ResultatAction<{ complete: boolean; raison: string | null }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(matchId).success) {
     return { ok: false, error: "Cette rencontre n'est pas valide. Rechargez la page." };
@@ -561,7 +561,7 @@ export async function saisirResultat(
  * de chercher ce que ce bouton apporte de plus.
  */
 export async function effacerRencontres(phaseId: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(phaseId).success) {
     return { ok: false, error: "Cette phase n'est pas valide. Rechargez la page." };

@@ -70,7 +70,7 @@ const TAILLE_LIGHTBOX = "(max-width: 880px) 92vw, 80vw";
  * sans cette prop, il afficherait des cadres cassés exactement sur celles qu'on veut voir.
  *
  * ⚠️ CE N'EST PAS UNE PROP « AU CAS OÙ » : elle est payée par `/admin/galerie/apercu`, qui
- * lit la route `/admin/medias` (distincte, gardée par `lireAdmin()`, servie en `no-store`).
+ * lit la route `/admin/medias` (distincte, gardée par `lireCompte()`, servie en `no-store`).
  * Le défaut reste la route publique, donc la home ne change pas d'un caractère.
  *
  * ══════════════════════════════════════════════════════════════════════════════════════

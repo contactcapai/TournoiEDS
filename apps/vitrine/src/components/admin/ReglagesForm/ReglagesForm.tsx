@@ -138,7 +138,7 @@ export function ReglagesForm({ reglages }: ReglagesFormProps) {
         router.refresh();
         return { statut: "succes" };
       } catch {
-        // 🔴 `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
+        // 🔴 `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
         // session expirée ou un compte retiré de l'allowlist arrive ici, et nulle part ailleurs.
         // La saisie reste dans le DOM (champs contrôlés) : jamais perdre ce qui a été tapé.
         return {

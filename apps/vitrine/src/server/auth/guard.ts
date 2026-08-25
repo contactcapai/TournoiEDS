@@ -1,104 +1,157 @@
 // `server-only` en TOUTE PREMIÈRE LIGNE : cette garde ne doit exister que côté serveur.
 import "server-only";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 
+import { type RoleAdmin, detientRole } from "../../lib/roles";
 import { db } from "../db/client";
-import { account } from "../db/schema";
+import { account, userRole } from "../db/schema";
 import { estAdminAutorise } from "./allowlist";
 import { auth } from "./config";
 
 /**
- * 🔴 GARDE D'ÉCRITURE — APPEL OBLIGATOIRE EN PREMIÈRE LIGNE DE TOUTE SERVER ACTION
- * D'ADMINISTRATION (Stories 6.3, 6.4, 6.5, 6.9, 6.10, 6.11, 6.13).
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 GARDE D'ACCÈS PAR RÔLE (Story 8.1, arbitrage A2)
+ * ══════════════════════════════════════════════════════════════════════════════════════
  *
- * Ce n'est pas une ceinture de sécurité en plus du proxy : c'est la SEULE couche qui protège
- * les mutations. Fait mesuré au cadrage de la Story 6.1, tiré de la documentation Next 16
- * (`proxy.js`, § Execution order), cité mot pour mot :
+ * Ce module remplace `requireAdmin()` / `lireAdmin()`, et leur SUPPRESSION est le geste
+ * central de la story. Les conserver en leur faisant répondre « n'importe quel admin »
+ * aurait laissé les 33 pages et les 48 Server Actions compiler sans broncher — en
+ * continuant de tout donner à tout le monde. En les retirant, le typecheck refuse de passer
+ * tant que chaque surface n'a pas NOMMÉ le rôle qu'elle exige. La porte, c'est le
+ * compilateur, pas la mémoire de celui qui relit.
  *
- *   « Server Functions are not separate routes in this chain. They are handled as POST
- *     requests to the route where they are used, so a Proxy matcher that excludes a path
- *     will also skip Proxy coverage. A matcher change or a refactor that moves a Server
- *     Function to a different route can silently remove Proxy coverage. Always verify
- *     authentication and authorization inside each Server Function rather than relying on
- *     Proxy alone. »
+ * DEUX FONCTIONS, PARCE QU'IL Y A DEUX SURFACES ET DEUX BONNES RÉPONSES :
+ *   • `exigerRolePage`   — pages et layouts : REDIRIGE (un humain doit voir une page).
+ *   • `exigerRoleAction` — Server Actions : LÈVE (un POST n'a pas d'écran à recevoir).
  *
- * Autrement dit : le jour où une action est déplacée, réutilisée depuis une surface publique,
- * ou le jour où quelqu'un resserre le matcher du proxy, la garde du proxy disparaît SANS
- * QU'AUCUNE PORTE NE LE DISE — ni lint, ni typecheck, ni build, ni le gate visuel.
+ * ⚠️ La raison d'être de la garde d'action reste celle de la Story 6.1, citée de la doc
+ * Next 16 : une Server Action est un POST sur la route où elle est utilisée, donc un
+ * changement de matcher du proxy ou un simple déplacement de fichier peut lui retirer la
+ * couverture du proxy SANS QU'AUCUNE PORTE NE LE DISE. La garde vit dans l'action.
  *
- * ⚠️ CE QUI N'EST PAS CONCERNÉ : `submitSolicitation` (Story 5.1) est une Server Action
- * appelée depuis une page PUBLIQUE. Elle ne doit JAMAIS recevoir cette garde — l'autorisation
- * appropriée y est *aucune*, et la lui poser fermerait le formulaire de sollicitation au
- * public (FR28, FR32).
+ * ⚠️ CE QUI N'EST TOUJOURS PAS CONCERNÉ : `submitSolicitation` (Story 5.1) est appelée
+ * depuis une page PUBLIQUE. L'autorisation qui lui convient est *aucune*, et lui poser une
+ * garde fermerait le formulaire de contact au public (FR28, FR32).
  */
 
-/** Administrateur résolu et re-vérifié pour la requête en cours. */
-export type AdminConnecte = {
+/** Compte résolu et re-vérifié pour la requête en cours. */
+export type CompteConnecte = {
   /** Identifiant local (table `user`). */
   utilisateurId: string;
-  /** Identifiant numérique Discord — la valeur sur laquelle l'allowlist s'est prononcée. */
-  identifiantDiscord: string;
+  /** Rôles effectifs, noyau de secours compris. Vide = participant : n'ouvre rien. */
+  roles: readonly RoleAdmin[];
   nom: string | null;
   image: string | null;
 };
 
-/** Levée quand une Server Action d'administration est atteinte sans droit. */
-export class ErreurAccesAdmin extends Error {
-  constructor(raison: string) {
-    super(`Accès administrateur refusé : ${raison}`);
-    this.name = "ErreurAccesAdmin";
+/** Levée quand une Server Action est atteinte sans le rôle qu'elle exige. */
+export class ErreurAccesRole extends Error {
+  // ⚠️ Champ déclaré puis affecté, et non une propriété de paramètre : le projet compile avec
+  // `erasableSyntaxOnly`, qui interdit la forme courte (elle ÉMET du code, elle ne s'efface pas).
+  readonly roleExige: RoleAdmin;
+
+  constructor(roleExige: RoleAdmin, raison: string) {
+    super(`Accès refusé (rôle « ${roleExige} » exigé) : ${raison}`);
+    this.name = "ErreurAccesRole";
+    this.roleExige = roleExige;
   }
 }
 
 /**
- * Résout l'administrateur de la requête courante, ou `null`.
+ * Les rôles d'un compte, lus EN BASE À CHAQUE REQUÊTE.
  *
- * 🔴 L'ALLOWLIST EST RE-VÉRIFIÉE À CHAQUE REQUÊTE, ET CE N'EST PAS DE LA PARANOÏA.
- * La vérifier uniquement à la connexion (`callbacks.signIn`) laisserait une session déjà
- * ouverte survivre au retrait de son identifiant de l'allowlist — c'est-à-dire qu'un ancien
- * bénévole, ou un compte compromis, garderait l'accès jusqu'à l'expiration naturelle de sa
- * session. Sur un back-office à rôle admin unique (FR27), retirer quelqu'un doit prendre
- * effet à la requête suivante, pas dans trente jours.
- *
- * Le coût est une requête supplémentaire par requête d'administration — négligeable pour un
- * back-office à un utilisateur, et c'est le prix d'une révocation immédiate.
+ * 🔴 RELIRE À CHAQUE REQUÊTE N'EST PAS DE LA PARANOÏA — c'est la règle héritée de la 6.1, et
+ * elle vaut davantage encore maintenant qu'un rôle se retire depuis un écran. Le porter dans
+ * la session laisserait un droit révoqué survivre jusqu'à l'expiration : retirer un accès
+ * doit prendre effet à la requête suivante, pas dans trente jours.
  */
-export async function lireAdmin(): Promise<AdminConnecte | null> {
+export async function lireRolesDe(utilisateurId: string): Promise<RoleAdmin[]> {
+  const lignes = await db
+    .select({ role: userRole.role })
+    .from(userRole)
+    .where(eq(userRole.userId, utilisateurId));
+
+  return lignes.map((ligne) => ligne.role);
+}
+
+/**
+ * Résout le compte de la requête courante, ou `null` si personne n'est connecté.
+ *
+ * 🔴 NOYAU DE SECOURS. `AUTH_ADMIN_DISCORD_IDS` continue d'accorder `admin_site`, et ce
+ * n'est pas un reste de l'ancien montage : l'écran d'attribution des accès peut se refermer
+ * sur son dernier administrateur (erreur de manipulation, révocation croisée, base restaurée
+ * d'une sauvegarde antérieure). Sans un chemin qui ne dépend PAS de la base, le seul recours
+ * serait un accès SQL au serveur.
+ * ⚠️ Il accorde `admin_site` SEUL, jamais les deux : il sert à REVENIR et à réattribuer
+ * (l'écran des accès est une section du site), pas à gérer un tournoi. Un secours qui ouvre
+ * plus que nécessaire cesse d'être un secours.
+ */
+export async function lireCompte(): Promise<CompteConnecte | null> {
   const sessionCourante = await auth();
   const utilisateurId = sessionCourante?.user?.id;
 
   if (typeof utilisateurId !== "string" || utilisateurId.length === 0) return null;
 
-  const lignes = await db
-    .select({ identifiantDiscord: account.providerAccountId })
-    .from(account)
-    .where(and(eq(account.userId, utilisateurId), eq(account.provider, "discord")))
-    .limit(1);
+  const [rolesEnBase, identifiantDiscord] = await Promise.all([
+    lireRolesDe(utilisateurId),
+    lireIdentifiantDiscord(utilisateurId),
+  ]);
 
-  const identifiantDiscord = lignes[0]?.identifiantDiscord;
-  if (!estAdminAutorise(identifiantDiscord)) return null;
+  const roles = new Set<RoleAdmin>(rolesEnBase);
+  if (estAdminAutorise(identifiantDiscord)) roles.add("admin_site");
 
   return {
     utilisateurId,
-    // `estAdminAutorise` a déjà écarté `undefined` et la chaîne vide ; le typage ne le sait
-    // pas, d'où ce resserrement explicite plutôt qu'une assertion non expliquée.
-    identifiantDiscord: identifiantDiscord as string,
+    roles: [...roles],
     nom: sessionCourante?.user?.name ?? null,
     image: sessionCourante?.user?.image ?? null,
   };
 }
 
+async function lireIdentifiantDiscord(utilisateurId: string): Promise<string | null> {
+  const lignes = await db
+    .select({ identifiant: account.providerAccountId })
+    .from(account)
+    .where(and(eq(account.userId, utilisateurId), eq(account.provider, "discord")))
+    .limit(1);
+
+  return lignes[0]?.identifiant ?? null;
+}
+
 /**
- * Exige un administrateur, ou **lève**.
+ * Exige un rôle depuis une PAGE ou un LAYOUT — redirige plutôt que de lever.
  *
- * 🔴 ELLE LÈVE, ELLE NE RETOURNE PAS `false`. Une garde qui rend un booléen dépend de son
- * appelant pour le tester : l'oublier la rend silencieusement inerte, et rien ne le
- * signalerait. Une exception ne s'oublie pas.
+ * 🔴 DEUX REFUS DIFFÉRENTS, DEUX DESTINATIONS DIFFÉRENTES, ET LES CONFONDRE FERAIT UNE
+ * BOUCLE. « Pas connecté » se répare en se connectant (`/admin/login`). « Connecté mais sans
+ * le rôle » ne se répare PAS en se reconnectant : renvoyer ce cas vers la page de login la
+ * ferait renvoyer vers l'admin, qui renverrait vers le login. Il lui faut une page qui le
+ * DISE — `/admin/refus`.
+ *
+ * ⚠️ À APPELER EN PREMIÈRE INSTRUCTION, AVANT TOUTE LECTURE DE DONNÉES : une page qui
+ * composerait son écran puis redirigerait aurait déjà exécuté ses requêtes et, selon le
+ * streaming, pu émettre du HTML. `gate:admin` mesure le HTML SERVI, précisément pour ça.
  */
-export async function requireAdmin(): Promise<AdminConnecte> {
-  const admin = await lireAdmin();
-  if (admin === null) {
-    throw new ErreurAccesAdmin("session absente, expirée, ou compte hors allowlist");
+export async function exigerRolePage(role: RoleAdmin): Promise<CompteConnecte> {
+  const compte = await lireCompte();
+  if (compte === null) redirect("/admin/login");
+  if (!detientRole(compte.roles, role)) redirect(`/admin/refus?role=${role}`);
+  return compte;
+}
+
+/**
+ * Exige un rôle depuis une SERVER ACTION — **lève**, ne rend pas `false`.
+ *
+ * 🔴 Une garde qui rend un booléen dépend de son appelant pour le tester : l'oublier la rend
+ * silencieusement inerte. Une exception ne s'oublie pas.
+ */
+export async function exigerRoleAction(role: RoleAdmin): Promise<CompteConnecte> {
+  const compte = await lireCompte();
+  if (compte === null) {
+    throw new ErreurAccesRole(role, "session absente ou expirée");
   }
-  return admin;
+  if (!detientRole(compte.roles, role)) {
+    throw new ErreurAccesRole(role, "le compte connecté ne porte pas ce rôle");
+  }
+  return compte;
 }

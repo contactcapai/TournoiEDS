@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { TournoiForm } from "@/components/admin/TournoiForm/TournoiForm";
 import { formatLongDate } from "@/lib/date-paris";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   getEventsPourRattachement,
   getPhotosPourVisuel,
@@ -44,8 +44,7 @@ export default async function ModifierTournoiPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

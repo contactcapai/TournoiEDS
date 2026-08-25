@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { PartenaireForm } from "@/components/admin/PartenaireForm/PartenaireForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import styles from "@/styles/admin-page.module.css";
 
 // Création d'un partenaire (Story 6.5).
@@ -25,8 +24,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NouveauPartenairePage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   return (
     <>

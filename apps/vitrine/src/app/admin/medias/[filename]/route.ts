@@ -1,4 +1,5 @@
-import { lireAdmin } from "@/server/auth/guard";
+import { detientRole } from "@/lib/roles";
+import { lireCompte } from "@/server/auth/guard";
 import { db } from "@/server/db/client";
 import { ouvrirMedia } from "@/server/medias";
 
@@ -36,7 +37,7 @@ import { ouvrirMedia } from "@/server/medias";
  * troisième état de réponse.
  *
  * CE QUI CHANGE, et seulement cela :
- *   · une GARDE `lireAdmin()` en PREMIÈRE INSTRUCTION — le matcher `/admin/:path*` de
+ *   · une GARDE de rôle `admin_site` en PREMIÈRE INSTRUCTION — le matcher `/admin/:path*` de
  *     `proxy.ts` couvre bien ce chemin (vérifié), mais la couche ③ ne se délègue pas :
  *     c'est la leçon littérale de la 6.1, où une garde de `layout` n'arrêtait pas le rendu
  *     de la page enfant ;
@@ -65,8 +66,11 @@ export async function GET(
 ) {
   // 🔴 PREMIÈRE INSTRUCTION, AVANT TOUTE LECTURE. Cette route sert des BROUILLONS : sans
   // cette ligne, elle serait une fuite de données, pas une commodité.
-  const admin = await lireAdmin();
-  if (admin === null) return introuvable();
+  // ⚠️ Ni `exigerRolePage` (elle redirige) ni `exigerRoleAction` (elle lève) : cette route
+  // répond 404 sur TOUT refus, à dessein — l'absence et le refus doivent être
+  // indiscernables. Elle nomme donc son rôle elle-même.
+  const compte = await lireCompte();
+  if (compte === null || !detientRole(compte.roles, "admin_site")) return introuvable();
 
   const { filename } = await params;
 

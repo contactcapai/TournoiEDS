@@ -3,7 +3,7 @@
 import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
 
 import { derouleType, derouleTypeSaisi, phaseSaisie } from "../../lib/schemas/phase";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
 import { tournamentPhase } from "../db/schema";
@@ -27,7 +27,7 @@ const CONTRAINTES: Record<string, string> = {
 /**
  * Server Actions de la composition d'un tournoi (Story 10.4).
  *
- * Patron d'`actions/ateliers.ts` : `await requireAdmin()` en PREMIÈRE LIGNE, retour discriminé,
+ * Patron d'`actions/ateliers.ts` : `await exigerRoleAction("admin_tournoi")` en PREMIÈRE LIGNE, retour discriminé,
  * `identifiant` sur tout `id` reçu. Pas de média, donc pas de nettoyage de fichier.
  *
  * 🔴 CE QUI EST PROPRE À CET ÉCRAN : une phase ne se supprime ni ne se déplace dès qu'une
@@ -54,7 +54,7 @@ export async function ajouterPhase(
   tournoiId: string,
   donnees: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(tournoiId).success) {
     return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };
@@ -97,7 +97,7 @@ export async function ajouterPhase(
  * précisément pourquoi la garde ci-dessous n'est pas décorative.
  */
 export async function supprimerPhase(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -145,7 +145,7 @@ export async function deplacerPhase(
   id: string,
   sens: "monter" | "descendre",
 ): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -222,7 +222,7 @@ export async function poserDerouleType(
   tournoiId: string,
   donnees: FormData,
 ): Promise<ResultatAction<{ posees: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(tournoiId).success) {
     return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };

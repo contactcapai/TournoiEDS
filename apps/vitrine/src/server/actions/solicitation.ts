@@ -7,13 +7,13 @@
 //   · CE FICHIER (`solicitation.ts`) → **PUBLIQUE, NON AUTHENTIFIÉE** (Story 5.1). Un seul
 //     export, `submitSolicitation`, appelé par le formulaire de `/partenaires`. Sa garde
 //     n'est PAS une session : c'est un rate-limit, un honeypot et Zod.
-//   · `actions/sollicitations.ts` → **ADMIN** (Story 6.11). `await requireAdmin()` y est la
+//   · `actions/sollicitations.ts` → **ADMIN** (Story 6.11). `await exigerRoleAction("admin_site")` y est la
 //     première ligne de chaque export.
 //
 // Un import qui se trompe de module **compile**, passe le lint et passe le typecheck. D'où ce
 // bandeau dans les deux fichiers. ⚠️ Ne jamais ajouter d'export authentifié ICI : la garde ⑧
 // de `gate:sollicitations` vérifie que TOUT export de l'autre fichier commence par
-// `requireAdmin()` — une propriété qu'un module mixte rendrait impossible à écrire.
+// une garde de rôle — une propriété qu'un module mixte rendrait impossible à écrire.
 
 import { headers } from "next/headers";
 

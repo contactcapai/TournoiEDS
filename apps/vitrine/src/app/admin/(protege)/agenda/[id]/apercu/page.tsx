@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
 import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getEventById } from "@/server/db/queries/events";
 import { getPhotosForEvents } from "@/server/db/queries/photos";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
@@ -64,8 +64,7 @@ export default async function ApercuEvenementPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const { id } = await params;
   // Format validé AVANT la base : un identifiant malformé doit rendre 404, pas 500.

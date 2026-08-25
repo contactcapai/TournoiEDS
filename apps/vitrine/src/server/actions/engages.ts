@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { engageSaisie } from "../../lib/schemas/engage";
 import { ENTRY_STATES, type EntryState } from "../../lib/tournoi/structure";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getTournoiPourEngages } from "../db/queries/engages";
 import {
@@ -23,7 +23,7 @@ import {
 /**
  * Server Actions des ENGAGÉS d'un tournoi — saisie à la main et pointage (Story 10.5).
  *
- * Patron d'`actions/phases.ts` (10.4) : `await requireAdmin()` en PREMIÈRE LIGNE, `identifiant`
+ * Patron d'`actions/phases.ts` (10.4) : `await exigerRoleAction("admin_tournoi")` en PREMIÈRE LIGNE, `identifiant`
  * sur tout `id` reçu, retour discriminé `ResultatAction<T>`.
  *
  * 🔴 CE QUI EST PROPRE À CET ÉCRAN : UN ENGAGÉ QUI A UNE PLACE DE RENCONTRE NE SE SUPPRIME PAS,
@@ -63,7 +63,7 @@ export async function ajouterEngage(
   tournoiId: string,
   donnees: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(tournoiId).success) {
     return { ok: false, error: "Ce tournoi n'est pas valide. Rechargez la page." };
@@ -136,7 +136,7 @@ export async function pointerEngage(
    */
   jour: string | null = null,
 ): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -189,7 +189,7 @@ export async function pointerEngage(
  * enverrait recharger une page qui affiche exactement la même chose.
  */
 export async function supprimerEngage(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

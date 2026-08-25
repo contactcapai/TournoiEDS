@@ -128,7 +128,7 @@ export async function compterSollicitations(): Promise<{
  * plus (supprimée entre-temps depuis un autre onglet).
  *
  * ⚠️ CELLE-CI charge `email` et `message` : c'est son objet. Elle n'est appelée que par
- * `app/admin/(protege)/sollicitations/[id]/page.tsx`, qui pose sa propre garde `lireAdmin()`
+ * `app/admin/(protege)/sollicitations/[id]/page.tsx`, qui pose sa propre garde `lireCompte()`
  * en première instruction.
  *
  * `consentGiven` est chargé **et rendu** : le visiteur a coché une case pour qu'on ait le

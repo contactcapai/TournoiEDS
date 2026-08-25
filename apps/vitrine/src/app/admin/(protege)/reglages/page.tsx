@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { ReglagesForm } from "@/components/admin/ReglagesForm/ReglagesForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { lireReglagesPourSaisie } from "@/server/db/queries/settings";
 import styles from "@/styles/admin-page.module.css";
 
@@ -35,8 +34,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ReglagesPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   // 🔴 `lireReglagesPourSaisie` ET NON `lireReglages` : cet écran a besoin des `null` bruts,
   // pour que le champ soit VIDE et non rempli d'une chaîne vide déguisée. Le lecteur du rendu,

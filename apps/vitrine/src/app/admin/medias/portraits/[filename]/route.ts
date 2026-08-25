@@ -1,5 +1,6 @@
 import { cheminPortrait, nomFichierPortrait } from "@/lib/portraits";
-import { lireAdmin } from "@/server/auth/guard";
+import { detientRole } from "@/lib/roles";
+import { lireCompte } from "@/server/auth/guard";
 import { db } from "@/server/db/client";
 import { ouvrirMedia } from "@/server/medias";
 
@@ -13,7 +14,7 @@ import { ouvrirMedia } from "@/server/medias";
  * doit dire la vérité.
  *
  * CE QUI CHANGE PAR RAPPORT À LA ROUTE PUBLIQUE, ET SEULEMENT CELA :
- *   · une garde `lireAdmin()` en **PREMIÈRE INSTRUCTION**. Le matcher `/admin/:path*` de
+ *   · une garde de rôle `admin_site` en **PREMIÈRE INSTRUCTION**. Le matcher `/admin/:path*` de
  *     `proxy.ts` couvre bien ce chemin, mais la couche ne se délègue pas : c'est la leçon
  *     littérale de la 6.1, où une garde de `layout` n'arrêtait pas le rendu de la page
  *     enfant ;
@@ -49,8 +50,11 @@ export async function GET(
   // 🔴 PREMIÈRE INSTRUCTION, AVANT TOUTE LECTURE. Cette route sert les portraits de membres
   // NON PUBLIÉS : sans cette ligne, elle serait une fuite de données personnelles, pas une
   // commodité.
-  const admin = await lireAdmin();
-  if (admin === null) return introuvable();
+  // ⚠️ Ni `exigerRolePage` (elle redirige) ni `exigerRoleAction` (elle lève) : cette route
+  // répond 404 sur TOUT refus, à dessein — l'absence et le refus doivent être
+  // indiscernables. Elle nomme donc son rôle elle-même.
+  const compte = await lireCompte();
+  if (compte === null || !detientRole(compte.roles, "admin_site")) return introuvable();
 
   const { filename } = await params;
 

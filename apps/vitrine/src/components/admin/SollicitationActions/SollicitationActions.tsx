@@ -91,7 +91,7 @@ export function SollicitationActions({
               }
               router.refresh();
             } catch {
-              // `requireAdmin()` LÈVE avant le `try` de la Server Action : la révocation
+              // `exigerRoleAction()` LÈVE avant le `try` de la Server Action : la révocation
               // immédiate arrive ici, et nulle part ailleurs (leçon 6.3).
               setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
             }

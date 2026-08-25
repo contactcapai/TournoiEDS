@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { TeamGrid } from "@/components/asso/TeamGrid/TeamGrid";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getMembersForAdmin, MEMBRES_MAX } from "@/server/db/queries/members";
 import editorial from "@/styles/editorial.module.css";
 import styles from "@/styles/admin-page.module.css";
@@ -50,8 +49,7 @@ export const dynamic = "force-dynamic";
 // Même borne que l'écran de liste — importée, pas recopiée.
 
 export default async function ApercuMembresPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const membres = await getMembersForAdmin(MEMBRES_MAX);
   const brouillons = membres.filter((m) => !m.isPublished).length;

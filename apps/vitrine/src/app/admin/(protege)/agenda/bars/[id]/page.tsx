@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { BarForm } from "@/components/admin/BarForm/BarForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getBarById } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -22,8 +22,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ModifierBarPage({ params }: { params: Promise<{ id: string }> }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

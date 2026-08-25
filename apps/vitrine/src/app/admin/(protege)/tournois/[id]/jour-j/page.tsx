@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import {
@@ -10,7 +10,7 @@ import {
 import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import { getTournamentById } from "@/server/db/queries/tournaments";
@@ -48,8 +48,7 @@ export default async function JourJPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ phase?: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

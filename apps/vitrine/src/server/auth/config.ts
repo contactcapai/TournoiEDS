@@ -5,7 +5,6 @@ import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
 
 import { adaptateurDrizzle } from "./adapter";
-import { estAdminAutorise } from "./allowlist";
 
 /**
  * Authentification du back-office — Auth.js v5 + Discord OAuth (FR26, AR-SEC1).
@@ -55,22 +54,27 @@ const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     /**
-     * 🔴 LA GARDE LA PLUS IMPORTANTE DU PROJET, ET SA POSITION EST TOUT.
+     * 🔴 CETTE GARDE A CHANGÉ DE NATURE À LA STORY 8.1 — ET C'EST LE GESTE LE PLUS RISQUÉ.
      *
-     * `signIn` s'exécute AVANT que l'adaptateur ne persiste quoi que ce soit. Refuser
-     * seulement plus tard (proxy, layout) laisserait n'importe quel utilisateur Discord de la
-     * planète créer une ligne `user` ET une ligne `account` dans la base `vitrine` au premier
-     * essai — une écriture non authentifiée, par un inconnu, sans limite de débit — avant
-     * d'être poliment redirigé. Le refus doit donc vivre ICI.
+     * Jusqu'ici elle était FAIL-CLOSED sur `AUTH_ADMIN_DISCORD_IDS` : se connecter et être
+     * administrateur étaient le même fait, et personne hors de la liste ne pouvait créer une
+     * ligne en base. Ce montage rendait impossible ce que la 8.1 doit livrer — attribuer un
+     * accès depuis le back-office suppose que la personne ait déjà un compte, donc ait pu se
+     * connecter d'abord. L'œuf et la poule.
      *
-     * ⚠️ On lit `account.providerAccountId` et non `profile.id` : c'est la valeur qu'Auth.js
-     * s'apprête réellement à écrire en base, donc celle sur laquelle l'allowlist doit se
-     * prononcer. Se prononcer sur une autre valeur que celle qui sera persistée, c'est
-     * autoriser une chose et enregistrer l'autre.
+     * ⇒ Un compte Discord peut désormais entrer. IL N'OUVRE RIEN POUR AUTANT : les portes
+     * sont tenues par `user_role` (`server/auth/guard.ts`), et un compte sans rôle ne voit
+     * que `/admin/refus`. LE RÔLE NE VIENT PLUS JAMAIS DU FOURNISSEUR.
+     *
+     * ⚠️ CE QUE ÇA COÛTE, ÉCRIT PLUTÔT QUE DÉCOUVERT : n'importe quel compte Discord peut
+     * créer une ligne `user` + `account`. C'est une écriture par un inconnu, sans limite de
+     * débit. Elle est bornée (deux lignes, aucun contenu libre) et le sera par la même
+     * surface en PR ② (Google, lien magique). Si ça devenait un problème réel, la parade est
+     * une limite de débit sur `/api/auth/*`, pas le retour de l'allowlist — qui referme la
+     * capacité livrée ici.
      */
     signIn({ account: compteOAuth }) {
-      if (compteOAuth?.provider !== "discord") return false;
-      return estAdminAutorise(compteOAuth.providerAccountId);
+      return compteOAuth?.provider === "discord";
     },
 
     /**

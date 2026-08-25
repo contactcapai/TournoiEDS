@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { TournoiForm } from "@/components/admin/TournoiForm/TournoiForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import {
   getEventsPourRattachement,
   getPhotosPourVisuel,
@@ -37,8 +36,7 @@ const EVENEMENTS_MAX = 200;
 const PHOTOS_MAX = 200;
 
 export default async function NouveauTournoiPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const [evenements, photos] = await Promise.all([
     getEventsPourRattachement(EVENEMENTS_MAX),

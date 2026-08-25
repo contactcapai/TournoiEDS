@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getTournamentApercuById } from "@/server/db/queries/tournaments";
 import admin from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
@@ -45,8 +45,7 @@ export default async function ApercuTournoiPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await lireAdmin();
-  if (session === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const { id } = await params;
   // Format validé AVANT la base : un identifiant malformé doit rendre 404, pas 500 (un `uuid`

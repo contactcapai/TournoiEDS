@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { PartenaireActions } from "@/components/admin/PartenaireActions/PartenaireActions";
 import { estLogoDuVolume, sourceLogo } from "@/lib/logos";
 import { PARTNER_CATEGORIES, type PartnerCategory } from "@/lib/schemas/partner";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPartnersForAdmin, type AdminPartner } from "@/server/db/queries/partners";
 import styles from "@/styles/admin-page.module.css";
 import propre from "./partenaires.module.css";
@@ -129,8 +128,7 @@ function LignePartenaire({
 }
 
 export default async function AdminPartenairesPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const partenaires = await getPartnersForAdmin(PARTENAIRES_MAX);
 
