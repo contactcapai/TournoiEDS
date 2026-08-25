@@ -102,7 +102,7 @@ export function MembreForm({ membre }: MembreFormProps) {
         if (creation && resultat.data) router.push(`/admin/membres/${resultat.data.id}`);
         return { statut: "succes" };
       } catch {
-        // 🔴 `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
+        // 🔴 `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
         // session expirée ou un compte retiré de l'allowlist arrive ici, et nulle part ailleurs.
         // La saisie reste dans le DOM (champs contrôlés) : jamais perdre ce qui a été tapé.
         return {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { signIn } from "@/server/auth/config";
-import { lireAdmin } from "@/server/auth/guard";
+import { lireCompte } from "@/server/auth/guard";
 import { redirect } from "next/navigation";
 import styles from "./page.module.css";
 
@@ -33,11 +33,23 @@ export const dynamic = "force-dynamic";
  * afficherait `AccessDenied` brut — un code technique, à quelqu'un qui n'en peut rien.
  */
 const MESSAGES_ERREUR: Record<string, string> = {
+  // ⚠️ RÉÉCRIT PAR LA STORY 8.1. Il disait « ce compte Discord n'est pas autorisé à accéder
+  // au back-office » — FAUX depuis que se connecter et avoir un accès sont deux faits
+  // distincts. Se connecter réussit désormais pour tout le monde ; ce qui manque ensuite est
+  // un RÔLE, et ça se dit sur `/admin/refus`, pas ici.
   AccessDenied:
-    "Ce compte Discord n’est pas autorisé à accéder au back-office. Si c’est une erreur, demande à ce que ton identifiant soit ajouté.",
+    "La connexion a été refusée par le fournisseur. Réessaie, et si ça recommence, signale-le.",
   Configuration:
-    "La connexion Discord n’est pas configurée correctement côté serveur. Rien à faire de ton côté : c’est un réglage à corriger.",
-  Verification: "Ce lien de connexion n’est plus valable. Relance la connexion.",
+    "Ce moyen de connexion n’est pas configuré correctement côté serveur. Rien à faire de ton côté : c’est un réglage à corriger.",
+  Verification:
+    "Ce lien de connexion n’est plus valable : il a déjà servi, ou il a expiré. Demande-en un nouveau ci-dessous.",
+  // 🔴 Ne devrait plus arriver depuis que la liaison par adresse vérifiée est activée
+  // (`allowDangerousEmailAccountLinking`). Le message reste : si ce cas revenait, il faut
+  // qu'il soit lisible plutôt que muet — et il nous dirait que le réglage a sauté.
+  OAuthAccountNotLinked:
+    "Cette adresse est déjà rattachée à un autre moyen de connexion. Utilise celui avec lequel tu t’es connecté la première fois.",
+  EmailSignin:
+    "L’envoi du lien de connexion a échoué. Vérifie l’adresse saisie, puis réessaie.",
 };
 
 const MESSAGE_ERREUR_PAR_DEFAUT =
@@ -55,8 +67,8 @@ export default async function AdminLoginPage({
   // Déjà connecté ⇒ on ne montre pas un écran de connexion, on emmène au back-office.
   // Sans ça, revenir sur /admin/login avec une session valide afficherait un bouton
   // « Se connecter » trompeur.
-  const admin = await lireAdmin();
-  if (admin !== null) redirect("/admin");
+  const compte = await lireCompte();
+  if (compte !== null) redirect("/admin");
 
   const messageErreur =
     params.error === undefined
@@ -109,9 +121,16 @@ export default async function AdminLoginPage({
           </p>
         )}
 
-        {/* Server Action en ligne : un bouton qui poste un formulaire n'a besoin d'aucun
-            composant client. RSC par défaut (project-context.md §5).
-            ⚠️ Fonctionne donc SANS JavaScript — c'est un vrai <form>, pas un onClick. */}
+        {/* ══════════════════════════════════════════════════════════════════════════════
+            TROIS MOYENS, UN SEUL ACCENT DORÉ — ET C'EST DÉLIBÉRÉ
+            ══════════════════════════════════════════════════════════════════════════════
+            Trois boutons `--gold` empilés ne hiérarchisent plus rien : l'accent ne veut dire
+            quelque chose que s'il est rare (leçon des 4 boutons or × 64 lignes, 13.1).
+            Discord reste l'entrée principale — c'est celle de l'équipe aujourd'hui ; Google
+            et le lien magique sont des portes secondaires, tracées et non remplies.
+            ⚠️ Les trois fonctionnent SANS JavaScript : ce sont de vrais <form>, pas des
+            onClick. Un back-office qui exigerait JS pour se connecter serait injoignable au
+            pire moment. */}
         <form
           action={async () => {
             "use server";
@@ -123,9 +142,55 @@ export default async function AdminLoginPage({
           </button>
         </form>
 
+        <form
+          action={async () => {
+            "use server";
+            await signIn("google", { redirectTo: destination });
+          }}
+        >
+          <button className={styles.boutonSecondaire} type="submit">
+            Se connecter avec Google
+          </button>
+        </form>
+
+        <p className={styles.separateur}>
+          <span>ou par e-mail</span>
+        </p>
+
+        {/* 🔴 `signIn("nodemailer")` ET NON `signIn("email")` : l'identifiant du fournisseur
+            est celui du module importé dans `auth/config.ts`. `email` est l'ancien nom,
+            déprécié dans Auth.js v5 — et un identifiant inconnu échoue à l'exécution, pas à
+            la compilation. */}
+        <form
+          className={styles.formEmail}
+          action={async (formData: FormData) => {
+            "use server";
+            await signIn("nodemailer", {
+              email: String(formData.get("email") ?? ""),
+              redirectTo: destination,
+            });
+          }}
+        >
+          <label className={styles.etiquette} htmlFor="email">
+            Votre adresse e-mail
+          </label>
+          <input
+            className={styles.champ}
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="prenom@exemple.fr"
+          />
+          <button className={styles.boutonSecondaire} type="submit">
+            Recevoir un lien de connexion
+          </button>
+        </form>
+
         <p className={styles.aide}>
-          La connexion passe par le compte Discord de l&rsquo;écosystème EDS. Le site
-          public, lui, reste accessible à tous sans connexion.
+          Peu importe le moyen&nbsp;: si l&rsquo;adresse est la même, c&rsquo;est le même
+          compte. Le site public, lui, reste accessible à tous sans connexion.
         </p>
       </div>
     </main>

@@ -3,7 +3,7 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import { workshopInputSchema, type WorkshopFamily } from "../../lib/schemas/workshop";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { workshop } from "../db/schema";
 import {
@@ -17,7 +17,7 @@ import {
  * Server Actions des ateliers du back-office (Story 6.9, FR34, FR22, AR-API1, AR-DB4).
  *
  * Le patron de saisie est celui d'`actions/agenda.ts` (6.3), `actions/galerie.ts` (6.4) puis
- * `actions/partenaires.ts` (6.5), repris **littéralement** : `await requireAdmin()` en PREMIÈRE
+ * `actions/partenaires.ts` (6.5), repris **littéralement** : `await exigerRoleAction("admin_site")` en PREMIÈRE
  * LIGNE de chaque action, retour discriminé, `identifiant` sur tout `id` reçu, aucun
  * `revalidateTag` (les pages publiques sont `force-dynamic`, il n'y a rien à invalider — fait
  * mesuré au cadrage de l'Epic 6, et `check:docs` a une règle qui le tient).
@@ -93,7 +93,7 @@ function analyserChamps(formData: FormData) {
 export async function creerAtelier(
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   const analyse = analyserChamps(formData);
   if (!analyse.success) {
@@ -143,7 +143,7 @@ export async function enregistrerAtelier(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -199,7 +199,7 @@ export async function definirPublicationAtelier(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -230,10 +230,10 @@ export async function definirPublicationAtelier(
  *
  * La confirmation en DEUX TEMPS vit côté écran (`BoutonConfirmation`) : c'est là qu'elle protège
  * quelqu'un. Une seconde garde côté serveur n'empêcherait rien qu'un POST direct ne contourne
- * de toute façon — et `requireAdmin()` est la garde qui, elle, compte.
+ * de toute façon — et `exigerRoleAction("admin_site")` est la garde qui, elle, compte.
  */
 export async function supprimerAtelier(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -281,7 +281,7 @@ export async function reordonnerAteliers(
   ordreAttendu: string[],
   nouvelOrdre: string[],
 ): Promise<ResultatAction<{ nombre: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   // 🔴 LA FAMILLE EST VALIDÉE COMME LES IDENTIFIANTS — TROUVÉ EN REVUE.
   // Elle est TYPÉE `WorkshopFamily`, mais un type ne survit pas à la compilation : une Server

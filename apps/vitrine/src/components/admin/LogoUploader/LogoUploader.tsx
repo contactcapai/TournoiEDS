@@ -162,7 +162,7 @@ export function LogoUploader({
       );
       router.refresh();
     } catch {
-      // `requireAdmin()` LÈVE avant le `try` de la Server Action : la révocation immédiate
+      // `exigerRoleAction()` LÈVE avant le `try` de la Server Action : la révocation immédiate
       // arrive ici, et nulle part ailleurs (leçon 6.3). Le `413` d'un fichier qui aurait
       // franchi la borne client y arrive aussi — il n'emprunte pas le retour discriminé.
       setErreur(

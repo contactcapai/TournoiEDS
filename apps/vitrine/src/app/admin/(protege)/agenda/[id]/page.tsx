@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { EventForm } from "@/components/admin/EventForm/EventForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getBars, getEventById } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -34,8 +34,7 @@ export default async function ModifierEvenementPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

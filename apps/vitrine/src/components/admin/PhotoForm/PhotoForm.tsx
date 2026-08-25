@@ -87,7 +87,7 @@ export function PhotoForm({ photo, evenements }: PhotoFormProps) {
         router.refresh();
         return { statut: "succes" };
       } catch {
-        // 🔴 `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
+        // 🔴 `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
         // session expirée ou un compte retiré de l'allowlist arrive ici, et nulle part
         // ailleurs. C'est le mécanisme de révocation immédiate le plus mis en avant du
         // projet — sans ce `catch`, il produirait le seul rejet non géré de la surface

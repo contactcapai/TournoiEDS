@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { LogoUploader } from "@/components/admin/LogoUploader/LogoUploader";
 import { PartenaireForm } from "@/components/admin/PartenaireForm/PartenaireForm";
 import { estLogoDuVolume, sourceLogo } from "@/lib/logos";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPartnerByIdForAdmin } from "@/server/db/queries/partners";
 import styles from "@/styles/admin-page.module.css";
 import propre from "../partenaires.module.css";
@@ -37,8 +37,7 @@ export default async function ModifierPartenairePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

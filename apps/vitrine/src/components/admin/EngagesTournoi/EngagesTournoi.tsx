@@ -125,7 +125,7 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
         router.refresh();
         return { statut: "succes" };
       } catch {
-        // 🔴 `requireAdmin()` LÈVE avant le `try` de la Server Action : une session expirée ou
+        // 🔴 `exigerRoleAction()` LÈVE avant le `try` de la Server Action : une session expirée ou
         // un compte retiré de l'allowlist arrive ici, et nulle part ailleurs (leçon 6.3).
         return {
           statut: "erreur",

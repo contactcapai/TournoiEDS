@@ -3,7 +3,7 @@
 import { asc, eq } from "drizzle-orm";
 
 import { photoInputSchema } from "../../lib/schemas/photo";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getMaxSortOrder } from "../db/queries/photos";
 import { photo } from "../db/schema";
@@ -24,7 +24,7 @@ import {
  * le sens de l'opération.
  *
  * Le patron de saisie est celui de `actions/agenda.ts` (6.3), repris littéralement :
- * `await requireAdmin()` en PREMIÈRE LIGNE de chaque action, retour discriminé, aucun
+ * `await exigerRoleAction("admin_site")` en PREMIÈRE LIGNE de chaque action, retour discriminé, aucun
  * `revalidateTag` (les pages publiques sont `force-dynamic`, il n'y a rien à invalider —
  * mesuré au cadrage de l'Epic 6, et `check:docs` a une règle qui le fait tenir).
  */
@@ -94,7 +94,7 @@ export type PhotoTeleversee = {
  * Une Server Action refuse **1 Mo par défaut** (`next.config.ts` remonte la borne, mais
  * elle reste par REQUÊTE) : huit photos de 4 Mo dans un seul envoi dépasseraient n'importe
  * quelle valeur raisonnable, et le `413` tomberait **avant** le corps de l'action — donc
- * avant `requireAdmin()`, avant Zod, avant tout message écrit par nous. L'écran boucle donc
+ * avant `exigerRoleAction("admin_site")`, avant Zod, avant tout message écrit par nous. L'écran boucle donc
  * et appelle cette action une fois par fichier.
  * ⚠️ CONTREPARTIE ASSUMÉE : le lot n'est pas atomique. Un échec au 5ᵉ fichier laisse quatre
  * photos créées — en BROUILLON, donc invisibles du public. L'écran le DIT, il ne le laisse
@@ -107,7 +107,7 @@ export type PhotoTeleversee = {
  * atteindre — invisible, et croissant.
  */
 export async function televerserPhoto(formData: FormData): Promise<ResultatAction<PhotoTeleversee>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) {
@@ -205,7 +205,7 @@ export async function enregistrerPhoto(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -264,7 +264,7 @@ export async function definirPublicationPhoto(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -302,7 +302,7 @@ export async function reordonnerPhotos(
   ordreAttendu: string[],
   nouvelOrdre: string[],
 ): Promise<ResultatAction<{ nombre: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (nouvelOrdre.length === 0) return { ok: true, data: { nombre: 0 } };
 
@@ -392,7 +392,7 @@ export async function reordonnerPhotos(
  * une ligne qui n'existe plus.
  */
 export async function supprimerPhoto(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

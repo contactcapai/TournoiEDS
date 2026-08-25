@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { BarreJournees } from "@/components/admin/BarreJournees/BarreJournees";
 import { EngagesTournoi } from "@/components/admin/EngagesTournoi/EngagesTournoi";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { jourLisible } from "@/lib/date-paris";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getJourneesDuTournoi } from "@/server/db/queries/phases";
@@ -32,8 +32,7 @@ export default async function EngagesTournoiPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ jour?: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_tournoi");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

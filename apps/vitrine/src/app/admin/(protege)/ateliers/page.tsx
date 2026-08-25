@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { AtelierActions } from "@/components/admin/AtelierActions/AtelierActions";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
 import { WORKSHOP_FAMILIES } from "@/lib/schemas/workshop";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getWorkshopsForAdmin, type AdminWorkshop } from "@/server/db/queries/workshops";
 import styles from "@/styles/admin-page.module.css";
 import propre from "./ateliers.module.css";
@@ -82,8 +81,7 @@ function LigneAtelier({
 }
 
 export default async function AdminAteliersPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const ateliers = await getWorkshopsForAdmin(ATELIERS_MAX);
 

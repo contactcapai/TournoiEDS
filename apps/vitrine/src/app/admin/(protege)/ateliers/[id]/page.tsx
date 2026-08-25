@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { AtelierForm } from "@/components/admin/AtelierForm/AtelierForm";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getWorkshopById } from "@/server/db/queries/workshops";
 import styles from "@/styles/admin-page.module.css";
 
@@ -34,8 +34,7 @@ export default async function ModifierAtelierPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();

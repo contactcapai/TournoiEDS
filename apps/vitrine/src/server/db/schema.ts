@@ -41,6 +41,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import { ROLES_ADMIN } from "../../lib/roles";
+
 // ⚠️ `TARIF_MAX` EST ALIASÉ ICI AUSSI (Story 9.6) : `tournament.ts` en exporte un, propre à SON
 // domaine, et les importer nus serait une collision que TypeScript refuserait. La parade est
 // celle des trois blocs ci-dessous — **aliaser, jamais fusionner** —, et le bloc d'import de
@@ -2200,17 +2202,18 @@ export const tournamentMatchSlot = pgTable(
 // snake_case (`user_id`, `provider_account_id`, `session_token`) — la convention du
 // projet est tenue là où elle se voit.
 //
-// ⚠️ TROIS TABLES, PAS CINQ. `verificationToken` (providers e-mail / magic link) et
-// `authenticator` (WebAuthn / passkeys) sont OPTIONNELLES dans le type
-// `DefaultPostgresSchema` et n'ont AUCUN consommateur ici — règle de tête de fichier.
-// Limite déclarée : ajouter un provider e-mail plus tard exigera `verificationToken`
-// ET sa migration.
+// ✅ QUATRE TABLES DEPUIS LA STORY 8.1 (PR ②). Ce bloc disait « TROIS, PAS CINQ » et posait
+// la limite mot pour mot : *« ajouter un provider e-mail plus tard exigera
+// `verificationToken` ET sa migration »*. C'est ce jour-là — le lien magique arrive, la
+// table est plus bas, sa migration est la 0025. La limite a été payée exactement comme elle
+// avait été écrite, ce qui est le seul intérêt d'écrire une limite.
+// ⚠️ `authenticator` (WebAuthn / passkeys) reste absente, et le reste : aucun consommateur.
 //
 // ⚠️ Aucun `CHECK` de non-blanc ici, contrairement à `partner`/`photo`/`solicitation`.
 // Ce n'est pas un oubli : ces tables ne sont JAMAIS écrites par une saisie humaine ni
-// rendues au public — elles sont écrites par l'adaptateur à partir de la réponse de
-// Discord. Le garde-fou de cette surface est l'ALLOWLIST (`server/auth/config.ts`), qui
-// refuse AVANT toute écriture.
+// rendues au public — elles sont écrites par l'adaptateur à partir de la réponse du
+// fournisseur. Le garde-fou de cette surface n'est plus l'allowlist (la 8.1 l'a réduite à un
+// noyau de secours) mais `user_role` : entrer ne donne rien, seul un rôle ouvre une porte.
 
 /**
  * Compte administrateur. Une seule ligne en pratique (rôle admin unique, FR27), mais la
@@ -2285,6 +2288,72 @@ export const session = pgTable("session", {
     .references(() => user.id, { onDelete: "cascade" }),
   expires: timestamp({ withTimezone: true }).notNull(),
 });
+
+/**
+ * Jetons à usage unique du LIEN MAGIQUE (Story 8.1, PR ②).
+ *
+ * 🔴 CETTE TABLE N'EST JAMAIS LUE NI ÉCRITE PAR NOTRE CODE — c'est l'adaptateur Auth.js qui
+ * s'en sert seul (`createVerificationToken` / `useVerificationToken`). Elle existe ici pour
+ * UNE raison : les tables sont passées EXPLICITEMENT à `DrizzleAdapter` (voir
+ * `auth/adapter.ts`), et une table manquante ferait que l'adaptateur en bâtirait une à lui,
+ * absente de nos migrations. L'échec n'apparaîtrait qu'au premier envoi de lien magique.
+ *
+ * ⚠️ `token` EST DÉJÀ HACHÉ par Auth.js quand il arrive ici (HMAC de `AUTH_SECRET`) : la
+ * valeur en base ne permet pas de fabriquer un lien. Ne pas « sécuriser » davantage cette
+ * colonne, et surtout ne jamais la journaliser.
+ *
+ * ⚠️ Clé primaire COMPOSITE `(identifier, token)` : c'est le contrat de l'adaptateur, pas un
+ * choix. Une même adresse peut donc avoir plusieurs demandes en cours — trois clics sur
+ * « m'envoyer un lien » ne doivent pas s'invalider mutuellement.
+ */
+export const verificationToken = pgTable(
+  "verification_token",
+  {
+    /** L'adresse e-mail à qui le lien a été envoyé. */
+    identifier: text().notNull(),
+    token: text().notNull(),
+    expires: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.identifier, table.token] })],
+);
+
+// ════════════════════════════════════════════════════════════════════════════════
+// RÔLES — la table qui ouvre les portes (Story 8.1, arbitrage A2)
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 LE RÔLE NE VIENT JAMAIS DU FOURNISSEUR. Jusqu'à la 8.1, entrer dans le back-office et
+// être administrateur étaient le MÊME fait : `AUTH_ADMIN_DISCORD_IDS` décidait des deux, et
+// `signIn` refusait tout le reste avant la moindre écriture. La story ouvre la connexion à
+// d'autres comptes (Google, lien magique) ; à partir de là une ligne `user` ne prouve plus
+// rien. C'est CETTE table, et elle seule, qui ouvre une porte.
+//
+// ⚠️ Une ligne par (compte, rôle) plutôt qu'une colonne `role` sur `user` : les deux rôles se
+// CUMULENT (le compte de Brice porte les deux), et une colonne unique obligerait à inventer
+// une valeur « les deux » — donc trois valeurs pour deux faits, qui divergeraient au
+// troisième rôle.
+
+/** Les valeurs vivent dans `lib/roles.ts` : elles sont lues aussi par le proxy et par un formulaire client. */
+export const userRoleName = pgEnum("user_role_name", ROLES_ADMIN);
+
+export const userRole = pgTable(
+  "user_role",
+  {
+    userId: uuid()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: userRoleName().notNull(),
+    /** Qui a donné ce rôle, et quand — A16 : un geste qui change des droits se trace. */
+    grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    grantedBy: uuid().references(() => user.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    // 🔴 PK composite : un même compte ne peut pas porter deux fois le même rôle. Sans elle,
+    // révoquer supprimerait UNE ligne et laisserait le droit ouvert par la seconde.
+    primaryKey({ columns: [table.userId, table.role] }),
+    // Sert la lecture faite À CHAQUE REQUÊTE d'administration (`server/auth/guard.ts`).
+    index("user_role_user_id_idx").on(table.userId),
+  ],
+);
 
 // Relations déclarées ici pour que les stories de lecture puissent écrire
 // `db.query.event.findMany({ with: { bar: true } })` sans retoucher ce fichier.
@@ -2368,3 +2437,8 @@ export type User = typeof user.$inferSelect;
 export type NewUser = typeof user.$inferInsert;
 export type Account = typeof account.$inferSelect;
 export type Session = typeof session.$inferSelect;
+export type VerificationToken = typeof verificationToken.$inferSelect;
+export type UserRole = typeof userRole.$inferSelect;
+export type NewUserRole = typeof userRole.$inferInsert;
+/** Ré-export : le type naît là où naissent les valeurs (`lib/roles.ts`), jamais deux fois. */
+export type { RoleAdmin } from "../../lib/roles";

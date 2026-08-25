@@ -15,34 +15,52 @@
 //
 // ⚠️ CETTE COUCHE NE PROTÈGE QUE L'ACCÈS AUX ROUTES. Elle est AVEUGLE aux Server Actions
 // déplacées ou réutilisées ailleurs (doc Next, § Execution order). La garde des mutations est
-// `requireAdmin()` (`server/auth/guard.ts`), et celle du rendu est `app/admin/layout.tsx`.
-// Les trois couches ne se remplacent pas.
+// `exigerRoleAction()` (`server/auth/guard.ts`), et celle du rendu est `exigerRolePage()`,
+// appelée par chaque page. Les trois couches ne se remplacent pas.
+//
+// 🔴 DEPUIS LA STORY 8.1, ELLE NE DEMANDE PLUS « ES-TU CONNECTÉ ? » MAIS « AS-TU LE RÔLE DE
+// CE CHEMIN ? ». L'exigence est DÉRIVÉE du registre des sections (`server/auth/sections.ts`),
+// jamais recopiée ici : une seconde liste de chemins divergerait au premier renommage, en
+// restant verte (`00 référence/pieges/garde-sur-une-copie.md`).
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { auth } from "./server/auth/config";
-
-/** Page de connexion — seule route sous `/admin` qui doit rester ouverte. */
-const CHEMIN_LOGIN = "/admin/login";
+import { detientRole } from "./lib/roles";
+import { lireCompte } from "./server/auth/guard";
+import { CHEMIN_LOGIN, exigencePour } from "./server/auth/sections";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const exigence = exigencePour(pathname);
 
   // 🔴 SANS CETTE SORTIE, LA REDIRECTION BOUCLE SUR ELLE-MÊME. Le matcher couvre
   // `/admin/:path*`, donc `/admin/login` en fait partie : un visiteur non connecté serait
-  // renvoyé vers une page qui le renvoie vers elle-même. Le symptôme
-  // (`ERR_TOO_MANY_REDIRECTS`) est franc, mais il n'apparaît qu'à l'exécution.
-  if (pathname === CHEMIN_LOGIN) return NextResponse.next();
+  // renvoyé vers une page qui le renvoie vers elle-même (`ERR_TOO_MANY_REDIRECTS`).
+  if (exigence.type === "ouvert") return NextResponse.next();
 
-  const session = await auth();
-  if (session) return NextResponse.next();
+  const compte = await lireCompte();
 
   // `next` porte la destination initiale pour que la page de login puisse y ramener après
-  // connexion — sinon un lien profond vers `/admin/agenda` (Story 6.3) retomberait toujours
-  // sur le tableau de bord.
-  const destination = new URL(CHEMIN_LOGIN, request.url);
-  destination.searchParams.set("next", pathname);
-  return NextResponse.redirect(destination);
+  // connexion — sinon un lien profond vers `/admin/agenda` retomberait sur le tableau de bord.
+  if (compte === null) {
+    const destination = new URL(CHEMIN_LOGIN, request.url);
+    destination.searchParams.set("next", pathname);
+    return NextResponse.redirect(destination);
+  }
+
+  // 🔴 UN CHEMIN SOUS `/admin` QUE LE REGISTRE NE COUVRE PAS EST REFUSÉ, PAS TOLÉRÉ.
+  // C'est la garde de la story suivante, pas de celle-ci : une page ajoutée sous
+  // `/admin/…` sans entrée dans `SECTIONS_ADMIN` serait autrement ouverte à tout compte
+  // connecté, par simple omission — et rien ne le dirait. Fermée, ça se voit tout de suite.
+  if (exigence.type === "inconnu") {
+    return NextResponse.redirect(new URL("/admin/refus?role=inconnu", request.url));
+  }
+
+  if (exigence.type === "role" && !detientRole(compte.roles, exigence.role)) {
+    return NextResponse.redirect(new URL(`/admin/refus?role=${exigence.role}`, request.url));
+  }
+
+  return NextResponse.next();
 }
 
 // 🔴 MATCHER POSITIF ET ÉTROIT, JAMAIS UN MATCHER NÉGATIF LARGE. Un `/((?!api|_next).*)`

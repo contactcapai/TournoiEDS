@@ -2,7 +2,7 @@
 
 import { eq } from "drizzle-orm";
 
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { solicitation } from "../db/schema";
 import { identifiant, messageErreurBase, type ResultatAction } from "./_commun";
@@ -17,12 +17,12 @@ import { identifiant, messageErreurBase, type ResultatAction } from "./_commun";
  *   · `actions/solicitation.ts`  → **PUBLIQUE, NON AUTHENTIFIÉE** (Story 5.1). Un seul export,
  *     `submitSolicitation`, appelé par le formulaire de `/partenaires`. Sa garde n'est PAS une
  *     session : c'est un rate-limit, un honeypot et Zod.
- *   · `actions/sollicitations.ts` → **CE FICHIER. ADMIN.** `await requireAdmin()` est la
+ *   · `actions/sollicitations.ts` → **CE FICHIER. ADMIN.** `await exigerRoleAction("admin_site")` est la
  *     PREMIÈRE LIGNE DE CHAQUE EXPORT, sans exception.
  *
  * Un import qui se trompe de module **compile**, passe le lint et passe le typecheck. D'où ce
  * bandeau dans les deux fichiers, et d'où la garde ⑧ de `gate:sollicitations`, qui vérifie
- * mécaniquement que tout export d'ici commence par `requireAdmin()`. **Ne jamais fusionner les
+ * mécaniquement que tout export d'ici commence par `exigerRoleAction("admin_site")`. **Ne jamais fusionner les
  * deux fichiers** : un module mixte rendrait cette garde impossible à écrire.
  *
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -67,7 +67,7 @@ export async function definirTraitementSollicitation(
   id: string,
   traitee: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -107,7 +107,7 @@ export async function definirTraitementSollicitation(
  * ⚠️ Aucune clé étrangère ne référence `solicitation` : rien ne s'oppose à ce `DELETE`.
  */
 export async function supprimerSollicitation(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

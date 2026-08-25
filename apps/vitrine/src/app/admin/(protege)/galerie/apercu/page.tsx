@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { Gallery } from "@/components/gallery/Gallery/Gallery";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPhotosForAdmin } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-page.module.css";
 import propre from "../galerie.module.css";
@@ -55,8 +54,7 @@ export const dynamic = "force-dynamic";
 const PHOTOS_MAX = 200;
 
 export default async function ApercuGaleriePage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   // 🔴 BROUILLONS INCLUS, ET C'EST LA RAISON D'ÊTRE DE CET ÉCRAN. `getPublishedPhotos` (que
   // lit la home) filtrerait sur `is_published` : l'aperçu ne montrerait alors rien de ce

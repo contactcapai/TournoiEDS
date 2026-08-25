@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { avertissementHeuresMurales, parisWallClockFromInput } from "../../lib/date-paris";
 import { tournamentInputSchema } from "../../lib/schemas/tournament";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { slugDejaPris, tournoiADesEngages } from "../db/queries/tournaments";
 import { tournament, tournamentPhase } from "../db/schema";
@@ -20,13 +20,13 @@ import {
  * Server Actions des tournois du back-office (Story 9.1, A21/A22/A23, AR-API1).
  *
  * Le patron de saisie est celui d'`actions/agenda.ts` (6.3), `actions/ateliers.ts` (6.9) puis
- * `actions/reglages.ts` (6.13), repris **littéralement** : `await requireAdmin()` en PREMIÈRE
+ * `actions/reglages.ts` (6.13), repris **littéralement** : `await exigerRoleAction("admin_tournoi")` en PREMIÈRE
  * LIGNE de chaque action, retour discriminé, `identifiant` sur tout `id` reçu, aucun
  * `revalidateTag` (les pages publiques sont `force-dynamic`, il n'y a rien à invalider —
  * `check:docs` a une règle qui le tient).
  *
  * ══════════════════════════════════════════════════════════════════════════════════════
- * 🔴 `requireAdmin()` EST PAYÉ **ICI**, PAS SEULEMENT DANS LE PROXY — FAIT MESURÉ EN 6.1
+ * 🔴 `exigerRoleAction("admin_tournoi")` EST PAYÉ **ICI**, PAS SEULEMENT DANS LE PROXY — FAIT MESURÉ EN 6.1
  * ══════════════════════════════════════════════════════════════════════════════════════
  *
  * Documentation Next 16 (`proxy.js`, § Execution order), citée dans `server/auth/guard.ts` :
@@ -36,7 +36,7 @@ import {
  * ⇒ Une garde oubliée ici serait **silencieuse** : elle ne casse rien, elle laisse passer.
  *
  * ⚠️ **CETTE SECTION EST OUVERTE AUX ADMINISTRATEURS ACTUELS**, et l'écart est écrit plutôt que
- * subi (A22) : `requireAdmin()` ne connaît **qu'un seul rôle**. La restriction au rôle **admin
+ * subi (A22) : `exigerRoleAction("admin_tournoi")` ne connaît **qu'un seul rôle**. La restriction au rôle **admin
  * tournoi** arrive avec la **Story 8.1** (A2, dette **R39** rouverte le 2026-08-13 : trois
  * comptes existent sur staging). Jusque-là, quiconque peut modifier le site peut modifier les
  * tournois — c'est un fait connu, pas une découverte à faire plus tard.
@@ -229,7 +229,7 @@ export async function enregistrerTournoi(
   idExistant: string | null,
   formData: FormData,
 ): Promise<ResultatAction<TournoiEnregistre>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (idExistant !== null && !identifiant.safeParse(idExistant).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -475,7 +475,7 @@ export async function definirPublicationTournoi(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -513,7 +513,7 @@ export async function definirPublicationTournoi(
  *
  * La confirmation en DEUX TEMPS vit côté écran (`BoutonConfirmation`) : c'est là qu'elle
  * protège quelqu'un. Une seconde garde côté serveur n'empêcherait rien qu'un POST direct ne
- * contourne de toute façon — et `requireAdmin()` est la garde qui, elle, compte.
+ * contourne de toute façon — et `exigerRoleAction("admin_tournoi")` est la garde qui, elle, compte.
  *
  * ══════════════════════════════════════════════════════════════════════════════════════
  * 🔴 LES PHASES PARTENT **AVANT** LE TOURNOI, ET CE N'EST PAS UNE PRÉCAUTION : SANS ÇA, LA
@@ -537,7 +537,7 @@ export async function definirPublicationTournoi(
  * `RESTRICT` garde tout son sens là où il compte — supprimer **un** engagé qui a joué.
  */
 export async function supprimerTournoi(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

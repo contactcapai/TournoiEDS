@@ -32,7 +32,19 @@ const AUTOTEST = process.env.ADMIN_AUTOTEST === "1";
 // 🔴 ROUTES PROTÉGÉES ÉPROUVÉES. La seconde n'existe pas, et c'est le sujet : la garde doit
 // couvrir le SOUS-ARBRE `/admin/*`, pas une liste de routes connues. Une garde écrite route
 // par route laisserait passer chaque écran ajouté par les Stories 6.3 → 6.13.
-const ROUTES_PROTEGEES = ["/admin", "/admin/segment-qui-nexiste-pas", "/admin/agenda"];
+// ⚠️ `/admin/acces` ajoutée par la Story 8.1 : c'est la section qui DONNE les rôles, donc
+// celle dont une ouverture accidentelle coûterait le plus cher.
+// ⚠️ CE QUE CETTE PORTE NE VOIT PAS, et il faut le lire ici : elle éprouve l'ABSENCE de
+// session, jamais la séparation des rôles. Qu'un « admin tournoi » soit refusé sur
+// `/admin/agenda` demanderait de forger deux sessions à rôles distincts — un instrument neuf,
+// que ce projet s'interdit. Cette moitié-là est tenue par `src/lib/auth/acces.test.ts` pour
+// la résolution, et par un contrôle à la main sur staging pour l'exécution.
+const ROUTES_PROTEGEES = [
+  "/admin",
+  "/admin/segment-qui-nexiste-pas",
+  "/admin/agenda",
+  "/admin/acces",
+];
 
 // En autotest, on présente à la porte une route qu'on SAIT ouverte (`/admin/login`) comme si
 // elle devait être protégée. Si les gardes sont réelles, elles échouent. Si elles restent

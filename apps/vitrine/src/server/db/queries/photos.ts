@@ -99,8 +99,8 @@ export async function getPhotosForEvents(eventIds: string[]) {
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 CES TROIS LECTURES REMONTENT DES LIGNES NON PUBLIÉES. Elles ne doivent être appelées
-// que depuis une surface gardée (`lireAdmin()` en première instruction de la page,
-// `requireAdmin()` en première ligne de l'action). Le nommage `...ForAdmin` reprend celui
+// que depuis une surface gardée (`lireCompte()` en première instruction de la page,
+// `exigerRoleAction("admin_site")` en première ligne de l'action). Le nommage `...ForAdmin` reprend celui
 // de `queries/events.ts`, posé par la 6.3, pour que la relecture d'un appel le rappelle.
 
 /**

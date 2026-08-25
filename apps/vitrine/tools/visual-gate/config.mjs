@@ -31,8 +31,18 @@
 // lit `workshop` depuis la 6.9 et `/l-asso` lit `member` depuis la 6.10. Et depuis
 // la 6.13, le layout `(public)` lui-même lit `site_setting`, donc les pages dépendent
 // de la base **par leur chrome** en plus de leur contenu.
+// 🔴 `/admin/login` ET `/admin/login/verifier` AJOUTÉES PAR LA STORY 8.1, ET ELLES SONT LES
+// SEULES ROUTES D'`/admin` QUE CETTE PORTE PEUT VOIR : toutes les autres exigent une session,
+// donc elles répondraient par une redirection vers le login — on mesurerait la page de
+// connexion en croyant mesurer l'agenda (faux vert). Les couvrir toutes reste le sujet de la
+// Story 13.2, et ça suppose une session, pas une entrée de liste.
+// ⚠️ Pourquoi celles-ci méritent d'y être : la 8.1 a mis un FORMULAIRE sur la page de
+// connexion (champ e-mail + trois boutons). `globals.css` pose `overflow-x: clip`, donc un
+// débordement y serait rogné SANS scrollbar ni erreur — invisible à l'œil par construction,
+// et sur le seul point d'entrée du back-office.
 export const PAGES = (
-  process.env.GATE_PAGES ?? "/,/agenda,/partenaires,/l-asso,/animations,/tournois"
+  process.env.GATE_PAGES ??
+  "/,/agenda,/partenaires,/l-asso,/animations,/tournois,/admin/login,/admin/login/verifier"
 ).split(",");
 
 // 7 largeurs de référence du projet : 320 (le plus tendu), 412, 768, 880 (le

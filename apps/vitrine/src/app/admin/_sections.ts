@@ -23,6 +23,8 @@
 //
 // Pour ajouter une section, depuis SA story : ajouter un objet ci-dessous. Rien d'autre.
 
+import { type RoleAdmin, detientRole } from "@/lib/roles";
+
 /** Une entrée de la navigation du back-office. */
 export type SectionAdmin = {
   /** Chemin absolu sous `/admin` (ex. `/admin/agenda`). */
@@ -31,6 +33,15 @@ export type SectionAdmin = {
   libelle: string;
   /** Une phrase : ce que le bénévole vient y faire. */
   description: string;
+  /**
+   * 🔴 LE RÔLE QUI OUVRE CETTE SECTION (Story 8.1). Ce champ n'est pas décoratif : c'est
+   * LA source dont `server/auth/sections.ts` dérive la table chemin → rôle du proxy. Une
+   * section déclarée ici sans rôle ne compile pas ; une section ajoutée sous `/admin` sans
+   * entrée ici est refusée par le proxy (fail-closed). Il n'y a donc pas de seconde liste
+   * à tenir d'accord avec celle-ci — le piège `garde-sur-une-copie` (forme n°3) est
+   * exactement celui-là.
+   */
+  role: RoleAdmin;
 };
 
 export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
@@ -39,30 +50,35 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     libelle: "Agenda",
     description:
       "Les jeudis, les temps forts et les bars du roulement. Voir le rendu avant de publier.",
+    role: "admin_site",
   },
   {
     href: "/admin/galerie",
     libelle: "Galerie",
     description:
       "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
+    role: "admin_site",
   },
   {
     href: "/admin/partenaires",
     libelle: "Partenaires",
     description:
       "Sponsors, partenaires, soutiens et participations : logos, ordre, publication. Voir le rendu avant de publier.",
+    role: "admin_site",
   },
   {
     href: "/admin/ateliers",
     libelle: "Ateliers",
     description:
       "L'offre d'animations : intitulés, familles, ordre, publication. Voir le rendu avant de publier.",
+    role: "admin_site",
   },
   {
     href: "/admin/membres",
     libelle: "Membres",
     description:
       "L'équipe présentée sur la page « L'asso » : prénom, rôle, portrait, ordre, publication. Voir le rendu avant de publier.",
+    role: "admin_site",
   },
   {
     href: "/admin/sollicitations",
@@ -74,6 +90,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     // défaut exact que ce fichier existe pour empêcher, et qui s'est produit DEUX fois.
     description:
       "Les demandes reçues par le formulaire : les lire, les marquer traitées, les supprimer quand elles n'ont plus lieu d'être.",
+    role: "admin_site",
   },
   {
     href: "/admin/reglages",
@@ -86,6 +103,7 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les adresses de vos comptes (Discord, réseaux, HelloAsso) et l'e-mail de contact. " +
       "Elles s'appliquent à tout le site dès l'enregistrement, sans brouillon.",
+    role: "admin_site",
   },
   {
     href: "/admin/tournois",
@@ -119,5 +137,31 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     description:
       "Les tournois de l'association : jeu, date, inscriptions, lots et podium. " +
       "Voir le rendu avant de publier.",
+    role: "admin_tournoi",
+  },
+  {
+    href: "/admin/acces",
+    libelle: "Accès",
+    // Ni « Voir le rendu avant de publier », ni aperçu : cette section ne publie rien sur le
+    // site. Ce qu'on y change prend effet à la requête suivante, pour la personne concernée.
+    description:
+      "Qui peut entrer dans le back-office, et pour quoi faire. " +
+      "Un rôle retiré prend effet immédiatement, sans attendre la fin de session.",
+    role: "admin_site",
   },
 ] as const;
+
+/**
+ * Les sections qu'un compte peut réellement atteindre (Story 8.1).
+ *
+ * 🔴 LE MENU NE MONTRE QUE CE QUI S'OUVRE. Afficher une entrée qui mène à `/admin/refus`
+ * serait une porte sans pièce — le défaut précis que ce fichier existe pour empêcher, déjà
+ * payé deux fois ici. Le filtre et la garde du proxy lisent le MÊME champ `role` : ils ne
+ * peuvent pas diverger.
+ *
+ * ⚠️ Ce filtre est un CONFORT D'AFFICHAGE, jamais une protection : masquer un lien
+ * n'interdit pas d'en taper l'URL. Ce qui protège, c'est le proxy et la garde de chaque page.
+ */
+export function sectionsPour(roles: readonly RoleAdmin[]): readonly SectionAdmin[] {
+  return SECTIONS_ADMIN.filter((section) => detientRole(roles, section.role));
+}

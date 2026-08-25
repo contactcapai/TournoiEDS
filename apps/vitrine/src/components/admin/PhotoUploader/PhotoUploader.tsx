@@ -22,7 +22,7 @@ import propre from "./PhotoUploader.module.css";
  * Une Server Action refuse **1 Mo par défaut** (`next.config.ts` remonte la borne à 12 Mo,
  * mais elle reste par REQUÊTE). Le refus est un `ApiError(413)` levé par un `Transform` posé
  * sur le FLUX de requête, donc **avant que le corps de l'action ne s'exécute** : avant
- * `requireAdmin()`, avant Zod, avant tout message écrit par nous. Envoyer huit photos d'un
+ * `exigerRoleAction()`, avant Zod, avant tout message écrit par nous. Envoyer huit photos d'un
  * coup ferait donc tomber le lot entier sur un 413 muet.
  *
  * Trois conséquences, dans l'ordre d'importance :
@@ -204,7 +204,7 @@ export function PhotoUploader({ evenements }: PhotoUploaderProps) {
         resultat = await televerserPhoto(donnees);
       } catch {
         // 🔴 CE `catch` ATTRAPE TROIS CHOSES DISTINCTES, ET AUCUNE N'EST « UNE ERREUR RÉSEAU ».
-        // ① `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **lève** : une
+        // ① `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **lève** : une
         //    session expirée ou un compte retiré de l'allowlist arrive ici (leçon 6.3) ;
         // ② un `413` du serveur, si un fichier franchissait la borne client — il ne
         //    emprunte PAS le retour discriminé (fait ① du cadrage) ;

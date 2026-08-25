@@ -4,8 +4,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/server/auth/config";
-import { lireAdmin } from "@/server/auth/guard";
-import { SECTIONS_ADMIN } from "../_sections";
+import { lireCompte } from "@/server/auth/guard";
+import { sectionsPour } from "../_sections";
 import styles from "./layout.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -52,8 +52,15 @@ export default async function AdminLayout({
   // composerait l'écran puis redirigerait aurait déjà exécuté ses requêtes et, selon le
   // streaming, pu émettre du HTML : une redirection qui rend d'abord la page est une fuite.
   // `gate:admin` mesure le HTML SERVI, pas le code de statut, précisément pour ça.
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  // ⚠️ AUCUN RÔLE EXIGÉ ICI, ET C'EST VOULU : ce layout habille AUSSI `/admin/refus`, la
+  // page où atterrit justement un compte sans le bon rôle. Lui exiger un rôle l'y renverrait
+  // en boucle. Ce qui protège chaque section, c'est le proxy et la garde de chaque page.
+  const compte = await lireCompte();
+  if (compte === null) redirect("/admin/login");
+
+  // Le menu ne montre que ce qui s'ouvre — un lien vers une porte fermée est une porte sans
+  // pièce. Ce filtre lit le MÊME champ `role` que la garde du proxy.
+  const sections = sectionsPour(compte.roles);
 
   return (
     <div className={styles.shell}>
@@ -78,13 +85,13 @@ export default async function AdminLayout({
           <span className={styles.marque}>Back-office</span>
         </div>
 
-        {/* Navigation LUE DEPUIS LE REGISTRE, jamais écrite en dur. Vide au merge de la
-            6.1 : `SECTIONS_ADMIN` ne porte encore aucune entrée, et le <nav> disparaît
-            plutôt que de rendre une liste vide — un menu vide ressemble à une panne. */}
-        {SECTIONS_ADMIN.length > 0 && (
+        {/* Navigation LUE DEPUIS LE REGISTRE, jamais écrite en dur, et FILTRÉE PAR RÔLE
+            depuis la 8.1. Le <nav> disparaît plutôt que de rendre une liste vide : c'est le
+            cas d'un compte sans rôle, à qui le tableau de bord explique pourquoi. */}
+        {sections.length > 0 && (
           <nav className={styles.nav} aria-label="Sections du back-office">
             <ul className={styles.navListe}>
-              {SECTIONS_ADMIN.map((section) => (
+              {sections.map((section) => (
                 <li key={section.href}>
                   <Link className={styles.navLien} href={section.href}>
                     {section.libelle}
@@ -96,10 +103,10 @@ export default async function AdminLayout({
         )}
 
         <div className={styles.compte}>
-          <span className={styles.nom}>{admin.nom ?? "Administrateur"}</span>
+          <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>
           {/* Server Action en ligne : aucun composant client n'est nécessaire pour un
               bouton qui poste un formulaire. RSC par défaut (project-context.md §5).
-              ⚠️ PAS de `requireAdmin()` ici, et c'est délibéré : se déconnecter ne doit
+              ⚠️ PAS de `exigerRoleAction()` ici, et c'est délibéré : se déconnecter ne doit
               jamais dépendre du droit d'entrer. Un compte retiré de l'allowlist doit
               pouvoir fermer sa session, pas s'y retrouver coincé. */}
           <form

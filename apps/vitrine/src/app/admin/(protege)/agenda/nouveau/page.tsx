@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { EventForm } from "@/components/admin/EventForm/EventForm";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getBars } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -19,8 +18,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NouvelEvenementPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const bars = await getBars();
 

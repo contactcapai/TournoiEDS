@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { toParisIso } from "../../lib/date-paris";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION } from "../../lib/schemas/publication";
 import { cleanText } from "../../lib/text";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getEventById } from "../db/queries/events";
 import { event } from "../db/schema";
@@ -29,7 +29,7 @@ import { identifiant, type ResultatAction } from "./_commun";
  *
  * ⚠️ **CE QUI SE RECOPIE QUAND MÊME**, et sans lequel ce fichier serait une régression :
  *
- * ① `await requireAdmin()` EN PREMIÈRE LIGNE. Ce n'est pas une ceinture en plus du proxy :
+ * ① `await exigerRoleAction("admin_site")` EN PREMIÈRE LIGNE. Ce n'est pas une ceinture en plus du proxy :
  *    c'est la SEULE couche qui protège les mutations. La doc Next (`proxy.js`, § Execution
  *    order) est littérale — *« Server Functions are not separate routes in this chain … Always
  *    verify authentication and authorization inside each Server Function rather than relying on
@@ -123,7 +123,7 @@ function baseDuSite(): string {
 export async function annoncerSurLesReseaux(
   id: string,
 ): Promise<ResultatAction<EvenementAnnonce>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };

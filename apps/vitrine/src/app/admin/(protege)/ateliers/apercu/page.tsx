@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { WorkshopCatalog } from "@/components/animations/WorkshopCatalog/WorkshopCatalog";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
 import { WORKSHOP_FAMILIES } from "@/lib/schemas/workshop";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getWorkshopsForAdmin, type AdminWorkshop } from "@/server/db/queries/workshops";
 import editorial from "@/styles/editorial.module.css";
 import styles from "@/styles/admin-page.module.css";
@@ -51,8 +50,7 @@ export const dynamic = "force-dynamic";
 const ATELIERS_MAX = 200;
 
 export default async function ApercuAteliersPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const ateliers = await getWorkshopsForAdmin(ATELIERS_MAX);
 

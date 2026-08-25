@@ -78,6 +78,94 @@
   background: var(--gold-soft);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   TROIS MOYENS DE CONNEXION, UN SEUL ACCENT (Story 8.1)
+   ══════════════════════════════════════════════════════════════════════════════════════
+   `.bouton` (or plein) reste l'entrée PRINCIPALE et n'existe qu'une fois. Les portes
+   secondaires reprennent sa forme et sa cible tactile, mais en contour : trois aplats dorés
+   empilés ne hiérarchiseraient plus rien — l'accent ne veut dire quelque chose que s'il est
+   rare (leçon des 4 boutons or × 64 lignes, Story 13.1). */
+.boutonSecondaire {
+  width: 100%;
+  min-height: 48px; /* ≥ 44×44 (project-context.md §5) */
+  margin-top: 12px;
+  padding: 0 22px;
+  border: 1px solid rgba(218, 178, 101, 0.5); /* --gold à 50 %, même filet que `.erreur` */
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.boutonSecondaire:hover {
+  border-color: var(--gold);
+  background: var(--surface);
+}
+
+/* Filet horizontal traversé par un mot. `::before`/`::after` sont DÉCORATIFS : ils ne
+   portent aucun texte, donc rien à masquer aux lecteurs d'écran — c'est le <span> qui est lu. */
+.separateur {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+  color: var(--grey);
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.separateur::before,
+.separateur::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(218, 178, 101, 0.3);
+}
+
+.formEmail {
+  margin-top: 18px;
+  text-align: left;
+}
+
+.etiquette {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--light);
+}
+
+.champ {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(218, 178, 101, 0.3);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+/* 🔴 Le focus se VOIT. Sans cette règle, le contour natif disparaît sur fond sombre pour
+   qui navigue au clavier — et cette page est le seul point d'entrée du back-office. */
+.champ:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.champ::placeholder {
+  color: var(--grey);
+}
+
 .aide {
   margin-top: 22px;
   font-size: 14px;
@@ -86,7 +174,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bouton {
+  .bouton,
+  .boutonSecondaire {
     transition: none;
   }
 }

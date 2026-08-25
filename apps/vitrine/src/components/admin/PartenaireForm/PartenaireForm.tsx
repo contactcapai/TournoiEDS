@@ -151,7 +151,7 @@ export function PartenaireForm({ partenaire }: PartenaireFormProps) {
         if (creation) router.push(`/admin/partenaires/${resultat.data.id}`);
         return { statut: "succes" };
       } catch {
-        // 🔴 `requireAdmin()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
+        // 🔴 `exigerRoleAction()` s'exécute AVANT le `try` de la Server Action et **LÈVE** : une
         // session expirée ou un compte retiré de l'allowlist arrive ici, et nulle part
         // ailleurs. Sans ce `catch`, ce serait le seul rejet non géré de la surface.
         // La saisie reste dans le DOM (champs contrôlés) : jamais perdre ce qui a été tapé.

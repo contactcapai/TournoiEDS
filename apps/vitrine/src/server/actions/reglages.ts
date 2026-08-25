@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 
 import { siteSettingInputSchema } from "../../lib/schemas/site-setting";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { siteSetting } from "../db/schema";
 import {
@@ -16,7 +16,7 @@ import {
  * Server Actions des réglages du site (Story 6.13, FR38, AR-API1, AR-DB4).
  *
  * Le patron de saisie est celui d'`actions/agenda.ts` (6.3), repris **littéralement** par la
- * galerie, les partenaires, les ateliers et les membres : `await requireAdmin()` en PREMIÈRE
+ * galerie, les partenaires, les ateliers et les membres : `await exigerRoleAction("admin_site")` en PREMIÈRE
  * LIGNE de chaque action, retour discriminé, aucun `revalidateTag` (les pages publiques sont
  * `force-dynamic`, il n'y a **rien à invalider** — fait mesuré au cadrage de l'Epic 6, et
  * `check:docs` porte une règle qui le tient).
@@ -94,7 +94,7 @@ export async function enregistrerReglages(
 ): Promise<ResultatAction<{ id: number }>> {
   // 🔴 PREMIÈRE LIGNE, TOUJOURS. Un matcher de proxy NE COUVRE PAS les Server Actions
   // (documentation Next 16, § Execution order, citée dans `server/auth/guard.ts`).
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   const analyse = siteSettingInputSchema.safeParse({
     discordUrl: formData.get("discordUrl"),

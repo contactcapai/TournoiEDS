@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { PhotoActions } from "@/components/admin/PhotoActions/PhotoActions";
 import { formatLongDate } from "@/lib/date-paris";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { cleanText } from "@/lib/text";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPhotosForAdmin, type AdminPhoto } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-page.module.css";
 import propre from "./galerie.module.css";
@@ -123,8 +122,7 @@ function LignePhoto({
 }
 
 export default async function AdminGaleriePage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   const photos = await getPhotosForAdmin(PHOTOS_MAX);
   // L'ordre COMPLET des photos affichées : `PhotoActions` renumérote la galerie entière

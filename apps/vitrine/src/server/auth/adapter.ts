@@ -3,7 +3,7 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import type { Adapter } from "next-auth/adapters";
 
 import { dbReel } from "../db/client";
-import { account, session, user } from "../db/schema";
+import { account, session, user, verificationToken } from "../db/schema";
 
 /**
  * Adaptateur Drizzle d'Auth.js, construit PARESSEUSEMENT (Story 6.1).
@@ -37,6 +37,11 @@ function resoudre(): Adapter {
     usersTable: user,
     accountsTable: account,
     sessionsTable: session,
+    // 🔴 AJOUTÉE PAR LA STORY 8.1 (PR ②) — SANS ELLE, LE LIEN MAGIQUE ÉCRIRAIT AILLEURS.
+    // C'est le cas exact que le commentaire ci-dessus décrit : l'adaptateur ne se plaint pas
+    // d'une table absente, il en bâtit une à lui (`verificationToken`, en camelCase, hors de
+    // nos migrations). Rien ne le dirait avant le premier « envoyez-moi un lien ».
+    verificationTokensTable: verificationToken,
   });
   return adaptateurResolu;
 }

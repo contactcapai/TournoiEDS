@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { PartnerWall } from "@/components/proof/PartnerWall/PartnerWall";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { PARTNER_CATEGORIES, type PartnerCategory } from "@/lib/schemas/partner";
-import { lireAdmin } from "@/server/auth/guard";
+import { exigerRolePage } from "@/server/auth/guard";
 import { getPartnersForAdmin } from "@/server/db/queries/partners";
 import styles from "@/styles/admin-page.module.css";
 import propre from "../partenaires.module.css";
@@ -72,8 +71,7 @@ const LIBELLES: Record<PartnerCategory, string> = {
 const CATEGORIE_INSTITUTIONNELLE: PartnerCategory = "soutien";
 
 export default async function ApercuPartenairesPage() {
-  const admin = await lireAdmin();
-  if (admin === null) redirect("/admin/login");
+  await exigerRolePage("admin_site");
 
   // 🔴 BROUILLONS INCLUS, ET C'EST LA RAISON D'ÊTRE DE CET ÉCRAN. `getPublishedPartners()`
   // filtrerait sur `is_published` : l'aperçu ne montrerait alors rien de ce qu'on vient de

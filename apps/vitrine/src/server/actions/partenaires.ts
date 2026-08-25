@@ -4,7 +4,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { cheminLogo, estLogoDuVolume, LOGO_HAUTEUR } from "../../lib/logos";
 import { partnerInputSchema, type PartnerCategory } from "../../lib/schemas/partner";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { partner } from "../db/schema";
 import { normaliserLogo, supprimerMedia, type EchecMedia } from "../medias";
@@ -19,7 +19,7 @@ import {
  * Server Actions des partenaires du back-office (Story 6.5, FR22, FR33, AR-API1, AR-DB4).
  *
  * Le patron de saisie est celui d'`actions/agenda.ts` (6.3) puis `actions/galerie.ts` (6.4),
- * repris littéralement : `await requireAdmin()` en PREMIÈRE LIGNE de chaque action, retour
+ * repris littéralement : `await exigerRoleAction("admin_site")` en PREMIÈRE LIGNE de chaque action, retour
  * discriminé, aucun `revalidateTag` (les pages publiques sont `force-dynamic`, il n'y a rien
  * à invalider — fait mesuré au cadrage de l'Epic 6, et `check:docs` a une règle qui le tient).
  *
@@ -176,7 +176,7 @@ function analyserChamps(formData: FormData) {
 export async function creerPartenaire(
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   const analyse = analyserChamps(formData);
   if (!analyse.success) {
@@ -228,7 +228,7 @@ export async function enregistrerPartenaire(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -302,7 +302,7 @@ export async function remplacerLogoPartenaire(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<LogoEnregistre>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -416,7 +416,7 @@ export async function remplacerLogoPartenaire(
  * `ProofBand` se rend `null` — la bande de preuve **disparaît entièrement** de la home.
  */
 export async function retirerLogoPartenaire(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -515,7 +515,7 @@ export async function retirerLogoPartenaire(id: string): Promise<ResultatAction<
  * ligne qui n'existe plus.
  */
 export async function supprimerPartenaire(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -562,7 +562,7 @@ export async function definirPublicationPartenaire(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -611,7 +611,7 @@ export async function reordonnerPartenaires(
   ordreAttendu: string[],
   nouvelOrdre: string[],
 ): Promise<ResultatAction<{ nombre: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (nouvelOrdre.length === 0) return { ok: true, data: { nombre: 0 } };
 

@@ -4,7 +4,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import { cheminPortrait, nomFichierPortrait } from "../../lib/portraits";
 import { memberInputSchema } from "../../lib/schemas/member";
-import { requireAdmin } from "../auth/guard";
+import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { MEMBRES_MAX } from "../db/queries/members";
 import { member } from "../db/schema";
@@ -21,7 +21,7 @@ import {
  *
  * Le patron de saisie est celui d'`actions/agenda.ts` (6.3), `actions/galerie.ts` (6.4),
  * `actions/partenaires.ts` (6.5) puis `actions/ateliers.ts` (6.9), repris **littéralement** :
- * `await requireAdmin()` en PREMIÈRE LIGNE de chaque action, retour discriminé, `identifiant`
+ * `await exigerRoleAction("admin_site")` en PREMIÈRE LIGNE de chaque action, retour discriminé, `identifiant`
  * sur tout `id` reçu, aucun `revalidateTag` (les pages publiques sont `force-dynamic`, il n'y a
  * rien à invalider — fait mesuré au cadrage de l'Epic 6, et `check:docs` a une règle qui le
  * tient).
@@ -183,7 +183,7 @@ function analyserChamps(formData: FormData) {
  * galerie, puis chez les partenaires, puis dans les ateliers.
  */
 export async function creerMembre(formData: FormData): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   const analyse = analyserChamps(formData);
   if (!analyse.success) {
@@ -233,7 +233,7 @@ export async function enregistrerMembre(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -291,7 +291,7 @@ export async function remplacerPortraitMembre(
   id: string,
   formData: FormData,
 ): Promise<ResultatAction<PortraitEnregistre>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -391,7 +391,7 @@ export async function remplacerPortraitMembre(
  * la grille. C'est précisément ce que le placeholder existe pour garantir.
  */
 export async function retirerPortraitMembre(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -461,7 +461,7 @@ export async function definirPublicationMembre(
   id: string,
   publier: boolean,
 ): Promise<ResultatAction<{ id: string }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -499,7 +499,7 @@ export async function definirPublicationMembre(
  * ⚠️ Aucune clé étrangère ne référence `member` : rien d'autre ne s'oppose à ce `DELETE`.
  */
 export async function supprimerMembre(id: string): Promise<ResultatAction<undefined>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (!identifiant.safeParse(id).success) {
     return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
@@ -567,7 +567,7 @@ export async function reordonnerMembres(
   ordreAttendu: string[],
   nouvelOrdre: string[],
 ): Promise<ResultatAction<{ nombre: number }>> {
-  await requireAdmin();
+  await exigerRoleAction("admin_site");
 
   if (nouvelOrdre.length === 0) return { ok: true, data: { nombre: 0 } };
 
