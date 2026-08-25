@@ -478,3 +478,143 @@
   font-size: 18px;
   color: var(--gold);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LES RENCONTRES (Story 14.3)
+   ══════════════════════════════════════════════════════════════════════════════════════ */
+
+/* Le repli est un `<details>` NATIF : zéro JavaScript, et le pliage marche au clavier. */
+.journeeRepli {
+  border-top: 1px solid rgba(146, 147, 173, 0.25); /* --grey à 25 % */
+  padding: 16px 0;
+}
+
+/* ⚠️ CIBLE ≥ 44px (AA) : un `<summary>` est cliquable sur toute sa boîte, encore faut-il
+   qu'elle soit assez haute. Le `list-style` par défaut varie d'un navigateur à l'autre — on
+   le retire et on pose notre propre marque, qui pivote à l'ouverture. */
+.journeeResume {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.journeeResume::-webkit-details-marker {
+  display: none;
+}
+
+/* La marque est DÉCORATIVE : `<details>` porte déjà son état ouvert/fermé pour l'assistance. */
+.journeeResume::before {
+  content: "▸";
+  display: inline-block;
+  font-size: 16px;
+  transition: transform 160ms ease;
+}
+
+.journeeRepli[open] > .journeeResume::before {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journeeResume::before {
+    transition: none;
+  }
+}
+
+.phaseBloc {
+  margin-top: 18px;
+}
+
+.phaseBlocTitre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 17px;
+  color: var(--light);
+}
+
+.phaseBlocNature {
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.groupe + .groupe {
+  margin-top: 14px;
+}
+
+.groupeTitre {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+/* `auto-fill` et non `auto-fit` : à une seule table, `auto-fit` l'étirerait sur toute la
+   largeur — un bloc ne s'étire pas sous prétexte que son conteneur le peut (leçon PR #77). */
+.rencontres {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  list-style: none;
+}
+
+.rencontre {
+  padding: 12px 14px;
+  border: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 % */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.rencontreTitre {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+/* L'attente s'ÉCRIT ; `margin-left: auto` la pousse en fin de ligne sans la détacher. */
+.rencontreAttente {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--gold);
+}
+
+.places {
+  display: grid;
+  gap: 4px;
+  list-style: none;
+}
+
+/* ⚠️ `nowrap` est une GARDE (leçon PR #77) : avec `wrap`, le min-content d'une ligne vaut UN
+   élément, et un pseudo long empilerait le résultat en dessous, en silence. */
+.place {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--light);
+}
+
+/* Le pseudo peut être long : il prend la place, et se coupe plutôt que de pousser le rang. */
+.placeNom {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.placeResultat {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}

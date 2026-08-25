@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@repo/ui";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
+import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import {
   TAILLE_LOBBY_DEFAUT,
@@ -12,7 +13,12 @@ import {
   TAILLE_LOBBY_MIN,
 } from "@/lib/tournoi/generation";
 import { SEUIL_VICTOIRE_MAX, SEUIL_VICTOIRE_MIN } from "@/lib/tournoi/finale";
-import { estParTables, partDuClassement, type PhaseKind } from "@/lib/tournoi/structure";
+import {
+  estParTables,
+  partDuClassement,
+  type MatchBracket,
+  type PhaseKind,
+} from "@/lib/tournoi/structure";
 import { tirageAJour, type EcartsDeTirage } from "@/lib/tournoi/tirage";
 import { effacerRencontres, genererPhase, saisirResultat } from "@/server/actions/rencontres";
 import type { RencontreJouable } from "@/server/db/queries/rencontres";
@@ -33,13 +39,6 @@ import styles from "./JourJ.module.css";
  * part, donc une capacité entière hors d'atteinte. On annonce un tournoi des semaines avant, on
  * choisit son format quand on sait qui est là.
  */
-
-const LIBELLE_TABLEAU: Record<string, string> = {
-  principal: "",
-  vainqueurs: "Tableau des vainqueurs",
-  perdants: "Tableau des perdants",
-  grande_finale: "Grande finale",
-};
 
 export interface JourJProps {
   phase: {
@@ -294,13 +293,19 @@ export function JourJ({
     );
   }
 
-  // ── Généré : les rencontres, groupées par tableau puis par tour ──────────────────────
-  const groupes = new Map<string, RencontreJouable[]>();
+  /* ── Généré : les rencontres, groupées par tableau puis par tour ─────────────────────
+     ⚠️ LE GROUPE GARDE SON `bracket` TYPÉ au lieu de le remettre dans une clef de chaîne : la
+     version précédente faisait `clef.split("|")` et relisait un `string`, ce que le
+     `Record<string, string>` d'alors laissait passer. `LIBELLE_TABLEAU` étant désormais
+     exhaustif sur l'enum (14.3), le typecheck a refusé — et il avait raison : rien ne
+     garantissait que la moitié gauche de la clef soit un tableau valide. */
+  const groupes = new Map<string, { bracket: MatchBracket; round: number; liste: RencontreJouable[] }>();
   for (const rencontre of rencontres) {
-    const clef = `${rencontre.bracket}|${rencontre.round ?? 1}`;
-    const liste = groupes.get(clef);
-    if (liste) liste.push(rencontre);
-    else groupes.set(clef, [rencontre]);
+    const round = rencontre.round ?? 1;
+    const clef = `${rencontre.bracket}|${round}`;
+    const groupe = groupes.get(clef);
+    if (groupe) groupe.liste.push(rencontre);
+    else groupes.set(clef, { bracket: rencontre.bracket, round, liste: [rencontre] });
   }
 
   const dépouillées = rencontres.filter((r) => r.issue.complete).length;
@@ -398,8 +403,7 @@ export function JourJ({
         )}
       </p>
 
-      {[...groupes.entries()].map(([clef, groupe]) => {
-        const [bracket, round] = clef.split("|");
+      {[...groupes.entries()].map(([clef, { bracket, round, liste: groupe }]) => {
         const titre = [LIBELLE_TABLEAU[bracket], `Tour ${round}`].filter(Boolean).join(" — ");
 
         return (

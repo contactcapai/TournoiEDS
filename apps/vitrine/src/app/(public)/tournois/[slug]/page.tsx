@@ -9,7 +9,11 @@ import { classementPubliable } from "@/lib/tournoi/classement";
 import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getDeroulePublic } from "@/server/db/queries/phases";
-import { getClassementPublic, getFinale } from "@/server/db/queries/rencontres";
+import {
+  getClassementPublic,
+  getFinale,
+  getRencontresPubliques,
+} from "@/server/db/queries/rencontres";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -137,6 +141,11 @@ export default async function FicheTournoiPage({
   const finaleLue = await getFinale(tournoi.id, { exigerPublie: true });
   const finale = finaleLue ? finalePubliable(finaleLue) : null;
 
+  // 🔴 QUATRIÈME LECTURE, MÊME GARDE (Story 14.3) : `is_published` refiltré sur une jointure.
+  // ⚠️ La règle de NOMMAGE, elle, vit dans `lib/tournoi/rencontres-publiques.ts` et s'applique
+  // dans la lecture — un drop dont la table n'est pas jouée n'est pas nommé.
+  const rencontres = await getRencontresPubliques(tournoi.id);
+
   // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS LE COMPOSANT. Lire l'heure pendant un
   // rendu est une impureté que `react-hooks/purity` refuse, et deux rendus du même arbre
   // pourraient répondre différemment. `FicheTournoi` reçoit un état déjà calculé.
@@ -150,6 +159,8 @@ export default async function FicheTournoiPage({
         phases,
         classement,
         finale,
+        rencontres,
+        aujourdHui,
       }}
     />
   );
