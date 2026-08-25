@@ -60,9 +60,18 @@ export interface SiteHeaderProps {
   discordUrl: string;
   /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
   helloassoUrl: string;
+  /**
+   * Ce que le chrome sait de la session (Story 12.1) — **deux booléens, et rien d'autre**.
+   *
+   * 🔴 PAS DE `roles`, PAS D'IDENTIFIANT, PAS DE NOM. Ces props traversent jusqu'à `MobileMenu`,
+   * qui porte `'use client'` : tout ce qu'on y met part dans le bundle du navigateur. Le menu
+   * n'a pas à connaître une notion d'autorisation, seulement **s'il existe une porte à
+   * montrer** — la décision, elle, se prend côté serveur où les rôles se relisent en base.
+   */
+  session: { connecte: boolean; aDesRoles: boolean };
 }
 
-export function SiteHeader({ discordUrl, helloassoUrl }: SiteHeaderProps) {
+export function SiteHeader({ discordUrl, helloassoUrl, session }: SiteHeaderProps) {
   return (
     <header className={styles.header}>
       <Wrap className={styles.row}>
@@ -79,7 +88,12 @@ export function SiteHeader({ discordUrl, helloassoUrl }: SiteHeaderProps) {
           />
         </Link>
 
-        <MobileMenu links={NAV_LINKS} discordUrl={discordUrl} helloassoUrl={helloassoUrl} />
+        <MobileMenu
+          links={NAV_LINKS}
+          discordUrl={discordUrl}
+          helloassoUrl={helloassoUrl}
+          session={session}
+        />
       </Wrap>
     </header>
   );
