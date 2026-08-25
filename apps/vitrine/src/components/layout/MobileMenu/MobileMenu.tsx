@@ -41,12 +41,15 @@ export function MobileMenu({
   links,
   discordUrl,
   helloassoUrl,
+  session,
 }: {
   links: NavLink[];
   /** Invitation Discord, ou `DESTINATION_ABSENTE`. */
   discordUrl: string;
   /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
   helloassoUrl: string;
+  /** Deux booléens, et rien d'autre — voir `SiteHeaderProps` (Story 12.1). */
+  session: { connecte: boolean; aDesRoles: boolean };
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -228,6 +231,40 @@ export function MobileMenu({
     );
   }
 
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 LES PORTES DU COMPTE — DANS LES ACTIONS, JAMAIS DANS LA NAVIGATION (Story 12.1)
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * `links` est la navigation DU SITE : six destinations éditoriales que tout le monde voit. Y
+   * glisser « Mon profil » en ferait une septième entrée de même rang, et la 13.3 a payé
+   * exactement ça — un annuaire posé à côté d'une navigation vaut moins que la navigation qu'il
+   * double. Ces deux liens vivent donc avec les CTA, où sont déjà les destinations qui ne sont
+   * pas des pages du récit.
+   *
+   * ⚠️ **RIEN POUR UN VISITEUR ANONYME**, et surtout pas un « Se connecter » : le site public ne
+   * demande de compte à personne aujourd'hui (aucune inscription en ligne avant la 12.3).
+   * Annoncer une porte dont personne n'a besoin, c'est promettre une fonction absente — le
+   * défaut que les planches Stitch ont écarté nommément.
+   * ⚠️ **« Back-office » N'APPARAÎT QUE S'IL Y A UN RÔLE** : le montrer à un participant lui
+   * offrirait une porte qui se refermerait sur `/admin/refus`.
+   */
+  const renderCompte = (onNavigate?: () => void) => {
+    if (!session.connecte) return null;
+    return (
+      <>
+        <Link className={styles.lienCompte} href="/profil" onClick={onNavigate}>
+          Mon profil
+        </Link>
+        {session.aDesRoles ? (
+          <Link className={styles.lienCompte} href="/admin" onClick={onNavigate}>
+            Back-office
+          </Link>
+        ) : null}
+      </>
+    );
+  };
+
   return (
     <nav aria-label="Navigation principale" className={styles.nav}>
       {/* Nav desktop (≥ 880px) */}
@@ -237,6 +274,7 @@ export function MobileMenu({
         ))}
       </ul>
       <div className={styles.desktopActions}>
+        {renderCompte()}
         {renderDiscord()}
         {renderCta()}
       </div>
@@ -283,6 +321,7 @@ export function MobileMenu({
           ))}
         </ul>
         <div className={styles.panelActions}>
+          {renderCompte(close)}
           {renderDiscord(close)}
           {renderCta(close)}
         </div>

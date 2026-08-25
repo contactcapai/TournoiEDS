@@ -119,6 +119,18 @@ export default async function AdminLayout({
             navigation ferait de « Se déconnecter » une destination de plus. */}
         <div className={styles.compte}>
           <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>
+          {/* 🔴 « MON PROFIL » EST ICI, AVEC LE COMPTE, ET PAS DANS LE MENU DES SECTIONS
+              (Story 12.1). Ce n'est pas une section du back-office : c'est la même page que
+              voit un participant, et `_sections.ts` la rangerait sous un rôle — or elle est
+              ouverte à TOUT compte connecté. C'est le raisonnement exact tenu pour `/admin`
+              lui-même en PR #81, et il vaut ici pour la raison inverse : elle n'est même pas
+              sous `/admin`.
+              ⚠️ Sans cette entrée, un administrateur n'avait AUCUN chemin vers son profil :
+              les deux portes posées par la 12.1 (l'état vide du tableau de bord et la page
+              de refus) ne s'affichent QUE pour un compte SANS rôle. */}
+          <Link className={styles.lienProfil} href="/profil">
+            Mon profil
+          </Link>
           {/* Server Action en ligne : aucun composant client n'est nécessaire pour un
               bouton qui poste un formulaire. RSC par défaut (project-context.md §5).
               ⚠️ PAS de `exigerRoleAction()` ici, et c'est délibéré : se déconnecter ne doit

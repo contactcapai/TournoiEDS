@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/layout/SiteHeader/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter/SiteFooter";
+import { lireCompte } from "@/server/auth/guard";
 import { lireReglages } from "@/server/db/queries/settings";
 
 // Layout du groupe (public) : monte l'en-tête + le pied de page persistants sur
@@ -46,6 +47,30 @@ export default async function PublicLayout({
 }>) {
   const reglages = await lireReglages();
 
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 LE CHROME CONNAÎT LA SESSION DEPUIS LA STORY 12.1 — ET CE N'EST PAS GRATUIT
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Sans ça, deux personnes n'avaient aucun chemin : un **participant** vers son profil depuis
+   * une page publique, et un **administrateur** vers le back-office autrement qu'en tapant
+   * l'URL. Demande de Brice, 2026-08-25.
+   *
+   * ⚠️ **LE COÛT NE TOMBE QUE SUR LES VISITEURS CONNECTÉS** : `lireCompte()` rend `null` **avant
+   * toute requête** quand il n'y a pas de session. Un visiteur anonyme — le cas de loin le plus
+   * fréquent sur une vitrine — ne paie donc rien de plus qu'avant.
+   *
+   * ⚠️ **AUCUNE RÉGRESSION DE RÉGIME DE RENDU** : ce layout lit DÉJÀ la base (`lireReglages`,
+   * 6.13) et les pages publiques sont déjà `force-dynamic`. Le seul `○` du build reste
+   * `/_not-found`, qui rend le root layout et **pas** celui-ci — le `build` sans `DATABASE_URL`
+   * n'est pas menacé (garde-fou 1.7).
+   *
+   * 🔴 **LE RÔLE SE RELIT EN BASE, JAMAIS DEPUIS LA SESSION** — c'est `lireCompte()` qui s'en
+   * charge, et c'est la règle de la 6.1 réaffirmée en 8.1 : un droit retiré doit prendre effet à
+   * la requête suivante, pas à l'expiration du cookie. On ne la contourne pas pour un lien.
+   */
+  const compte = await lireCompte();
+
   return (
     <>
       {/* skip-link : compose `.sr-only` (masquage, source unique) + `.skip-link`
@@ -54,7 +79,15 @@ export default async function PublicLayout({
       <a className="sr-only skip-link" href="#content">
         Aller au contenu
       </a>
-      <SiteHeader discordUrl={reglages.discordUrl} helloassoUrl={reglages.helloassoUrl} />
+      {/* ⚠️ DES DONNÉES PLATES, JAMAIS L'OBJET DE COMPTE : `SiteHeader` les passe à
+          `MobileMenu`, qui porte `'use client'`. Transmettre `roles` ferait traverser la
+          frontière client une notion d'AUTORISATION — le composant n'a pas à connaître les
+          rôles, seulement s'il existe une porte à montrer. */}
+      <SiteHeader
+        discordUrl={reglages.discordUrl}
+        helloassoUrl={reglages.helloassoUrl}
+        session={{ connecte: compte !== null, aDesRoles: (compte?.roles.length ?? 0) > 0 }}
+      />
       <main id="content">{children}</main>
       <SiteFooter reglages={reglages} />
     </>

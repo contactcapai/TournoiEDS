@@ -101,6 +101,24 @@
   white-space: nowrap;
 }
 
+/* ⚠️ CIBLE ≥ 44px (AA) comme le bouton voisin : un lien de 20px de haut se rate au doigt,
+   et c'est le bas d'une colonne où l'on vise vite. Style DIFFÉRENT du bouton de déconnexion,
+   volontairement : deux gestes voisins prennent deux formes, jamais deux couleurs (principe ②
+   de l'exercice Stitch) — partir et consulter son profil ne se confondent pas. */
+.lienProfil {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--light);
+  font-size: 15px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.lienProfil:hover {
+  color: var(--gold);
+}
+
 .deconnexion {
   min-height: 44px;
   padding: 0 18px;

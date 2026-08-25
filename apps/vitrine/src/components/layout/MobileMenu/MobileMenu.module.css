@@ -22,6 +22,28 @@
   gap: 18px; /* littéral : écart icône Discord / CTA */
 }
 
+/* ── Portes du compte (Story 12.1) ─────────────────────────────────────────
+   ⚠️ CIBLE ≥ 44px (AA), comme tout ce qui se clique dans ce header.
+   ⚠️ DISCRÈTES À DESSEIN : ce ne sont pas des appels à l'action. Le CTA d'adhésion reste le
+   seul geste mis en avant — leur donner le même poids ferait trois boutons de même rang là où
+   il n'y a qu'une destination principale (même raisonnement qu'au renvoi de la fiche tournoi). */
+.lienCompte {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 160ms ease;
+}
+
+.lienCompte:hover {
+  color: var(--gold);
+}
+
 /* ── Lien de navigation ────────────────────────────────────────────────── */
 .navLink {
   display: inline-flex;
