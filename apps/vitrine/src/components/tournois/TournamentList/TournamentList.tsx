@@ -65,7 +65,12 @@ export function TournamentList({ children }: { children: ReactNode }) {
 export interface TournamentCardProps {
   tournoi: PublicTournament;
   /**
-   * D'où vient cette carte : la liste des à venir, ou celle des passés.
+   * D'où vient cette carte : les à venir, les passés, ou ceux qui **se jouent aujourd'hui**.
+   *
+   * ⚠️ `en-cours` a été ajouté par la Story 14.1 et n'est PAS un synonyme de `a-venir` : un
+   * tournoi qui se joue ce matin a `starts_at` dans le PASSÉ. Lui donner `a-venir` aurait
+   * rendu la carte correctement tout en écrivant un fait faux dans le code — celui qu'on
+   * relit six mois plus tard en le croyant.
    *
    * 🔴 UNE VARIANTE ET PAS UN CALCUL, PARCE QUE L'HORLOGE NE SE LIT PAS DANS LE RENDU.
    * `startsAt <= new Date()` dans ce composant serait une impureté (`react-hooks/purity` la
@@ -74,7 +79,7 @@ export interface TournamentCardProps {
    * d'horloge de la page, celle de la couche données. Deux frontières ne peuvent donc pas
    * diverger.
    */
-  variante: "a-venir" | "passe";
+  variante: "a-venir" | "passe" | "en-cours";
 }
 
 export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
@@ -83,6 +88,9 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   // limite est déclarée dans `schema.ts` (dette R41, Story 7.8). Jamais un fragment vide.
   const salle = cleanText(tournoi.venueName);
   const tarif = cleanText(tournoi.priceText);
+  // ⚠️ `=== "passe"` et non `!== "a-venir"` : le podium ne s'affiche que sur un tournoi JOUÉ,
+  // et un tournoi en cours ne l'est pas encore. La forme négative aurait fait apparaître un
+  // podium au premier résultat saisi, au milieu de la compétition.
   const passe = variante === "passe";
 
   /**

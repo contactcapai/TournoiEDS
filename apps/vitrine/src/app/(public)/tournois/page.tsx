@@ -81,6 +81,14 @@ export const dynamic = "force-dynamic";
  */
 const A_VENIR_MAX = 50;
 const PASSES_MAX = 50;
+/**
+ * ⚠️ **TROIS, ET PAS CINQUANTE.** Les deux autres bornes protègent d'un volume qui grandit
+ * avec les années ; celle-ci borne ce qui se joue **un même jour**. L'association n'en fait
+ * pas trois le même jour, et si ça arrivait, une quatrième carte en tête de page dirait
+ * surtout que la section a perdu son sens. « Généreux » n'est pas « non borné » — mais
+ * « borné » n'est pas non plus « au hasard ».
+ */
+const EN_COURS_MAX = 3;
 
 export default async function Tournois() {
   // Deux lectures, une par section, derrière UN SEUL point d'entrée. Pas de tri en mémoire à
@@ -95,7 +103,11 @@ export default async function Tournois() {
   //
   // ⚠️ Les cartes reçoivent une VARIANTE (`a-venir` / `passe`) dérivée de la requête qui les a
   // produites : les deux frontières ne peuvent donc pas diverger.
-  const { aVenir, passes } = await getPublicTournaments(A_VENIR_MAX, PASSES_MAX);
+  const { enCours, aVenir, passes } = await getPublicTournaments(
+    A_VENIR_MAX,
+    PASSES_MAX,
+    EN_COURS_MAX,
+  );
 
   return (
     <>
@@ -126,6 +138,39 @@ export default async function Tournois() {
           />
         </Wrap>
       </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════════════════
+          ① bis « EN CE MOMENT » — LE TROISIÈME PANIER (Story 14.1)
+          ══════════════════════════════════════════════════════════════════════════════════
+          🔴 UN TROISIÈME PANIER, PAS UNE PASTILLE — ET C'EST UNE CORRECTION, PAS UN AJOUT.
+          Cette page n'avait que deux listes, dérivées de `starts_at ≷ now()`. Un tournoi qui
+          se joue **ce matin** a donc `starts_at` dans le passé : il s'affichait sous le titre
+          « Déjà joués », pendant qu'il se jouait. Une pastille « ça se joue » sous ce titre
+          n'aurait pas corrigé la phrase, elle l'aurait contredite.
+          ⚠️ Le dédoublonnage se fait dans la couche données, sur les DEUX autres listes : un
+          tournoi qui commence ce soir est dans « à venir », un qui a commencé ce matin dans
+          « passés » — les deux cas existent le même jour.
+          ⚠️ Elle disparaît entièrement quand rien ne se joue, et c'est le cas le plus
+          fréquent : ici, pas d'état vide. Un « aucun tournoi en ce moment » permanent en tête
+          de page dirait chaque jour qu'il ne se passe rien. */}
+      {enCours.length > 0 ? (
+        <section className={editorial.section} aria-labelledby="en-cours-title">
+          <Wrap>
+            <SectionHead
+              eyebrow="En direct"
+              titleId="en-cours-title"
+              title="En ce moment"
+            />
+            <div className={motion.reveal}>
+              <TournamentList>
+                {enCours.map((tournoi) => (
+                  <TournamentCard key={tournoi.id} tournoi={tournoi} variante="en-cours" />
+                ))}
+              </TournamentList>
+            </div>
+          </Wrap>
+        </section>
+      ) : null}
 
       {/* ② « À venir » — section relevée sur --navy, procédé de la maquette pour ses sections
           d'agenda (DESIGN.md l.171), repris tel quel par /agenda.

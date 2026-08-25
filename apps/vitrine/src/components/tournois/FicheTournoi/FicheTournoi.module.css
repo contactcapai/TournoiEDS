@@ -266,3 +266,92 @@
     padding: 14px 18px;
   }
 }
+
+/* ── « Ça se joue » et le déroulé réel (Story 14.1) ─────────────────────────── */
+
+/* 🔴 EN OR, JAMAIS EN CORAIL : `--alert` est réservé à ce qui bloque ou attend une réponse
+   (PR #73). Un tournoi qui se joue est une bonne nouvelle. ⚠️ Le mot porte l'information ;
+   la couleur ne fait que le répéter (AA). */
+.direct {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 8px 16px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+/* Décorative, `aria-hidden` : elle redit la couleur du filet, jamais une information. */
+.directPastille {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.deroule {
+  display: grid;
+  gap: 22px;
+  list-style: none;
+}
+
+.journee {
+  display: block;
+}
+
+.journeeTitre {
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.phases {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+/* ⚠️ `nowrap` est une GARDE, pas une préférence (leçon PR #77) : avec `wrap`, le min-content
+   d'une rangée vaut UN élément, et une voisine gourmande empilerait le reste en silence.
+   Ici les trois éléments sont courts et doivent tenir sur une ligne. */
+.phase {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 % */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.phaseNom {
+  font-size: 16px;
+  color: var(--light);
+}
+
+.phaseNature {
+  font-size: 14px;
+  color: var(--grey);
+}
+
+/* L'état s'ÉCRIT. `margin-left: auto` le pousse en fin de ligne sans le détacher du bloc. */
+.phaseEtat,
+.phaseEtatEnCours {
+  margin-left: auto;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--grey);
+}
+
+.phaseEtatEnCours {
+  color: var(--gold);
+}

@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq, isNotNull, or, sql } from "drizzle-orm";
 
 import { db } from "../client";
-import { tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../schema";
+import { tournament, tournamentMatch, tournamentMatchSlot, tournamentPhase } from "../schema";
 
 /**
  * Les phases d'un tournoi, dans l'ordre, avec ce qu'il faut pour savoir si chacune est encore
@@ -61,3 +61,45 @@ export async function getJourneesDuTournoi(tournoiId: string): Promise<string[]>
 
   return lignes.map((ligne) => ligne.jour).filter((jour): jour is string => jour !== null);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LE DÉROULÉ, CÔTÉ PUBLIC — LECTURE NÉE DE LA STORY 14.1
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Les phases d'un tournoi **PUBLIÉ**, telles que le visiteur peut les voir.
+ *
+ * 🔴 ELLE FILTRE `is_published` **ELLE-MÊME**, SUR UNE JOINTURE, ET CE N'EST PAS UNE
+ * REDONDANCE. `getPhasesForTournament` ci-dessus ne filtre rien : elle est appelée derrière
+ * `exigerRolePage`, où c'est correct. Si la lecture publique se contentait de l'identifiant
+ * que lui passe la page, elle rendrait le déroulé d'un tournoi en brouillon à qui devinerait
+ * son `id` — et **aucune porte visuelle ne le verrait**, une page qui affiche une section de
+ * plus n'ayant pas l'air cassée. La garde est donc **dans la requête**, pas chez l'appelant.
+ *
+ * ⚠️ **ELLE NE REMONTE NI `rencontres` NI `avecResultat`**, que sa jumelle calcule : ce sont
+ * des grandeurs d'administration (« cette phase est-elle encore librement modifiable ? »). Les
+ * remonter ici ferait croire au type dérivé qu'elles sont publiables, et quelqu'un finirait
+ * par les afficher.
+ *
+ * ⚠️ L'ordre est celui du déroulé — `position`, jamais la date : deux phases du même jour ont
+ * un ordre voulu par celui qui a composé le tournoi.
+ */
+export async function getDeroulePublic(tournoiId: string) {
+  return db
+    .select({
+      id: tournamentPhase.id,
+      position: tournamentPhase.position,
+      name: tournamentPhase.name,
+      kind: tournamentPhase.kind,
+      state: tournamentPhase.state,
+      /** Le jour de cette manche — `null` sur un tournoi qui tient sur une journée. */
+      playedOn: tournamentPhase.playedOn,
+    })
+    .from(tournamentPhase)
+    .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+    .where(and(eq(tournamentPhase.tournamentId, tournoiId), eq(tournament.isPublished, true)))
+    .orderBy(asc(tournamentPhase.position));
+}
+
+/** Une phase telle que le public la voit. Dérivée de la requête, jamais réécrite. */
+export type PhasePublique = Awaited<ReturnType<typeof getDeroulePublic>>[number];

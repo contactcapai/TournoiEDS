@@ -4,7 +4,11 @@ import { Brush, Button, ExternalIcon, PhotoFrame } from "@repo/ui";
 
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
-import { formatLongDate, formatPlageHoraire } from "@/lib/date-paris";
+import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-paris";
+import { LIBELLE_NATURE } from "@/lib/schemas/phase";
+import type { EtatDuJour } from "@/lib/tournoi/en-cours";
+import { decouperEnJournees, numeroDeJournee } from "@/lib/tournoi/journees";
+import type { PhaseKind, PhaseState } from "@/lib/tournoi/structure";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
 import { podiumVisible } from "@/lib/podium";
@@ -44,12 +48,40 @@ import styles from "./FicheTournoi.module.css";
  * ses sections fabriquerait un saut de niveau, c'est-à-dire l'autre moitié du même audit
  * (`heading-order`). Les deux se règlent ensemble ou pas du tout.
  */
+/**
+ * Une phase telle que la fiche la rend. ⚠️ **STRUCTUREL ET MINIMAL, À DESSEIN** : la lecture
+ * publique (`getDeroulePublic`) et la lecture d'admin (`getPhasesForTournament`) en rendent
+ * chacune un sur-ensemble, si bien que les DEUX consommateurs de ce composant — la page
+ * publique et l'aperçu du bénévole — le satisfont sans qu'aucune conversion soit écrite.
+ */
+export type PhaseAffichee = {
+  id: string;
+  position: number;
+  name: string;
+  kind: PhaseKind;
+  state: PhaseState;
+  playedOn: string | null;
+};
+
+/**
+ * Ce que la fiche sait du tournoi **à l'instant où on la regarde** (Story 14.1).
+ *
+ * 🔴 L'ÉTAT EST CALCULÉ PAR L'APPELANT, PAS ICI, et ce n'est pas un caprice : ce composant
+ * est un Server Component **pur**, et lire l'horloge pendant un rendu est une impureté que
+ * `react-hooks/purity` refuse — deux rendus du même arbre pourraient répondre différemment.
+ * La page lit l'heure UNE fois et passe le résultat.
+ */
+export type SuiviPublic = { etat: EtatDuJour; phases: readonly PhaseAffichee[] };
+
 export function FicheTournoi({
   tournoi,
   headingLevel = 1,
+  suivi,
 }: {
   tournoi: FicheTournoiData;
   headingLevel?: 1 | 2;
+  /** Absent = on ne sait rien du déroulé (aperçu d'un tournoi sans phases, par exemple). */
+  suivi?: SuiviPublic;
 }) {
   // Dérivé, jamais passé en second paramètre : deux props de niveau finiraient par diverger,
   // et c'est exactement le saut de titre qu'on veut rendre impossible.
@@ -63,6 +95,22 @@ export function FicheTournoi({
   const format = cleanText(tournoi.formatText);
   const lots = cleanText(tournoi.prizes);
   const tarif = cleanText(tournoi.priceText);
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     🔴 LES PHASES L'EMPORTENT SUR LE FORMAT ÉDITORIAL — CONSIGNE ÉCRITE EN 9.3, APPLIQUÉE ICI
+     ══════════════════════════════════════════════════════════════════════════════════════
+     Le bloc de la section « Comment ça se joue » disait, en toutes lettres et depuis la
+     Story 9.3 : « le format annoncé est ÉDITORIAL, et les phases FERONT FOI (A23 ③). Le jour
+     où elles existeront (Story 10.1), il y aura DEUX descriptions du même format : les phases
+     l'emportent, et cette section devra alors DÉRIVER ce qu'elle affiche au lieu de lire deux
+     sources. C'est décidé maintenant pour ne pas l'être dans l'urgence. »
+
+     Ce jour est arrivé : les phases existent (10.1 → 10.12) et la 14.1 les publie. On applique
+     donc la décision au lieu d'ajouter une seconde description à côté de la première.
+     ⚠️ `format_text` **cesse d'être rendu** dès qu'un tournoi porte des phases. Les lots et la
+     durée de manche restent : ce ne sont pas des descriptions de format. */
+  const journees = suivi ? decouperEnJournees(suivi.phases) : [];
+  const derouleReel = journees.length > 0;
 
   /**
    * 🔴 LE PODIUM NE SE REND QUE SUR UN TOURNOI PASSÉ — RÈGLE QU'AUCUN `CHECK` NE POUVAIT TENIR
@@ -154,6 +202,25 @@ export function FicheTournoi({
           `headingLevel` descend d'un cran — d'où la prop plutôt qu'un niveau en dur. */}
       <section className={editorial.head} aria-labelledby="tournoi-title">
         <Wrap>
+          {/* ══════════════════════════════════════════════════════════════════════════
+              « ÇA SE JOUE » — AVANT LE TITRE, PARCE QUE C'EST PÉRISSABLE (Story 14.1)
+              ══════════════════════════════════════════════════════════════════════════
+              🔴 EN OR, PAS EN CORAIL. `--alert` est réservé à ce qui **bloque ou attend une
+              réponse** (PR #73) ; un tournoi qui se joue est une bonne nouvelle, pas une
+              alerte. L'élargir au reste viderait le token de son sens en une story.
+              ⚠️ Le MOT porte l'information : la couleur ne fait que le répéter (AA).
+              ⚠️ Deux natures, pas une : « une manche est en cours » est un fait SAISI par
+              l'organisateur, « ça se joue aujourd'hui » n'est qu'un fait de calendrier. Les
+              confondre annoncerait une manche lancée alors que personne n'a rien lancé. */}
+          {suivi && suivi.etat.nature !== "rien" ? (
+            <p className={styles.direct}>
+              <span aria-hidden="true" className={styles.directPastille} />
+              {suivi.etat.nature === "manche_en_cours"
+                ? `En ce moment — ${suivi.etat.manche}`
+                : "Ça se joue aujourd'hui"}
+            </p>
+          ) : null}
+
           <SectionHead
             headingLevel={headingLevel}
             titleId="tournoi-title"
@@ -371,7 +438,7 @@ export function FicheTournoi({
           Fond par défaut (--navy-deep) : le contraste des textes clairs y est encore
           meilleur que sur --navy — RE-MESURÉ, `--light` sous fondu donne 8,71:1 contre
           7,47:1. */}
-      {format || lots || tournoi.matchDurationMinutes !== null ? (
+      {derouleReel || format || lots || tournoi.matchDurationMinutes !== null ? (
         <section className={editorial.section} aria-labelledby="format-title">
           <Wrap>
             <SectionHead
@@ -382,8 +449,64 @@ export function FicheTournoi({
             />
 
             <div className={motion.reveal}>
+              {/* ══════════════════════════════════════════════════════════════════════
+                  LE DÉROULÉ RÉEL — LES PHASES, GROUPÉES PAR JOURNÉE (Story 14.1)
+                  ══════════════════════════════════════════════════════════════════════
+                  🔴 IL PASSE AVANT LA LISTE `<dl>`, ET IL REMPLACE LE FORMAT ÉDITORIAL
+                  quand il existe : c'est la décision écrite en 9.3 et rappelée en tête de
+                  ce composant. Deux descriptions du même format, présentées à égalité,
+                  finissent par se contredire — et c'est le public qui lit la contradiction.
+
+                  ⚠️ `decouperEnJournees` groupe des suites CONSÉCUTIVES de même date, jamais
+                  un `group by` : un déroulé samedi/dimanche/samedi se lirait « 1, 3 » puis
+                  « 2 » pendant que les numéros diraient l'inverse (acquis 13.1). Un tournoi
+                  d'un seul jour n'a AUCUN groupement — `playedOn` est nullable. */}
+              {derouleReel ? (
+                <ol className={styles.deroule}>
+                  {journees.map((journee, rang) => {
+                    const numero = numeroDeJournee(journees, rang);
+                    return (
+                      <li className={styles.journee} key={journee.jour ?? `sans-date-${rang}`}>
+                        {journee.jour !== null ? (
+                          <p className={styles.journeeTitre}>
+                            {numero !== null ? `Journée ${numero} — ` : ""}
+                            {jourLisible(journee.jour)}
+                          </p>
+                        ) : null}
+
+                        <ol className={styles.phases}>
+                          {journee.phases.map(({ phase }) => (
+                            <li className={styles.phase} key={phase.id}>
+                              <span className={styles.phaseNom}>{phase.name}</span>
+                              <span className={styles.phaseNature}>
+                                {LIBELLE_NATURE[phase.kind]}
+                              </span>
+                              {/* ⚠️ L'ÉTAT S'ÉCRIT, il ne se code pas en couleur seule (AA).
+                                  « planifiée » ne s'affiche pas : c'est l'état par défaut de
+                                  toute phase, le dire sur chaque ligne serait du bruit. */}
+                              {phase.state !== "planifiee" ? (
+                                <span
+                                  className={
+                                    phase.state === "en_cours"
+                                      ? styles.phaseEtatEnCours
+                                      : styles.phaseEtat
+                                  }
+                                >
+                                  {phase.state === "en_cours" ? "en cours" : "terminée"}
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ol>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : null}
+
               <dl className={styles.format}>
-                {format ? (
+                {/* 🔴 LE FORMAT ÉDITORIAL NE SE REND QUE FAUTE DE PHASES (décision 9.3). */}
+                {!derouleReel && format ? (
                   <div className={styles.ligne}>
                     <dt className={styles.terme}>Format</dt>
                     <dd className={styles.valeur}>{format}</dd>
