@@ -11,8 +11,9 @@ import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { exigerRolePage } from "@/server/auth/guard";
-import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
+import { getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
+import { ecartsDeTirage } from "@/lib/tournoi/tirage";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
   aDesResultatsSaisis,
@@ -53,12 +54,18 @@ export default async function JourJPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [tournoi, fiche, phases, engages, presents, classement] = await Promise.all([
+  // ⚠️ `getPresentsDuTournoi` N'EST PLUS ICI, ET C'ÉTAIT UN DÉFAUT MESURÉ (2026-08-25) : cette
+  // page l'appelait SANS journée, alors que `genererPhase` l'appelle AVEC (`phase.playedOn`).
+  // Sur un tournoi étalé sur plusieurs week-ends, l'écran annonçait donc un nombre de présents
+  // que la génération n'allait pas utiliser. Il se lit maintenant plus bas, une fois la phase
+  // active connue — c'est elle qui porte la journée.
+  // ⚠️ `getEngagesForTournament` A DISPARU D'ICI : il ne servait plus qu'au compte du chapô,
+  // qui était GLOBAL alors que la génération raisonne PAR JOURNÉE. Une lecture entière de la
+  // liste des engagés pour un seul nombre, et un nombre qui n'était pas le bon.
+  const [tournoi, fiche, phases, classement] = await Promise.all([
     getTournoiPourEngages(id),
     getTournamentById(id),
     getPhasesForTournament(id),
-    getEngagesForTournament(id),
-    getPresentsDuTournoi(id),
     getClassementDuTournoi(id),
   ]);
   if (!tournoi) notFound();
@@ -100,13 +107,30 @@ export default async function JourJPage({
     ? phases.filter((phase) => phase.playedOn === journeeActive)
     : phases;
 
-  const [phaseComplete, rencontres, aDesResultats] = active
+  const [phaseComplete, rencontres, aDesResultats, presents] = active
     ? await Promise.all([
         getPhasePourJeu(active.id),
         getRencontresDePhase(active.id),
         phaseADesResultats(active.id),
+        // 🔴 LA JOURNÉE DE LA PHASE AFFICHÉE, exactement comme `genererPhase`. Sans elle, cet
+        // écran et la génération ne parleraient pas des mêmes personnes.
+        getPresentsDuTournoi(id, active.playedOn),
       ])
-    : [undefined, [], false];
+    : [undefined, [], false, await getPresentsDuTournoi(id, null)];
+
+  /* ══════════════════════════════════════════════════════════════════════════════════════
+     LE TIRAGE EST-IL ENCORE À JOUR ? (Story 10.13)
+     ══════════════════════════════════════════════════════════════════════════════════════
+     🔴 CE CALCUL NE COÛTE AUCUNE REQUÊTE : les deux listes sont déjà lues au-dessus. Ce qui
+     manquait n'était pas la donnée, c'était de la REGARDER — le nombre de présents n'était
+     consommé qu'AVANT la génération, et une fois les tables tirées, plus rien ne comparait
+     qui y était assis à qui était là. Quelqu'un qui part garde alors sa chaise, sa table joue
+     à sept, et les points suivent la taille RÉELLE de la table (10.3) : le classement devient
+     faux sans que rien ne l'annonce. */
+  const ecarts = ecartsDeTirage(
+    rencontres.flatMap((rencontre) => rencontre.places),
+    presents,
+  );
 
   // 🔴 LE RANG DANS LA PHASE, DÉDUIT DE SA STRUCTURE — c'est lui qui manquait au tournoi réel du
   // 2026-08-15 : un bracket joué au score ne produisait aucun classement, donc l'écran affirmait
@@ -126,7 +150,7 @@ export default async function JourJPage({
         On génère depuis les <strong>présents</strong>, on saisit les résultats, le classement se
         recalcule. Pour l&rsquo;instant,{" "}
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
-          <strong>{engages.parEtat.present} présents</strong> au pointage
+          <strong>{presents.length} présents</strong> au pointage
         </Link>{" "}
         — ce sont eux qui entreront dans le tableau, pas les inscrits.
       </p>
@@ -199,6 +223,7 @@ export default async function JourJPage({
                 }}
                 rencontres={rencontres}
                 presents={presents.length}
+                ecarts={ecarts}
                 aUnClassement={classement.length > 0}
                 aDesResultats={aDesResultats}
               />

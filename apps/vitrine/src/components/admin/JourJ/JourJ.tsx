@@ -12,6 +12,7 @@ import {
   TAILLE_LOBBY_MIN,
 } from "@/lib/tournoi/generation";
 import { estParTables, partDuClassement, type PhaseKind } from "@/lib/tournoi/structure";
+import { tirageAJour, type EcartsDeTirage } from "@/lib/tournoi/tirage";
 import { effacerRencontres, genererPhase, saisirResultat } from "@/server/actions/rencontres";
 import type { RencontreJouable } from "@/server/db/queries/rencontres";
 import actions from "@/styles/admin-actions.module.css";
@@ -49,13 +50,25 @@ export interface JourJProps {
   rencontres: readonly RencontreJouable[];
   /** Combien d'engagés sont pointés « présent ». C'est l'effectif que la génération utilisera. */
   presents: number;
+  /**
+   * Ce qui a changé entre le tirage et maintenant (Story 10.13). Calculé par la page, sur des
+   * données qu'elle avait déjà — ce composant ne décide de rien, il écrit ce qu'on lui dit.
+   */
+  ecarts: EcartsDeTirage;
   /** Vrai dès qu'un résultat existe dans le tournoi — alors « depuis le classement » a un sens. */
   aUnClassement: boolean;
   /** Vrai dès qu'un résultat est saisi dans CETTE phase : plus de régénération. */
   aDesResultats: boolean;
 }
 
-export function JourJ({ phase, rencontres, presents, aUnClassement, aDesResultats }: JourJProps) {
+export function JourJ({
+  phase,
+  rencontres,
+  presents,
+  ecarts,
+  aUnClassement,
+  aDesResultats,
+}: JourJProps) {
   const router = useRouter();
   const [enTransition, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -250,6 +263,44 @@ export function JourJ({ phase, rencontres, presents, aUnClassement, aDesResultat
           </strong>{" "}
           sur {rencontres.length}
         </p>
+        {/* ══════════════════════════════════════════════════════════════════════════════
+            LE TIRAGE N'EST PLUS À JOUR — ET C'EST LE POINT DE TOUTE LA STORY 10.13
+            ══════════════════════════════════════════════════════════════════════════════
+            Régénérer était DÉJÀ possible : l'action le fait, sa garde est la bonne, le bouton
+            est juste en dessous. Ce qui manquait, c'est que personne ne savait qu'il fallait
+            le presser. ⚠️ Il NOMME les gens : « des engagés ont changé » obligerait à ouvrir
+            l'écran des engagés pour deviner lesquels, un jour de tournoi, debout.
+
+            ⚠️ AFFICHÉ SEULEMENT QUAND LA RÉGÉNÉRATION EST POSSIBLE, et c'est délibéré : dès
+            qu'un résultat est saisi, la manche est jouée et il n'y a plus de geste à faire.
+            Un avertissement sans issue est du bruit — l'écran dit déjà, juste en dessous,
+            pourquoi la phase ne se régénère plus. */}
+        {!aDesResultats && !tirageAJour(ecarts) ? (
+          <p className={styles.tirage} role="status">
+            <strong>Le tirage n&rsquo;est plus à jour.</strong>{" "}
+            {ecarts.partis.length > 0 ? (
+              <>
+                {ecarts.partis.map((e) => e.nom).join(", ")}{" "}
+                {ecarts.partis.length > 1 ? "ne sont plus présents" : "n'est plus présent"}{" "}
+                depuis le tirage
+                {ecarts.arrives.length > 0 ? " ; " : ". "}
+              </>
+            ) : null}
+            {ecarts.arrives.length > 0 ? (
+              <>
+                {ecarts.arrives.map((e) => e.nom).join(", ")}{" "}
+                {ecarts.arrives.length > 1 ? "sont arrivés" : "est arrivé"} après et
+                n&rsquo;{ecarts.arrives.length > 1 ? "ont" : "a"} pas de table.{" "}
+              </>
+            ) : null}
+            {/* ⚠️ La conséquence est ÉCRITE, pas sous-entendue : les points d'une manche
+                suivent la taille RÉELLE de la table (10.3). Une table qui joue à sept sans
+                qu'on l'ait voulu fausse le classement de toute la manche. */}
+            Refaites le tirage ci-dessous, sinon une table jouera à un effectif qui n&rsquo;est
+            pas le bon — et les points suivent la taille réelle de la table.
+          </p>
+        ) : null}
+
         <div className={actions.bloc}>
           {aDesResultats ? (
             /* ⚠️ Dit, pas deviné : le bouton n'est pas grisé sans explication. */
