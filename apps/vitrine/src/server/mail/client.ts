@@ -37,6 +37,42 @@ export const COMPTE_SMTP = "esportdessacres@gmail.com";
 // motif que `db/client.ts`.
 const g = globalThis as unknown as { _mailTransport?: Transporter };
 
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA CONFIGURATION SMTP, DÉFINIE **UNE SEULE FOIS** — EXTRAITE PAR LA STORY 8.1
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Elle avait deux consommateurs à partir du lien magique : ce transport, et le fournisseur
+ * `Nodemailer` d'Auth.js — qui EXIGE une option `server` à l'exécution, alors même que ses
+ * types la déclarent facultative (défaut trouvé par `next build`, pas par le typecheck :
+ * *« Nodemailer requires a `server` configuration »*).
+ *
+ * ⚠️ LA TENTATION ÉTAIT DE LUI DONNER UNE SECONDE CONFIGURATION, ET C'ÉTAIT LE PIÈGE.
+ * `requireTLS` et les trois délais ci-dessous ont TOUS été ajoutés en revue de la 5.1 parce
+ * qu'ils manquaient. Une copie serait fidèle aujourd'hui et divergerait en silence — la
+ * moitié qui divergerait enverrait des LIENS DE CONNEXION sur une liaison possiblement en
+ * clair. La parade est celle du piège `garde-sur-une-copie` : *« si une reproduction est
+ * inévitable, alors c'est elle que le code de production doit appeler — un seul assemblage,
+ * monté par les deux »*.
+ *
+ * ⚠️ FONCTION ET NON CONSTANTE, et c'est le même garde-fou qu'`allowlist.ts` : lue à
+ * l'import, `GMAIL_APP_PASSWORD` serait figée au bundling et `next build` exigerait le
+ * secret — or la CI tourne SANS. Elle retombe donc sur la chaîne vide ici ; c'est
+ * `createTransport` qui refuse d'envoyer, avec un message utilisable.
+ */
+export function optionsSmtp() {
+  return {
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
+    auth: { user: COMPTE_SMTP, pass: process.env.GMAIL_APP_PASSWORD ?? "" },
+  };
+}
+
 function createTransport() {
   const pass = process.env.GMAIL_APP_PASSWORD;
   // Erreur claire AU MOMENT DE L'USAGE (1ᵉʳ envoi), jamais à l'import → le build reste sûr
@@ -47,6 +83,7 @@ function createTransport() {
       "GMAIL_APP_PASSWORD manquante : renseigner apps/vitrine/.env.local (voir .env.example).",
     );
   }
+  // Les réglages vivent dans `optionsSmtp()` ci-dessus, seul endroit où ils sont écrits.
   // Port 587 + STARTTLS (secure: false) : standard actuel, préféré à 465/secure:true.
   // 🔴 `requireTLS: true`, trouvé manquant en revue (Blind Hunter) : sans lui, `secure: false`
   // sur 587 est un STARTTLS OPPORTUNISTE — si l'upgrade TLS est bloqué ou indisponible
@@ -58,16 +95,7 @@ function createTransport() {
   // blocage réseau (SMTP qui ne répond pas) ferait attendre `notifySolicitation` jusqu'au
   // délai par défaut du système d'exploitation, retardant d'autant la réponse affichée à
   // l'utilisateur alors même que la donnée est déjà en sécurité en base.
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    connectionTimeout: 10_000,
-    greetingTimeout: 10_000,
-    socketTimeout: 10_000,
-    auth: { user: COMPTE_SMTP, pass },
-  });
+  return nodemailer.createTransport(optionsSmtp());
 }
 
 // Le transport n'est construit qu'au 1ᵉʳ envoi, jamais à l'import — Garde-fou n°2 du patron.

@@ -27,8 +27,22 @@ export type ExigenceAcces =
   /** Sous `/admin`, mais rattaché à aucune section : refusé. */
   | { type: "inconnu" };
 
-/** La page de connexion — la seule route de `/admin` qui doit rester ouverte. */
+/** La page de connexion — la destination de tout refus faute de session. */
 export const CHEMIN_LOGIN = "/admin/login";
+
+/**
+ * Les routes ouvertes SANS session.
+ *
+ * 🔴 `/admin/login/verifier` EN FAIT PARTIE DEPUIS LE LIEN MAGIQUE (PR ②), ET C'EST
+ * INDISPENSABLE : c'est l'écran « regardez votre boîte mail », affiché à quelqu'un qui, par
+ * définition, N'EST PAS ENCORE CONNECTÉ. L'oublier ici le ferait renvoyer vers la page de
+ * connexion au moment précis où on vient de lui envoyer un lien — il croirait à un échec et
+ * redemanderait un lien, invalidant le premier.
+ *
+ * ⚠️ Liste EXACTE, jamais un préfixe : ouvrir `/admin/login/*` ouvrirait aussi ce que
+ * quelqu'un y ajouterait plus tard sans y penser.
+ */
+const CHEMINS_OUVERTS = [CHEMIN_LOGIN, "/admin/login/verifier"] as const;
 
 /**
  * Routes ouvertes à tout compte connecté, rôle ou non.
@@ -69,7 +83,7 @@ function couvre(chemin: string, prefixe: string): boolean {
 }
 
 export function exigencePour(chemin: string): ExigenceAcces {
-  if (chemin === CHEMIN_LOGIN) return { type: "ouvert" };
+  if (CHEMINS_OUVERTS.some((ouvert) => chemin === ouvert)) return { type: "ouvert" };
   if (CHEMINS_CONNECTE.some((ouvert) => chemin === ouvert)) return { type: "connecte" };
 
   // La section la PLUS LONGUE l'emporte : `/admin/agenda/bars` doit se rattacher à

@@ -28,6 +28,11 @@ import { exigencePour } from "../../server/auth/sections";
  *   · une page `app/admin/orpheline/page.tsx` non déclarée  → ③ « toute route est rattachée »
  *   · `couvre()` ramené à un `startsWith` nu                → « /admin/agendas » n'est pas agenda
  *   · `detientRole()` figé à `true` (garde inerte)          → ① la séparation des rôles
+ *
+ * ✅ DEUX DE PLUS À LA PR ② (lien magique), même recette :
+ *   · `/admin/login/verifier` retiré des routes ouvertes    → DEUX rouges, dont ③ qui l'a
+ *     attrapé par un second chemin (la route existe sur le disque, plus rien ne la couvre)
+ *   · l'ouverture du login passée en PRÉFIXE                → « n'est PAS un préfixe »
  */
 
 // ── ① La résolution nomme le bon rôle, dans les deux sens ────────────────────────────
@@ -77,6 +82,19 @@ test("la page de connexion reste ouverte, le refus reste atteignable sans rôle"
   assert.deepEqual(exigencePour("/admin/login"), { type: "ouvert" });
   assert.deepEqual(exigencePour("/admin/refus"), { type: "connecte" });
   assert.deepEqual(exigencePour("/admin"), { type: "connecte" });
+});
+
+test("l'écran « lien envoyé » est atteignable SANS session", () => {
+  // 🔴 Sans session par définition : on vient de demander un lien magique, on n'est pas
+  // encore connecté. S'il exigeait une session, il renverrait vers la page de connexion au
+  // moment précis où le lien part — la personne conclurait à un échec et en redemanderait
+  // un, invalidant le premier.
+  assert.deepEqual(exigencePour("/admin/login/verifier"), { type: "ouvert" });
+});
+
+test("l'ouverture du login n'est PAS un préfixe", () => {
+  // Ouvrir `/admin/login/*` ouvrirait aussi ce qu'on y ajouterait plus tard sans y penser.
+  assert.deepEqual(exigencePour("/admin/login/autre-chose"), { type: "inconnu" });
 });
 
 test("un chemin inconnu sous /admin est REFUSÉ, jamais toléré", () => {
