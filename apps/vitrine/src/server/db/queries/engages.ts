@@ -191,7 +191,7 @@ export async function getEngagesForTournament(tournoiId: string, jour: string | 
        * 🔴 L'ÉTAT GLOBAL DU TOURNOI, CONSERVÉ À CÔTÉ (Story 13.1). `state` ci-dessus l'ÉCRASE
        * dès qu'une journée est choisie, et l'écran ne pouvait donc plus montrer que l'un des
        * deux — alors que ce sont précisément DEUX GESTES qu'il faut distinguer sans se
-       * tromper : « inscrit au tournoi, a abandonné » d'un côté, « présent ce samedi » de
+       * tromper : « inscrit au tournoi, drop » d'un côté, « présent ce samedi » de
        * l'autre. Un abandon reste vrai toutes journées confondues ; le pointage, non.
        * ⚠️ Quand aucune journée n'est choisie, les deux valent la même chose — c'est normal,
        * et c'est au rendu de ne pas afficher deux fois la même information.

@@ -230,7 +230,7 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
       {/* ══════════════════════════════════════════════════════════════════════════════════
           🔴 CE QUE CHAQUE POINTAGE VEUT DIRE — AC 5, DIT UNE FOIS ET AVANT LE GESTE
           ══════════════════════════════════════════════════════════════════════════════
-          « Absent » et « a abandonné » se ressemblent en français courant et n'ont rien à voir
+          « Absent » et « Drop » disent deux choses que tout oppose, et n'ont rien à voir
           ici : le second garde ses points au classement. Ce bloc est un livrable, pas une
           décoration — sans lui, le mauvais bouton se clique de bonne foi.
           ⚠️ Il porte AUSSI le refus de suppression, qui vivait auparavant en toutes lettres sur
@@ -238,11 +238,11 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
       <p className={formulaire.regle} role="note">
         <strong>Absent</strong> : {AIDES_ETAT_ENGAGE.absent}
         <br />
-        <strong>A abandonné</strong> : {AIDES_ETAT_ENGAGE.abandonne}
+        <strong>Drop</strong> : {AIDES_ETAT_ENGAGE.abandonne}
         <br />
         <strong>Suppression</strong> : un engagé qui figure déjà dans une rencontre ne se
         supprime plus — sa ligne indique alors dans combien. S&rsquo;il a arrêté en cours de
-        route, marquez-le « a abandonné ».
+        route, marquez-le « Drop ».
       </p>
 
       {engages.length === 0 ? (
@@ -348,6 +348,48 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                       est PLEIN, les autres creux : on lit l'état sans lire le libellé — même
                       vocabulaire que la bascule de publication du reste du back-office. */}
                   <td>
+                    {/* ══════════════════════════════════════════════════════════════════
+                        SOUS 880 px : UNE LIGNE, PAS QUATRE BOUTONS (retour de Brice, 2026-08-25)
+                        ══════════════════════════════════════════════════════════════
+                        🔴 LE MÊME DÉFAUT QUE CELUI DÉJÀ PAYÉ DEUX FOIS, PAR UN AUTRE CHEMIN.
+                        Sur téléphone, les quatre boutons passent à la ligne 2 par 2 : chaque
+                        engagé occupe alors quatre fois la hauteur utile, et à 64 lignes la
+                        page devient impraticable. C'est la famille du 2026-08-15 (57 → 157 px
+                        la ligne) — sauf qu'ici le retour à la ligne est VOULU au-dessus, et
+                        que c'est la place qui manque en dessous.
+
+                        🔴 DEUX PRÉSENTATIONS, UN SEUL COMPORTEMENT. Ce sélecteur et les
+                        boutons ci-dessous appellent `pointer(...)` — la MÊME fonction — et
+                        énumèrent `ENTRY_STATES` — la MÊME source. Il n'y a donc pas deux
+                        contrôles à tenir d'accord : il y a un contrôle, rendu deux fois.
+                        Écrire une seconde logique de pointage ici aurait été le piège
+                        « garde sur une copie » appliqué à de l'interface.
+
+                        ⚠️ C'est le CSS qui n'en montre qu'un (`display: none`), et pas une
+                        condition JavaScript : un rendu conditionnel sur la largeur exigerait
+                        de connaître le viewport au serveur, qu'on ne connaît pas. `display:
+                        none` retire AUSSI l'élément de l'ordre de tabulation — sans quoi
+                        chaque engagé offrirait deux arrêts clavier pour le même geste. */}
+                    <select
+                      className={styles.etatSelect}
+                      aria-label={`État de ${engage.displayName}`}
+                      value={engage.state}
+                      disabled={enCoursId === engage.id}
+                      onChange={(evenement) =>
+                        pointer(
+                          engage.id,
+                          engage.displayName,
+                          evenement.target.value as EntryState,
+                        )
+                      }
+                    >
+                      {ENTRY_STATES.map((cible) => (
+                        <option key={cible} value={cible}>
+                          {LIBELLES_ETAT_ENGAGE[cible]}
+                        </option>
+                      ))}
+                    </select>
+
                     <div className={styles.etats}>
                       {ENTRY_STATES.map((cible) => {
                         const courant = engage.state === cible;
@@ -388,7 +430,7 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                           precision={
                             "Cet engagé ne figure dans aucune rencontre : rien d’autre ne " +
                             "disparaît. Si la personne était là et a arrêté en cours de route, " +
-                            "n’utilisez pas ce bouton — marquez-la « a abandonné », ses points " +
+                            "n’utilisez pas ce bouton — marquez-la « Drop », ses points " +
                             "restent au classement."
                           }
                           onConfirmer={async () => {
@@ -410,7 +452,7 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                            au-dessus. */
                         <p
                           className={styles.verrou}
-                          title="Un engagé qui figure dans une rencontre ne se supprime plus. S’il a arrêté en cours de route, marquez-le « a abandonné » : ses points restent au classement."
+                          title="Un engagé qui figure dans une rencontre ne se supprime plus. S’il a arrêté en cours de route, marquez-le « Drop » : ses points restent au classement."
                         >
                           Dans {engage.placesDeRencontre} rencontre
                           {engage.placesDeRencontre > 1 ? "s" : ""}

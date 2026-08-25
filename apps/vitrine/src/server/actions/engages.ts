@@ -213,7 +213,7 @@ export async function supprimerEngage(id: string): Promise<ResultatAction<undefi
         ok: false,
         error:
           "Cet engagé figure déjà dans une rencontre : il ne se supprime plus. " +
-          "Marquez-le « a abandonné » — ses points et ses manches restent au classement, " +
+          "Marquez-le « Drop » — ses points et ses manches restent au classement, " +
           "et les parties où ses adversaires l'ont rencontré gardent un sens.",
       };
     }
