@@ -657,22 +657,40 @@ export function FicheTournoi({
                       de l'Epic 13 (« une règle se dit, ne se grise pas ») appliqué à un
                       classement, et la parade au défaut de la 10.13 : une règle juste que
                       personne ne voit ne sert à rien. */}
+                  {/* ⚠️ LES ESPACES SONT EXPLICITES (`{" "}`) DANS CES TROIS PHRASES, ET C'EST
+                      UN CORRECTIF, PAS UN STYLE. Mesuré dans le HTML rendu sur staging : la
+                      phrase sortait « top&nbsp;1pour l'emporter » — l'espace écrit après
+                      `</strong>` avait disparu. ⚠️ Je n'en fais PAS une loi générale : le même
+                      motif existe ailleurs dans ce fichier et rend correctement, donc la cause
+                      exacte n'est pas établie. Ce qui est établi, c'est que l'espace explicite
+                      la rend fiable — et qu'aucune porte ne voit ce défaut : ni lint, ni
+                      typecheck, ni test. Seul l'écran rendu l'attrape. */}
                   {finale.vainqueur ? (
                     <p className={styles.classementVainqueur}>
-                      <strong>{finale.vainqueur.nom} remporte le tournoi</strong> — les{" "}
-                      {finale.seuil} points atteints, puis un top&nbsp;1.
+                      <strong>{finale.vainqueur.nom} remporte le tournoi</strong>{" "}
+                      — les {finale.seuil} points atteints, puis un top&nbsp;1.
                     </p>
                   ) : finale.enPositionDeGagner.length > 0 ? (
                     <p className={styles.classementRegle}>
-                      {finale.enPositionDeGagner.map((f) => f.nom).join(", ")}{" "}
-                      {finale.enPositionDeGagner.length > 1 ? "ont" : "a"} les {finale.seuil}{" "}
-                      points&nbsp;: il {finale.enPositionDeGagner.length > 1 ? "leur" : "lui"}{" "}
-                      faut maintenant un <strong>top&nbsp;1</strong> pour l&rsquo;emporter.
+                      {/* 🔴 LE TOTAL DE CHACUN EST ÉCRIT, ET C'EST UN CORRECTIF : « X a les 20
+                          points » se lit comme SON score alors que c'est le SEUIL — ClaraByte en
+                          avait 23. Une phrase juste qu'on lit de travers vaut une phrase fausse. */}
+                      <strong>
+                        {finale.enPositionDeGagner
+                          .map((f) => `${f.nom} (${f.total} pts)`)
+                          .join(", ")}
+                      </strong>{" "}
+                      {finale.enPositionDeGagner.length > 1 ? "ont" : "a"} atteint les{" "}
+                      {finale.seuil} points&nbsp;: il{" "}
+                      {finale.enPositionDeGagner.length > 1 ? "leur" : "lui"} faut maintenant un{" "}
+                      <strong>top&nbsp;1</strong>{" "}
+                      pour l&rsquo;emporter.
                     </p>
                   ) : (
                     <p className={styles.classementRegle}>
                       Pour l&rsquo;emporter&nbsp;: atteindre <strong>{finale.seuil} points</strong>,
-                      puis faire un <strong>top&nbsp;1</strong> sur une manche suivante.
+                      puis faire un <strong>top&nbsp;1</strong>{" "}
+                      sur une manche suivante.
                     </p>
                   )}
 
