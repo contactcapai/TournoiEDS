@@ -148,7 +148,18 @@ if (echecs.length === 0) {
       "      `::after` est posé à left/right -4px, donc +4px de scrollWidth PAR CONSTRUCTION —\n" +
       "      exemptée PAR SON NOM et non par un seuil : un seuil à 5px masquerait un vrai\n" +
       "      débordement de 4px ailleurs) · conteneurs réellement défilants (leur scrollWidth\n" +
-      "      supérieur au clientWidth est CE QUI LES REND défilables) et leur contenu.\n",
+      "      supérieur au clientWidth est CE QUI LES REND défilables) et leur contenu.\n" +
+      "   🔴 ANGLE MORT DÉCLARÉ (Story 13.2) : LE BACK-OFFICE N'EST PAS COUVERT.\n" +
+      "      Cette porte interroge en HTTP NU, sans cookie. Les routes d'/admin protégées\n" +
+      "      lui répondraient par une redirection vers la connexion : elle mesurerait le\n" +
+      "      login en croyant mesurer l'agenda, et rendrait un VERT sur une page jamais vue.\n" +
+      "      Seules /admin/login et /admin/login/verifier y sont — les seules joignables\n" +
+      "      sans session.\n" +
+      "   ⚠️ LE RISQUE EST RÉEL : globals.css pose overflow-x: clip, donc un débordement\n" +
+      "      du back-office est rogné SANS scrollbar ni erreur, invisible à l'œil PAR\n" +
+      "      CONSTRUCTION. Seul un coup d'œil sur staging l'attrape. Arbitrage du 2026-08-25 :\n" +
+      "      on ÉCRIT la limite plutôt que d'apprendre à cette porte à porter une session —\n" +
+      "      le parc d'instruments ne peut que décroître.\n",
   );
   process.exit(0);
 }

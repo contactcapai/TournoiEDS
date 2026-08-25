@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/server/auth/config";
 import { lireCompte } from "@/server/auth/guard";
 import { sectionsPour } from "../_sections";
+import { MenuAdmin } from "./_menu/MenuAdmin";
 import styles from "./layout.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -68,7 +68,19 @@ export default async function AdminLayout({
         Aller au contenu
       </a>
 
-      <header className={styles.head}>
+      {/* ══════════════════════════════════════════════════════════════════════════════════
+          LA COLONNE LATÉRALE (arbitrage de Brice, 2026-08-25, d'après les planches Stitch)
+          ══════════════════════════════════════════════════════════════════════════════════
+          Le chrome était un EN-TÊTE HORIZONTAL : neuf entrées y poussaient le contenu vers
+          le bas et ne hiérarchisaient rien. Une colonne tient les neuf sans concurrencer la
+          page, et laisse la place aux familles et à la phrase de l'entrée courante.
+
+          ⚠️ CE QUI N'EST PAS REPRIS DES PLANCHES, ET C'EST DÉLIBÉRÉ : le champ « Rechercher »,
+          la cloche de notifications, le menu de compte en haut à droite et le pied de page
+          « Mentions légales / Confidentialité / Contact ». AUCUNE de ces quatre choses
+          n'existe dans le produit — les dessiner promettrait des fonctions absentes, ce que
+          `_sections.ts` combat depuis deux occurrences (« une porte sans pièce »). */}
+      <aside className={styles.rail}>
         <div className={styles.identite}>
           {/* `/logo-eds-blanc.png` est déjà déclaré dans next.config.ts → localPatterns.
               ⚠️ Une image locale absente de cette liste répond 400 : c'est exactement la
@@ -85,29 +97,24 @@ export default async function AdminLayout({
           <span className={styles.marque}>Back-office</span>
         </div>
 
-        {/* Navigation LUE DEPUIS LE REGISTRE, jamais écrite en dur, et FILTRÉE PAR RÔLE
-            depuis la 8.1. Le <nav> disparaît plutôt que de rendre une liste vide : c'est le
-            cas d'un compte sans rôle, à qui le tableau de bord explique pourquoi. */}
-        {sections.length > 0 && (
-          <nav className={styles.nav} aria-label="Sections du back-office">
-            <ul className={styles.navListe}>
-              {sections.map((section) => (
-                <li key={section.href}>
-                  <Link className={styles.navLien} href={section.href}>
-                    {section.libelle}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
+        {/* 🔴 LA NAVIGATION EST UN COMPOSANT CLIENT, ET CE LAYOUT RESTE UN RSC. Le menu a
+            besoin de `usePathname()` pour marquer l'entrée courante — un RSC ne connaît pas
+            la route, et c'est exactement pourquoi le menu ne la marquait PAS jusqu'ici. La
+            frontière client reste MINIMALE : ce layout lit la session et filtre par rôle,
+            `MenuAdmin` ne reçoit que des sections déjà triées.
+            ⚠️ Le <nav> disparaît de lui-même quand il n'y a rien à montrer (compte sans
+            rôle) — c'est alors le tableau de bord qui explique la situation. */}
+        <MenuAdmin sections={sections} />
 
+        {/* 🔴 EN BAS DE COLONNE, ET SÉPARÉ DU MENU PAR UN `margin-top: auto`. Ce n'est pas
+            une section : c'est qui vous êtes et comment partir. Le ranger parmi les liens de
+            navigation ferait de « Se déconnecter » une destination de plus. */}
         <div className={styles.compte}>
           <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>
           {/* Server Action en ligne : aucun composant client n'est nécessaire pour un
               bouton qui poste un formulaire. RSC par défaut (project-context.md §5).
               ⚠️ PAS de `exigerRoleAction()` ici, et c'est délibéré : se déconnecter ne doit
-              jamais dépendre du droit d'entrer. Un compte retiré de l'allowlist doit
+              jamais dépendre du droit d'entrer. Un compte dont on a retiré les rôles doit
               pouvoir fermer sa session, pas s'y retrouver coincé. */}
           <form
             action={async () => {
@@ -120,7 +127,7 @@ export default async function AdminLayout({
             </button>
           </form>
         </div>
-      </header>
+      </aside>
 
       <main className={styles.contenu} id="content">
         {children}

@@ -345,7 +345,7 @@ export default async function JourJPage({
                       {/* 🔴 UN ABANDON GARDE SES POINTS ET SON RANG (dette R60) — et l'écran le
                           DIT, sinon on croirait à une erreur de saisie. */}
                       {ligne.abandonne ? (
-                        <span className={propre.abandon}> — a abandonné</span>
+                        <span className={propre.abandon}> — drop</span>
                       ) : null}
                     </td>
                     <td>{ligne.stats.total}</td>

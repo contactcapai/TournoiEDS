@@ -1,37 +1,49 @@
-/* Chrome du back-office (Story 6.1).
+/* Chrome du back-office (Story 6.1, passé en COLONNE LATÉRALE par la 13.2).
    Tokens uniquement — aucun hex de charte en dur (project-context.md §5).
    Le back-office est DESKTOP (NFR4), mais il ne doit pas être CASSÉ en dessous de
    880px : ⚠️ `globals.css` pose `overflow-x: clip` sur toutes les routes, donc un
-   débordement ici serait rogné EN SILENCE, et `gate` ne couvre pas /admin. */
+   débordement ici serait rogné EN SILENCE, et `gate` ne couvre pas /admin (angle mort
+   désormais IMPRIMÉ par la porte, pas seulement écrit ici). */
 
+/* 🔴 UNE RANGÉE, PAS UNE COLONNE — c'est le changement de la 13.2. Le chrome était un
+   en-tête horizontal ; neuf entrées y poussaient le contenu vers le bas et ne
+   hiérarchisaient rien. */
 .shell {
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
   background: var(--navy-deep);
   color: var(--light);
   font-family: var(--font-body);
 }
 
-.head {
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LA COLONNE
+   ══════════════════════════════════════════════════════════════════════════════════════
+   ⚠️ Largeur FIXE, et le contenu prend tout le reste. Une largeur en pourcentage ferait
+   grandir le menu avec l'écran — or neuf libellés courts n'ont aucun besoin de 400px sur un
+   moniteur large, pendant que le tableau des engagés, lui, en a besoin. */
+.rail {
   display: flex;
-  align-items: center;
-  gap: 32px;
-  /* Le logo commence au même endroit que le contenu de la page : les deux ne portent que
-     `--wrap-pad`, donc rien à synchroniser entre eux. */
-  padding: 0 var(--wrap-pad);
-  min-height: var(--head-height);
+  flex-direction: column;
+  gap: 24px;
+  flex: 0 0 250px;
+  /* Colle en haut et défile pour elle-même : sur un écran court, le bas de la colonne
+     (le compte, la déconnexion) reste atteignable sans faire défiler la page entière. */
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: 22px 14px;
   background: var(--navy);
-  border-bottom: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, pas de token de filet */
-  /* `wrap` plutôt qu'un `overflow: hidden` : sous 880px les trois blocs passent à la
-     ligne au lieu de déborder. C'est la parade au `clip` rappelé en tête de fichier. */
-  flex-wrap: wrap;
+  border-right: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, pas de token de filet */
 }
 
 .identite {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 0 12px;
 }
 
 .logo {
@@ -41,52 +53,33 @@
 
 .marque {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 22px;
   letter-spacing: var(--ls-display);
   color: var(--gold);
 }
 
-.nav {
-  /* Pousse le bloc « compte » à droite sans marge auto sur chaque enfant. */
-  margin-right: auto;
-}
-
-.navListe {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  list-style: none;
-}
-
-.navLien {
-  display: inline-flex;
-  align-items: center;
-  /* Cible tactile ≥ 44×44 (project-context.md §5, dette R10 déjà payée en 2.10). */
-  min-height: 44px;
-  padding: 0 4px;
-  font-size: var(--fs-nav);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--light);
-  text-decoration: none;
-}
-
-.navLien:hover {
-  color: var(--gold);
-}
-
+/* 🔴 `margin-top: auto` — c'est lui qui pousse le compte EN BAS de la colonne. Sans lui, la
+   déconnexion se collerait au dernier lien de navigation et deviendrait une destination de
+   plus, à côté de « Réglages ». Deux gestes de nature différente ne se rangent pas ensemble. */
 .compte {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  /* Quand `.nav` est absent (registre vide, Story 6.1), c'est ce bloc qui doit être
-     poussé à droite — sinon il se collerait au logo. */
-  margin-left: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: auto;
+  padding: 16px 12px 0;
+  border-top: 1px solid rgba(218, 178, 101, 0.18);
 }
 
 .nom {
   font-size: 14px;
   color: var(--grey);
+  /* Un pseudo Discord long ne pousse pas la colonne : la largeur est fixe, et un
+     dépassement serait rogné SANS scrollbar par `overflow-x: clip`. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deconnexion {
@@ -111,7 +104,7 @@
 
 /* ══════════════════════════════════════════════════════════════════════════════════════
    🔴 PLEINE LARGEUR, ALIGNÉ À GAUCHE — ARBITRAGE DE BRICE, 2026-08-25
-   ══════════════════════════════════════════════════════════════════════════════════
+   ══════════════════════════════════════════════════════════════════════════════════════
    Ni `max-width`, ni `margin: 0 auto`, et c'est DÉLIBÉRÉ. Le back-office a porté
    successivement `--wrap-max` (1160px, la mesure de la maquette du SITE PUBLIC, reprise
    telle quelle par la Story 6.1) puis un plafond propre de 1440px — Brice a tranché après
@@ -121,11 +114,13 @@
    à gauche des boutons à droite. C'est un choix assumé, pas une régression — le back-office
    est un OUTIL (64 engagés sur 4 colonnes, un bracket, une grille de tables au jour J), pas
    une page qui se lit.
-   ⚠️ `--wrap-pad` de chaque côté, comme l'en-tête : c'est ce qui aligne le logo sur le fil
-   d'Ariane. Le seul alignement à tenir désormais. */
+   ⚠️ `min-width: 0` EST OBLIGATOIRE DEPUIS QUE LE SHELL EST UNE RANGÉE : un enfant flex a
+   `min-width: auto` par défaut, donc un tableau large POUSSERAIT la colonne latérale hors de
+   l'écran au lieu de défiler. Le symptôme serait rogné en silence par `overflow-x: clip` —
+   exactement le mode de défaillance que ce fichier annonce en tête. */
 .contenu {
   flex: 1;
-  width: 100%;
+  min-width: 0;
   padding: 48px var(--wrap-pad) 72px;
 }
 
@@ -138,10 +133,20 @@
 /* 880px en LITTÉRAL : `--bp-mobile` est documentaire, une custom property n'est pas
    lisible dans une media query (project-context.md §5). */
 @media (max-width: 880px) {
-  .head {
-    gap: 16px;
-    padding-top: 14px;
-    padding-bottom: 14px;
+  /* Sous 880px la colonne redevient une BANDE EN HAUT : 250px de rail sur un téléphone de
+     360px ne laisseraient rien au contenu. */
+  .shell {
+    flex-direction: column;
+  }
+
+  .rail {
+    flex: none;
+    position: static;
+    max-height: none;
+    width: 100%;
+    padding: 14px var(--wrap-pad);
+    border-right: none;
+    border-bottom: 1px solid rgba(218, 178, 101, 0.25);
   }
 
   .contenu {

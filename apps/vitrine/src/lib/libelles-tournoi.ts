@@ -72,7 +72,7 @@ export const AIDES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, string>
 /**
  * Le pointage du jour J, dit au bénévole (Story 10.5).
  *
- * 🔴 « ABSENT » ET « A ABANDONNÉ » PORTENT DES LIBELLÉS QUI NE SE RESSEMBLENT PAS, et c'est
+ * 🔴 « ABSENT » ET « DROP » PORTENT DES LIBELLÉS QUI NE SE RESSEMBLENT PAS, et c'est
  * l'AC 5. Deux libellés proches sur deux gestes que tout oppose est exactement ce qui fait
  * cliquer trop vite — leçon d'`AtelierActions` (6.9), où « retirer de l'offre » a dû s'éloigner
  * de « supprimer ». Ici l'enjeu est plus grand qu'une ligne perdue : confondre les deux
@@ -82,7 +82,13 @@ export const LIBELLES_ETAT_ENGAGE: Record<EntryState, string> = {
   inscrit: "Inscrit",
   present: "Présent",
   absent: "Absent",
-  abandonne: "A abandonné",
+  // 🔴 « DROP », LE MOT DES JOUEURS (arbitrage de Brice, 2026-08-25). Il remplace
+  // « A abandonné », qui était long, se confondait de loin avec « Absent » et ne se disait
+  // pas ainsi autour d'une table de TFT. ⚠️ LA VALEUR EN BASE RESTE `abandonne` : c'est un
+  // libellé qu'on change, pas un état — aucune migration, et le moteur ne bouge pas.
+  // ⚠️ Le raccourcissement RENFORCE l'AC 5 ci-dessus au lieu de l'affaiblir : « Absent » et
+  // « Drop » ne se ressemblent plus du tout, ni en longueur ni en sonorité.
+  abandonne: "Drop",
 };
 
 /**
@@ -96,7 +102,10 @@ export const AIDES_ETAT_ENGAGE: Record<EntryState, string> = {
   inscrit: "Inscrit, pas encore pointé. C'est l'état de départ.",
   present: "Il est là. C'est lui qu'on comptera pour générer le tableau.",
   absent: "Ne s'est jamais présenté, n'a rien joué.",
+  // ⚠️ CETTE PHRASE COMPTE PLUS DEPUIS QUE LE LIBELLÉ EST « DROP » : le mot est du jargon,
+  // il ne se comprend pas tout seul par un bénévole qui découvre l'écran. Elle dit donc
+  // d'ABORD ce qui s'est passé, ensuite la conséquence.
   abandonne:
-    "Était là, a joué, puis a arrêté. Ses points et ses manches RESTENT au classement — " +
-    "les effacer réécrirait les parties où ses adversaires l'ont battu.",
+    "Était là, a joué, puis a arrêté en cours de route. Ses points et ses manches RESTENT " +
+    "au classement — les effacer réécrirait les parties où ses adversaires l'ont battu.",
 };

@@ -1,5 +1,5 @@
 import type { RoleAdmin } from "../../lib/roles";
-import { SECTIONS_ADMIN } from "../../app/admin/_sections";
+import { SECTIONS_ADMIN, cheminCouvertPar } from "../../app/admin/_sections";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -78,9 +78,10 @@ const ROUTES_HORS_NAVIGATION: readonly { prefixe: string; role: RoleAdmin }[] = 
   { prefixe: "/admin/medias", role: "admin_site" },
 ];
 
-function couvre(chemin: string, prefixe: string): boolean {
-  return chemin === prefixe || chemin.startsWith(`${prefixe}/`);
-}
+// 🔴 `cheminCouvertPar` VIENT DU REGISTRE, elle n'est plus définie ici (Story 13.2). Le menu
+// pose désormais la même question — « ce chemin appartient-il à cette section ? » — pour
+// marquer l'entrée courante. Deux copies répondraient un jour différemment : porte fermée
+// d'un côté, entrée marquée active de l'autre.
 
 export function exigencePour(chemin: string): ExigenceAcces {
   if (CHEMINS_OUVERTS.some((ouvert) => chemin === ouvert)) return { type: "ouvert" };
@@ -89,13 +90,13 @@ export function exigencePour(chemin: string): ExigenceAcces {
   // La section la PLUS LONGUE l'emporte : `/admin/agenda/bars` doit se rattacher à
   // `/admin/agenda` et non à un éventuel préfixe plus court ajouté un jour.
   const horsNavigation = ROUTES_HORS_NAVIGATION.find((candidate) =>
-    couvre(chemin, candidate.prefixe),
+    cheminCouvertPar(chemin, candidate.prefixe),
   );
   if (horsNavigation) return { type: "role", role: horsNavigation.role };
 
   const section = [...SECTIONS_ADMIN]
     .sort((a, b) => b.href.length - a.href.length)
-    .find((candidate) => couvre(chemin, candidate.href));
+    .find((candidate) => cheminCouvertPar(chemin, candidate.href));
 
   if (section) return { type: "role", role: section.role };
 

@@ -1,0 +1,139 @@
+/* La barre latérale du back-office (Story 13.2). Tokens uniquement.
+   ⚠️ 880px en LITTÉRAL : une custom property n'est pas lisible dans une media query
+   (project-context.md §5). */
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LA BASCULE — SOUS 880 px SEULEMENT
+   ══════════════════════════════════════════════════════════════════════════════════════
+   Au-dessus, la colonne est toujours dépliée : ce bouton ne commanderait rien, et un
+   contrôle qui ne fait rien est pire qu'absent. */
+.bascule {
+  display: none;
+}
+
+.basculeCourante {
+  color: var(--gold);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Le titre de famille est une ÉTIQUETTE, pas un titre de section : petit, discret, il range
+   sans concurrencer les liens. La hiérarchie se rend par la taille (principe ⑤, Epic 13). */
+/* 🔴 CETTE CLASSE A ÉTÉ UNE FANTÔME PENDANT UNE RÉÉCRITURE, LE 2026-08-25. Elle existait,
+   je l'ai perdue en repassant ce fichier de la rangée à la colonne, et `className={undefined}`
+   ne rend AUCUN attribut : ni erreur, ni lint, ni typecheck (les CSS Modules sont typés
+   `Record<string, string>`). ⚠️ Et le gate qui sait voir ça NE COUVRE PAS /admin — c'est une
+   comparaison à la main des classes utilisées et définies qui l'a rattrapée. Même famille que
+   les trois de la 13.1. */
+.groupe {
+  display: block;
+}
+
+.groupeTitre {
+  margin-bottom: 6px;
+  padding: 0 12px;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+
+/* 🔴 UNE COLONNE, JAMAIS UNE RANGÉE. C'est tout le sujet de l'arbitrage du 2026-08-25 :
+   neuf entrées dans un en-tête horizontal repoussaient le contenu vers le bas et ne
+   hiérarchisaient rien. ⚠️ Pas de `flex-wrap` ici : il n'y a rien à faire passer à la ligne,
+   et l'ajouter rouvrirait le défaut d'écrasement déjà payé deux fois (2026-08-15, 13.1). */
+.liste {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.lien {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Cible tactile ≥ 44×44 (project-context.md §5, dette R10 payée en 2.10). */
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-button);
+  /* 🔴 Le filet vit sur TOUTES les entrées, transparent quand elles sont inactives : sans
+     lui, l'entrée active gagnerait 3px de large et TOUTE la colonne se décalerait au
+     changement de page. Un menu qui bouge à chaque clic se remarque plus que l'accent. */
+  border-left: 3px solid transparent;
+  color: var(--light);
+  font-size: var(--fs-nav);
+  letter-spacing: 0.6px;
+  text-decoration: none;
+}
+
+.lien:hover {
+  background: var(--surface);
+  color: var(--gold);
+}
+
+/* 🔴 L'ENTRÉE COURANTE SE MARQUE TROIS FOIS, ET AUCUNE N'EST DE TROP : `aria-current` pour
+   le lecteur d'écran, la couleur pour l'œil, le filet pour qui ne distingue pas l'or du
+   blanc. La couleur seule serait un fait dit à une seule catégorie de personnes. */
+.lienActif {
+  border-left-color: var(--gold);
+  background: var(--surface);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.libelle {
+  /* Un libellé long ne pousse pas la colonne : il se coupe proprement. La largeur du rail
+     est fixe, et `overflow-x: clip` de globals.css masquerait un dépassement EN SILENCE. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ③ La phrase de la section courante, sous elle seulement. Bornée en `ch` : une borne de
+   lisibilité se pose sur le PARAGRAPHE, jamais sur son conteneur (leçon de la PR #75). */
+.description {
+  max-width: 34ch;
+  padding: 2px 12px 8px 15px;
+  font-size: 12px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
+  .bascule {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid rgba(218, 178, 101, 0.5); /* --gold à 50 % */
+    border-radius: var(--radius-button);
+    background: transparent;
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: var(--fs-nav);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  /* Replié par défaut. ⚠️ Le `<noscript>` du composant rouvre ce panneau quand JavaScript
+     est absent : l'état vit dans React, donc sans hydratation le menu serait INJOIGNABLE. */
+  .nav[data-deplie="non"] {
+    display: none;
+  }
+
+  .nav[data-deplie="oui"] {
+    display: flex;
+  }
+}

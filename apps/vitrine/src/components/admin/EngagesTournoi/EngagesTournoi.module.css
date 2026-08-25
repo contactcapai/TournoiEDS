@@ -189,6 +189,19 @@
   gap: 6px;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LE SÉLECTEUR D'UNE LIGNE — SOUS 880 px SEULEMENT (retour de Brice, 2026-08-25)
+   ══════════════════════════════════════════════════════════════════════════════════════
+   🔴 `display: none` ET NON `visibility` NI UN RENDU CONDITIONNEL. Il faut que l'élément
+   sorte de l'ORDRE DE TABULATION : présent mais invisible, il offrirait à chaque engagé un
+   second arrêt clavier pour le même geste — 64 lignes, 64 arrêts inutiles.
+   ⚠️ Au-dessus de 880 px on garde les quatre boutons : « un clic, sans rouvrir de
+   formulaire » est l'AC 4 de la 10.5, et un sélecteur y coûterait deux gestes au lieu d'un
+   pour l'action la plus fréquente de l'écran. */
+.etatSelect {
+  display: none;
+}
+
 .boutonEtat {
   padding: 0 12px;
   font-size: 13px;
@@ -282,14 +295,41 @@
     font-size: 26px;
   }
 
-  /* 🔴 LES QUATRE ÉTATS PASSENT EN 2 × 2. Sur une seule rangée ils font ~360 px : à eux seuls
-     ils dépassent la largeur d'un téléphone, et le tableau partirait en défilement horizontal
-     pour le geste le plus fréquent de l'écran — pointer, au doigt, dans un bar, le jour J.
-     ⚠️ Les 44 px de hauteur sont intacts : c'est la LARGEUR qu'on plie, jamais la cible. */
+  /* ══════════════════════════════════════════════════════════════════════════════════
+     🔴 LES BOUTONS CÈDENT LA PLACE À UN SÉLECTEUR D'UNE LIGNE — 2026-08-25
+     ══════════════════════════════════════════════════════════════════════════════════
+     Ce bloc posait les quatre états en grille 2 × 2, pour éviter qu'une rangée de ~360 px
+     ne déclenche un défilement horizontal sur un téléphone. La largeur était sauvée, mais
+     la HAUTEUR payait : deux rangées de boutons par engagé, soit près de quatre fois la
+     hauteur utile d'une ligne — à 64 joueurs, la page devient impraticable. Retour de
+     Brice, 2026-08-25 : « on se retrouve avec le même souci ».
+     ⇒ Un `<select>` dit l'état ET permet d'en changer, sur UNE ligne. Les 44 px de cible
+     tactile sont tenus par sa hauteur, pas par un empilement.
+     ⚠️ Le comportement, lui, n'est pas dupliqué : le sélecteur appelle la MÊME fonction de
+     pointage que les boutons et énumère la MÊME liste d'états. */
   .etats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 190px;
+    display: none;
+  }
+
+  .etatSelect {
+    display: block;
+    width: 100%;
+    min-width: 150px;
+    /* Cible tactile ≥ 44×44 (project-context.md §5). */
+    min-height: 44px;
+    padding: 0 10px;
+    border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+    border-radius: var(--radius-button);
+    background: var(--surface);
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: 14px;
+  }
+
+  .etatSelect:disabled {
+    /* Pendant l'aller-retour du pointage. ⚠️ La règle se DIT par l'état grisé natif du
+       contrôle, on n'y ajoute pas de couleur d'alerte : rien n'a échoué, ça travaille. */
+    opacity: 0.6;
   }
 
   /* Le plancher de la colonne des noms se resserre : à 200px il poussait le tableau en
