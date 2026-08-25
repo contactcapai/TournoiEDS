@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Brush, Button, ExternalIcon, PhotoFrame } from "@repo/ui";
@@ -82,6 +84,21 @@ export type LigneClassementAffichee = {
 };
 
 /**
+ * La finale telle que la fiche la rend (Story 10.14).
+ *
+ * ⚠️ **DÉJÀ RÉSOLUE PAR L'APPELANT** : la règle « 20 points, puis un top 1 » est appliquée dans
+ * `lib/tournoi/finale.ts`, pas ici. Un composant ne décide pas d'un vainqueur — il rend ce qu'on
+ * lui donne, et les deux consommateurs (page publique et aperçu) lui donnent le même.
+ */
+export type FinalePubliee = {
+  classement: readonly LigneClassementAffichee[];
+  vainqueur: { nom: string; total: number } | null;
+  /** Ceux qui ont déjà le seuil : il ne leur manque plus qu'un top 1. */
+  enPositionDeGagner: readonly { nom: string; total: number }[];
+  seuil: number;
+};
+
+/**
  * Ce que la fiche sait du tournoi **à l'instant où on la regarde** (Story 14.1).
  *
  * 🔴 L'ÉTAT EST CALCULÉ PAR L'APPELANT, PAS ICI, et ce n'est pas un caprice : ce composant
@@ -99,6 +116,12 @@ export type SuiviPublic = {
    * et ce qui arrive ici est ce qui se publie — un composant ne décide pas d'un droit.
    */
   classement: readonly LigneClassementAffichee[];
+  /**
+   * 🔴 `null` = CE TOURNOI N'A PAS DE FINALE, et ce n'est pas la même chose qu'une finale vide.
+   * Rendre un objet vide ferait écrire « personne n'a encore gagné » sur un tournoi qui n'a
+   * aucune finale : une phrase vraie et hors sujet, donc trompeuse.
+   */
+  finale?: FinalePubliee | null;
 };
 
 export function FicheTournoi({
@@ -155,6 +178,7 @@ export function FicheTournoi({
   const podium = tournoi.estPasse ? podiumVisible(tournoi) : [];
 
   const classement = suivi?.classement ?? [];
+  const finale = suivi?.finale ?? null;
 
   /**
    * ══════════════════════════════════════════════════════════════════════════════════════
@@ -605,7 +629,17 @@ export function FicheTournoi({
           poule) ne produit aucun rang, et une manche générée mais pas encore dépouillée n'en
           produit pas encore. Écrire « aucun résultat » ici expliquerait au public une
           mécanique interne — et la phrase deviendrait fausse sans que rien ne le dise. */}
-      {classement.length > 0 ? (
+      {/* ══════════════════════════════════════════════════════════════════════════
+          LE CLASSEMENT (14.2) — ET SES DEUX ESPACES DE POINTS (10.14)
+          ══════════════════════════════════════════════════════════════════════════
+          🔴 DÈS QU'UN TOURNOI PORTE UNE FINALE, IL A DEUX CLASSEMENTS ET PAS UN : on
+          repart de zéro en finale. Les fondre en un seul rendrait le seuil de victoire
+          (20 points) atteignable dès les qualifications, donc la règle absurde.
+          ⚠️ LA FINALE PASSE EN PREMIER : c'est elle qui désigne le vainqueur. Les
+          qualifications ne sont plus, à ce stade, qu'un rappel de comment on y est entré.
+          ⚠️ Sur un tournoi SANS finale — tous ceux d'aujourd'hui —, un seul tableau, et
+          exactement le rendu de la 14.2. */}
+      {classement.length > 0 || (finale?.classement.length ?? 0) > 0 ? (
         <section className={editorial.section} aria-labelledby="classement-title">
           <Wrap>
             <SectionHead
@@ -616,54 +650,68 @@ export function FicheTournoi({
             />
 
             <div className={motion.reveal}>
-              <div className={styles.classementCadre}>
-                <table className={styles.classement}>
-                  {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT — même acquis qu'en 13.1
-                      sur l'écran du jour J : le fait était vrai depuis toujours et écrit dans
-                      un commentaire, c'est-à-dire dit à personne. Sur un TFT étalé sur quatre
-                      week-ends, un classement posé sous un déroulé par journées se lit comme
-                      le classement DE la journée affichée. */}
-                  <caption className={styles.classementLegende}>
-                    Classement aux points, cumulé sur <strong>tout le tournoi</strong>.
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Rang</th>
-                      <th scope="col">Engagé</th>
-                      <th className={styles.classementChiffre} scope="col">
-                        Points
-                      </th>
-                      <th className={styles.classementChiffre} scope="col">
-                        Manches
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classement.map((ligne) => (
-                      <tr key={ligne.id}>
-                        <td className={styles.classementRang}>{ligne.rang}</td>
-                        <td className={styles.classementNom}>
-                          {ligne.nom}
-                          {/* 🔴 UN DROP GARDE SES POINTS ET SON RANG (R60) — et l'écran le
-                              DIT, sinon on croirait à une erreur de saisie. Même mot que le
-                              back-office : « drop », pas « a abandonné ». */}
-                          {ligne.abandonne ? (
-                            <span className={styles.classementDrop}> — drop</span>
-                          ) : null}
-                        </td>
-                        <td className={styles.classementChiffre}>{ligne.stats.total}</td>
-                        <td className={styles.classementChiffre}>{ligne.stats.manchesJouees}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {finale && finale.classement.length > 0 ? (
+                <div className={styles.classementBloc}>
+                  {/* 🔴 LA RÈGLE SE DIT, TOUJOURS — sinon le public lit un tableau où le
+                      premier « aurait dû » gagner et croit à une erreur. C'est le principe ①
+                      de l'Epic 13 (« une règle se dit, ne se grise pas ») appliqué à un
+                      classement, et la parade au défaut de la 10.13 : une règle juste que
+                      personne ne voit ne sert à rien. */}
+                  {finale.vainqueur ? (
+                    <p className={styles.classementVainqueur}>
+                      <strong>{finale.vainqueur.nom} remporte le tournoi</strong> — les{" "}
+                      {finale.seuil} points atteints, puis un top&nbsp;1.
+                    </p>
+                  ) : finale.enPositionDeGagner.length > 0 ? (
+                    <p className={styles.classementRegle}>
+                      {finale.enPositionDeGagner.map((f) => f.nom).join(", ")}{" "}
+                      {finale.enPositionDeGagner.length > 1 ? "ont" : "a"} les {finale.seuil}{" "}
+                      points&nbsp;: il {finale.enPositionDeGagner.length > 1 ? "leur" : "lui"}{" "}
+                      faut maintenant un <strong>top&nbsp;1</strong> pour l&rsquo;emporter.
+                    </p>
+                  ) : (
+                    <p className={styles.classementRegle}>
+                      Pour l&rsquo;emporter&nbsp;: atteindre <strong>{finale.seuil} points</strong>,
+                      puis faire un <strong>top&nbsp;1</strong> sur une manche suivante.
+                    </p>
+                  )}
+
+                  <TableauDeClassement
+                    lignes={finale.classement}
+                    legende={
+                      <>
+                        <strong>La finale</strong> — les points y repartent de zéro.
+                      </>
+                    }
+                  />
+                </div>
+              ) : null}
+
+              {classement.length > 0 ? (
+                <div className={styles.classementBloc}>
+                  <TableauDeClassement
+                    lignes={classement}
+                    legende={
+                      finale ? (
+                        <>
+                          <strong>Les qualifications</strong> — le cumul de toutes les manches
+                          qui ont mené à la finale.
+                        </>
+                      ) : (
+                        <>
+                          Classement aux points, cumulé sur <strong>tout le tournoi</strong>.
+                        </>
+                      )
+                    }
+                  />
+                </div>
+              ) : null}
 
               {/* 🔴 « DIRECT » VEUT DIRE FRAIS AU RECHARGEMENT, ET ON L'ÉCRIT (arbitrage de
-                  l'Epic 14). La page est `force-dynamic` : ce tableau est recalculé à chaque
-                  affichage, il n'est jamais figé — mais elle ne se met PAS à jour toute seule.
-                  Promettre le second en livrant le premier ferait rester quelqu'un devant un
-                  écran qui ne bougera pas.
+                  l'Epic 14). La page est `force-dynamic` : ces tableaux sont recalculés à
+                  chaque affichage, ils ne sont jamais figés — mais elle ne se met PAS à jour
+                  toute seule. Promettre le second en livrant le premier ferait rester
+                  quelqu'un devant un écran qui ne bougera pas.
                   ⚠️ ELLE NE SE REND QUE SI ÇA SE JOUE AUJOURD'HUI — sur un tournoi qui ne se
                   joue pas, « rechargez » n'a plus d'objet et inventerait une attente. Le témoin
                   est `etatDuJour` et **jamais `estPasse`** : celui-ci dérive de `starts_at ≷
@@ -736,5 +784,65 @@ export function FicheTournoi({
         </Wrap>
       </section>
     </>
+  );
+}
+
+/**
+ * Un tableau de classement.
+ *
+ * 🔴 **EXTRAIT PARCE QU'IL Y EN A DEUX DEPUIS LA 10.14** — les qualifications et la finale. Deux
+ * copies du même tableau divergeraient au premier ajustement, et c'est la fiche publique qui
+ * afficherait deux présentations du même objet.
+ *
+ * ⚠️ **LOCAL À CE FICHIER, ET PAS UNE PRIMITIVE DE `@repo/ui`** : il n'a que ces deux
+ * consommateurs, tous deux ici. Le sortir maintenant serait construire pour un besoin futur —
+ * et c'est aussi la leçon de la 6.7, où un composant partagé a cassé au premier consommateur
+ * d'une autre nature.
+ *
+ * ⚠️ **`<caption>` PORTE LE LIBELLÉ, PAS UN TITRE AU-DESSUS** : c'est le **nom accessible** du
+ * tableau, donc un lecteur d'écran l'annonce en y entrant — là où un `<p>` voisin n'aurait aucun
+ * lien avec lui. Et ça évite un niveau de titre de plus, que `headingLevel` devrait alors suivre.
+ */
+function TableauDeClassement({
+  lignes,
+  legende,
+}: {
+  lignes: readonly LigneClassementAffichee[];
+  legende: ReactNode;
+}) {
+  return (
+    <div className={styles.classementCadre}>
+      <table className={styles.classement}>
+        <caption className={styles.classementLegende}>{legende}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Rang</th>
+            <th scope="col">Engagé</th>
+            <th className={styles.classementChiffre} scope="col">
+              Points
+            </th>
+            <th className={styles.classementChiffre} scope="col">
+              Manches
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {lignes.map((ligne) => (
+            <tr key={ligne.id}>
+              <td className={styles.classementRang}>{ligne.rang}</td>
+              <td className={styles.classementNom}>
+                {ligne.nom}
+                {/* 🔴 UN DROP GARDE SES POINTS ET SON RANG (R60) — et l'écran le DIT, sinon on
+                    croirait à une erreur de saisie. Même mot que le back-office : « drop », pas
+                    « a abandonné ». */}
+                {ligne.abandonne ? <span className={styles.classementDrop}> — drop</span> : null}
+              </td>
+              <td className={styles.classementChiffre}>{ligne.stats.total}</td>
+              <td className={styles.classementChiffre}>{ligne.stats.manchesJouees}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

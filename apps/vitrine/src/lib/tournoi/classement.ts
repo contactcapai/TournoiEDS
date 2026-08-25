@@ -1,3 +1,5 @@
+import type { PhaseKind } from "./structure";
+
 /**
  * Classement, points et répartition en lobbies (Story 10.3).
  *
@@ -208,6 +210,35 @@ export type PlaceLue = {
   readonly abandonne: boolean;
   /** `null` = place générée mais **pas encore dépouillée**. Ce n'est pas une manche jouée. */
   readonly rank: number | null;
+  /**
+   * La phase d'où vient cette place — **ajoutée par la Story 10.14**, et pas par confort.
+   *
+   * 🔴 UN TOURNOI A DEUX ESPACES DE POINTS DÈS QU'IL PORTE UNE FINALE : les qualifications, et
+   * la finale, **où l'on repart de zéro**. Sans le format de la phase ici, ce module ne peut
+   * pas les séparer — et le seuil de victoire (20 points) serait atteint dès les qualifications,
+   * ce qui viderait la règle de son sens.
+   * ⚠️ `phasePosition` sert à **numéroter les manches de la finale**, jamais à décider qui en
+   * fait partie : c'est `kind` qui le dit (voir `estDeLaFinale`).
+   */
+  readonly phaseKind: PhaseKind;
+  readonly phasePosition: number;
+};
+
+/**
+ * La taille **RÉELLE** de chaque table : le nombre de places occupées, pas la taille générée.
+ *
+ * 🔴 EXPORTÉE PARCE QUE DEUX CALCULS EN DÉPENDENT (10.14) — le classement et les manches de
+ * finale — et que c'est **le** fait qui serait faux en silence. Un lobby de 8 où 6 personnes se
+ * sont assises est un lobby de **6** : compter 8 donnerait 3 points au dernier au lieu de 1, et
+ * gonflerait tout le tableau. C'est le même défaut que le « 8 codé en dur » de la 10.3, et le
+ * recopier dans le second consommateur serait la faute d'`estParTables` (10.10).
+ */
+export const taillesParTable = (places: readonly PlaceLue[]): Map<string, number> => {
+  const tailles = new Map<string, number>();
+  for (const place of places) {
+    tailles.set(place.matchId, (tailles.get(place.matchId) ?? 0) + 1);
+  }
+  return tailles;
 };
 
 /**
@@ -230,11 +261,7 @@ export type PlaceLue = {
  * gonflerait tout le tableau. L'appelant ne remonte que les places qui portent un engagé.
  */
 export const agregerParEngage = (places: readonly PlaceLue[]): EngageClassable[] => {
-  // Taille RÉELLE de chaque table : le nombre de places occupées, pas la taille générée.
-  const tailleParMatch = new Map<string, number>();
-  for (const place of places) {
-    tailleParMatch.set(place.matchId, (tailleParMatch.get(place.matchId) ?? 0) + 1);
-  }
+  const tailleParMatch = taillesParTable(places);
 
   const ordreParMatch = new Map<string, number>();
   for (const place of places) {

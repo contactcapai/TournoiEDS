@@ -271,7 +271,17 @@ const place = (
   entryId: string,
   rank: number | null,
   abandonne = false,
-): PlaceLue => ({ matchId, entryId, nom: entryId, abandonne, rank });
+): PlaceLue => ({
+  matchId,
+  entryId,
+  nom: entryId,
+  abandonne,
+  rank,
+  // Le format et la position ne servent qu'à séparer les deux espaces de points (10.14) :
+  // ces tests-ci portent sur l'arithmétique du classement, pas sur la finale.
+  phaseKind: "lobbies",
+  phasePosition: 1,
+});
 
 describe("agrégat — les places d'une table deviennent un classement", () => {
   it("compte la taille RÉELLE de la table, pas la taille générée", () => {

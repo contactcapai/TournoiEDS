@@ -17,7 +17,8 @@ import { ecartsDeTirage } from "@/lib/tournoi/tirage";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
   aDesResultatsSaisis,
-  getClassementDuTournoi,
+  getClassement,
+  getFinale,
   getPhasePourJeu,
   getPresentsDuTournoi,
   getRencontresDePhase,
@@ -62,11 +63,20 @@ export default async function JourJPage({
   // ⚠️ `getEngagesForTournament` A DISPARU D'ICI : il ne servait plus qu'au compte du chapô,
   // qui était GLOBAL alors que la génération raisonne PAR JOURNÉE. Une lecture entière de la
   // liste des engagés pour un seul nombre, et un nombre qui n'était pas le bon.
-  const [tournoi, fiche, phases, classement] = await Promise.all([
+  /**
+   * 🔴 LE CLASSEMENT LU ICI EST CELUI DES **QUALIFICATIONS** (Story 10.14) — sur un tournoi à
+   * finale, les points y repartent de zéro, et fondre les deux rendrait le seuil de victoire
+   * atteignable dès les qualifs. ⚠️ Sur un tournoi SANS finale, cet espace EST le tournoi
+   * entier : rien ne change pour les tournois existants.
+   * ⚠️ `getFinale` rend `null` quand aucune phase `finale` n'existe — et c'est ce `null` qui
+   * évite d'écrire « personne n'a encore gagné » sur un tournoi qui n'a pas de finale du tout.
+   */
+  const [tournoi, fiche, phases, classement, finale] = await Promise.all([
     getTournoiPourEngages(id),
     getTournamentById(id),
     getPhasesForTournament(id),
-    getClassementDuTournoi(id),
+    getClassement(id, { espace: "qualification" }),
+    getFinale(id),
   ]);
   if (!tournoi) notFound();
 
@@ -221,6 +231,16 @@ export default async function JourJPage({
                     allerRetour?: boolean;
                   },
                 }}
+                finale={
+                  finale && finale.manches.some((manche) => manche.id === phaseComplete.id)
+                    ? {
+                        // La PREMIÈRE manche du bloc gouverne le seuil ; les suivantes
+                        // l'affichent en lecture seule (arbitrage de Brice, 2026-08-25).
+                        gouverne: finale.manches[0]?.id === phaseComplete.id,
+                        seuil: finale.issue.seuil,
+                      }
+                    : null
+                }
                 rencontres={rencontres}
                 presents={presents.length}
                 ecarts={ecarts}
@@ -304,9 +324,87 @@ export default async function JourJPage({
           🔴 Il porte sur TOUT le tournoi, pas sur la phase affichée : c'est lui qu'on consulte
           pour composer la manche suivante, et c'est lui que « générer depuis le classement »
           consomme. Une colonne `points` deviendrait fausse au premier résultat corrigé (6.13). */}
+      {/* ══════════════════════════════════════════════════════════════════════════════════
+          LA FINALE — SON CLASSEMENT, ET CE QU'ELLE PERMET D'AFFIRMER (Story 10.14)
+          ══════════════════════════════════════════════════════════════════════════════
+          🔴 ELLE PASSE AVANT LE CLASSEMENT DES QUALIFICATIONS parce que c'est elle qui désigne
+          le vainqueur. ⚠️ ET CE BLOC EST LE LIVRABLE AUTANT QUE LA RÈGLE : une règle juste que
+          personne ne voit ne sert à rien — c'est le défaut exact que la 10.13 a corrigé, et le
+          refaire ici coûterait un tournoi entier pendant lequel personne ne saurait où on en
+          est. Le bénévole doit lire « il lui faut un top 1 » sans recompter à la main, debout,
+          un jour de tournoi. */}
+      {finale ? (
+        <section className={styles.section} aria-labelledby="jour-j-finale">
+          <h2 className={styles.sectionTitre} id="jour-j-finale">
+            La finale
+          </h2>
+
+          <p className={styles.mention} role="note">
+            {finale.issue.vainqueur ? (
+              <>
+                <strong>{finale.issue.vainqueur.nom} remporte le tournoi</strong> — il avait les{" "}
+                {finale.issue.seuil} points <strong>avant</strong> la dernière manche, et il l&rsquo;a
+                gagnée. Le podium se pré-remplit depuis le bouton ci-dessous.
+              </>
+            ) : finale.issue.enPositionDeGagner.length > 0 ? (
+              <>
+                <strong>
+                  {finale.issue.enPositionDeGagner.map((f) => `${f.nom} (${f.total} pts)`).join(", ")}
+                </strong>{" "}
+                {finale.issue.enPositionDeGagner.length > 1 ? "ont" : "a"} le seuil de{" "}
+                {finale.issue.seuil} points&nbsp;: un <strong>top 1</strong> à la manche suivante
+                donne le tournoi.
+              </>
+            ) : (
+              <>
+                Personne n&rsquo;a encore les {finale.issue.seuil} points. Il faut{" "}
+                <strong>atteindre ce total</strong>, puis faire un <strong>top 1</strong> sur une
+                manche <strong>suivante</strong> — franchir le seuil pendant la manche du top 1 ne
+                suffit pas.
+              </>
+            )}
+          </p>
+
+          {finale.classement.length === 0 ? (
+            <p className={styles.vide}>
+              Aucune manche de finale n&rsquo;est encore dépouillée. Les points de la finale{" "}
+              <strong>repartent de zéro</strong> : ceux des qualifications n&rsquo;y comptent pas.
+            </p>
+          ) : (
+            <div className={propre.tableWrap}>
+              <table className={propre.table}>
+                <thead>
+                  <tr>
+                    <th scope="col">Rang</th>
+                    <th scope="col">Engagé</th>
+                    <th scope="col">Points</th>
+                    <th scope="col">1ᵉʳ</th>
+                    <th scope="col">Manches</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {finale.classement.map((ligne) => (
+                    <tr key={ligne.id}>
+                      <td>{ligne.rang}</td>
+                      <td>
+                        {ligne.nom}
+                        {ligne.abandonne ? <span className={propre.abandon}> — drop</span> : null}
+                      </td>
+                      <td>{ligne.stats.total}</td>
+                      <td>{ligne.stats.premieres}</td>
+                      <td>{ligne.stats.manchesJouees}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <section className={styles.section} aria-labelledby="jour-j-classement">
         <h2 className={styles.sectionTitre} id="jour-j-classement">
-          Classement
+          {finale ? "Classement des qualifications" : "Classement"}
         </h2>
 
         {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT ENFIN (13.1). Le fait était vrai

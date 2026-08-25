@@ -200,3 +200,13 @@
 .tirage strong {
   color: var(--alert);
 }
+
+/* Le seuil d'une manche de finale qui ne le GOUVERNE pas : affiché, jamais saisissable (10.14).
+   Une valeur visible mais figée est plus honnête qu'un champ absent — on sait sous quelle règle
+   on joue, et où elle a été fixée. */
+.seuilFige {
+  margin: 0;
+  padding: 10px 0;
+  font-size: 16px;
+  color: var(--light);
+}

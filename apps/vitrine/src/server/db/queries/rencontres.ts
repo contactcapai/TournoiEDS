@@ -7,6 +7,12 @@ import {
   classer,
   type PlaceLue,
 } from "../../../lib/tournoi/classement";
+import {
+  estDeLaFinale,
+  issueDeLaFinale,
+  manchesDeFinale,
+  seuilDeLaFinale,
+} from "../../../lib/tournoi/finale";
 import type { SourceResolue } from "../../../lib/tournoi/generation";
 import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
 import { calculerPropagation, issueDeRencontre } from "../../../lib/tournoi/progression";
@@ -79,6 +85,8 @@ export async function getRencontresDePhase(phaseId: string) {
       source: tournamentMatchSlot.source,
       nom: tournamentEntry.displayName,
       etatEngage: tournamentEntry.state,
+      phaseKind: tournamentPhase.kind,
+      phasePosition: tournamentPhase.position,
     })
     .from(tournamentMatch)
     .leftJoin(tournamentMatchSlot, eq(tournamentMatchSlot.matchId, tournamentMatch.id))
@@ -253,6 +261,8 @@ async function lirePlacesClassables(
       rank: tournamentMatchSlot.rank,
       nom: tournamentEntry.displayName,
       etatEngage: tournamentEntry.state,
+      phaseKind: tournamentPhase.kind,
+      phasePosition: tournamentPhase.position,
     })
     .from(tournamentMatchSlot)
     .innerJoin(tournamentMatch, eq(tournamentMatch.id, tournamentMatchSlot.matchId))
@@ -272,6 +282,8 @@ async function lirePlacesClassables(
     nom: ligne.nom,
     abandonne: ligne.etatEngage === "abandonne",
     rank: ligne.rank,
+    phaseKind: ligne.phaseKind,
+    phasePosition: ligne.phasePosition,
   }));
 }
 
@@ -289,8 +301,103 @@ async function lirePlacesClassables(
  * manche suivante depuis ce classement et doit voir tout le plateau. ⚠️ C'est aussi pourquoi la
  * surface publique ne peut pas rendre cette liste telle quelle : voir `classementPubliable`.
  */
-export async function getClassementDuTournoi(tournoiId: string) {
-  return classer(agregerParEngage(await lirePlacesClassables(tournoiId, false)));
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 UN TOURNOI A DEUX ESPACES DE POINTS DÈS QU'IL PORTE UNE FINALE (Story 10.14)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Les qualifications d'un côté, la finale de l'autre — **et on repart de zéro en finale**.
+ * Ce n'est pas un choix d'affichage : c'est ce que fait l'ancienne app depuis deux ans
+ * (`aggregateFinaleRankings` ne compte que les journées `type = 'finale'`), et sans cette
+ * remise à zéro le seuil de victoire de 20 points serait franchi dès les qualifications —
+ * la règle n'aurait plus aucun sens.
+ *
+ * ⚠️ **SUR UN TOURNOI SANS PHASE `finale`, RIEN NE CHANGE** : l'espace « qualification » est
+ * alors le tournoi entier, exactement comme avant cette story.
+ */
+export type EspaceDePoints = "qualification" | "finale";
+
+const placesDeLEspace = (places: readonly PlaceLue[], espace: EspaceDePoints) =>
+  places.filter((place) => estDeLaFinale(place.phaseKind) === (espace === "finale"));
+
+/**
+ * Le classement d'un **espace de points**, recalculé depuis les manches classées.
+ *
+ * 🔴 LA TAILLE DE CHAQUE TABLE EST CELLE DE **CETTE** TABLE, et les points la suivent — c'est ce
+ * qui les rend justes quand les lobbies font 6, 6 et 5. Le calcul vit dans
+ * `lib/tournoi/classement.ts` (`agregerParEngage`) : la lecture publique pose sa propre garde et
+ * ne peut donc pas appeler celle-ci, et deux copies trancheraient un jour à l'envers l'une de
+ * l'autre.
+ *
+ * ⚠️ **ELLE REND AUSSI LES ENGAGÉS QUI N'ONT ENCORE RIEN JOUÉ**, à 0 point : une place générée
+ * mais pas dépouillée crée quand même sa ligne. C'est voulu — le back-office compose la manche
+ * suivante depuis ce classement et doit voir tout le plateau. ⚠️ C'est aussi pourquoi la surface
+ * publique ne rend pas cette liste telle quelle : voir `classementPubliable`.
+ *
+ * @param exigerPublie 🔴 LA GARDE DE LA LECTURE PUBLIQUE, ET ELLE EST **DANS LA REQUÊTE** (voir
+ * `lirePlacesClassables`). Une lecture publique qui déléguerait sa garde à son appelant finirait
+ * par être appelée d'ailleurs.
+ */
+export async function getClassement(
+  tournoiId: string,
+  { espace, exigerPublie = false }: { espace: EspaceDePoints; exigerPublie?: boolean },
+) {
+  const places = await lirePlacesClassables(tournoiId, exigerPublie);
+  return classer(agregerParEngage(placesDeLEspace(places, espace)));
+}
+
+/**
+ * La finale d'un tournoi : son classement, et **ce qu'elle permet d'affirmer** (Story 10.14).
+ *
+ * Rend `null` quand le tournoi ne porte **aucune** phase `finale` — le cas de tous les tournois
+ * existants. ⚠️ Rendre un objet vide ferait écrire à l'écran « personne n'a encore gagné » sur un
+ * tournoi qui n'a pas de finale du tout : une phrase vraie et hors sujet, donc trompeuse.
+ *
+ * ⚠️ **DEUX LECTURES, PARCE QUE LE SEUIL N'EST PAS DANS LES PLACES** : il vit dans les `settings`
+ * de la première phase `finale` (arbitrage de Brice — une manche gouverne tout le bloc, sans quoi
+ * deux manches porteraient deux règles sans que rien ne le signale).
+ */
+export async function getFinale(
+  tournoiId: string,
+  { exigerPublie = false }: { exigerPublie?: boolean } = {},
+) {
+  const bloc = await db
+    .select({ id: tournamentPhase.id, name: tournamentPhase.name, settings: tournamentPhase.settings })
+    .from(tournamentPhase)
+    .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+    .where(
+      exigerPublie
+        ? and(
+            eq(tournamentPhase.tournamentId, tournoiId),
+            eq(tournamentPhase.kind, "finale"),
+            eq(tournament.isPublished, true),
+          )
+        : and(eq(tournamentPhase.tournamentId, tournoiId), eq(tournamentPhase.kind, "finale")),
+    )
+    .orderBy(asc(tournamentPhase.position));
+
+  if (bloc.length === 0) return null;
+
+  const places = placesDeLEspace(await lirePlacesClassables(tournoiId, exigerPublie), "finale");
+  const seuil = seuilDeLaFinale(bloc.map((phase) => ({ seuil: seuilDesReglages(phase.settings) })));
+
+  return {
+    manches: bloc.map((phase) => ({ id: phase.id, nom: phase.name })),
+    classement: classer(agregerParEngage(places)),
+    issue: issueDeLaFinale(manchesDeFinale(places), seuil),
+  };
+}
+
+/**
+ * ⚠️ **`settings` EST UN `jsonb` : CE QUI EN SORT N'EST PAS TYPÉ, QUOI QU'EN DISE TypeScript.**
+ * Une restauration de sauvegarde, un `UPDATE` direct ou une phase écrite avant la 10.14 peuvent
+ * y mettre n'importe quoi — d'où une lecture défensive plutôt qu'un `as`. Le repli est le seuil
+ * par défaut, jamais une erreur : une finale déjà en base porte `{}`.
+ */
+function seuilDesReglages(settings: unknown): number | null {
+  if (typeof settings !== "object" || settings === null) return null;
+  const brut = (settings as Record<string, unknown>).seuilDeVictoire;
+  return typeof brut === "number" && Number.isInteger(brut) && brut >= 1 ? brut : null;
 }
 
 /**
@@ -303,7 +410,7 @@ export async function getClassementDuTournoi(tournoiId: string) {
  * son appelant. Les fondre ici laisserait l'aperçu montrer autre chose que le site.
  */
 export async function getClassementPublic(tournoiId: string) {
-  return classer(agregerParEngage(await lirePlacesClassables(tournoiId, true)));
+  return getClassement(tournoiId, { espace: "qualification", exigerPublie: true });
 }
 
 /**

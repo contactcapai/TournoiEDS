@@ -456,3 +456,25 @@
     font-size: 18px;
   }
 }
+
+/* Deux espaces de points se SÉPARENT à l'œil, sinon on lit un seul tableau coupé (10.14). */
+.classementBloc + .classementBloc {
+  margin-top: 34px;
+}
+
+/* 🔴 LA RÈGLE S'ÉCRIT (principe ① de l'Epic 13). Sans elle, le public lit un tableau où le
+   premier « aurait dû » gagner et conclut à une erreur. */
+.classementRegle {
+  margin-bottom: 14px;
+  font-size: 16px;
+  color: var(--grey);
+}
+
+/* ⚠️ EN OR, PAS EN CORAIL : `--alert` est réservé à ce qui bloque ou signale une erreur (PR #73).
+   Une victoire est une bonne nouvelle. ⚠️ Et le MOT porte l'information — la couleur ne fait que
+   la répéter (AA). */
+.classementVainqueur {
+  margin-bottom: 14px;
+  font-size: 18px;
+  color: var(--gold);
+}
