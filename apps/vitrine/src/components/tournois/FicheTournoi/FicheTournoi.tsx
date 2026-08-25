@@ -157,6 +157,29 @@ export function FicheTournoi({
   const classement = suivi?.classement ?? [];
 
   /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 « EN DIRECT » SE LIT SUR L'ÉTAT DU JOUR, JAMAIS SUR `estPasse` — DÉFAUT MESURÉ
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Cette dérivation a d'abord été écrite `tournoi.estPasse`. Mesuré sur staging le jour du
+   * déploiement de la 14.2 : la fiche de `tft-simulation` affichait **« En ce moment — Manche
+   * 4 »** en tête (bandeau 14.1) et **« Résultats »** trois sections plus bas, sur la même page,
+   * au même instant. La phrase « rechargez pour la dernière version » disparaissait donc très
+   * exactement le jour où elle sert.
+   *
+   * 🔴 LA CAUSE EST CELLE QUE LA 14.1 AVAIT DÉJÀ TRANCHÉE, et je l'ai refabriquée : `estPasse`
+   * dérive de `starts_at ≷ now()`, si bien qu'un tournoi qui commence **ce matin** est « passé »
+   * dès l'après-midi — c'est mot pour mot le défaut que la 14.1 a corrigé sur `/tournois`, où un
+   * tournoi en train de se jouer s'affichait sous « Déjà joués ».
+   *
+   * ⇒ Le témoin est `etatDuJour`, **gardé par le calendrier** : il répond « ça se joue
+   * aujourd'hui » sans jamais se fier au seul `starts_at`, et c'est déjà lui qui décide du
+   * bandeau. Une seule source pour les deux, donc plus de contradiction possible **sur la même
+   * page**.
+   */
+  const enDirect = suivi !== undefined && suivi.etat.nature !== "rien";
+
+  /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE**, et la décision se prend ici.
    * `/medias/[filename]` répond **404** pour une photo non publiée (garde de la 6.4), et rien
    * n'empêche de dépublier une photo déjà choisie comme visuel — `photo_id` reste alors intact,
@@ -587,7 +610,7 @@ export function FicheTournoi({
           <Wrap>
             <SectionHead
               headingLevel={niveauSection}
-              eyebrow={tournoi.estPasse ? "Résultats" : "En direct"}
+              eyebrow={enDirect ? "En direct" : "Résultats"}
               titleId="classement-title"
               title="Le classement"
             />
@@ -640,10 +663,13 @@ export function FicheTournoi({
                   l'Epic 14). La page est `force-dynamic` : ce tableau est recalculé à chaque
                   affichage, il n'est jamais figé — mais elle ne se met PAS à jour toute seule.
                   Promettre le second en livrant le premier ferait rester quelqu'un devant un
-                  écran qui ne bougera pas. ⚠️ La phrase ne se rend que sur un tournoi qui
-                  n'est pas encore passé : sur un tournoi joué, « rechargez » n'a plus d'objet
-                  et inventerait une attente. */}
-              {!tournoi.estPasse ? (
+                  écran qui ne bougera pas.
+                  ⚠️ ELLE NE SE REND QUE SI ÇA SE JOUE AUJOURD'HUI — sur un tournoi qui ne se
+                  joue pas, « rechargez » n'a plus d'objet et inventerait une attente. Le témoin
+                  est `etatDuJour` et **jamais `estPasse`** : celui-ci dérive de `starts_at ≷
+                  now()`, donc un tournoi commencé ce matin est « passé » l'après-midi même. Le
+                  raisonnement complet, et le défaut mesuré, sont sur `enDirect` plus haut. */}
+              {enDirect ? (
                 <p className={styles.classementFraicheur} role="note">
                   Recalculé à chaque affichage&nbsp;: rechargez la page pour la dernière
                   version. Elle ne se met pas à jour toute seule.
