@@ -140,6 +140,24 @@
 .contenu {
   flex: 1;
   min-width: 0;
+  /* 🔴 `width: 0` AVEC `flex-grow: 1` — ET `min-width: 0` NE SUFFISAIT PAS, C'EST MESURÉ.
+     Défaut vu par Brice le 2026-08-25 sur le jour J : le bouton « Effacer et refaire » sortait
+     de l'écran et rien ne permettait d'y aller. Relevé dans le navigateur, en remontant depuis
+     le bouton : `body` 1209px, `.shell` 1209px… et **`.contenu` 1763px**, soit 554px de plus
+     que son propre parent. Aucun étage en dessous ne débordait : ils suivaient tous.
+
+     `min-width: 0` autorise un enfant flex à RÉTRÉCIR ; il ne lui interdit pas d'être
+     dimensionné PAR SON CONTENU. Le tableau du classement (cellules en `white-space: nowrap`)
+     remonte sa largeur maximale à travers ses ancêtres — son `overflow-x: auto` le rend
+     défilable, mais ne l'empêche pas de contribuer sa taille. `width: 0` + `flex-grow: 1`
+     ferme la question : la largeur vient de l'espace disponible, jamais du contenu.
+
+     ⚠️ ET LE SYMPTÔME ÉTAIT INVISIBLE PAR CONSTRUCTION : `globals.css` pose `overflow-x: clip`,
+     donc ces 554px étaient rognés sans scrollbar ni erreur — et `gate` ne couvre pas /admin.
+     Il a fallu quatre sondes, dont trois fausses, avant que la bonne mesure le nomme.
+     ⚠️ Remis à `auto` sous 880px : la colonne y devient une bande et `.contenu` est alors un
+     enfant flex EN COLONNE, où `width: 0` ne serait plus une borne mais une largeur nulle. */
+  width: 0;
   padding: 48px var(--wrap-pad) 72px;
 }
 
@@ -169,6 +187,9 @@
   }
 
   .contenu {
+    /* ⚠️ OBLIGATOIRE : le shell passe en colonne, donc la largeur devient l'axe SECONDAIRE et
+       `width: 0` cesserait d'être une borne pour devenir une largeur nulle — page blanche. */
+    width: auto;
     padding-top: 32px;
   }
 }
