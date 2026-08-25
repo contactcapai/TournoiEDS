@@ -630,3 +630,38 @@ export function jourLisible(jour: string): string {
     timeZone: "UTC",
   });
 }
+
+/**
+ * Le jour de calendrier **à Paris** d'un instant, en ISO court (« 2026-08-25 »).
+ *
+ * 🔴 C'EST LE PONT ENTRE LES DEUX FORMES DE DATE DU DÉPÔT, et il n'y en a pas d'autre :
+ * `event.starts_at` / `tournament.starts_at` sont des **instants** (`timestamptz`), tandis
+ * que `tournament_phase.played_on` est un **jour** (`date`, mode chaîne). Comparer l'un à
+ * l'autre demande de choisir une horloge — celle de Reims, jamais celle du serveur.
+ *
+ * ⚠️ NE JAMAIS ÉCRIRE `instant.toISOString().slice(0, 10)` À LA PLACE. C'est le jour **UTC**,
+ * donc la veille pour tout ce qui se passe entre minuit et 02h00 heure d'été : un tournoi
+ * du samedi saisi à 00h30 se lirait « vendredi », et le tableau de bord annoncerait qu'il
+ * se joue demain le jour même. Le défaut ne se voit ni en test ni à l'œil tant qu'on ne
+ * regarde pas l'écran à cette heure-là (`00 référence/pieges/date-tz.md`, § A).
+ */
+export function jourParis(instant: Date): string {
+  const { year, month, day } = parisParts(instant);
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+/**
+ * L'instant où commence un jour de Paris — minuit heure murale (« 2026-08-25 » → 22h00 UTC
+ * la veille, en été). Sert à **borner une requête** sur une colonne `timestamptz`.
+ *
+ * 🔴 C'EST LA PARADE AU § B DU PIÈGE `date-tz.md`, et elle est structurelle : on ne demande
+ * JAMAIS à Postgres de convertir un `timestamptz` en jour (`::date`, `date_trunc`). Ces
+ * opérateurs s'évaluent dans le fuseau de la **session** — `Etc/UTC` en local, autre chose
+ * sur le VPS — donc le découpage glisserait d'un jour sans erreur et sans qu'aucun test
+ * local ne le voie. On convertit les **bornes** ici, en JS, avec l'horloge de Paris, et la
+ * base ne compare plus que des instants entre eux.
+ */
+export function debutDuJourParis(jour: string): Date {
+  const [annee, mois, quantieme] = jour.split("-").map(Number);
+  return parisWallClock(annee, mois, quantieme);
+}

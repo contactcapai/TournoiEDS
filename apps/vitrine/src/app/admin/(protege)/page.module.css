@@ -73,6 +73,11 @@
 }
 
 .carteTitre {
+  /* Le dessin vient de `IconeSection`, le MÊME que celui de la colonne latérale : on
+     reconnaît la section avant de lire son nom. Il est `aria-hidden`, le libellé est écrit. */
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-size: 24px;
   letter-spacing: var(--ls-display);
@@ -93,4 +98,82 @@
   .carte:hover {
     transform: none;
   }
+}
+
+/* ── « Ce qui attend » — la bande qui passe avant toute liste (Story 13.3) ──── */
+
+.attentes {
+  margin-top: 40px;
+}
+
+.attentesTitre {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: var(--ls-display);
+  color: var(--light);
+}
+
+/* Quand rien n'attend, on l'écrit — un emplacement qui disparaît se lit comme une panne
+   ou comme un chargement, et personne ne sait s'il a été regardé. */
+.calme {
+  margin-top: 12px;
+  max-width: 64ch;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.attentesListe {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+/* 🔴 LES DEUX ÉTATS PARTAGENT TOUT SAUF LEUR COULEUR, et le partage s'écrit ici plutôt
+   qu'avec un `composes:` — le dépôt le refuse (styles/editorial.module.css) parce qu'il
+   rendrait la consommation invisible dans le TSX. */
+.attente,
+.attenteUrgente {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* La cible tactile du projet. Une ligne de la bande se clique au doigt comme au pointeur. */
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 1px solid rgba(218, 178, 101, 0.3); /* --gold à 30 % */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--light);
+  line-height: var(--lh-body);
+  text-decoration: none;
+}
+
+/* 🔴 LE CORAIL NE SIGNALE QUE CE QU'UNE PERSONNE ATTEND (règle du token `--alert`, PR #73) :
+   une sollicitation, où quelqu'un patiente pour de vrai. Le reste de la bande est à faire
+   sans que personne n'attende — c'est l'or. ⚠️ La couleur ne fait que RÉPÉTER le texte :
+   « attendent une réponse » est écrit dans la ligne (AA). */
+.attenteUrgente {
+  border-color: rgba(255, 138, 117, 0.55); /* --alert à 55 % */
+}
+
+.attente:hover,
+.attenteUrgente:hover {
+  border-color: var(--gold);
+}
+
+.attenteUrgente:hover {
+  border-color: var(--alert);
+}
+
+/* Décorative, `aria-hidden` : elle redit la couleur du filet, jamais une information. */
+.pastille {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.attenteUrgente .pastille {
+  background: var(--alert);
 }
