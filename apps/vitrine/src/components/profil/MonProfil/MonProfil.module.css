@@ -1,0 +1,120 @@
+/* Le formulaire du profil — habillage du SITE PUBLIC, pas du back-office (Story 12.1). */
+
+.form {
+  display: grid;
+  gap: 22px;
+}
+
+.champ {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+/* ⚠️ LA BORNE DE LISIBILITÉ SE POSE SUR LE CHAMP, JAMAIS SUR SON CONTENEUR (leçon PR #75) :
+   `.form` bornait autrefois le formulaire ENTIER à 62ch, donc aussi ses grilles. */
+.saisie {
+  max-width: 62ch;
+  /* ⚠️ Cible ≥ 44px (AA) : un champ trop plat se rate au doigt. */
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid rgba(146, 147, 173, 0.45); /* --grey à 45 % */
+  border-radius: var(--radius-card);
+  background: var(--navy-deep);
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--light);
+}
+
+.saisie:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.aide {
+  max-width: 72ch;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Le MOT porte l'information, la couleur ne fait que la répéter (AA). */
+.messageOk {
+  font-size: 15px;
+  color: var(--gold);
+}
+
+.messageErreur {
+  font-size: 15px;
+  color: var(--alert);
+}
+
+/* ── Suppression de compte ─────────────────────────────────────────────────────────── */
+
+.zoneDanger {
+  margin-top: 40px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(255, 138, 117, 0.35); /* --alert à 35 % */
+}
+
+.titreDanger {
+  margin-bottom: 10px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: var(--ls-display);
+  color: var(--alert);
+}
+
+.texteDanger {
+  max-width: 72ch;
+  margin-bottom: 18px;
+  font-size: 16px;
+  color: var(--light);
+}
+
+/* ⚠️ `--alert` EST ICI À SA PLACE : c'est le seul geste de la page qui ne se répare pas
+   (PR #73 — réservé à ce qui bloque ou signale une erreur, jamais décoratif). */
+.boutonDanger {
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 1px solid var(--alert);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--alert);
+}
+
+.boutonDanger:hover {
+  background: rgba(255, 138, 117, 0.12);
+}
+
+.lienDoux {
+  min-height: 44px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--grey);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.lienDoux:hover {
+  color: var(--light);
+}

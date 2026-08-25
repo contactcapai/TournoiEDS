@@ -74,7 +74,15 @@ export default async function AdminRefusPage({
         </p>
       )}
 
+      {/* ⚠️ `/profil` EST OUVERT À TOUT COMPTE CONNECTÉ, DONC À CELUI-CI — et c'est justement
+          la personne à qui il faut le dire : elle vient de se voir refuser une porte. Lui
+          montrer celle qui lui est ouverte évite qu'elle conclue que son compte ne sert à rien.
+          (Story 12.1 ; l'autre porte est l'état vide du tableau de bord.) */}
       <p className={styles.mention}>
+        <Link className={styles.lien} href="/profil">
+          Mon profil
+        </Link>
+        {" — "}
         <Link className={styles.lien} href="/admin">
           Retour au tableau de bord
         </Link>

@@ -2442,3 +2442,93 @@ export type UserRole = typeof userRole.$inferSelect;
 export type NewUserRole = typeof userRole.$inferInsert;
 /** Ré-export : le type naît là où naissent les valeurs (`lib/roles.ts`), jamais deux fois. */
 export type { RoleAdmin } from "../../lib/roles";
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * LE PROFIL D'UN JOUEUR (Story 12.1) — CE QUE `user` NE PEUT PAS PORTER
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 UNE TABLE À PART, ET `user` N'EST PAS TOUCHÉE. `user` appartient à **Auth.js** : son
+ * contrat est celui de l'adaptateur, et le fournisseur y **réécrit `name` et `image` à chaque
+ * connexion**. Y ranger le pseudo choisi sur le site le ferait écraser par le pseudo Discord
+ * au prochain login — sans erreur, sans test rouge. La Story 8.1 a déjà payé cette famille :
+ * *un type facultatif ne dit pas ce que la bibliothèque VÉRIFIE.*
+ *
+ * 🔴 PAR **PLATEFORME**, JAMAIS PAR JEU. `tournament.game` est du texte libre **volontairement**
+ * (dix jeux au dossier GIR 2026, un enum imposerait une migration par tournoi) ; les plateformes,
+ * elles, forment un ensemble **fermé et petit** — Riot couvre LoL, Valorant, TFT et 2XKO ; Steam
+ * couvre CS2 et Rocket League. Trois colonnes typées valent mieux ici qu'une table de couples.
+ *
+ * ⚠️ **CE NE SONT PAS DES DONNÉES PRIVÉES D'ORGANISATION** : le pseudo Riot est celui qu'on voit
+ * **en jeu et sur le stream**, donc celui qui paraîtra **dans les résultats** (Brice, 2026-08-25).
+ * Il alimentera `tournament_entry.display_name` à l'inscription (Story 12.3) ; les bénévoles s'en
+ * servent pour **inviter en lobby**. Aucune surface publique ne les rend en 12.1.
+ *
+ * ⚠️ **AUCUNE UNICITÉ SUR LE PSEUDO**, et c'est délibéré : deux personnes peuvent vouloir le même
+ * nom, `tournament_entry.display_name` l'autorise déjà, et l'interdire ici créerait une friction
+ * à l'inscription pour un problème que le site n'a pas.
+ * ⚠️ **TOUT EST NULLABLE SAUF LA CLÉ** : un compte neuf n'a rien rempli, et l'écran doit pouvoir
+ * le dire plutôt que refuser d'exister.
+ */
+export const userProfile = pgTable(
+  "user_profile",
+  {
+    /**
+     * ⚠️ CLÉ PRIMAIRE **ET** ÉTRANGÈRE : un compte a au plus un profil, et la base le tient —
+     * pas le code. `cascade` parce qu'un profil n'a aucune existence hors de son compte, et que
+     * la suppression de compte (RGPD) doit l'emporter sans qu'on y pense.
+     */
+    userId: uuid()
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Le nom que la personne veut porter **sur notre site**. */
+    pseudo: text(),
+    /**
+     * 🔴 LE PSEUDO DISCORD **DÉCLARÉ**, ET CE N'EST PAS LE COMPTE DISCORD **LIÉ**.
+     *
+     * `account` porte le lien d'authentification, et son `providerAccountId` est l'identifiant
+     * **numérique** — jamais le pseudo, qui se change en un clic (garde posée en 8.1). Ici, on
+     * stocke le nom sous lequel on **joint** la personne sur le Discord de l'association.
+     * ⚠️ Les deux sont indépendants : quelqu'un qui se connecte par **lien magique** n'a aucun
+     * compte Discord lié et a pourtant un Discord. Les fusionner priverait ce cas — le nôtre,
+     * pour l'équipe (Brice et Romani n'ont pas de compte Google sur leurs adresses).
+     * ⚠️ Et il ne se **pré-remplit pas** depuis `user.name` : cette colonne porte le nom du
+     * DERNIER fournisseur utilisé, sans dire lequel. Deviner y mettrait un nom Google.
+     */
+    discordPseudo: text(),
+    /** Riot ID, tag compris (`Pseudo#EUW`) — c'est le tag qui rend l'invitation possible. */
+    riotId: text(),
+    steamId: text(),
+    epicId: text(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    /**
+     * ⚠️ `is null or` SUR CHAQUE `CHECK` — SANS LUI LA CONTRAINTE SERAIT INERTE, et c'est un
+     * défaut déjà payé sur ce projet (Story 6.3) : en SQL, `length(btrim(NULL)) > 0` vaut `NULL`,
+     * et un `CHECK` qui vaut `NULL` **PASSE**. La garde ne s'appliquerait donc qu'aux lignes
+     * remplies, ce qui est précisément le cas où elle sert.
+     * ⚠️ `btrim` NE RETIRE PAS U+200B (dette R41) : `cleanText` reste le dernier filet au rendu.
+     */
+    check(
+      "user_profile_pseudo_non_blanc",
+      sql`${table.pseudo} is null or length(btrim(${table.pseudo})) > 0`,
+    ),
+    check(
+      "user_profile_discord_non_blanc",
+      sql`${table.discordPseudo} is null or length(btrim(${table.discordPseudo})) > 0`,
+    ),
+    check(
+      "user_profile_riot_non_blanc",
+      sql`${table.riotId} is null or length(btrim(${table.riotId})) > 0`,
+    ),
+    check(
+      "user_profile_steam_non_blanc",
+      sql`${table.steamId} is null or length(btrim(${table.steamId})) > 0`,
+    ),
+    check(
+      "user_profile_epic_non_blanc",
+      sql`${table.epicId} is null or length(btrim(${table.epicId})) > 0`,
+    ),
+  ],
+);

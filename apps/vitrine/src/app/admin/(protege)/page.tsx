@@ -152,12 +152,25 @@ export default async function AdminDashboardPage() {
            ⚠️ Il dit ce qui s'est passé ET quoi faire. Un écran vide qui n'explique rien se
            lit comme une panne, et la personne réessaie au lieu de demander un accès. */
         <div className={styles.vide}>
-          <p className={styles.videTitre}>Votre compte n&rsquo;ouvre aucune section.</p>
+          <p className={styles.videTitre}>
+            Votre compte n&rsquo;ouvre aucune section du back-office.
+          </p>
+          {/* 🔴 « AUCUNE SECTION » ÉTAIT DEVENU FAUX AVEC LA STORY 12.1, et c'est le motif
+              « une phrase devenue fausse en silence » que ce bloc porte déjà écrit au-dessus :
+              un compte sans rôle ouvre désormais QUELQUE CHOSE — son profil. Le titre précise
+              donc « du back-office », et l'écran nomme la destination qui existe.
+              ⚠️ ET C'EST LA SEULE PORTE VERS `/profil` AUJOURD'HUI : la page n'est dans aucun
+              menu, et tout compte connecté est passé par ici ou par `/admin/refus`. */}
           <p className={styles.videTexte}>
             Vous êtes bien connecté — c&rsquo;est l&rsquo;essentiel, et c&rsquo;est ce qui
             permet qu&rsquo;on vous attribue un accès. Demandez à un responsable de
             l&rsquo;association d&rsquo;ouvrir les droits dont vous avez besoin&nbsp;: il le
             fait depuis le back-office, et cela prend effet immédiatement.
+          </p>
+          <p className={styles.videTexte}>
+            En attendant, <Link href="/profil">votre profil</Link> vous appartient déjà&nbsp;:
+            vous pouvez y déclarer vos pseudos de jeu, pour qu&rsquo;on vous retrouve et
+            qu&rsquo;on vous invite en lobby un jour de tournoi.
           </p>
         </div>
       ) : (
