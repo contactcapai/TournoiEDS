@@ -152,9 +152,11 @@ test("🔴 `/admin` PRÉFIXE toutes les sections — d'où l'égalité stricte d
   // vraie section : deux entrées surlignées, dont une fausse. La règle vivait dans un
   // commentaire, c'est-à-dire nulle part (leçon 13.1).
   for (const section of SECTIONS_ADMIN) {
+    // Le préfixe dit OUI pour les neuf...
     assert.equal(cheminCouvertPar(section.href, "/admin"), true, section.href);
+    // ...et l'égalité stricte dit NON pour les neuf. C'est tout l'écart, sur la même ligne.
+    assert.notEqual(section.href, "/admin", section.href);
   }
-  assert.equal("/admin/agenda" === "/admin", false);
 });
 
 test("aucune section ne revendique `/admin`", () => {
