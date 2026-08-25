@@ -3,7 +3,9 @@
 // doit jamais être atteint depuis un composant client. ⚠️ `Lightbox` EST un composant
 // client — elle reçoit ses photos en props depuis la page, elle n'importe rien d'ici.
 import "server-only";
-import { inArray, max } from "drizzle-orm";
+import { count, eq, inArray, max } from "drizzle-orm";
+
+import { jourParis } from "@/lib/date-paris";
 import { db } from "../client";
 import { photo } from "../schema";
 
@@ -173,3 +175,58 @@ export async function getMaxSortOrder(): Promise<number | null> {
   const [ligne] = await db.select({ maximum: max(photo.sortOrder) }).from(photo);
   return ligne?.maximum ?? null;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LA GALERIE A-T-ELLE SUIVI LE DERNIER ÉVÉNEMENT ? — LECTURE NÉE DE LA STORY 13.3
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Le dernier événement **passé** et le nombre de photos qui lui sont rattachées.
+ * `null` quand l'association n'a encore rien organisé — un état nominal, pas une panne.
+ *
+ * 🔴 CE QUE CETTE LECTURE PERMET DE DIRE, ET RIEN D'AUTRE : « il y a eu un événement, et
+ * la galerie n'en porte aucune photo ». C'est le seul indicateur de galerie que la base
+ * porte réellement. Un « la galerie mériterait d'être enrichie » ne s'appuierait sur rien —
+ * exactement la porte sans pièce que la 13.3 s'interdit.
+ *
+ * ⚠️ **PUBLIÉ OU NON**, comme `getPastEventsForAdmin` : le back-office voit tout ce qui est
+ * saisi. Filtrer ici sur `is_published` créerait une **seconde définition** de « le dernier
+ * événement passé », qui répondrait un jour autre chose que la liste de l'agenda.
+ *
+ * ⚠️ Compte les photos **publiées ou non** : une photo téléversée mais pas encore publiée
+ * prouve que quelqu'un s'en est occupé. Signaler malgré tout serait faux.
+ */
+export async function getGalerieDuDernierEvenement(maintenant: Date) {
+  const dernier = await db.query.event.findFirst({
+    columns: { id: true, title: true, startsAt: true },
+    where: (table, { lte: avantOuEgal }) => avantOuEgal(table.startsAt, maintenant),
+    // Ordre TOTAL : deux événements peuvent partager la minute (la Game'in Reims en porte
+    // plusieurs en parallèle, et `starts_at` se saisit à la minute). Sans le second terme,
+    // « le dernier » changerait d'une visite à l'autre sur une page `force-dynamic`.
+    orderBy: (table, { desc }) => [desc(table.startsAt), desc(table.id)],
+  });
+  if (!dernier) return null;
+
+  // ⚠️ SECONDE REQUÊTE, ET ELLE NE PEUT PAS NE PAS L'ÊTRE : elle dépend de l'événement
+  // retenu. Même aller-retour que `getPhotosForEvents`, sur UN identifiant.
+  // `count()` et non une liste de lignes : le tableau de bord affiche un nombre, charger
+  // 60 photos pour les compter en mémoire ferait payer le rendu au volume saisi.
+  const [compte] = await db
+    .select({ total: count() })
+    .from(photo)
+    .where(eq(photo.eventId, dernier.id));
+
+  return {
+    id: dernier.id,
+    titre: dernier.title,
+    // Le jour MURAL À REIMS, jamais le jour UTC : un événement du jeudi soir 19h00 reste
+    // jeudi, et un événement de nuit ne se lit pas la veille (`pieges/date-tz.md`, § A).
+    jour: jourParis(dernier.startsAt),
+    photos: compte?.total ?? 0,
+  };
+}
+
+/** Ce que le tableau de bord sait de la galerie. `null` = aucun événement passé. */
+export type GalerieDuDernierEvenement = Awaited<
+  ReturnType<typeof getGalerieDuDernierEvenement>
+>;

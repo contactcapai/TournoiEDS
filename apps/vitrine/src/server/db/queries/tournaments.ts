@@ -2,9 +2,12 @@
 // requêtes (garde-fou n°1 de la Story 1.7) : ce module lit la base, il ne doit jamais être
 // atteint depuis un composant client.
 import "server-only";
+import { and, eq, gte, lte, min } from "drizzle-orm";
 import { cache } from "react";
 
+import { ajouterJours, debutDuJourParis, jourParis } from "@/lib/date-paris";
 import { db } from "../client";
+import { tournament, tournamentPhase } from "../schema";
 
 /**
  * Lectures des tournois (Story 9.1, A21).
@@ -717,3 +720,114 @@ export async function getTournoisParEvenement(eventIds: readonly string[]) {
   }
   return parEvenement;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CE QUI SE JOUE MAINTENANT — LECTURE NÉE DE LA STORY 13.3
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Les tournois qui **se jouent** aujourd'hui ou dans les `joursDeFenetre` jours suivants.
+ *
+ * 🔴 ELLE EXISTE PARCE QU'AUCUNE DES DEUX AUTRES NE RÉPOND À CETTE QUESTION, et la raison
+ * est mesurable : `getUpcomingTournamentsForAdmin` filtre sur `starts_at > maintenant`, donc
+ * un tournoi **qui a commencé ce matin en est absent** — c'est-à-dire précisément celui pour
+ * lequel on ouvre le back-office. « À venir » et « en cours » ne sont pas le même ensemble.
+ *
+ * 🔴 DEUX SOURCES POUR UN MÊME FAIT, ET IL FAUT LES DEUX. Un tournoi porte une date de
+ * début (`starts_at`, toujours saisie) **et** un déroulé dont chaque phase peut porter sa
+ * propre journée (`played_on`, depuis la 10.10 — un TFT en rondes suisses s'étale sur
+ * plusieurs week-ends). Ne lire que `starts_at` manquerait la 2ᵉ journée d'un tournoi
+ * commencé la semaine dernière ; ne lire que les phases manquerait un tournoi dont le
+ * déroulé n'est pas encore composé. On lit les deux et on fusionne.
+ *
+ * ⚠️ **PUBLIÉS ET NON PUBLIÉS**, comme toute la famille des lectures d'admin : un tournoi
+ * se prépare en brouillon et se joue quand même. Relâcher ce filtre dans l'autre sens
+ * (lectures publiques) serait la fuite décrite en tête de `queries/events.ts`.
+ *
+ * ⚠️ **LA BORNE S'APPLIQUE APRÈS LA FUSION, ET CHAQUE SOURCE EST LUE À LA BORNE PLEINE** —
+ * même arithmétique que `getUpcomingRendezVous` : lire `limite / 2` de chaque côté rendrait
+ * un préfixe faux dès que la répartition n'est pas moitié-moitié.
+ */
+export async function getTournoisQuiSeJouent(
+  maintenant: Date,
+  joursDeFenetre: number,
+  limite: number,
+) {
+  // 🔴 UNE SEULE LECTURE D'HORLOGE, PASSÉE PAR L'APPELANT (patron R49) — et le découpage en
+  // jours se fait ICI, en JS, avec l'horloge de Paris. On ne demande jamais à Postgres de
+  // convertir un `timestamptz` en jour : `::date` s'évalue dans le fuseau de la SESSION,
+  // donc juste en local (`Etc/UTC`) et potentiellement faux sur le VPS, sans erreur ni test
+  // rouge (`00 référence/pieges/date-tz.md`, § B).
+  const premierJour = jourParis(maintenant);
+  const dernierJour = ajouterJours(premierJour, joursDeFenetre);
+  const debut = debutDuJourParis(premierJour);
+  const finExclue = debutDuJourParis(ajouterJours(dernierJour, 1));
+
+  const [parJournee, parDateDeDebut] = await Promise.all([
+    // ⚠️ `played_on` est une colonne `date` (mode chaîne) : la comparer à deux chaînes ISO
+    // ne fait intervenir AUCUN fuseau. C'est le seul endroit de cette fonction où la
+    // comparaison est sûre par nature — d'où les instants convertis pour l'autre moitié.
+    db
+      .select({
+        id: tournament.id,
+        nom: tournament.name,
+        // La PREMIÈRE journée de la fenêtre, pas n'importe laquelle : un tournoi qui joue
+        // samedi ET dimanche s'annonce pour samedi.
+        journee: min(tournamentPhase.playedOn),
+      })
+      .from(tournamentPhase)
+      .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))
+      .where(
+        and(
+          gte(tournamentPhase.playedOn, premierJour),
+          lte(tournamentPhase.playedOn, dernierJour),
+        ),
+      )
+      .groupBy(tournament.id, tournament.name)
+      .limit(limite),
+
+    db.query.tournament.findMany({
+      columns: { id: true, name: true, startsAt: true },
+      where: (table, { and: et, gte: apres, lt: avant }) =>
+        et(apres(table.startsAt, debut), avant(table.startsAt, finExclue)),
+      orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
+      limit: limite,
+    }),
+  ]);
+
+  const parTournoi = new Map<string, { id: string; nom: string; journee: string }>();
+
+  for (const ligne of parJournee) {
+    // `min()` est typé nullable — le `GROUP BY` ne rend pourtant que des groupes non vides.
+    // On traite la branche plutôt que d'affirmer avec un `!` non vérifié (patron `photos.ts`).
+    if (ligne.journee === null) continue;
+    parTournoi.set(ligne.id, { id: ligne.id, nom: ligne.nom, journee: ligne.journee });
+  }
+
+  for (const ligne of parDateDeDebut) {
+    // 🔴 LE DÉROULÉ L'EMPORTE SUR LA DATE DE DÉBUT quand les deux répondent : `played_on`
+    // est ce que quelqu'un a écrit journée par journée, `starts_at` est la date d'ouverture
+    // du tournoi. Les deux sont vraies, l'une est plus précise.
+    if (parTournoi.has(ligne.id)) continue;
+    parTournoi.set(ligne.id, {
+      id: ligne.id,
+      nom: ligne.name,
+      journee: jourParis(ligne.startsAt),
+    });
+  }
+
+  // Ordre TOTAL (doctrine du dépôt) : la journée, puis le nom, puis l'identifiant. Sans le
+  // dernier terme, deux tournois de même jour et de même nom se réordonneraient d'une
+  // visite à l'autre — la page est `force-dynamic`, donc rejouée à chaque fois.
+  return [...parTournoi.values()]
+    .sort(
+      (a, b) =>
+        a.journee.localeCompare(b.journee) ||
+        a.nom.localeCompare(b.nom, "fr") ||
+        a.id.localeCompare(b.id, "fr"),
+    )
+    .slice(0, limite);
+}
+
+/** Un tournoi qui se joue dans la fenêtre, tel que le tableau de bord l'annonce. */
+export type TournoiQuiSeJoue = Awaited<ReturnType<typeof getTournoisQuiSeJouent>>[number];
