@@ -7,10 +7,25 @@
    ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`) : une
    variable inconnue rend la propriété invalide en silence. Breakpoint 880px en LITTÉRAL. */
 
+/* 🔴 `overflow-x: auto` — CE QUI DÉBORDE DOIT RESTER ATTEIGNABLE, ET VISIBLE (2026-08-25).
+   Défaut vu par Brice : le bouton « Effacer et refaire » sortait de l'écran et **la page ne
+   se décalait pas horizontalement**. Cause structurelle : `globals.css` pose `overflow-x:
+   clip`, donc tout débordement sous `/admin` est rogné **sans scrollbar ni erreur** — et
+   `gate` ne couvre pas le back-office (angle mort déclaré en 13.2). Un contrôle hors champ
+   n'est pas « moche », il est **injoignable**.
+
+   ⚠️ LE DÉFILEMENT EST POSÉ ICI ET SURTOUT PAS SUR `.contenu` DU LAYOUT D'ADMIN : `MenuTournoi`
+   y est `position: sticky`, et un conteneur de défilement au-dessus de lui le décollerait —
+   c'est le piège que `globals.css` écrit en tête (« ne jamais repasser clip à hidden, le
+   header cesserait d'être sticky »). Mesuré avant d'écrire.
+
+   ⚠️ Effet second voulu : `.enTete` reprend la largeur du conteneur au lieu d'être étirée par
+   une rangée plus large, donc son bouton revient dans l'écran. */
 .bloc {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  overflow-x: auto;
 }
 
 .enTete {
@@ -166,6 +181,12 @@
    (PR #73). Une manche dont le tirage est périmé attend un geste, et jouer sans le faire
    fausse le classement. ⚠️ Le texte porte tout : la couleur ne fait que le répéter (AA). */
 .tirage {
+  /* 🔴 `flex-basis: 100%` — MÊME PARADE QUE `.etat` ET `.verrou`, ET J'AI DÛ LA REPAYER.
+     `.enTete` est un `flex-wrap` : sans cette ligne, cet avertissement devient un TROISIÈME
+     élément de la rangée du compteur et pousse le bouton « Effacer et refaire » hors de
+     l'écran — c'est-à-dire qu'il rendait injoignable le geste qu'il demande de faire.
+     La règle était écrite douze lignes plus bas dans ce même fichier depuis la 10.8. */
+  flex-basis: 100%;
   margin-bottom: 12px;
   padding: 12px 16px;
   border: 1px solid var(--alert);
