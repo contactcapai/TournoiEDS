@@ -6,9 +6,10 @@ import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
 import { jourParis } from "@/lib/date-paris";
 import { classementPubliable } from "@/lib/tournoi/classement";
+import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getDeroulePublic } from "@/server/db/queries/phases";
-import { getClassementPublic } from "@/server/db/queries/rencontres";
+import { getClassementPublic, getFinale } from "@/server/db/queries/rencontres";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -130,6 +131,12 @@ export default async function FicheTournoiPage({
   // exactement la même question sans pouvoir passer par cette requête-ci.
   const classement = classementPubliable(await getClassementPublic(tournoi.id));
 
+  // 🔴 LA FINALE EST UN SECOND ESPACE DE POINTS (10.14) — `null` quand le tournoi n'en porte
+  // aucune, ce qui est le cas de tous ceux d'aujourd'hui. La garde `is_published` est là aussi
+  // DANS la requête, jamais chez l'appelant.
+  const finaleLue = await getFinale(tournoi.id, { exigerPublie: true });
+  const finale = finaleLue ? finalePubliable(finaleLue) : null;
+
   // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS LE COMPOSANT. Lire l'heure pendant un
   // rendu est une impureté que `react-hooks/purity` refuse, et deux rendus du même arbre
   // pourraient répondre différemment. `FicheTournoi` reçoit un état déjà calculé.
@@ -142,6 +149,7 @@ export default async function FicheTournoiPage({
         etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
         phases,
         classement,
+        finale,
       }}
     />
   );

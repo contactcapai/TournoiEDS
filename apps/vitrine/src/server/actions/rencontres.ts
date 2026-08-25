@@ -19,12 +19,19 @@ import {
 } from "../../lib/tournoi/progression";
 import { podiumDepuis } from "../../lib/tournoi/parcours";
 import { participantsDepuisLeClassement } from "../../lib/tournoi/participants";
+import {
+  SEUIL_VICTOIRE_DEFAUT,
+  SEUIL_VICTOIRE_MAX,
+  SEUIL_VICTOIRE_MIN,
+  estDeLaFinale,
+} from "../../lib/tournoi/finale";
 import { partDuClassement } from "../../lib/tournoi/structure";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
 import {
-  getClassementDuTournoi,
+  getClassement,
+  getFinale,
   getPhasePourJeu,
   getPresentsDuTournoi,
   getRencontresDePhase,
@@ -77,6 +84,19 @@ const reglagesSaisis = z.object({
    * pour une manche suisse ou une finale. `generation.ts` ne tranche pas cet ordre exprès.
    */
   depuis: z.enum(["presents", "classement"]).default("presents"),
+  /**
+   * `finale` seulement : combien de points il faut avoir AVANT de pouvoir l'emporter d'un top 1.
+   *
+   * ⚠️ Borne de SAISIE, pas règle de tournoi — la règle vit dans `lib/tournoi/finale.ts`. En
+   * dessous de 1, le seuil serait acquis avant d'avoir joué et le premier top 1 emporterait la
+   * finale : ce n'est plus la règle, c'est son contraire.
+   */
+  seuilDeVictoire: z.coerce
+    .number()
+    .int()
+    .min(SEUIL_VICTOIRE_MIN, `Le seuil est d'au moins ${SEUIL_VICTOIRE_MIN} point.`)
+    .max(SEUIL_VICTOIRE_MAX, `Le seuil ne peut pas dépasser ${SEUIL_VICTOIRE_MAX} points.`)
+    .default(SEUIL_VICTOIRE_DEFAUT),
 });
 
 /**
@@ -237,9 +257,29 @@ export async function prerremplirPodium(
     if (rangs) {
       if (!rangs.termine) continue;
       proposition = podiumDepuis(rangs.lignes, rangs.nomParEngage);
+    } else if (estDeLaFinale(phase.kind)) {
+      /**
+       * 🔴 SUR UNE FINALE, LE 1ᵉʳ N'EST PAS LE PREMIER DU CLASSEMENT — C'EST LA RÈGLE QUI LE
+       * DIT (Story 10.14). « 20 points, puis un top 1 » : quelqu'un peut mener aux points sans
+       * avoir gagné, et le tournoi n'est alors **pas fini**. Proposer son nom écrirait un
+       * vainqueur sur la fiche publique pendant que la finale se joue encore.
+       * ⚠️ Les 2ᵉ et 3ᵉ viennent, eux, du classement de la finale : eux ne sont pas soumis à une
+       * condition de victoire, ils sont simplement derrière.
+       */
+      const finale = await getFinale(tournoiId);
+      if (!finale?.issue.vainqueur) continue;
+
+      const suivants = finale.classement.filter(
+        (ligne) => ligne.id !== finale.issue.vainqueur?.entryId,
+      );
+      proposition = {
+        premier: finale.issue.vainqueur.nom,
+        deuxieme: suivants[0]?.nom ?? null,
+        troisieme: suivants[1]?.nom ?? null,
+      };
     } else {
-      // Phase de tables : c'est le classement AUX POINTS qui départage, pas le parcours.
-      const classement = await getClassementDuTournoi(tournoiId);
+      // Phase de tables SANS règle de victoire : c'est le classement AUX POINTS qui départage.
+      const classement = await getClassement(tournoiId, { espace: "qualification" });
       if (classement.length === 0) continue;
       proposition = {
         premier: classement[0]?.nom ?? null,
@@ -316,11 +356,25 @@ export async function genererPhase(
     doubleElimination: donnees.get("doubleElimination") ?? false,
     allerRetour: donnees.get("allerRetour") ?? false,
     depuis: donnees.get("depuis") ?? undefined,
+    seuilDeVictoire: donnees.get("seuilDeVictoire") ?? undefined,
   });
   if (!analyse.success) {
     return { ok: false, error: analyse.error.issues[0]?.message ?? "Vérifiez les réglages." };
   }
   const reglages = analyse.data;
+
+  /**
+   * 🔴 LE SEUIL NE S'ENREGISTRE QUE SUR LA **PREMIÈRE** MANCHE DE LA FINALE (arbitrage de Brice,
+   * 2026-08-25). Une finale est un BLOC de phases `finale`, et laisser chaque manche porter son
+   * seuil laisserait deux manches d'une même finale appliquer deux règles — sans que rien ne le
+   * signale, et sans que personne ait le devoir de les garder d'accord. La première gouverne, les
+   * suivantes l'affichent en lecture seule.
+   * ⚠️ Le champ soumis par une manche suivante est donc **ignoré en silence côté écriture** — mais
+   * l'écran ne le propose pas : il n'y a pas de saisie perdue, seulement une garde de dernier
+   * ressort contre un POST fabriqué à la main.
+   */
+  const finale = estDeLaFinale(phase.kind) ? await getFinale(phase.tournoiId) : null;
+  const gouverneLeSeuil = finale !== null && finale.manches[0]?.id === phaseId;
 
   // 🔴 L'ORDRE DES PARTICIPANTS EST UNE DÉCISION, ET ELLE EST PRISE ICI — jamais dans
   // `generation.ts`, qui l'ignore exprès. Un premier tour part de l'ordre de saisie ; une manche
@@ -347,7 +401,13 @@ export async function genererPhase(
 
   const participants = depuisLeClassement
     ? participantsDepuisLeClassement(
-        (await getClassementDuTournoi(phase.tournoiId)).map((ligne) => ({
+        /**
+         * 🔴 LE CLASSEMENT DE **QUALIFICATION**, ET JAMAIS CELUI DE LA FINALE (10.14) : c'est
+         * lui qui désigne les finalistes, et il ne bouge plus une fois la finale commencée.
+         * ⚠️ Sur un tournoi sans finale, l'espace « qualification » EST le tournoi entier :
+         * aucune manche suisse ne change de composition à cause de cette story.
+         */
+        (await getClassement(phase.tournoiId, { espace: "qualification" })).map((ligne) => ({
           id: ligne.id,
           nom: ligne.nom,
         })),
@@ -451,6 +511,7 @@ export async function genererPhase(
             doubleElimination: reglages.doubleElimination,
             allerRetour: reglages.allerRetour,
             depuis: reglages.depuis,
+            ...(gouverneLeSeuil ? { seuilDeVictoire: reglages.seuilDeVictoire } : {}),
           },
           state: "en_cours",
           updatedAt: new Date(),

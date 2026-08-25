@@ -11,6 +11,7 @@ import {
   TAILLE_LOBBY_MAX,
   TAILLE_LOBBY_MIN,
 } from "@/lib/tournoi/generation";
+import { SEUIL_VICTOIRE_MAX, SEUIL_VICTOIRE_MIN } from "@/lib/tournoi/finale";
 import { estParTables, partDuClassement, type PhaseKind } from "@/lib/tournoi/structure";
 import { tirageAJour, type EcartsDeTirage } from "@/lib/tournoi/tirage";
 import { effacerRencontres, genererPhase, saisirResultat } from "@/server/actions/rencontres";
@@ -47,6 +48,16 @@ export interface JourJProps {
     kind: PhaseKind;
     settings: { tailleDeLobby?: number; doubleElimination?: boolean; allerRetour?: boolean };
   };
+  /**
+   * La finale, quand CETTE phase en fait partie — `null` sinon (Story 10.14).
+   *
+   * 🔴 `gouverne` DIT SI C'EST LA **PREMIÈRE** MANCHE DE LA FINALE, et c'est elle seule qui règle
+   * le seuil : une finale est un BLOC de phases, et laisser chaque manche porter le sien ferait
+   * appliquer deux règles à une même finale sans que rien ne le signale. Les manches suivantes
+   * affichent la valeur en lecture seule — leur cacher serait pire, on ne saurait plus sous quelle
+   * règle on joue.
+   */
+  finale: { gouverne: boolean; seuil: number } | null;
   rencontres: readonly RencontreJouable[];
   /** Combien d'engagés sont pointés « présent ». C'est l'effectif que la génération utilisera. */
   presents: number;
@@ -63,6 +74,7 @@ export interface JourJProps {
 
 export function JourJ({
   phase,
+  finale,
   rencontres,
   presents,
   ecarts,
@@ -161,6 +173,46 @@ export function JourJ({
                   {phase.kind === "finale"
                     ? "La finale est UNE table : ce nombre dit combien de joueurs y montent."
                     : "Les tables sont équilibrées, jamais découpées en tranches : 17 joueurs pour une cible de 8 donnent 6, 6 et 5 — pas 8, 8 et 1."}
+                </span>
+              </p>
+            </div>
+          ) : null}
+
+          {/* ══════════════════════════════════════════════════════════════════════════
+              LE SEUIL DE VICTOIRE DE LA FINALE (Story 10.14)
+              ══════════════════════════════════════════════════════════════════════════
+              🔴 LA RÈGLE S'ÉCRIT, TOUJOURS — « 20 points, PUIS un top 1 », et le « puis » est
+              toute la règle : franchir le seuil pendant la manche où l'on fait top 1 ne suffit
+              pas. Sans cette phrase, le bénévole verrait le meneur ne pas gagner et chercherait
+              une panne.
+              ⚠️ ÉDITABLE SUR LA PREMIÈRE MANCHE SEULEMENT, en lecture seule ensuite. Une valeur
+              affichée mais non modifiable est plus honnête qu'un champ absent : on sait alors
+              sous quelle règle on joue, et où elle a été fixée. */}
+          {finale ? (
+            <div className={formulaire.champ}>
+              <label className={formulaire.label} htmlFor="jourj-seuil">
+                Seuil de victoire
+              </label>
+              {finale.gouverne ? (
+                <input
+                  className={formulaire.saisie}
+                  id="jourj-seuil"
+                  name="seuilDeVictoire"
+                  type="number"
+                  min={SEUIL_VICTOIRE_MIN}
+                  max={SEUIL_VICTOIRE_MAX}
+                  defaultValue={finale.seuil}
+                />
+              ) : (
+                <p className={styles.seuilFige} id="jourj-seuil">
+                  <strong>{finale.seuil} points</strong> — fixé à la première manche de la finale.
+                </p>
+              )}
+              <p className={formulaire.sousChamp}>
+                <span>
+                  Il faut <strong>atteindre ce total</strong>, puis faire un{" "}
+                  <strong>top&nbsp;1</strong> sur une manche <strong>suivante</strong>. Franchir
+                  le seuil pendant la manche où l&rsquo;on fait top&nbsp;1 ne suffit pas.
                 </span>
               </p>
             </div>

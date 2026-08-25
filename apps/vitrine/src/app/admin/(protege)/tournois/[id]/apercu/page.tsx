@@ -6,9 +6,10 @@ import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { exigerRolePage } from "@/server/auth/guard";
 import { jourParis } from "@/lib/date-paris";
 import { classementPubliable } from "@/lib/tournoi/classement";
+import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
-import { getClassementDuTournoi } from "@/server/db/queries/rencontres";
+import { getClassement, getFinale } from "@/server/db/queries/rencontres";
 import { getTournamentApercuById } from "@/server/db/queries/tournaments";
 import admin from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
@@ -74,12 +75,22 @@ export default async function ApercuTournoiPage({
   // ⚠️ EN REVANCHE `classementPubliable` S'APPLIQUE ICI AUSSI, et c'est tout l'intérêt : sans
   // lui, l'aperçu nommerait les engagés à 0 point que le site, lui, ne nommera pas — un aperçu
   // qui montre autre chose que le rendu ment au moment où on lui demande la vérité (6.3).
-  const classement = classementPubliable(await getClassementDuTournoi(tournoi.id));
+  const classement = classementPubliable(
+    await getClassement(tournoi.id, { espace: "qualification" }),
+  );
+
+  // 🔴 SANS `exigerPublie`, POUR LA MÊME RAISON QUE LES PHASES : sur un BROUILLON, la lecture
+  // publique ne rendrait rien et l'aperçu montrerait une fiche sans finale au moment précis où
+  // le bénévole la vérifie. ⚠️ `finalePubliable`, lui, S'APPLIQUE — c'est ce qui fait que
+  // l'aperçu montre le rendu réel et pas un sur-ensemble.
+  const finaleLue = await getFinale(tournoi.id);
+  const finale = finaleLue ? finalePubliable(finaleLue) : null;
   const suivi = {
     // L'horloge se lit ICI, une fois, jamais pendant le rendu (`react-hooks/purity`).
     etat: etatDuJour(phases, jourParis(tournoi.startsAt), jourParis(new Date())),
     phases,
     classement,
+    finale,
   };
 
   return (
