@@ -5,8 +5,10 @@ import { z } from "zod";
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { exigerRolePage } from "@/server/auth/guard";
 import { jourParis } from "@/lib/date-paris";
+import { classementPubliable } from "@/lib/tournoi/classement";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
+import { getClassementDuTournoi } from "@/server/db/queries/rencontres";
 import { getTournamentApercuById } from "@/server/db/queries/tournaments";
 import admin from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
@@ -65,10 +67,19 @@ export default async function ApercuTournoiPage({
   // aucune conversion à écrire. ⚠️ Ce n'est pas une garde relâchée : la page est derrière
   // `exigerRolePage("admin_tournoi")`, en première instruction.
   const phases = await getPhasesForTournament(tournoi.id);
+
+  // 🔴 MÊME RAISON POUR LE CLASSEMENT (14.2) : `getClassementPublic` filtre `is_published`,
+  // donc sur un BROUILLON elle ne rendrait rien — l'aperçu montrerait une fiche sans
+  // classement au moment précis où le bénévole vérifie ce que le public verra.
+  // ⚠️ EN REVANCHE `classementPubliable` S'APPLIQUE ICI AUSSI, et c'est tout l'intérêt : sans
+  // lui, l'aperçu nommerait les engagés à 0 point que le site, lui, ne nommera pas — un aperçu
+  // qui montre autre chose que le rendu ment au moment où on lui demande la vérité (6.3).
+  const classement = classementPubliable(await getClassementDuTournoi(tournoi.id));
   const suivi = {
     // L'horloge se lit ICI, une fois, jamais pendant le rendu (`react-hooks/purity`).
     etat: etatDuJour(phases, jourParis(tournoi.startsAt), jourParis(new Date())),
     phases,
+    classement,
   };
 
   return (

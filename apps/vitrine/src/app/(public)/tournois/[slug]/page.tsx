@@ -5,8 +5,10 @@ import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
 import { jourParis } from "@/lib/date-paris";
+import { classementPubliable } from "@/lib/tournoi/classement";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
 import { getDeroulePublic } from "@/server/db/queries/phases";
+import { getClassementPublic } from "@/server/db/queries/rencontres";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -121,6 +123,13 @@ export default async function FicheTournoiPage({
   // d'ailleurs. Voir le bloc de tête de `queries/phases.ts`.
   const phases = await getDeroulePublic(tournoi.id);
 
+  // 🔴 TROISIÈME LECTURE, MÊME GARDE (Story 14.2) : `getClassementPublic` refiltre lui aussi
+  // `is_published` sur une jointure. ⚠️ Et le filtre de PUBLICATION est un second geste,
+  // distinct de la garde : `classementPubliable` retire les lignes qu'on n'a pas le droit de
+  // nommer. Il vit dans la lib parce que l'aperçu du bénévole, qui lit un BROUILLON, pose
+  // exactement la même question sans pouvoir passer par cette requête-ci.
+  const classement = classementPubliable(await getClassementPublic(tournoi.id));
+
   // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS LE COMPOSANT. Lire l'heure pendant un
   // rendu est une impureté que `react-hooks/purity` refuse, et deux rendus du même arbre
   // pourraient répondre différemment. `FicheTournoi` reçoit un état déjà calculé.
@@ -132,6 +141,7 @@ export default async function FicheTournoiPage({
       suivi={{
         etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
         phases,
+        classement,
       }}
     />
   );
