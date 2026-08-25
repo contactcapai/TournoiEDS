@@ -10,11 +10,24 @@
    ⚠️ C'est un vocabulaire de MISE EN PAGE, pas un framework de formulaire. Aucun
    comportement ici. La Story 6.4 le consomme ou l'étend ; elle ne le contourne pas. */
 
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   🔴 LE `<form>` N'EST PLUS BORNÉ — LA LIMITE DE LISIBILITÉ EST DESCENDUE SUR LES CHAMPS
+   ══════════════════════════════════════════════════════════════════════════════════
+   Il portait `max-width: 62ch` (≈ 550px). L'intention était juste — un champ de saisie
+   plus large qu'une ligne de texte confortable ne se relit pas — mais elle s'appliquait au
+   FORMULAIRE ENTIER, donc AUSSI à ce qui n'est pas du texte : les cinq cartes de format du
+   déroulé, en grille `auto-fit`, tenaient à deux par rangée dans 550px au lieu des cinq
+   qu'elles voulaient. Une contrainte de prose posée sur un conteneur borne tout ce qu'il
+   contient, y compris ce qui gagnerait à s'étendre.
+   ⇒ `62ch` vit désormais sur `.saisie`, `.zone` et `.fichier` — les trois endroits où on
+   LIT ce qu'on a tapé. Les blocs de texte gardent leur propre borne (72ch) plus bas. Tout
+   le reste — grilles, tableaux, rangées de boutons — prend la largeur disponible.
+   ⚠️ Aucun effet hors du back-office : `SolicitationForm`, le seul formulaire public, a son
+   propre module et n'a jamais consommé cette feuille (vérifié sur les 17 consommateurs). */
 .form {
   display: flex;
   flex-direction: column;
   gap: 22px;
-  max-width: 62ch;
 }
 
 .champ {
@@ -39,6 +52,10 @@
 .saisie,
 .zone {
   width: 100%;
+  /* La borne de lisibilité, à sa vraie place : c'est ICI qu'on relit ce qu'on a tapé, et
+     un champ de 1100px oblige l'œil à faire l'aller-retour entre le libellé et le curseur.
+     `width: 100%` la garde responsive — le champ vaut min(100%, 62ch). */
+  max-width: 62ch;
   min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
   padding: 10px 12px;
   border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
@@ -66,11 +83,16 @@
   border-width: 2px;
 }
 
-/* Ligne sous le champ : aide à gauche, compteur à droite. */
+/* Ligne sous le champ : aide à gauche, compteur à droite.
+   ⚠️ LES 72ch DE CE BLOC ET DES TROIS SUIVANTS (`.erreur`, `.avertissement`,
+   `.confirmation`) NE SONT PAS UN AJOUT DÉCORATIF : ces blocs tenaient leur largeur du
+   `<form>`, qui ne la porte plus. Sans elles, l'aide sous un champ s'étirerait sur 1100px —
+   une ligne qu'on relit deux fois parce que l'œil perd le début en revenant à la ligne. */
 .sousChamp {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  max-width: 72ch;
   font-size: 13px;
   color: var(--light);
 }
@@ -84,6 +106,7 @@
    serait un hex de charte en dur. La couleur ne porte donc PAS seule l'information —
    le message est explicite, `aria-invalid` et `aria-describedby` la portent aussi. */
 .erreur {
+  max-width: 72ch;
   font-size: 14px;
   line-height: var(--lh-body);
   color: var(--gold);
@@ -92,6 +115,7 @@
 /* Avertissement NON BLOQUANT (heure pathologique, dette R23) — il dit ce qui sera
    enregistré, il n'empêche rien. Volontairement distinct d'une erreur. */
 .avertissement {
+  max-width: 72ch;
   padding: 12px 14px;
   border-left: 3px solid var(--gold);
   border-radius: var(--radius-button);
@@ -102,6 +126,7 @@
 }
 
 .confirmation {
+  max-width: 72ch;
   padding: 14px 16px;
   border: 1px solid var(--gold);
   border-radius: var(--radius-card);
@@ -152,6 +177,7 @@
    qu'un `<div>` stylé redemanderait de réécrire, moins bien. */
 .fichier {
   width: 100%;
+  max-width: 62ch; /* même borne que `.saisie` : c'est un champ, pas un bloc de mise en page */
   min-height: 44px; /* cible ≥ 44×44 (project-context.md §5) */
   padding: 10px 12px;
   border: 1px dashed rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
