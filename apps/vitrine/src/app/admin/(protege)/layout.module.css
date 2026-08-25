@@ -39,11 +39,30 @@
   border-right: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 %, pas de token de filet */
 }
 
+/* 🔴 C'EST UN LIEN DEPUIS LE 2026-08-25, DONC IL DOIT EN AVOIR L'AIR. Une marque cliquable
+   qui ne réagit ni au survol ni au focus est indiscernable d'un titre : c'est précisément ce
+   qui a fait taper l'URL à la main. ⚠️ Seul le SURVOL s'ajoute ici : le curseur vient de
+   `<a href>` et l'anneau de focus de la règle `:where(a, button, …):focus-visible` de
+   `globals.css`. C'est aussi pourquoi ce lien ne suffit pas — au repos il reste muet, et
+   c'est l'entrée « Tableau de bord » du menu qui, elle, se voit sans survoler. */
 .identite {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-card);
+  text-decoration: none;
+  transition: background-color 160ms ease;
+}
+
+.identite:hover {
+  background: rgba(218, 178, 101, 0.1); /* --gold à 10 % */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .identite {
+    transition: none;
+  }
 }
 
 .logo {

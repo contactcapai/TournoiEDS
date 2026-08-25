@@ -141,3 +141,30 @@ test("le tableau de bord ne marque aucune section", () => {
   // `/admin` n'est pas une section : le marquer ferait clignoter une entrée au hasard.
   assert.equal(sectionCourante("/admin", SECTIONS_ADMIN), null);
 });
+
+// ── ④ Le retour au tableau de bord (défaut vu par Brice le 2026-08-25) ────────────────
+
+test("🔴 `/admin` PRÉFIXE toutes les sections — d'où l'égalité stricte de son entrée", () => {
+  // Ce test fige la raison d'une ligne de `MenuAdmin` : `chemin === "/admin"`, jamais
+  // `cheminCouvertPar`. La règle « la plus longue l'emporte » qui départage les sections ne
+  // s'applique pas ici — il n'y a rien à départager, `/admin` les contient TOUTES. Un test
+  // de préfixe marquerait le tableau de bord actif sur les onze écrans, en même temps que la
+  // vraie section : deux entrées surlignées, dont une fausse. La règle vivait dans un
+  // commentaire, c'est-à-dire nulle part (leçon 13.1).
+  for (const section of SECTIONS_ADMIN) {
+    // Le préfixe dit OUI pour les neuf...
+    assert.equal(cheminCouvertPar(section.href, "/admin"), true, section.href);
+    // ...et l'égalité stricte dit NON pour les neuf. C'est tout l'écart, sur la même ligne.
+    assert.notEqual(section.href, "/admin", section.href);
+  }
+});
+
+test("aucune section ne revendique `/admin`", () => {
+  // Sinon l'entrée « Tableau de bord » du menu aurait une jumelle dans une famille — et le
+  // proxy, qui dérive son exigence de ce registre, mettrait un RÔLE sur une page qui doit
+  // rester ouverte à tout compte connecté (elle est dans `CHEMINS_CONNECTE`).
+  assert.equal(
+    SECTIONS_ADMIN.some((section) => section.href === "/admin"),
+    false,
+  );
+});
