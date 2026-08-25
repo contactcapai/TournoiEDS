@@ -159,3 +159,23 @@
     margin-left: 0;
   }
 }
+
+/* ── « Le tirage n'est plus à jour » (Story 10.13) ──────────────────────────── */
+
+/* 🔴 EN CORAIL, ET ICI C'EST JUSTIFIÉ : `--alert` marque ce qui BLOQUE ou attend une réponse
+   (PR #73). Une manche dont le tirage est périmé attend un geste, et jouer sans le faire
+   fausse le classement. ⚠️ Le texte porte tout : la couleur ne fait que le répéter (AA). */
+.tirage {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--alert);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  line-height: var(--lh-body);
+  color: var(--light);
+  max-width: 72ch;
+}
+
+.tirage strong {
+  color: var(--alert);
+}
