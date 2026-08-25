@@ -183,6 +183,13 @@
       "when": 1787644751950,
       "tag": "0025_steady_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787687456251,
+      "tag": "0026_groovy_the_renegades",
+      "breakpoints": true
     }
   ]
 }

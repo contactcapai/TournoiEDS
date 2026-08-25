@@ -58,6 +58,14 @@ export class ErreurAccesRole extends Error {
   }
 }
 
+/** Levée quand une Server Action ouverte à tout compte est atteinte sans session. */
+export class ErreurAccesConnexion extends Error {
+  constructor(raison: string) {
+    super(`Accès refusé (connexion requise) : ${raison}`);
+    this.name = "ErreurAccesConnexion";
+  }
+}
+
 /**
  * Les rôles d'un compte, lus EN BASE À CHAQUE REQUÊTE.
  *
@@ -136,6 +144,40 @@ export async function exigerRolePage(role: RoleAdmin): Promise<CompteConnecte> {
   const compte = await lireCompte();
   if (compte === null) redirect("/admin/login");
   if (!detientRole(compte.roles, role)) redirect(`/admin/refus?role=${role}`);
+  return compte;
+}
+
+/**
+ * Exige seulement d'être CONNECTÉ — aucun rôle (Story 12.1).
+ *
+ * 🔴 ELLE EXISTE PARCE QUE `/profil` EST LA PREMIÈRE SURFACE AUTHENTIFIÉE **HORS `/admin`**.
+ * Le proxy est fail-closed **sous `/admin` uniquement** : une page posée ailleurs n'est couverte
+ * par rien, et sa garde doit vivre dans la page. La nommer une fois évite que trois pages roulent
+ * chacune la leur — c'est la doctrine de la 8.1, où l'on a supprimé `requireAdmin()` justement
+ * pour que le choix soit explicite et unique.
+ *
+ * ⚠️ **ELLE NE REDIRIGE JAMAIS VERS `/admin/refus`**, et la différence est toute la garde :
+ * `refus` répond à « connecté mais sans le rôle », or ici **aucun rôle n'est requis**. Un
+ * participant est exactement le public visé ; l'y envoyer lui refuserait sa propre page.
+ *
+ * ⚠️ À APPELER EN PREMIÈRE INSTRUCTION, comme `exigerRolePage` : une page qui composerait son
+ * écran puis redirigerait aurait déjà exécuté ses requêtes et, selon le streaming, pu émettre
+ * du HTML.
+ */
+export async function exigerConnexionPage(): Promise<CompteConnecte> {
+  const compte = await lireCompte();
+  if (compte === null) redirect("/admin/login");
+  return compte;
+}
+
+/**
+ * Exige seulement d'être CONNECTÉ depuis une SERVER ACTION — lève, comme sa jumelle de rôle.
+ */
+export async function exigerConnexionAction(): Promise<CompteConnecte> {
+  const compte = await lireCompte();
+  if (compte === null) {
+    throw new ErreurAccesConnexion("session absente ou expirée");
+  }
   return compte;
 }
 

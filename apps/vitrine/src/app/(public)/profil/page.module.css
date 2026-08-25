@@ -1,0 +1,59 @@
+/* La page « Mon profil » (Story 12.1). */
+
+/* ⚠️ Borne de lisibilité sur le PARAGRAPHE, jamais sur son conteneur (leçon PR #75). */
+.chapo {
+  max-width: 64ch;
+  margin-top: 18px;
+  font-size: 17px;
+  color: var(--light);
+}
+
+.connexion {
+  display: grid;
+  gap: 14px;
+}
+
+/* ⚠️ `nowrap` est une GARDE, pas une préférence (leçon PR #77) : avec `wrap`, le min-content
+   d'une rangée vaut UN élément, et une adresse longue empilerait la valeur en silence. */
+.ligne {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.terme {
+  flex: none;
+  min-width: 9rem;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+/* Une adresse peut être longue : elle prend la place et se coupe, elle ne pousse pas le terme. */
+.valeur {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  color: var(--light);
+}
+
+.aideConnexion {
+  max-width: 72ch;
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+@media (max-width: 880px) {
+  .ligne {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .terme {
+    min-width: 0;
+  }
+}
