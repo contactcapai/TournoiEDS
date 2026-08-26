@@ -1,0 +1,204 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   LES OVERLAYS OBS — HORS CHARTE DU SITE, ET C'EST L'ARBITRAGE A6 (Story 10.6)
+   ══════════════════════════════════════════════════════════════════════════════════════
+
+   🔴 UN SEUL MODULE POUR LES DEUX ÉCRANS ET LEUR TABLEAU, ET C'EST VOULU : ce sont deux vues
+   d'une même surface, elles partagent tout sauf une colonne. Deux modules jumeaux auraient
+   divergé au premier réglage de taille — celui qu'on fait toujours en regardant le flux.
+
+   🔴 LES TAILLES SONT EN PX, PAS EN TOKENS, ET CE N'EST PAS UN OUBLI. Les tokens `--fs-*`
+   dimensionnent de la PROSE lue à 50 cm ; ici on lit une incrustation sur un flux compressé,
+   souvent redimensionné, parfois sur un téléphone. La cible est une source OBS 1920×1080.
+   ⚠️ Les COULEURS, elles, restent celles de la charte : c'est la même association à l'écran,
+   et rien n'obligeait à en inventer d'autres.
+
+   ⚠️ AUCUN BREAKPOINT 880px : une source OBS a une taille FIXE, elle ne se redimensionne pas.
+   En poser un habillerait un cas qui n'existe pas. */
+
+.cadre,
+.cadreTransparent {
+  min-height: 100vh;
+  padding: 48px 64px; /* px structurel */
+  display: flex;
+  flex-direction: column;
+  gap: 32px; /* px structurel */
+}
+
+.cadre {
+  background: var(--navy-deep);
+}
+
+/* Le chroma key découpe ce qui est derrière : le cadre ne pose RIEN. La règle jumelle sur
+   `html, body` est rendue par la page (voir `CadreOverlay`) — sans elle, le fond du site
+   resterait visible et il n'y aurait rien à découper. */
+.cadreTransparent {
+  background: transparent;
+}
+
+.tete {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* px structurel */
+}
+
+.titre {
+  font-family: var(--font-display);
+  font-size: 64px; /* px structurel */
+  line-height: 1.05;
+  color: var(--gold);
+}
+
+.sousTitre {
+  font-family: var(--font-body);
+  font-size: 30px; /* px structurel */
+  color: var(--cream);
+}
+
+/* ═════════ Le tableau ═════════ */
+
+.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-body);
+  color: var(--light);
+}
+
+.tableau th {
+  font-family: var(--font-display);
+  font-size: 30px; /* px structurel */
+  font-weight: 400;
+  text-align: left;
+  color: var(--gold);
+  padding: 12px 20px; /* px structurel */
+  border-bottom: 3px solid var(--gold); /* px structurel */
+}
+
+.ligne td,
+.ligneMarquee td {
+  font-size: 34px; /* px structurel */
+  padding: 14px 20px; /* px structurel */
+}
+
+/* Une ligne sur deux, très légèrement détachée : à l'antenne, c'est ce qui permet de suivre
+   une ligne du nom jusqu'à ses points sans se tromper de rangée. */
+.ligne:nth-child(even) td,
+.ligneMarquee:nth-child(even) td {
+  background: rgb(255 255 255 / 4%);
+}
+
+/* 🔴 LA MISE EN AVANT EST UNE FORME (un liseré), PAS UNE COULEUR DE TEXTE — principe ② de
+   l'Epic 13, et surtout : un flux compressé écrase les nuances bien avant les mots. Le mot
+   « peut gagner » est écrit à côté, et c'est LUI qui porte l'information. */
+.ligneMarquee td:first-child {
+  box-shadow: inset 6px 0 0 0 var(--gold); /* px structurel */
+}
+
+.colRang {
+  width: 100px; /* px structurel */
+  font-family: var(--font-display);
+  color: var(--gold);
+}
+
+.colNom {
+  /* Le nom prend ce qui reste : c'est la seule colonne dont la longueur varie vraiment. */
+  width: auto;
+}
+
+.colNombre {
+  width: 150px; /* px structurel */
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.colProgression {
+  width: 420px; /* px structurel */
+}
+
+/* Le mot qui accompagne le liseré. `--alert` serait faux ici : rien n'est bloqué ni en erreur,
+   quelqu'un est simplement en position de gagner (charte du 2026-08-24). */
+.marque {
+  margin-left: 16px; /* px structurel */
+  padding: 4px 12px; /* px structurel */
+  border: 2px solid var(--gold); /* px structurel */
+  border-radius: var(--radius-tag);
+  font-family: var(--font-display);
+  font-size: 22px; /* px structurel */
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.barre {
+  display: inline-block;
+  vertical-align: middle;
+  width: 260px; /* px structurel */
+  height: 16px; /* px structurel */
+  border-radius: 999px;
+  background: rgb(255 255 255 / 15%);
+  overflow: hidden;
+}
+
+.jauge {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.ratio {
+  margin-left: 16px; /* px structurel */
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+/* ═════════ Le sacre ═════════ */
+
+.sacre {
+  padding: 32px; /* px structurel */
+  border: 3px solid var(--gold); /* px structurel */
+  border-radius: var(--radius-card);
+  background: rgb(218 178 101 / 10%);
+  text-align: center;
+}
+
+.trophee {
+  font-size: 96px; /* px structurel */
+  line-height: 1;
+}
+
+.vainqueur {
+  margin-top: 12px; /* px structurel */
+  font-family: var(--font-display);
+  font-size: 88px; /* px structurel */
+  line-height: 1.05;
+  color: var(--gold);
+}
+
+.mention {
+  margin-top: 8px; /* px structurel */
+  font-size: 30px; /* px structurel */
+  color: var(--cream);
+}
+
+/* ═════════ États et témoin ═════════ */
+
+.attente {
+  padding: 64px 0; /* px structurel */
+  text-align: center;
+  font-size: 36px; /* px structurel */
+  color: var(--cream);
+}
+
+/* 🔴 LE TÉMOIN DE FRAÎCHEUR — DISCRET, MAIS JAMAIS ABSENT. C'est la seule chose à l'écran qui
+   dise si ce qu'on regarde est encore vivant : sans socket, une panne fige l'incrustation SANS
+   RIEN SIGNALER. `margin-top: auto` le colle en bas du cadre, hors du champ utile. */
+.fraicheur {
+  margin-top: auto;
+  text-align: right;
+  font-size: 20px; /* px structurel */
+  color: var(--grey);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ⚠️ AUCUNE ANIMATION DANS CE MODULE, donc aucun bloc `prefers-reduced-motion` : l'ancien
+   overlay en avait (`heroGlow`, `rankingFlash`, transitions Framer Motion), et elles ne sont
+   PAS reprises. Un overlay est filmé, pas parcouru — et une animation qui se rejoue à chaque
+   rafraîchissement clignoterait toutes les dix secondes à l'antenne. */
