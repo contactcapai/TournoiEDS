@@ -1,0 +1,48 @@
+/* « J'y serai » — discret par nature (Story 12.2).
+   ⚠️ CE N'EST PAS UN CTA : le seul geste mis en avant du site reste l'adhésion. Lui donner le
+   poids du bouton or ferait trois appels à l'action de même rang sur une même page. */
+
+.bouton,
+.boutonActif {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* ⚠️ Cible ≥ 44px (AA) : la ligne d'agenda se vise au doigt, souvent en marchant. */
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+/* 🔴 L'ÉTAT SE DIT AUSSI PAR LE TEXTE (le « ✓ »), jamais par la seule couleur (AA). Le fond
+   plein ne fait que répéter ce que le libellé et `aria-pressed` portent déjà. */
+.boutonActif {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.bouton:hover {
+  background: rgba(218, 178, 101, 0.14);
+}
+
+.bouton:disabled,
+.boutonActif:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bouton,
+  .boutonActif {
+    transition: none;
+  }
+}

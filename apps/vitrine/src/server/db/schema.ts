@@ -2592,3 +2592,47 @@ export const tournamentEntryClaim = pgTable(
     index("tournament_entry_claim_attente_idx").on(table.state),
   ],
 );
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * « JE SERAI LÀ CE JEUDI » — L'INTENTION, PAS L'ENGAGEMENT (Story 12.2)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 NE PAS CONFONDRE AVEC `tournament_entry_attendance` (10.12). Là, un **bénévole constate**
+ * la présence le jour J, par journée de tournoi ; ici, **la personne annonce** sa venue à
+ * l'avance, sur un événement d'agenda. Deux gestes, deux acteurs, deux tables — les fusionner
+ * ferait passer une intention pour un pointage, et le classement d'un tournoi en dépend.
+ *
+ * 🔴 **AUCUN ÉTAT, ET C'EST VOULU.** On est là ou on ne l'est pas : la ligne existe, ou elle
+ * n'existe pas. Un enum (`vient`/`ne_vient_pas`/`peut_être`) inventerait des nuances que
+ * personne n'a demandées et qu'aucun écran ne saurait rendre — et « se dédire » doit être aussi
+ * simple que s'annoncer.
+ *
+ * ⚠️ **CE N'EST PAS UNE INSCRIPTION** : ni capacité, ni tarif, ni validation par un bénévole.
+ * Personne n'est refusé, personne ne « confirme ». La table ne porte donc **aucun état de
+ * traitement** — en ajouter un ferait de l'écran une billetterie, ce que l'Epic 12 écarte
+ * nommément.
+ *
+ * ⚠️ **CLÉ PRIMAIRE COMPOSITE** : une personne annonce **au plus une fois** le même rendez-vous.
+ * C'est la base qui le tient, pas un `if` — un double-clic ne crée pas deux venues.
+ * ⚠️ `cascade` DES DEUX CÔTÉS : une intention n'a aucune existence sans son événement ni sans
+ * son compte. Supprimer son compte (RGPD) emporte ses intentions — contrairement aux résultats
+ * de tournoi, qui sont des **faits joués** et se délient (12.1).
+ */
+export const eventAttendance = pgTable(
+  "event_attendance",
+  {
+    eventId: uuid()
+      .notNull()
+      .references(() => event.id, { onDelete: "cascade" }),
+    userId: uuid()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.eventId, table.userId] }),
+    // Le back-office lit « combien de monde attend-on », donc par ÉVÉNEMENT.
+    index("event_attendance_event_idx").on(table.eventId),
+  ],
+);

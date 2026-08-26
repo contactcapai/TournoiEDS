@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Brush, Button, ExternalIcon } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
+import { etatDeVenue, identifiantsDEvenements } from "@/lib/venues";
+import { lireCompte } from "@/server/auth/guard";
+import { mesVenues as mesVenuesQuery } from "@/server/db/queries/venues";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
 import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
@@ -186,6 +189,20 @@ export default async function Agenda() {
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
 
+  /**
+   * 🔴 LA SESSION ET MES VENUES, LUES UNE FOIS (Story 12.2) — comme sur la home. ⚠️ Bornées aux
+   * rendez-vous À VENIR : les événements passés n'ont aucun geste à proposer, et annoncer sa
+   * venue à hier serait un fait faux à l'écran.
+   * ⚠️ Coût nul pour un anonyme : `lireCompte()` rend `null` avant toute requête.
+   */
+  const compte = await lireCompte();
+  const mesVenues = compte
+    ? await mesVenuesQuery(
+        compte.utilisateurId,
+        identifiantsDEvenements([...(next ? [next] : []), ...rest]),
+      )
+    : new Set<string>();
+
   return (
     <>
       {/* ① Tête de page. Seul <h1> du document ; le <main id="content"> est fourni
@@ -233,7 +250,18 @@ export default async function Agenda() {
                     AURAIT une destination ici. On ne l'ajoute pas pour autant — ce serait une
                     surface de rendu neuve sur une page mergée, hors AC. Point porté au gate
                     visuel de Brice plutôt que tranché au dev. */}
-                <NextEventCard rendezVous={next} />
+                <NextEventCard
+                  rendezVous={next}
+                  venue={
+                    next.nature === "evenement"
+                      ? {
+                          evenementId: next.evenement.id,
+                          connecte: compte !== null,
+                          jyVais: mesVenues.has(next.evenement.id),
+                        }
+                      : undefined
+                  }
+                />
 
                 {rest.length > 0 ? (
                   <EventList>
@@ -242,6 +270,7 @@ export default async function Agenda() {
                         key={rendezVous.cle}
                         rendezVous={rendezVous}
                         variant="detailed"
+                        venue={etatDeVenue(rendezVous, compte !== null, mesVenues)}
                       />
                     ))}
                   </EventList>

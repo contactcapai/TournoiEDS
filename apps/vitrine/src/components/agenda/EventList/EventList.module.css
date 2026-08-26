@@ -170,3 +170,27 @@
 
    Aucune propriété `animation-*` ici : l'apparition vient exclusivement de
    `motion.reveal`, composée en markup par l'appelant (dette R9). */
+
+/* Le renvoi vers un tournoi, depuis une ligne (Story 12.2).
+   ⚠️ Cible ≥ 44px (AA) et même gabarit que « J'y serai » : deux gestes voisins de même
+   importance, donc deux formes proches — c'est la NATURE de la ligne qui les distingue, pas
+   leur poids visuel. */
+.rowGeste {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--gold);
+}
+
+.rowGeste:hover {
+  background: rgba(218, 178, 101, 0.14);
+}
