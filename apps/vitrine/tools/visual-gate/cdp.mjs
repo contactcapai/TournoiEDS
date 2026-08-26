@@ -6,9 +6,79 @@
 //
 // Chemin de Chrome : surchargeable par la variable d'environnement CHROME_PATH.
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+const PREFIXE_PROFIL = "eds-cdp-";
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LA PURGE DES PROFILS ORPHELINS — PARCE QUE `close()` NE SUFFIT PAS, ET C'EST MESURÉ
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce fichier affirmait, en commentaire, qu'un profil non supprimé « sera purgé avec le dossier
+ * temporaire du système ». **C'est faux, et la mesure est sans appel** : le 2026-08-26,
+ * `%TEMP%` portait **97 dossiers `eds-cdp-*`, 1,29 Go**, échelonnés du 16 au 26 août. Windows
+ * ne vide pas `%TEMP%` tout seul. ⇒ Une supposition écrite en commentaire excusait une fuite,
+ * et personne ne l'a vue pendant dix jours — c'est `pieges/avertissement-commentaire.md`
+ * appliqué à une hypothèse plutôt qu'à un danger.
+ *
+ * 🔴 **ET `close()` NE PEUT PAS TOUT RATTRAPER** : un `Ctrl+C`, un `throw` non rattrapé ou un
+ * plantage de Chrome ne passent **jamais** par lui. Une purge au démarrage est donc la seule
+ * parade qui couvre le cas réel — celui où l'on interrompt une porte qui prend trop de temps.
+ *
+ * ⚠️ **SEUIL D'UNE HEURE, ET IL EST UNE GARDE, PAS UN CONFORT** : deux portes peuvent tourner
+ * en parallèle (`gate` et `gate:links`). Purger sans seuil supprimerait le profil d'un Chrome
+ * **vivant**, et la porte voisine tomberait sur une erreur technique au lieu de mesurer. Un run
+ * complet dure quelques minutes : une heure laisse une marge large.
+ */
+function purgerProfilsOrphelins(maintenant = Date.now()) {
+  const racine = tmpdir();
+  const UNE_HEURE = 60 * 60 * 1000;
+  let purges = 0;
+
+  let entrees;
+  try {
+    entrees = readdirSync(racine);
+  } catch {
+    return 0; // tmpdir illisible : ce n'est pas le métier de cette porte de s'en plaindre
+  }
+
+  for (const nom of entrees) {
+    if (!nom.startsWith(PREFIXE_PROFIL)) continue;
+    const chemin = join(racine, nom);
+    try {
+      if (maintenant - statSync(chemin).mtimeMs < UNE_HEURE) continue;
+      rmSync(chemin, { recursive: true, force: true });
+      purges += 1;
+    } catch {
+      // Profil encore verrouillé, ou disparu entre-temps : la prochaine exécution réessaiera.
+    }
+  }
+
+  return purges;
+}
+
+/**
+ * Supprime un profil en **réessayant**, parce que Windows rend la main avec du retard.
+ *
+ * 🔴 C'EST LA CAUSE RACINE DE LA FUITE. `proc.kill()` demande l'arrêt, il ne l'attend pas :
+ * Chrome garde des handles ouverts sur son `user-data-dir` le temps de se fermer, `rmSync`
+ * échoue avec `EBUSY`/`EPERM`, et l'erreur était **avalée**. Le profil restait — à chaque
+ * exécution, depuis toujours.
+ */
+async function supprimerProfil(chemin, essais = 5) {
+  for (let i = 0; i < essais; i++) {
+    try {
+      rmSync(chemin, { recursive: true, force: true });
+      return true;
+    } catch {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+  return false;
+}
 
 const CANDIDATS = [
   process.env.CHROME_PATH,
@@ -29,7 +99,16 @@ if (!CHROME) {
 }
 
 export async function launchChrome(port = 9222) {
-  const profile = mkdtempSync(join(tmpdir(), "eds-cdp-"));
+  // ⚠️ AVANT de créer le nôtre : les orphelins d'exécutions interrompues ne se ramassent
+  // nulle part ailleurs. Silencieux quand il n'y a rien — une porte n'a pas à commenter son
+  // propre ménage —, mais il le DIT dès qu'il trouve quelque chose : une fuite qui se répare
+  // sans un mot est une fuite qu'on redécouvre dans dix jours.
+  const orphelins = purgerProfilsOrphelins();
+  if (orphelins > 0) {
+    console.log(`[cdp] ${orphelins} profil(s) Chrome orphelin(s) purgé(s) de ${tmpdir()}.`);
+  }
+
+  const profile = mkdtempSync(join(tmpdir(), PREFIXE_PROFIL));
   const proc = spawn(
     CHROME,
     [
@@ -272,27 +351,40 @@ export async function launchChrome(port = 9222) {
       );
       return data;
     },
-    // Fermeture best-effort : les trois étapes sont indépendantes et une seule
-    // doit pouvoir échouer sans empêcher les suivantes — sinon un profil
-    // temporaire reste sur le disque à chaque exécution. Les erreurs sont donc
-    // avalées DÉLIBÉRÉMENT, et c'est le seul endroit du dossier où c'est le cas.
+    /**
+     * Fermeture best-effort : les étapes sont indépendantes et une seule doit pouvoir échouer
+     * sans empêcher les suivantes. Les erreurs sont avalées DÉLIBÉRÉMENT, et c'est le seul
+     * endroit du dossier où c'est le cas.
+     *
+     * 🔴 **ON ATTEND LA SORTIE RÉELLE DU PROCESSUS AVANT DE SUPPRIMER — C'EST LE CORRECTIF.**
+     * `proc.kill()` **demande** l'arrêt, il ne l'attend pas : Chrome garde des handles ouverts
+     * sur son `user-data-dir` le temps de se fermer, `rmSync` échouait en `EBUSY`, et l'erreur
+     * était avalée en pariant sur un ménage du système qui n'a **jamais** eu lieu (97 dossiers
+     * mesurés le 2026-08-26). On lit donc un **TÉMOIN** — l'événement `exit` — et non un délai,
+     * comme partout ailleurs dans ce dossier (`pieges/faux-succes.md`).
+     * ⚠️ La course est bornée à 5 s : si Chrome ne rend pas la main, on n'immobilise pas la
+     * porte pour autant — la purge du prochain démarrage ramassera le profil.
+     */
     async close() {
       try {
         ws.close();
       } catch {
         // socket déjà fermée par le navigateur : rien à faire
       }
+
+      const sorti = new Promise((resolve) => {
+        if (proc.exitCode !== null || proc.signalCode !== null) return resolve();
+        proc.once("exit", resolve);
+      });
+
       try {
         proc.kill();
       } catch {
         // processus déjà sorti : rien à faire
       }
-      try {
-        rmSync(profile, { recursive: true, force: true });
-      } catch {
-        // profil verrouillé par Windows le temps que Chrome rende la main :
-        // il sera purgé avec le dossier temporaire du système
-      }
+
+      await Promise.race([sorti, new Promise((r) => setTimeout(r, 5000))]);
+      await supprimerProfil(profile);
     },
   };
 }
