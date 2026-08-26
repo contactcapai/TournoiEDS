@@ -1999,6 +1999,18 @@ export const tournamentEntry = pgTable(
      * (Story 11.2) : sans elle, rejouer une ingestion créerait des doublons.
      */
     externalId: text(),
+    /**
+     * 🔴 LE COMPTE QUI A RÉCLAMÉ CETTE INSCRIPTION — **NULLABLE, ET C'EST L'ARBITRAGE A8** :
+     * *une inscription n'est pas un compte.* Elle vit **non réclamée** — le cas de TOUTES
+     * celles qui existent aujourd'hui — et se rattache quand la personne se connecte et
+     * qu'un bénévole valide (Story 12.1, 2/2).
+     *
+     * ⚠️ `ON DELETE SET NULL`, JAMAIS `cascade` : supprimer un compte (RGPD) **délie**, il
+     * n'efface pas les résultats. Une cascade supprimerait des lignes de tournois joués — les
+     * tables se retrouveraient à sept, et les points suivant la taille RÉELLE de la table
+     * (10.3), tout le classement d'un tournoi passé changerait. Arbitrage de Brice, 2026-08-25.
+     */
+    userId: uuid().references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -2530,5 +2542,53 @@ export const userProfile = pgTable(
       "user_profile_epic_non_blanc",
       sql`${table.epicId} is null or length(btrim(${table.epicId})) > 0`,
     ),
+  ],
+);
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * RÉCLAMER UNE INSCRIPTION (Story 12.1, 2/2)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * 🔴 POURQUOI UNE TABLE PLUTÔT QU'UN SIMPLE `user_id` POSÉ DIRECTEMENT. Le rattachement n'a
+ * **aucune clé fiable** : `tournament_entry.display_name` est du **texte libre** saisi par un
+ * bénévole, et `external_id` est vide tant que MATELY n'envoie rien. Rapprocher automatiquement
+ * sur le pseudo donnerait l'historique d'un **homonyme** à quelqu'un — en silence.
+ * ⇒ Le joueur **demande**, un bénévole **valide** (arbitrage de Brice, 2026-08-25).
+ *
+ * ⚠️ **LES REFUS SE CONSERVENT**, et ce n'est pas de l'archivage : sans eux, une réclamation
+ * refusée se rejoue à l'infini, et le bénévole revoit la même demande à chaque tournoi.
+ *
+ * ⚠️ **`unique(entry_id, user_id)`** : une même personne ne demande qu'une fois la même
+ * inscription. Deux personnes peuvent en revanche réclamer la MÊME inscription — c'est
+ * précisément le cas d'homonymie que le bénévole est là pour trancher, et l'interdire
+ * masquerait le conflit au lieu de le montrer.
+ */
+export const tournamentClaimState = pgEnum("tournament_claim_state", [
+  "en_attente",
+  "acceptee",
+  "refusee",
+]);
+
+export const tournamentEntryClaim = pgTable(
+  "tournament_entry_claim",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** `cascade` : une réclamation n'a aucun sens sans l'inscription qu'elle vise. */
+    entryId: uuid()
+      .notNull()
+      .references(() => tournamentEntry.id, { onDelete: "cascade" }),
+    /** `cascade` : supprimer son compte retire ses demandes en cours, pas ses résultats. */
+    userId: uuid()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    state: tournamentClaimState().notNull().default("en_attente"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("tournament_entry_claim_unique").on(table.entryId, table.userId),
+    // Le bénévole lit « ce qui attend » : l'état est le critère, pas la date.
+    index("tournament_entry_claim_attente_idx").on(table.state),
   ],
 );

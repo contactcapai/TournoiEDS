@@ -7,7 +7,9 @@ import { BarreJournees } from "@/components/admin/BarreJournees/BarreJournees";
 import { EngagesTournoi } from "@/components/admin/EngagesTournoi/EngagesTournoi";
 import { exigerRolePage } from "@/server/auth/guard";
 import { jourLisible } from "@/lib/date-paris";
+import { ReclamationsEngages } from "@/components/admin/ReclamationsEngages/ReclamationsEngages";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
+import { getReclamationsDuTournoi } from "@/server/db/queries/rattachement";
 import { getJourneesDuTournoi } from "@/server/db/queries/phases";
 import styles from "@/styles/admin-page.module.css";
 
@@ -49,9 +51,10 @@ export default async function EngagesTournoiPage({
   const { jour: jourDemande } = await searchParams;
   const jour = jourDemande !== undefined && journees.includes(jourDemande) ? jourDemande : null;
 
-  const [tournoi, donnees] = await Promise.all([
+  const [tournoi, donnees, reclamations] = await Promise.all([
     getTournoiPourEngages(id),
     getEngagesForTournament(id, jour),
+    getReclamationsDuTournoi(id),
   ]);
   if (!tournoi) notFound();
 
@@ -106,6 +109,12 @@ export default async function EngagesTournoiPage({
           c&rsquo;est lui qui décide de qui entre dans les tables de cette journée.
         </p>
       ) : null}
+
+      {/* 🔴 AVANT LA LISTE, comme la bande « Ce qui attend » du tableau de bord (13.3) : une
+          demande en attente est une chose à FAIRE, et la ranger après le tableau des engagés
+          la rendrait invisible un jour de tournoi. ⚠️ Le bloc disparaît de lui-même quand il
+          n'y a rien — un emplacement vide se lit comme une panne. */}
+      <ReclamationsEngages reclamations={reclamations} />
 
       <div className={styles.section}>
         <EngagesTournoi
