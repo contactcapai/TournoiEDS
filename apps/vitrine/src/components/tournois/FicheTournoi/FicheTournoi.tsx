@@ -568,8 +568,23 @@ export function FicheTournoi({
                   <div className={styles.enLigne}>
                     {/* Le nombre annoncé vit dans le `<dl>` de l'en-tête ; ce qui RESTE se dit
                         ici, là où il sert à décider. Deux faits différents, deux endroits — et
-                        celui-ci n'apparaît que si une capacité est saisie. */}
-                    {placesLibres !== null ? (
+                        celui-ci n'apparaît que si une capacité est saisie.
+
+                        🔴 **ET JAMAIS À CÔTÉ D'UN REFUS** — défaut trouvé sur STAGING le jour du
+                        déploiement, sur un tournoi réel : `tournoi-tft` rendait « Il reste 28
+                        places » suivi de « les inscriptions ne sont pas encore ouvertes ». La
+                        phrase était **vraie** et se lisait comme une **invitation**, contredite
+                        par la ligne suivante — c'est le défaut de la 9.3 dans une autre forme,
+                        et la leçon de la 10.14 : *une phrase vraie qui se lit fausse vaut une
+                        phrase fausse*.
+                        ⇒ Le compte ne paraît que là où il sert à **décider** ou à **se situer** :
+                        quand on peut s'inscrire, qu'on doit se connecter pour le faire, ou qu'on
+                        est déjà inscrit. Sur un refus, la raison porte déjà tout ce qu'il y a à
+                        dire — « Toutes les places sont prises » énonce le compte à sa manière.
+                        ⚠️ Aucun test neuf : c'est une dérivation d'affichage d'une ligne, tranchée
+                        par l'écran réel. Un test l'aurait figée **en passant** dans sa version
+                        fautive (même raisonnement qu'en PR #88). */}
+                    {placesLibres !== null && etatEnLigne.cas !== "indisponible" ? (
                       <p className={styles.places}>
                         {placesLibres === 0
                           ? "Plus aucune place disponible."
