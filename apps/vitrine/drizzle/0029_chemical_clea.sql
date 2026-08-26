@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "tournament_entry_compte_unique" ON "tournament_entry" USING btree ("tournament_id","user_id") WHERE "tournament_entry"."user_id" is not null;

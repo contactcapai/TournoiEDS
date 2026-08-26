@@ -1,0 +1,101 @@
+/* S'inscrire à un tournoi depuis sa fiche (Story 12.3).
+   Le bloc vit DANS le cadre `.inscription` de `FicheTournoi` (bord or, dégradé) : il n'a donc
+   ni fond ni bordure à lui — il en fabriquerait un second, imbriqué dans le premier. */
+
+.bloc {
+  display: grid;
+  gap: 12px; /* px structurel */
+  margin-top: var(--block-gap);
+  /* Une borne de LISIBILITÉ, posée sur le bloc de saisie et non sur un conteneur de mise en
+     page : c'est la distinction payée en 13.1 (`.form` bornait des grilles à 62ch). */
+  max-width: 62ch;
+}
+
+.label {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* --cream et non --grey : même fond effectif que `.etatAide` juste au-dessus, dont le contraste
+   est déjà mesuré sur ce dégradé (leçon 4.2 — un fond EFFECTIF n'est pas un token). */
+.aide {
+  font-size: 15.5px; /* px structurel, valeur reprise d'/agenda */
+  color: var(--cream);
+}
+
+.champ {
+  width: 100%;
+  min-height: 44px; /* px structurel — cible tactile AA */
+  padding: 10px 14px; /* px structurel */
+  border: 1px solid var(--grey);
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 16px; /* px structurel — sous 16px, iOS zoome au focus */
+}
+
+.champ:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-color: var(--gold);
+}
+
+/* `justify-self: start` : un bouton qui s'étire sur 62ch aurait l'air d'une bannière. Un bloc ne
+   s'étire pas sous prétexte que son conteneur le peut (13.1). */
+.valider {
+  justify-self: start;
+}
+
+.confirme {
+  font-size: var(--fs-lead);
+  color: var(--cream);
+}
+
+.confirme strong {
+  color: var(--gold);
+}
+
+/* Le geste secondaire prend une autre FORME, jamais une autre couleur (principe ② de l'Epic 13) :
+   un lien souligné en face d'un bouton plein. L'or reste l'accent, il ne marque pas le retrait. */
+.retrait {
+  justify-self: start;
+  min-height: 44px; /* px structurel — cible tactile AA */
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: 15.5px; /* px structurel */
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.retrait:hover {
+  color: var(--gold);
+}
+
+.retrait:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.retrait:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* 🔴 LE CORAIL SIGNALE, IL NE REMPLACE PAS LE MOT (charte du 2026-08-24) : le message est écrit
+   en toutes lettres, la couleur ne fait que le désigner. Réservé à ce qui BLOQUE — ici, une
+   inscription qui n'a pas été prise. */
+.erreur {
+  color: var(--alert);
+  font-size: 15.5px; /* px structurel */
+}
+
+/* ⚠️ AUCUN bloc `prefers-reduced-motion` ici, et c'est une absence RAISONNÉE : ce module ne
+   déclare ni transition ni animation. Un garde-fou contre un mouvement qui n'existe pas se lit
+   comme une protection, alors qu'il ne protège rien. */

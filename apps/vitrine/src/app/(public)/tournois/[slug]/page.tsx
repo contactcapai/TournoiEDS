@@ -8,6 +8,8 @@ import { jourParis } from "@/lib/date-paris";
 import { classementPubliable } from "@/lib/tournoi/classement";
 import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
+import { lireCompte } from "@/server/auth/guard";
+import { getEtatInscription } from "@/server/db/queries/inscription";
 import { getDeroulePublic } from "@/server/db/queries/phases";
 import {
   getClassementPublic,
@@ -146,6 +148,15 @@ export default async function FicheTournoiPage({
   // dans la lecture — un drop dont la table n'est pas jouée n'est pas nommé.
   const rencontres = await getRencontresPubliques(tournoi.id);
 
+  // 🔴 CINQUIÈME LECTURE (Story 12.3) : le décompte de places, l'inscription du visiteur et ses
+  // pseudos déclarés. ⚠️ **`lireCompte()` REND `null` AVANT TOUTE REQUÊTE quand il n'y a pas de
+  // session** (12.1), et `getEtatInscription` n'interroge alors ni les inscriptions ni le profil :
+  // le coût de cette story ne tombe QUE sur les connectés.
+  // ⚠️ Elle ne pose pas de filtre `is_published` et n'en a pas besoin — elle ne rend qu'un nombre
+  // et l'inscription du demandeur lui-même. La garde d'écriture vit dans l'action, sous verrou.
+  const compte = await lireCompte();
+  const inscription = await getEtatInscription(tournoi.id, compte?.utilisateurId ?? null);
+
   // 🔴 L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS LE COMPOSANT. Lire l'heure pendant un
   // rendu est une impureté que `react-hooks/purity` refuse, et deux rendus du même arbre
   // pourraient répondre différemment. `FicheTournoi` reçoit un état déjà calculé.
@@ -154,6 +165,7 @@ export default async function FicheTournoiPage({
   return (
     <FicheTournoi
       tournoi={tournoi}
+      inscription={{ ...inscription, connecte: compte !== null }}
       suivi={{
         etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
         phases,

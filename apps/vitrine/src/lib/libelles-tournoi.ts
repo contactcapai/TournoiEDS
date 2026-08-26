@@ -30,22 +30,32 @@ export const LIBELLES_MODE_INSCRIPTION: Record<TournamentRegistrationMode, strin
 /**
  * Ce que chaque mode implique, dit **AU MOMENT DU CHOIX** et non dans une documentation.
  *
- * 🔴 LE MODE `interne` N'A ENCORE AUCUN FORMULAIRE, ET L'ÉCRAN DOIT LE DIRE. C'est le
- * périmètre A5 : cette story livre la racine, pas les inscriptions. Un bénévole qui choisirait
- * « Sur notre site » en croyant ouvrir un formulaire annoncerait des inscriptions que personne
- * ne pourrait remplir — c'est-à-dire exactement le mode de défaillance que la règle ① de
- * `pieges/integration-tierce.md` demande d'ÉCRIRE tant qu'un maillon n'est pas exercé.
+ * ✅ **LE MODE `interne` A SON FORMULAIRE DEPUIS LA STORY 12.3**, et ces deux phrases ont changé
+ * dans la même passe. Elles disaient : *« le formulaire d'inscription n'existe pas encore […] la
+ * page affichera l'état des inscriptions mais aucun bouton »* et *« [MATELY] est le seul mode qui
+ * permet réellement de s'inscrire aujourd'hui »*. Les laisser aurait fait **mentir le
+ * back-office** sur le livrable de la story qui les rend fausses — et ce mensonge-là est
+ * invisible depuis la fiche publique, qui, elle, a raison.
+ *
+ * ⚠️ **C'EST L'ENDROIT OÙ S'ÉCRIT L'EFFET D'UN GESTE SUR LE SITE PUBLIC**, et deux autres
+ * formulaires ont pris ce patron depuis (`EventForm`, l'heure de fin). Une aide qui décrit le
+ * FORMAT d'un champ n'a rien à faire ici : le navigateur le fait déjà.
+ *
+ * 🔴 **CE QUI RESTE VRAI, ET QUI DOIT SE DIRE : LES ÉQUIPES PASSENT TOUJOURS PAR MATELY** (A9,
+ * confirmé le 2026-08-25). Sur un tournoi dont l'effectif dépasse 1, la page publique explique
+ * que l'inscription se fait auprès de nous — un bénévole qui l'ignorerait annoncerait des
+ * inscriptions en ligne qui n'existent pas pour son tournoi.
  */
 export const AIDES_MODE_INSCRIPTION: Record<TournamentRegistrationMode, string> = {
   interne:
-    "Les inscriptions se prendront sur notre site. ⚠️ Le formulaire d'inscription n'existe " +
-    "pas encore : d'ici là, la page du tournoi affichera l'état des inscriptions mais aucun " +
-    "bouton. Choisissez ce mode seulement si vous recueillez les inscriptions autrement " +
-    "(sur place, par Discord).",
+    "Les inscriptions se prennent sur notre site : la page du tournoi affiche un formulaire " +
+    "dès que vous passez l'état à « Ouvertes ». Il faut un compte pour s'inscrire, et le " +
+    "nombre de places ci-dessus est alors une limite réelle. ⚠️ En équipe (plus d'un joueur " +
+    "par engagé), l'inscription en ligne ne s'applique pas : elle se fait auprès de vous.",
   mately:
     "Les inscriptions passent par l'application de MATELY, et l'adresse ci-dessous devient " +
-    "le bouton « S'inscrire » de la page du tournoi. C'est le seul mode qui permet " +
-    "réellement de s'inscrire aujourd'hui.",
+    "le bouton « S'inscrire » de la page du tournoi. Le site n'enregistre alors rien " +
+    "lui-même.",
 };
 
 /** L'état des inscriptions, dit au bénévole. */
