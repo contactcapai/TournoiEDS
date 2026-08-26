@@ -4,6 +4,8 @@ import Image from "next/image";
 import { signIn } from "@/server/auth/config";
 import { lireCompte } from "@/server/auth/guard";
 import { redirect } from "next/navigation";
+
+import { destinationApresConnexion } from "@/lib/auth/retour";
 import styles from "./page.module.css";
 
 // Page de connexion du back-office (Story 6.1, FR26).
@@ -85,15 +87,15 @@ export default async function AdminLoginPage({
   // `/admin/`. Les deux revues ont conclu, et la vérification l'a confirmé, que cela ne
   // permet PAS de sortir de l'origine — mais une garde dont il faut raisonner à deux
   // détentes pour se convaincre n'est pas une garde. On refuse le segment, point.
-  const suite = params.next;
-  const destination =
-    typeof suite === "string" &&
-    /^\/admin(?:\/|$)/.test(suite) &&
-    !suite.startsWith("//") &&
-    !suite.includes("..") &&
-    !suite.includes("\\")
-      ? suite
-      : "/admin";
+  // 🔴 LA RÈGLE VIT DÉSORMAIS DANS `lib/auth/retour.ts`, ET ELLE EST TESTÉE (Story 12.2).
+  // Elle bornait `next` à `/admin/…`, ce qui était juste tant que SEUL un administrateur avait
+  // une raison de se connecter. « J'y serai » en donne une à tout le monde : sans lever la
+  // borne, quelqu'un qui se connecte depuis l'agenda atterrirait sur `/admin`, c'est-à-dire
+  // nulle part pour lui.
+  // ⚠️ LA GARDE N'EST PAS RELÂCHÉE, ELLE EST RENDUE EXPLICITE : une LISTE FERMÉE de racines
+  // internes remplace l'expression régulière, et les quatre refus qui ont coûté deux revues
+  // (URL absolue, `//`, `..`, `\`) sont conservés mot pour mot. Douze tests les figent.
+  const destination = destinationApresConnexion(params.next);
 
   return (
     <main className={styles.ecran} id="content">

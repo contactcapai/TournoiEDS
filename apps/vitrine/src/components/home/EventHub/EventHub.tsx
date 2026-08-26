@@ -5,6 +5,7 @@ import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { NEW_TAB_SR, classerDestination } from "@/lib/links";
 import { destinationDuCta, estJeudiJeux } from "@/lib/rendez-vous";
+import { etatDeVenue } from "@/lib/venues";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import motion from "@/styles/motion.module.css";
 import styles from "./EventHub.module.css";
@@ -26,6 +27,12 @@ import styles from "./EventHub.module.css";
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
 
 export interface EventHubProps {
+  /**
+   * Ce que le visiteur peut faire des rendez-vous affichés (Story 12.2) — résolu par la PAGE.
+   * ⚠️ `connecte` + l'ensemble de MES venues, pas un booléen par ligne : la page lit une fois,
+   * et ce composant reste un Server Component pur.
+   */
+  venue: { connecte: boolean; mesVenues: ReadonlySet<string> };
   /** Prochain rendez-vous publié, ou `null` s'il n'y en a aucun (état vide). */
   next: RendezVous | null;
   /** Les suivants — le roulement. Peut être vide sans que ce soit l'état vide. */
@@ -94,7 +101,7 @@ function EmptyState({ discordUrl }: { discordUrl: string }) {
   );
 }
 
-export function EventHub({ next, rest, discordUrl }: EventHubProps) {
+export function EventHub({ next, rest, discordUrl, venue }: EventHubProps) {
   /**
    * ══════════════════════════════════════════════════════════════════════════════════════
    * 🔴 DEUX AFFIRMATIONS DE CE FICHIER ÉTAIENT FAUSSES — DETTE R48, MESURÉE SUR STAGING
@@ -171,13 +178,26 @@ export function EventHub({ next, rest, discordUrl }: EventHubProps) {
                   qui était faux était la destination, pas le mot. */}
               <NextEventCard
                 rendezVous={next}
+                venue={
+                  next.nature === "evenement"
+                    ? {
+                        evenementId: next.evenement.id,
+                        connecte: venue.connecte,
+                        jyVais: venue.mesVenues.has(next.evenement.id),
+                      }
+                    : undefined
+                }
                 cta={cta ? { label: "J'y serai", href: cta } : undefined}
               />
 
               {rest.length > 0 ? (
                 <EventList>
                   {rest.map((rendezVous) => (
-                    <EventRow key={rendezVous.cle} rendezVous={rendezVous} />
+                    <EventRow
+                      key={rendezVous.cle}
+                      rendezVous={rendezVous}
+                      venue={etatDeVenue(rendezVous, venue.connecte, venue.mesVenues)}
+                    />
                   ))}
                 </EventList>
               ) : null}

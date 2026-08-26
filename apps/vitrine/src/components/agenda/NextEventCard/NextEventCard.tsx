@@ -1,4 +1,6 @@
 import { Button } from "@repo/ui";
+
+import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
 import { formatBigDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { estJeudiJeux } from "@/lib/rendez-vous";
@@ -63,6 +65,12 @@ export interface NextEventCardProps {
   /** Cible du CTA, **dérivée par l'appelant** (`destinationDuCta`). La page /agenda n'a pas
    *  de CTA de carte et ne passe donc rien. */
   cta?: { label: string; href: string };
+  /**
+   * « J'y serai » sur la carte (Story 12.2) — **`undefined` = aucun geste**, et c'est le cas
+   * d'un rendez-vous de nature `tournoi`, qui n'a pas d'événement à annoncer.
+   * ⚠️ Résolu par la PAGE, comme `cta` : ce composant ne lit ni la base ni la session.
+   */
+  venue?: { evenementId: string; connecte: boolean; jyVais: boolean };
 }
 
 /* Icônes des faits. Transcrites de la maquette (l.265-267), sauf la dernière.
@@ -110,7 +118,7 @@ function GamepadIcon() {
   );
 }
 
-export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
+export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
   const bigDate = formatBigDate(rendezVous.startsAt);
   const jeudiJeux = estJeudiJeux(rendezVous);
 
@@ -254,11 +262,26 @@ export function NextEventCard({ rendezVous, cta }: NextEventCardProps) {
           elle se DÉRIVE des tournois du rendez-vous (`destinationDuCta`), et le CTA disparaît
           quand il n'y en a aucun. Ce composant ne la calcule pas : la page décide, comme elle
           décide déjà de tout ce qui vient de la base (patron AC1 de la 3.2). */}
-      {cta ? (
+      {/* ⚠️ LES DEUX GESTES COHABITENT, ET ILS NE DISENT PAS LA MÊME CHOSE (Story 12.2) : le
+          CTA or mène au TOURNOI que la soirée porte, « J'y serai » annonce sa venue à LA
+          SOIRÉE. Un seul des deux ferait perdre l'autre information — et ils ne se confondent
+          pas, le premier étant plein et le second en contour (principe ② : deux gestes voisins
+          prennent deux FORMES, jamais deux couleurs).
+          ⚠️ `venue` absent ⇒ aucun bouton : la carte sert aussi à des rendez-vous sans geste. */}
+      {cta || venue ? (
         <div className={styles.act}>
-          <Button variant="gold" href={cta.href}>
-            {cta.label}
-          </Button>
+          {cta ? (
+            <Button variant="gold" href={cta.href}>
+              {cta.label}
+            </Button>
+          ) : null}
+          {venue ? (
+            <BoutonVenue
+              connecte={venue.connecte}
+              evenementId={venue.evenementId}
+              jyVais={venue.jyVais}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

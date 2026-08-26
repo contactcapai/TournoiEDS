@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Tag } from "@repo/ui";
 import { formatPlageHoraire, formatRowDate } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
+import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
+import { destinationDuCta } from "@/lib/rendez-vous";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import styles from "./EventList.module.css";
 
@@ -45,9 +48,17 @@ export interface EventRowProps {
    * `Tag` et `Button` (`variant`).
    */
   variant?: "compact" | "detailed";
+  /**
+   * Ce que le visiteur peut faire de cette ligne (Story 12.2) — **`undefined` = rien**, et c'est
+   * le cas des listes d'événements PASSÉS, où annoncer sa venue n'a aucun sens.
+   *
+   * ⚠️ **RÉSOLU PAR LA PAGE, PAS ICI** : `EventRow` est un Server Component **pur** et le reste.
+   * Lire la session par ligne ferait une requête par rendez-vous ; la page lit une fois.
+   */
+  venue?: { connecte: boolean; jyVais: boolean };
 }
 
-export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
+export function EventRow({ rendezVous, variant = "compact", venue }: EventRowProps) {
   // UNE SEULE DATE DANS LA CASE DE GAUCHE, jamais une plage — et **le motif a changé le
   // 2026-08-14 (Story 9.6)**. Il disait : « le modèle ne porte qu'un `starts_at`, afficher une
   // fin serait inventer une donnée ». **Cette raison est morte** : `ends_at` existe. Le nouveau
@@ -125,6 +136,32 @@ export function EventRow({ rendezVous, variant = "compact" }: EventRowProps) {
       <Tag variant={evenement?.type === "thursday" ? "default" : "highlight"}>
         {tournoi ? "Tournoi" : evenement?.type === "special" ? "Temps fort" : "Hebdo"}
       </Tag>
+
+      {/* ══════════════════════════════════════════════════════════════════════════════
+          LE GESTE DE LA LIGNE (Story 12.2) — ET IL DÉPEND DE LA NATURE
+          ══════════════════════════════════════════════════════════════════════════════
+          🔴 UN TOURNOI RENVOIE VERS SA PAGE, UN ÉVÉNEMENT PROPOSE « J'Y SERAI » (demande de
+          Brice, 2026-08-26). C'est la même partition que l'étiquette juste au-dessus, donc
+          l'œil n'a pas deux logiques à apprendre.
+          📌 LA DESTINATION SE DÉRIVE DE `destinationDuCta`, ÉCRITE EN 9.5 POUR LA GRANDE CARTE
+          et jusqu'ici sans second consommateur : un tournoi → sa page, plusieurs → `/tournois`.
+          La recopier ici aurait fait deux règles pour une même question (leçon `estParTables`).
+          ⚠️ UN ÉVÉNEMENT QUI PORTE UN TOURNOI GARDE « J'Y SERAI » : on annonce sa venue à la
+          SOIRÉE, et la grande carte de la home offre déjà le chemin vers le tournoi. Deux
+          gestes dans une ligne de liste la rendraient illisible.
+          ⚠️ RIEN NE S'AFFICHE SANS `venue` — les listes de rendez-vous PASSÉS n'ont aucun geste
+          à proposer, et un bouton qui annoncerait une venue à hier serait un fait faux. */}
+      {venue && tournoi ? (
+        <Link className={styles.rowGeste} href={destinationDuCta(rendezVous) ?? "/tournois"}>
+          Voir le tournoi
+        </Link>
+      ) : venue && evenement ? (
+        <BoutonVenue
+          connecte={venue.connecte}
+          evenementId={evenement.id}
+          jyVais={venue.jyVais}
+        />
+      ) : null}
     </li>
   );
 }

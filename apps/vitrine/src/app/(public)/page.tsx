@@ -1,6 +1,9 @@
 import { DoubleDoor } from "@/components/home/DoubleDoor/DoubleDoor";
 import { Gallery } from "@/components/gallery/Gallery/Gallery";
 import { EventHub } from "@/components/home/EventHub/EventHub";
+import { identifiantsDEvenements } from "@/lib/venues";
+import { lireCompte } from "@/server/auth/guard";
+import { mesVenues as mesVenuesQuery } from "@/server/db/queries/venues";
 import { Hero } from "@/components/home/Hero/Hero";
 import { QuoteBand } from "@/components/home/QuoteBand/QuoteBand";
 import { ThreeAxes } from "@/components/home/ThreeAxes/ThreeAxes";
@@ -117,10 +120,27 @@ export default async function Home() {
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
 
+  /**
+   * 🔴 LA SESSION ET MES VENUES SE LISENT ICI, UNE FOIS (Story 12.2). `EventHub` et `EventRow`
+   * restent des Server Components PURS : leur faire lire la session par ligne ferait une requête
+   * par rendez-vous.
+   * ⚠️ `lireCompte()` rend `null` AVANT toute requête sans session, et `mesVenues` s'arrête sur
+   * une liste vide : un visiteur anonyme ne paie donc rien de plus qu'avant.
+   */
+  const compte = await lireCompte();
+  const mesVenues = compte
+    ? await mesVenuesQuery(compte.utilisateurId, identifiantsDEvenements([...(next ? [next] : []), ...rest]))
+    : new Set<string>();
+
   return (
     <>
       <Hero hasUpcomingEvent={next !== null} />
-      <EventHub next={next} rest={rest} discordUrl={reglages.discordUrl} />
+      <EventHub
+        next={next}
+        rest={rest}
+        discordUrl={reglages.discordUrl}
+        venue={{ connecte: compte !== null, mesVenues }}
+      />
       <ThreeAxes />
       <QuoteBand />
       {/* Passerelle Tournoi (5.4) — position FIXÉE PAR FR7 : entre la citation et le
