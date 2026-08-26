@@ -21,11 +21,23 @@ import styles from "@/components/overlay/CadreOverlay/overlay.module.css";
 export function TableauOverlay({
   lignes,
   marques,
+  libelleMarque,
   colonneDeSeuil,
 }: {
   lignes: readonly LigneDeClassement[];
   /** Les engagés à mettre en avant — le vainqueur, ou ceux en position de gagner. */
   marques?: ReadonlySet<string>;
+  /**
+   * Le mot porté par la marque.
+   *
+   * 🔴 **IL EST OBLIGATOIRE DÈS QU'ON MARQUE, ET C'EST UN DÉFAUT TROUVÉ SUR L'ÉCRAN RÉEL**
+   * (staging, `tft-simulation`, le jour du déploiement). La marque portait « peut gagner » dans
+   * **les deux** états, si bien que le vainqueur d'une finale terminée s'en voyait affublé :
+   * une phrase **fausse**, à l'antenne, sur la ligne la plus regardée de l'écran.
+   * ⚠️ Deux états, deux mots : on ne partage pas un libellé entre deux situations que tout
+   * oppose (doctrine « retirer » / « supprimer », 6.9).
+   */
+  libelleMarque?: string;
   /**
    * Le seuil de la finale, quand on est dans son espace de points : la colonne devient une
    * **progression vers la victoire**. `null` en qualifications, où aucun seuil n'a de sens.
@@ -81,8 +93,12 @@ export function TableauOverlay({
               <td className={styles.colNom}>
                 {ligne.nom}
                 {/* ⚠️ LE MOT EST ÉCRIT, la mise en avant ne le remplace pas (a11y AA, et un
-                    flux compressé écrase les nuances bien avant les mots). */}
-                {marquee ? <span className={styles.marque}>peut gagner</span> : null}
+                    flux compressé écrase les nuances bien avant les mots).
+                    ⚠️ Et le mot vient de l'APPELANT : « peut gagner » sur un vainqueur serait
+                    faux — défaut trouvé sur l'écran réel, voir la prop. */}
+                {marquee && libelleMarque ? (
+                  <span className={styles.marque}>{libelleMarque}</span>
+                ) : null}
               </td>
               <td className={styles.colNombre}>{ligne.stats.total}</td>
               {seuil === null ? (

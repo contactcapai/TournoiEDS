@@ -84,6 +84,7 @@ export default async function OverlayFinalePage({
         </section>
         <TableauOverlay
           colonneDeSeuil={finale.seuil}
+          libelleMarque="vainqueur"
           lignes={finale.classement}
           marques={new Set(nomsVersIds(finale.classement, [finale.vainqueur.nom]))}
         />
@@ -112,6 +113,7 @@ export default async function OverlayFinalePage({
       >
         <TableauOverlay
           colonneDeSeuil={finale.seuil}
+          libelleMarque="peut gagner"
           lignes={finale.classement}
           marques={
             new Set(
