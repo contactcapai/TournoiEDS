@@ -86,8 +86,6 @@ export async function getRencontresDePhase(phaseId: string) {
       source: tournamentMatchSlot.source,
       nom: tournamentEntry.displayName,
       etatEngage: tournamentEntry.state,
-      phaseKind: tournamentPhase.kind,
-      phasePosition: tournamentPhase.position,
     })
     .from(tournamentMatch)
     .leftJoin(tournamentMatchSlot, eq(tournamentMatchSlot.matchId, tournamentMatch.id))
