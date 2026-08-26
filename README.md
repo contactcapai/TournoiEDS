@@ -717,20 +717,74 @@ docker compose logs -f postgres         # base (tournoi ET vitrine — moteur mu
 > ⚠️ **`https://tournoi.esportdessacres.fr/qualifications` REDIRIGE**, elle (elle n'est pas
 > sous `/overlay`) : c'est assume — les overlays sont des **mirroirs** de ces pages, et ce sont
 > eux qui servent au stream.
-> ⚠️ **L'exemption a une fin nommee : la Story 10.6**, qui reecrit les overlays dans le site.
-> Jusque-la, ne pas retirer ce routeur « par menage ».
+> ✅ **L'exemption avait une fin nommee : la Story 10.6 — ELLE EST FAITE (2026-08-26).** Les
+> overlays vivent desormais dans le site (voir le tableau des URLs ci-dessous).
+> ⚠️ **LE ROUTEUR RESTE EN PLACE MALGRE TOUT, ET C'EST DELIBERE** : il fait vivre les anciennes
+> URLs le temps que le caster bascule ses sources OBS **a froid, hors direct**. Son retrait
+> appartient a la **Story 10.7**, avec l'application elle-meme — ⚠️ **ne pas la jouer avant que
+> la bascule soit faite**, sinon le stream perd son incrustation en direct.
 
-Deux URLs distinctes sont prevues pour la source navigateur OBS, a basculer manuellement par le caster (SkyDow) au moment du clic admin "Demarrer la finale" :
+> 🔴 **STORY 10.6 (2026-08-26) — LES OVERLAYS SONT REECRITS DANS LE SITE. LES URLS CHANGENT,
+> ET LE CASTER DOIT RECONFIGURER SES SOURCES OBS.** C'est le seul geste manuel de la story.
+>
+> **Pourquoi l'adresse ne pouvait PAS rester la meme** : l'ancienne app gere **UN tournoi
+> implicite** (aucune table `Tournament`, mesure en 9.1), le nouveau moteur en gere plusieurs.
+> Le **slug du tournoi** doit donc figurer dans le chemin. Aucune reecriture d'URL ne pouvait
+> deviner de quel tournoi il s'agit.
+>
+> ⚠️ **LES ANCIENNES URLS CONTINUENT DE FONCTIONNER** tant que l'ancienne app tourne : le
+> routeur `tournoi-tft-overlay` n'est PAS touche par cette story. La bascule peut donc se faire
+> **a froid**, hors direct. C'est la **Story 10.7** qui retirera l'application et le routeur —
+> ⚠️ **ne pas la jouer avant que SkyDow ait bascule**, sinon le stream perd son incrustation.
 
-| Phase tournoi | URL overlay | Rendu |
+| Phase tournoi | URL overlay (**nouvelle**) | Rendu |
 |---|---|---|
-| Qualifications | `https://tournoi.esportdessacres.fr/overlay` | Mirroir `/qualifications` (RankingTable complet : Place/Pts par round, Moy, Top 1/4, Dern.) |
-| Finale | `https://tournoi.esportdessacres.fr/overlay/finale` | Mirroir `/finale` (preview top 8 → progression victoire UX-DR7 → animation or vainqueur UX-DR8) |
+| Qualifications | `https://staging.esportdessacres.fr/overlay/<slug>` | Classement des qualifications : Place, Pts, Moy., Top 1, Moitie haute |
+| Finale | `https://staging.esportdessacres.fr/overlay/<slug>/finale` | Vainqueur (sacre) → finale en cours (progression vers le seuil) → repli sur les qualifications |
 
-- Format OBS recommande : source navigateur 1920x1080.
-- Support `?transparent=1` sur les 2 URLs si chroma key necessaire (fond transparent au lieu de `bg-eds-dark`).
-- Pas de chrome UI (header de nav, footer, scrollbar) : routes hors `<Layout>` (UX-DR14).
-- Reconnexion Socket.IO automatique en cas de `docker compose restart backend` (story 4.1 AC #5 + 3.1 AC #4).
+*(`<slug>` = l'identifiant lisible du tournoi, celui de `/tournois/<slug>`. Sur le domaine
+definitif apres la bascule DNS (7.5), remplacer `staging.` par rien.)*
+
+- Format OBS recommande : source navigateur 1920x1080 (les tailles sont **fixes**, en px).
+- Support `?transparent=1` sur les 2 URLs si chroma key necessaire — **meme contrat qu'avant**,
+  seule la valeur `1` est acceptee. ⚠️ La transparence est posee sur `html` ET `body` : sans
+  cela le fond `--navy-deep` du site resterait visible et il n'y aurait rien a decouper.
+- Pas de chrome UI (header, footer, skip-link) : ces routes vivent **hors du groupe `(public)`**.
+- ⚠️ **Le tournoi doit etre PUBLIE** : un brouillon rend 404, comme partout ailleurs. Ce qui
+  passe a l'antenne est plus public que le site.
+
+🔴 **PLUS DE SOCKET.IO — LA PAGE SE RAFRAICHIT TOUTE SEULE, TOUTES LES 10 s** (arbitrage de
+Brice, 2026-08-26). L'arbitrage **A13** prevoyait « un service de diffusion (socket) », mais il
+date du 2026-08-13, **avant le recalibrage du 15 aout** : un socket, c'est un etat serveur, sa
+reconnexion et sa surveillance, pour gagner quelques secondes sur un classement qui ne bouge
+**qu'a la fin d'une manche**.
+⚠️ **CE CHOIX A UN COUT, ET IL EST PAYE A L'ECRAN** : si le site tombe, la requete suivante
+echoue **en silence** et l'incrustation garde un classement figue qui **a l'air a jour**. D'ou
+**l'heure de mise a jour ecrite en bas de l'overlay** : si elle cesse d'avancer, c'est mort.
+C'est le remplacant du temoin `isConnected` de l'ancienne app — **ne pas le retirer « pour
+faire propre »**.
+
+🔴 **LE SEUIL DE VICTOIRE DE LA FINALE N'EST PLUS EN DUR.** L'ancien overlay portait `20` a
+**trois** endroits (`totalScore / 20`, `>= 20`, et la phrase affichee), alors que la Story 10.14
+l'a rendu **reglable** (`tournament_phase.settings`). L'overlay le **lit** desormais.
+⚠️ **Et la phrase a ete corrigee** : elle disait « Top 1 + 20 pts cumules = victoire », ce qui se
+lit comme une conjonction. La regle est « 20 points, **PUIS** un top 1 » — franchir le seuil
+*pendant* la manche du top 1 **ne suffit pas**.
+
+⚠️ **PAS DE « TOP 8 » : il a ete RETIRE, pas oublie.** L'ancien overlay en affichait un avec le
+**8 en dur** (`rankings.slice(0, 8)`) — il decrivait le format d'un seul tournoi. Le moteur ne
+connait aucun « nombre de qualifies » (il n'existe nulle part en base), donc l'ecrire aurait ete
+**inventer un fait**. A la place, tant que la finale n'a rien de joue, l'overlay finale montre le
+**classement des qualifications**.
+
+⚠️ **LES ANIMATIONS NE SONT PAS REPRISES** (`heroGlow`, `rankingFlash`, Framer Motion) : un
+overlay est **filme**, pas parcouru, et une animation qui se rejoue a chaque rafraichissement
+clignoterait toutes les dix secondes a l'antenne.
+
+⚠️ **CES DEUX ROUTES NE SONT PAS DANS `GATE_PAGES`**, et c'est ecrit plutot que decouvert : la
+porte mesure le debordement horizontal et le header sticky sur **7 largeurs**. Un overlay a une
+taille **fixe** et **aucun header** — elle mesurerait un cas qui n'existe pas et rendrait un vert
+qui ne dit rien. Meme raisonnement que `/profil` (12.1) et que le back-office (13.2).
 - Workflow detaille : [_bmad-output/implementation-artifacts/6-3-dry-run-runbook-jour-J.md](_bmad-output/implementation-artifacts/6-3-dry-run-runbook-jour-J.md) sections 2 + 3.7.
 
 
