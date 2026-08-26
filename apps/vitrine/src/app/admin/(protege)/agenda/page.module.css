@@ -1,0 +1,13 @@
+
+/* Combien de monde on attend (Story 12.2). ⚠️ Discret : c'est un ordre de grandeur pour
+   préparer une soirée, pas un chiffre d'inscriptions. */
+.annonces {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--light);
+}
+
+/* La précision qui empêche de lire ce nombre comme une liste d'inscrits. */
+.annoncesAide {
+  color: var(--grey);
+}
