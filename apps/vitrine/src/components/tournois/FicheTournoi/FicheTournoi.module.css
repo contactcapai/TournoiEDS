@@ -132,6 +132,21 @@
   margin-top: var(--block-gap);
 }
 
+/* ═════════ L'inscription en ligne (Story 12.3) ═════════
+   Le mode « Sur notre site » remplace le CTA sortant par un bloc : places restantes, puis le
+   formulaire ou la raison pour laquelle il n'y en a pas. Il vit DANS `.inscription`, dont il
+   hérite le cadre — il n'en pose pas un second. */
+.enLigne {
+  margin-top: var(--block-gap);
+}
+
+/* --gold : c'est le chiffre qui décide (« est-ce que je peux venir ? »), au même titre que
+   `.etatValeur` juste au-dessus. Mesuré AA sur ce dégradé depuis la 9.3. */
+.places {
+  font-size: var(--fs-lead);
+  color: var(--gold);
+}
+
 /* ═════════ Le podium ═════════
    Une <ol> sans marqueur natif : le rang est écrit en toutes lettres dans le markup (« 1ᵉʳ »),
    parce que la liste peut ne compter qu'une ou deux places et qu'un « 1. » automatique dirait la

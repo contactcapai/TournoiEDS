@@ -395,6 +395,9 @@ const COLONNES_FICHE = {
   prizes: true,
   matchDurationMinutes: true,
   capacity: true,
+  // Story 12.3 — la fiche en a besoin pour savoir si l'inscription en ligne s'applique : A9
+  // tient, un tournoi en ÉQUIPE (`team_size > 1`) passe par MATELY et la fiche le DIT.
+  teamSize: true,
   registrationMode: true,
   registrationUrl: true,
   registrationState: true,

@@ -8,6 +8,7 @@ import { jourParis } from "@/lib/date-paris";
 import { classementPubliable } from "@/lib/tournoi/classement";
 import { finalePubliable } from "@/lib/tournoi/finale";
 import { etatDuJour } from "@/lib/tournoi/en-cours";
+import { getEtatInscription } from "@/server/db/queries/inscription";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import {
   getClassement,
@@ -102,6 +103,20 @@ export default async function ApercuTournoiPage({
   // sur 365, et se contrediraient la nuit du changement de jour — au pire endroit possible.
   const aujourdHui = jourParis(new Date());
 
+  /**
+   * 🔴 L'APERÇU REGARDE L'INSCRIPTION **EN ANONYME** (Story 12.3), et c'est un choix, pas un
+   * raccourci. Le bénévole vérifie *« ce que le public verra »* : un visiteur qui n'a pas de
+   * compte, donc le bouton qui mène à la connexion. Lui passer SON compte lui montrerait un
+   * formulaire qu'il pourrait soumettre — et l'action refuserait, le tournoi étant en brouillon,
+   * avec un message qui parlerait d'un tournoi inexistant. Un aperçu ne doit rien pouvoir écrire.
+   * ⚠️ **LE DÉCOMPTE, LUI, EST RÉEL** : il vient de la base, comme le classement et les phases.
+   * Passer un zéro de complaisance ferait afficher « il reste 24 places » sur un tournoi plein,
+   * dans l'écran dont le métier est de dire la vérité sur le rendu (doctrine 6.3).
+   * ⚠️ Le lien « Je m'inscris » y pointe vers `/tournois/<slug>`, inatteignable tant que le
+   * tournoi est en brouillon — c'est le rendu public exact, et on ne le clique pas depuis ici.
+   */
+  const inscription = { ...(await getEtatInscription(tournoi.id, null)), connecte: false };
+
   const suivi = {
     etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
     phases,
@@ -151,7 +166,12 @@ export default async function ApercuTournoiPage({
         {/* `headingLevel={2}` : cet écran porte déjà son `<h1>Aperçu</h1>`. Sans ça, la page
             aurait DEUX `<h1>` — un vrai défaut d'accessibilité, et pas une subtilité de
             validateur. Les sections de la fiche descendent avec lui (voir le composant). */}
-        <FicheTournoi tournoi={tournoi} headingLevel={2} suivi={suivi} />
+        <FicheTournoi
+          tournoi={tournoi}
+          headingLevel={2}
+          suivi={suivi}
+          inscription={inscription}
+        />
       </div>
     </>
   );

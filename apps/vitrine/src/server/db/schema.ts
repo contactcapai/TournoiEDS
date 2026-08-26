@@ -2021,6 +2021,26 @@ export const tournamentEntry = pgTable(
     uniqueIndex("tournament_entry_external_unique")
       .on(table.tournamentId, table.externalId)
       .where(sql`${table.externalId} is not null`),
+    /**
+     * 🔴 UN COMPTE NE S'INSCRIT QU'UNE FOIS AU MÊME TOURNOI — **ET C'EST UNE GARDE DE COURSE,
+     * PAS UNE COMMODITÉ D'ÉCRAN** (Story 12.3).
+     *
+     * L'inscription en ligne lit l'état du tournoi puis écrit : entre les deux, un second onglet
+     * — ou un double clic — passe. Vérifier « suis-je déjà inscrit ? » dans le code serait un
+     * *check-then-act*, le motif exact de `pieges/concurrence-lock.md`, **invisible en
+     * mono-utilisateur et dans tous les tests séquentiels**. La parade y est nommée : une
+     * contrainte qui transforme la course en **erreur propre**, que l'action traduit ensuite en
+     * « vous êtes déjà inscrit ».
+     *
+     * ⚠️ **PARTIEL**, comme son voisin et pour la même raison : toutes les inscriptions saisies
+     * à la main portent `user_id` à NULL, et un index unique ordinaire les compterait comme des
+     * doublons — c'est-à-dire qu'il interdirait la saisie bénévole.
+     * ⚠️ Il contraint AUSSI le rattachement de la 12.1 (accepter deux réclamations du même compte
+     * sur deux inscriptions d'un même tournoi), et c'est voulu : une personne n'a pas deux places.
+     */
+    uniqueIndex("tournament_entry_compte_unique")
+      .on(table.tournamentId, table.userId)
+      .where(sql`${table.userId} is not null`),
     index("tournament_entry_tournoi_idx").on(table.tournamentId, table.state),
   ],
 );

@@ -4,12 +4,18 @@ import Image from "next/image";
 import Link from "next/link";
 import { Brush, Button, ExternalIcon, PhotoFrame } from "@repo/ui";
 
+import { BlocInscription } from "@/components/tournois/BlocInscription/BlocInscription";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-paris";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import type { EtatDuJour } from "@/lib/tournoi/en-cours";
+import {
+  etatInscriptionEnLigne,
+  placesRestantes,
+} from "@/lib/tournoi/inscription-en-ligne";
+import { pseudoSuggere, type PseudosDuProfil } from "@/lib/tournoi/plateforme";
 import { decouperEnJournees, numeroDeJournee } from "@/lib/tournoi/journees";
 import { estParTables, type PhaseKind, type PhaseState } from "@/lib/tournoi/structure";
 import type { PhaseAvecRencontres } from "@/lib/tournoi/rencontres-publiques";
@@ -142,15 +148,40 @@ export type SuiviPublic = {
   aujourdHui?: string;
 };
 
+/**
+ * Ce que la fiche doit savoir pour proposer de s'inscrire (Story 12.3).
+ *
+ * 🔴 **OBLIGATOIRE, PAS OPTIONNELLE — ET C'EST LA GARDE.** Les deux consommateurs la fournissent :
+ * la page publique avec le compte connecté, l'aperçu du bénévole en **anonyme**. La rendre
+ * facultative laisserait l'aperçu montrer une fiche AMPUTÉE de sa section la plus décisive, alors
+ * que son métier est de dire la vérité sur le rendu public.
+ *
+ * ⚠️ **DES FAITS BRUTS, PAS UNE DÉCISION** : la fiche appelle elle-même `etatInscriptionEnLigne`.
+ * Laisser chaque page calculer l'état donnerait deux appelants de la même règle, donc deux
+ * occasions d'en oublier un morceau.
+ */
+export type InscriptionPublique = {
+  /** Toutes places confondues, saisie bénévole comprise — voir `EtatInscription`. */
+  readonly inscrits: number;
+  /** L'inscription du compte connecté sur ce tournoi, `null` s'il n'en a pas. */
+  readonly mienne: { readonly displayName: string } | null;
+  /** Ses identifiants déclarés, pour pré-remplir le champ. */
+  readonly profil: PseudosDuProfil | null;
+  /** ⚠️ « Connecté » et « a un profil » sont deux choses : un compte neuf n'a aucune ligne. */
+  readonly connecte: boolean;
+};
+
 export function FicheTournoi({
   tournoi,
   headingLevel = 1,
   suivi,
+  inscription,
 }: {
   tournoi: FicheTournoiData;
   headingLevel?: 1 | 2;
   /** Absent = on ne sait rien du déroulé (aperçu d'un tournoi sans phases, par exemple). */
   suivi?: SuiviPublic;
+  inscription: InscriptionPublique;
 }) {
   // Dérivé, jamais passé en second paramètre : deux props de niveau finiraient par diverger,
   // et c'est exactement le saut de titre qu'on veut rendre impossible.
@@ -284,10 +315,19 @@ export function FicheTournoi({
    * `AIDES_MODE_INSCRIPTION` s'affiche dans le formulaire d'admin **au moment du choix** :
    *   · `mately` → *« l'adresse ci-dessous devient le bouton « S'inscrire » de la page du
    *     tournoi »* ⇒ le libellé est « S'inscrire », et pas un synonyme ;
-   *   · `interne` → *« la page du tournoi affichera l'état des inscriptions mais aucun
-   *     bouton »* ⇒ aucun bouton, même si une URL traînait en base.
+   *   · `interne` → *« la page du tournoi affiche un formulaire dès que vous passez l'état à
+   *     Ouvertes »* ⇒ le formulaire de la 12.3, plus bas dans ce fichier.
    * Une fiche qui ne les tiendrait pas ferait **mentir le back-office**, et le mensonge serait
    * invisible côté admin.
+   *
+   * ✅ **LA SECONDE PHRASE A CHANGÉ AVEC LA STORY 12.3**, et les deux ont bougé ensemble : elle
+   * disait *« aucun bouton, même si une URL traînait en base »*, ce qui était le contrat exact
+   * du mode `interne` **tant qu'il n'avait pas de formulaire**. Le contrat n'a pas été trahi, il
+   * a été **tenu** — mais un contrat tenu dont on ne réécrit pas l'énoncé devient un faux témoin.
+   *
+   * ⚠️ **CE QUI N'A PAS BOUGÉ : `registration_url` RESTE IGNORÉE EN MODE `interne`.** Une URL
+   * laissée en base par un changement de mode ne doit toujours produire aucun lien — le
+   * formulaire la remplace, il ne la rattrape pas.
    *
    * 🔴 **QUATRE CONDITIONS, ET CHACUNE EST UNE PROMESSE QU'ON REFUSE DE FAIRE À VIDE :**
    *   ① le tournoi n'est **pas passé** — la base autorise un tournoi passé resté `ouvertes`
@@ -309,6 +349,30 @@ export function FicheTournoi({
     tournoi.registrationMode === "mately" &&
     urlInscription !== null &&
     classerDestination(urlInscription) === "externe";
+
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * L'INSCRIPTION EN LIGNE (Story 12.3) — TROIS DÉRIVÉS, TOUS PURS
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * ⚠️ **AUCUN N'EST CALCULÉ ICI À LA MAIN** : l'ordre des conditions vit dans
+   * `etatInscriptionEnLigne` (testé), la borne de places dans `placesRestantes` (testée), le
+   * choix du pseudo dans `pseudoSuggere` (testé). Ce composant les **appelle**, il ne les
+   * réécrit pas — trois ternaires en JSX auraient été trois règles que rien ne garde.
+   * ⚠️ **`estPasse` N'ENTRE PAS DANS LA RÈGLE** : ces dérivés ne sont lus que dans la branche
+   * « à venir » du bloc d'action, un tournoi passé y montrant son podium. Le lui repasser
+   * donnerait deux propriétaires à la même question.
+   */
+  const etatEnLigne = etatInscriptionEnLigne({
+    registrationState: tournoi.registrationState,
+    teamSize: tournoi.teamSize,
+    capacity: tournoi.capacity,
+    inscrits: inscription.inscrits,
+    connecte: inscription.connecte,
+    dejaInscrit: inscription.mienne !== null,
+  });
+  const placesLibres = placesRestantes(tournoi.capacity, inscription.inscrits);
+  const pseudoPropose = pseudoSuggere(tournoi.game, inscription.profil);
 
   return (
     <>
@@ -487,7 +551,72 @@ export function FicheTournoi({
                   </span>
                 </p>
 
-                {inscriptionOuverte && urlInscription ? (
+                {tournoi.registrationMode === "interne" ? (
+                  /* ══════════════════════════════════════════════════════════════════════
+                     🔴 LE MODE « SUR NOTRE SITE » A ENFIN SON FORMULAIRE (Story 12.3)
+                     ══════════════════════════════════════════════════════════════════════
+                     Il existait depuis la 9.1 **sans aucune porte**, et l'aide écrite au
+                     bénévole le disait : *« le formulaire d'inscription n'existe pas encore »*.
+                     Cette phrase a été corrigée dans la même passe — une promesse tenue ailleurs
+                     qu'à l'endroit qui la formule reste un mensonge côté back-office.
+
+                     ⚠️ **LE MODE SE TESTE ICI, L'ÉTAT DANS `etatInscriptionEnLigne`** — et le
+                     défaut de la 9.3 (juste en dessous) N'EST PAS réintroduit : l'état y est
+                     testé **en premier**, si bien qu'un tournoi `interne` + `fermees` dit
+                     toujours qu'il est fermé, jamais comment s'y prendre. La règle a un nom et
+                     des tests précisément parce que cet ordre s'est déjà perdu une fois. */
+                  <div className={styles.enLigne}>
+                    {/* Le nombre annoncé vit dans le `<dl>` de l'en-tête ; ce qui RESTE se dit
+                        ici, là où il sert à décider. Deux faits différents, deux endroits — et
+                        celui-ci n'apparaît que si une capacité est saisie. */}
+                    {placesLibres !== null ? (
+                      <p className={styles.places}>
+                        {placesLibres === 0
+                          ? "Plus aucune place disponible."
+                          : `Il reste ${placesLibres} place${placesLibres > 1 ? "s" : ""}.`}
+                      </p>
+                    ) : null}
+
+                    {etatEnLigne.cas === "formulaire" || etatEnLigne.cas === "inscrit" ? (
+                      <>
+                        <BlocInscription
+                          tournoiId={tournoi.id}
+                          inscritSous={inscription.mienne?.displayName ?? null}
+                          pseudoPropose={pseudoPropose}
+                        />
+                        {/* ⚠️ DIT SEULEMENT SI UN TARIF EST ANNONCÉ. Sans tarif saisi, écrire
+                            « le règlement se fait sur place » inventerait un montant — et son
+                            absence ne veut pas dire « gratuit » (famille R48). */}
+                        {tarif ? (
+                          <p className={styles.etatAide}>
+                            Le règlement se fait sur place, le jour du tournoi.
+                          </p>
+                        ) : null}
+                      </>
+                    ) : etatEnLigne.cas === "connexion" ? (
+                      <>
+                        {/* ⚠️ UN LIEN, PAS UN BOUTON DÉSACTIVÉ — patron « J'y serai » (12.2) :
+                            un anonyme voit le geste et il mène à la connexion. Le cacher ne le
+                            montrerait qu'à ceux qui n'en ont plus besoin.
+                            ⚠️ Le `next` est borné par `lib/auth/retour.ts` : sans lui, on se
+                            connecterait pour s'inscrire et l'on atterrirait sur le back-office. */}
+                        <Button
+                          className={styles.ctaInscription}
+                          href={`/admin/login?next=${encodeURIComponent(`/tournois/${tournoi.slug}`)}`}
+                        >
+                          Je m&rsquo;inscris
+                        </Button>
+                        <p className={styles.etatAide}>
+                          Un compte est nécessaire pour retrouver et annuler votre inscription.
+                        </p>
+                      </>
+                    ) : (
+                      /* Une indisponibilité DIT sa raison — jamais un bouton éteint (principe ①
+                         de l'Epic 13 : une règle se dit, elle ne se grise pas). */
+                      <p className={styles.etatAide}>{etatEnLigne.raison}</p>
+                    )}
+                  </div>
+                ) : inscriptionOuverte && urlInscription ? (
                   /* Lien SORTANT : il part chez MATELY. `target="_blank"` +
                      `rel="noopener noreferrer"` + `ExternalIcon` + mention SR, et
                      UNIQUEMENT parce que `classerDestination` a répondu « externe » —
@@ -524,15 +653,20 @@ export function FicheTournoi({
                      ⚠️ Le cas « `ouvertes` sans porte » (mode `mately` dont l'URL n'est pas
                      exploitable) ne dit PAS « ce n'est pas ouvert » — ce serait contredire
                      l'étiquette juste au-dessus. Il dit la seule chose vraie : on ne peut pas
-                     s'inscrire **d'ici**. */
+                     s'inscrire **d'ici**.
+
+                     🔴 **CE TERNAIRE NE PARLE PLUS QUE DU MODE `mately` DEPUIS LA 12.3**, et sa
+                     branche `interne` a été RETIRÉE parce qu'elle est devenue **inatteignable** :
+                     le mode `interne` est capté plus haut, avec son formulaire. La laisser aurait
+                     été du code mort porteur d'une phrase FAUSSE (« les inscriptions se prennent
+                     directement avec nous »), c'est-à-dire le pire des deux — ni exécutée, ni
+                     repérable, et prête à ressortir au premier remaniement du ternaire. */
                   <p className={styles.etatAide}>
                     {tournoi.registrationState === "completes"
                       ? "Toutes les places annoncées sont prises."
                       : tournoi.registrationState === "fermees"
                         ? "Les inscriptions ne sont pas ouvertes pour le moment."
-                        : tournoi.registrationMode === "interne"
-                          ? "Les inscriptions se prennent directement avec nous — sur place ou sur notre Discord."
-                          : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
+                        : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
                   </p>
                 )}
               </div>
