@@ -57,3 +57,10 @@
     min-width: 0;
   }
 }
+
+.chapoSection {
+  max-width: 72ch;
+  margin-bottom: 22px;
+  font-size: 16px;
+  color: var(--grey);
+}

@@ -3,12 +3,17 @@ import { redirect } from "next/navigation";
 
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import { MesInscriptions } from "@/components/profil/MesInscriptions/MesInscriptions";
 import { MonProfil } from "@/components/profil/MonProfil/MonProfil";
 import { cleanText } from "@/lib/text";
 import { supprimerMonCompte } from "@/server/actions/profil";
 import { exigerConnexionPage } from "@/server/auth/guard";
 import { signOut } from "@/server/auth/config";
 import { lireProfilComplet } from "@/server/db/queries/profil";
+import {
+  getInscriptionsAReclamer,
+  getMesInscriptions,
+} from "@/server/db/queries/rattachement";
 import editorial from "@/styles/editorial.module.css";
 import styles from "./page.module.css";
 
@@ -52,6 +57,12 @@ export default async function ProfilPage() {
   const compte = await exigerConnexionPage();
 
   const donnees = await lireProfilComplet(compte.utilisateurId);
+  // ⚠️ EN PARALLÈLE : ces deux lectures ne dépendent pas l'une de l'autre, et la seconde lit
+  // tout le plateau non réclamé — les enchaîner doublerait l'attente pour rien.
+  const [rattachees, suggestions] = await Promise.all([
+    getMesInscriptions(compte.utilisateurId),
+    getInscriptionsAReclamer(compte.utilisateurId),
+  ]);
   // La session existe mais la ligne `user` a disparu (suppression concurrente, restauration) :
   // on ne rend pas une page à moitié, on renvoie se reconnecter.
   if (!donnees) redirect("/admin/login");
@@ -107,6 +118,32 @@ export default async function ProfilPage() {
             title="Vos identifiants"
           />
           <MonProfil onSupprimer={supprimerPuisDeconnecter} profil={profil} />
+        </Wrap>
+      </section>
+
+      {/* ══════════════════════════════════════════════════════════════════════════════
+          MES TOURNOIS — ET CE QUI POURRAIT ÊTRE À MOI (Story 12.1, 2/2)
+          ══════════════════════════════════════════════════════════════════════════════
+          🔴 LE CHAPÔ EXPLIQUE D'OÙ VIENNENT LES PROPOSITIONS, et c'est indispensable : une
+          liste d'inscriptions apparue sans raison sous le nom de quelqu'un ressemble à une
+          fuite. Elle vient de SES pseudos déclarés, et rien n'est rattaché sans qu'un
+          bénévole le valide. */}
+      <section className={editorial.section} aria-labelledby="inscriptions-title">
+        <Wrap>
+          <SectionHead
+            headingLevel={2}
+            titleId="inscriptions-title"
+            eyebrow="Vos tournois"
+            title="Vos inscriptions"
+          />
+          <p className={styles.chapoSection}>
+            Une inscription prise par un bénévole ou via MATELY ne connaît pas votre compte —
+            elle vit <strong>non réclamée</strong> jusqu&rsquo;à ce que vous la reconnaissiez.
+            {suggestions.cles.length === 0
+              ? " Déclarez vos pseudos ci-dessus pour qu'on puisse vous proposer les vôtres."
+              : " Celles qui portent l'un de vos pseudos vous sont proposées ci-dessous."}
+          </p>
+          <MesInscriptions proposees={suggestions.inscriptions} rattachees={rattachees} />
         </Wrap>
       </section>
 

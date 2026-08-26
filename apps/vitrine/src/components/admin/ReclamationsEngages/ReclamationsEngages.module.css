@@ -1,0 +1,95 @@
+/* Les demandes de rattachement, sur l'écran des engagés (Story 12.1, 2/2). */
+
+.bloc {
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.titre {
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: var(--ls-display);
+  color: var(--gold);
+}
+
+.aide {
+  max-width: 72ch;
+  margin-bottom: 16px;
+  font-size: 15px;
+  color: var(--light);
+}
+
+.liste {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+}
+
+/* ⚠️ `wrap` ASSUMÉ : la ligne porte deux textes potentiellement longs et deux gestes. Empiler
+   sous 880px est voulu — c'est une rangée de CONTENU, pas une rangée de contrôles (la garde
+   `nowrap` de la PR #77 vise ces dernières, où l'empilement est silencieux et non voulu). */
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(146, 147, 173, 0.3); /* --grey à 30 % */
+  border-radius: var(--radius-card);
+}
+
+.qui {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.engage {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--light);
+  overflow-wrap: anywhere;
+}
+
+.demandeur {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--grey);
+  overflow-wrap: anywhere;
+}
+
+.gestes {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Refuser reste un geste discret : deux boutons de même poids feraient hésiter. */
+.refuser {
+  min-height: 44px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--grey);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+
+.refuser:hover {
+  color: var(--alert);
+}
+
+.erreur {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--alert);
+}

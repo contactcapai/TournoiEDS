@@ -1,0 +1,75 @@
+/* « Mes tournois » et les suggestions de rattachement (Story 12.1, 2/2). */
+
+.liste {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+/* ⚠️ `wrap` ASSUMÉ ICI, contrairement aux rangées de contrôles (leçon PR #77) : la ligne porte
+   un pseudo, un titre de tournoi et un bouton, dont deux peuvent être longs. Empiler sous 880px
+   est le comportement VOULU, et `gap` garde les éléments lisibles une fois empilés. */
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(146, 147, 173, 0.28); /* --grey à 28 % */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.nom {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: var(--ls-display);
+  color: var(--light);
+  overflow-wrap: anywhere;
+}
+
+.lien {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--grey);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  overflow-wrap: anywhere;
+}
+
+.lien:hover {
+  color: var(--gold);
+}
+
+/* L'état s'ÉCRIT, il ne se code pas en couleur seule (AA). */
+.etat {
+  flex: none;
+  font-size: 14px;
+  color: var(--grey);
+}
+
+.vide {
+  max-width: 72ch;
+  font-size: 16px;
+  color: var(--grey);
+}
+
+.suggestions {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 % */
+}
+
+.aide {
+  max-width: 72ch;
+  margin-bottom: 16px;
+  font-size: 15px;
+  color: var(--light);
+}
+
+.erreur {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--alert);
+}
