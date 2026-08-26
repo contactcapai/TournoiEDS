@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EventActions } from "@/components/admin/EventActions/EventActions";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { compterVenuesParEvenement } from "@/server/db/queries/venues";
 import { cleanText } from "@/lib/text";
 import { exigerRolePage } from "@/server/auth/guard";
 import {
@@ -48,7 +49,21 @@ function lieuDe(evenement: AgendaEvent): string | null {
   return cleanText(evenement.venueName) ?? cleanText(evenement.venueAddress);
 }
 
-function LigneEvenement({ evenement }: { evenement: AgendaEvent }) {
+function LigneEvenement({
+  evenement,
+  annonces,
+}: {
+  evenement: AgendaEvent;
+  /**
+   * Combien de personnes se sont annoncées (Story 12.2). `0` = personne, et on l'écrit.
+   *
+   * 🔴 `null` SUR UN ÉVÉNEMENT PASSÉ, ET CE N'EST PAS UNE ÉCONOMIE : « X personnes annoncent
+   * leur venue » est au PRÉSENT, donc faux une fois la soirée passée. Une phrase qui devient
+   * fausse en silence est le défaut que ce projet paie le plus souvent — ici on retire le bloc
+   * plutôt que d'inventer un passé composé dont personne n'a besoin.
+   */
+  annonces: number | null;
+}) {
   const lieu = lieuDe(evenement);
 
   return (
@@ -68,6 +83,26 @@ function LigneEvenement({ evenement }: { evenement: AgendaEvent }) {
         >
           {evenement.isPublished ? "Publié" : "Brouillon"}
         </span>
+
+        {/* ══════════════════════════════════════════════════════════════════════════════
+            COMBIEN DE MONDE ON ATTEND (Story 12.2)
+            ══════════════════════════════════════════════════════════════════════════════
+            🔴 C'EST LA RAISON D'ÊTRE DE LA STORY, et c'est ICI qu'elle se lit — pas côté
+            public. Un compteur sur le site ressemblerait à des places disponibles, alors
+            qu'il n'y a NI CAPACITÉ NI VALIDATION : l'Epic 12 écarte ce défaut nommément.
+            ⚠️ LA PHRASE DIT CE QUE LE NOMBRE N'EST PAS. Un bénévole qui le prendrait pour
+            une liste d'inscrits préparerait sa soirée sur une promesse que personne n'a
+            faite — personne n'a confirmé, personne ne sera refusé.
+            ⚠️ ZÉRO S'ÉCRIT plutôt que de disparaître : un emplacement vide se lit comme un
+            chargement ou une panne, et on ne saurait pas si la question a été posée. */}
+        {annonces === null ? null : (
+        <p className={styles.annonces}>
+          {annonces === 0
+            ? "Personne ne s'est encore annoncé"
+            : `${annonces} personne${annonces > 1 ? "s" : ""} annonce${annonces > 1 ? "nt" : ""} sa venue`}
+          {annonces > 0 ? <span className={styles.annoncesAide}> — intention, pas inscription</span> : null}
+        </p>
+        )}
       </div>
 
       <div className={styles.ligneActions}>
@@ -95,6 +130,13 @@ export default async function AdminAgendaPage() {
     getUpcomingEventsForAdmin(A_VENIR_MAX),
     getPastEventsForAdmin(PASSES_MAX),
   ]);
+
+  /**
+   * ⚠️ BORNÉ AUX ÉVÉNEMENTS À VENIR : c'est la seule liste qui porte le compteur, et lire les
+   * passés remonterait des lignes que rien n'affiche. La lecture s'arrête d'elle-même sur une
+   * liste vide.
+   */
+  const annoncesParEvenement = await compterVenuesParEvenement(aVenir.map((e) => e.id));
 
   return (
     <>
@@ -145,7 +187,11 @@ export default async function AdminAgendaPage() {
         {aVenir.length > 0 ? (
           <ul className={styles.liste}>
             {aVenir.map((evenement) => (
-              <LigneEvenement key={evenement.id} evenement={evenement} />
+              <LigneEvenement
+                key={evenement.id}
+                evenement={evenement}
+                annonces={annoncesParEvenement.get(evenement.id) ?? 0}
+              />
             ))}
           </ul>
         ) : (
@@ -166,7 +212,11 @@ export default async function AdminAgendaPage() {
         {passes.length > 0 ? (
           <ul className={styles.liste}>
             {passes.map((evenement) => (
-              <LigneEvenement key={evenement.id} evenement={evenement} />
+              <LigneEvenement
+                key={evenement.id}
+                evenement={evenement}
+                annonces={null}
+              />
             ))}
           </ul>
         ) : (
