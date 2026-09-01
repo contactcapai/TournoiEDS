@@ -52,13 +52,17 @@ export const ASSOCIATION = {
   /**
    * Directeur de la publication.
    *
-   * 🔴 C'EST LE PRÉSIDENT DE L'ASSOCIATION (indication de Brice, 2026-09-01). ⚠️ LA LCEN
-   * DEMANDE UN NOM, PAS UNE FONCTION : « le président » identifie un rôle, pas une
-   * personne, et une mention légale sert précisément à savoir À QUI s'adresser. Ce champ
-   * doit donc porter le nom et le prénom, et il est le SEUL de ce fichier qui reste à
-   * compléter — le récépissé fourni est anonymisé (« donne récépissé à Monsieur »).
+   * 🔴 C'EST LE PRÉSIDENT DE L'ASSOCIATION — Simon Menu (indication de Brice, 2026-09-01).
+   *
+   * ⚠️ LA LCEN DEMANDE UN NOM, PAS UNE FONCTION, et ce champ a d'abord porté « Le président
+   * de l'association » faute de mieux : le récépissé fourni est anonymisé (« donne récépissé
+   * à Monsieur »). Une mention légale sert précisément à savoir À QUI s'adresser — « le
+   * président » identifie un rôle, pas une personne, et aurait laissé la page formellement
+   * incomplète tout en ayant l'air remplie.
+   * ⚠️ La QUALITÉ accompagne le nom : elle dit d'où vient la responsabilité, et elle est ce
+   * qui change si l'association élit quelqu'un d'autre.
    */
-  directeurPublication: "Le président de l'association",
+  directeurPublication: "Simon Menu, président de l'association",
 
   /**
    * Adresse de contact.
