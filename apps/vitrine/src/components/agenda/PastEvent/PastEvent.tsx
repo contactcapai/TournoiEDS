@@ -125,7 +125,16 @@ export function PastEvent({ event, photo }: PastEventProps) {
                bloc, et l'image y est ILLUSTRATIVE. Un `alt` répétant le contexte ferait dire
                deux fois la même chose au lecteur d'écran. La description complète de la
                photo, elle, est portée par la galerie de la home, où l'image EST le contenu. */
-            <Image src={`/medias/${photo.filename}`} alt="" fill sizes="398px" loading="lazy" />
+            <Image
+              src={`/medias/${photo.filename}`}
+              alt=""
+              fill
+              sizes="398px"
+              loading="lazy"
+              // Le point focal, comme dans le scrapbook : ce cadre recadre en 4/3, donc il
+              // coupe. Correctif du 2026-09-01.
+              style={{ objectPosition: `${photo.focalX}% ${photo.focalY}%` }}
+            />
           ) : null}
         </PhotoFrame>
       </div>

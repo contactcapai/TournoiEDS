@@ -282,6 +282,14 @@ export function Scrapbook({ photos, sourceAdmin = false }: ScrapbookProps) {
               }
             >
               <PhotoFrame caption={photo.caption ?? undefined}>
+                {/* 🔴 LE POINT FOCAL S'APPLIQUE ICI, ET PAS DANS LA LIGHTBOX. La vignette
+                    recadre (`PhotoFrame` : 4/3 + `cover`), donc elle COUPE — c'est là que
+                    « où est le sujet » a un sens. La lightbox, elle, est en `contain` : elle
+                    montre la photo ENTIÈRE, rien n'est coupé, et lui passer un point focal
+                    n'aurait aucun effet tout en laissant croire le contraire.
+                    ⚠️ Défaut trouvé à l'écran par Brice le 2026-09-01 : le hero cadrait
+                    juste et la galerie non, alors que c'est sur CET écran qu'on pose le
+                    point. Aucune porte ne pouvait le voir. */}
                 <Image
                   src={`${prefixeMedia}/${photo.filename}`}
                   alt=""
@@ -289,6 +297,7 @@ export function Scrapbook({ photos, sourceAdmin = false }: ScrapbookProps) {
                   sizes={TAILLE_VIGNETTE}
                   loading="lazy"
                   unoptimized={sourceAdmin}
+                  style={{ objectPosition: `${photo.focalX}% ${photo.focalY}%` }}
                 />
               </PhotoFrame>
             </button>
