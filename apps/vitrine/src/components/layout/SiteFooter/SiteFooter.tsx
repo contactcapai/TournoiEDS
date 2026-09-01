@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalIcon } from "@repo/ui";
-import { TOURNOI_URL, NEW_TAB_SR, DESTINATION_ABSENTE, classerDestination } from "@/lib/links";
+import { TOURNOI_URL, NEW_TAB_SR, classerDestination } from "@/lib/links";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import type { Reglages } from "@/server/db/queries/settings";
 import styles from "./SiteFooter.module.css";
@@ -67,14 +67,23 @@ const socials = (r: Reglages): { name: string; href: string; icon: SocialIconNam
   { name: "LinkedIn", href: r.linkedinUrl, icon: "linkedin" },
 ];
 
-// Bandeau bas : pages légales non encore rédigées (Garde-fou n°6) → placeholders
-// "#" inertes (PAS de route, PAS de nouvel onglet).
+// ══════════════════════════════════════════════════════════════════════════════════════
+// ✅ LES DEUX LIENS LÉGAUX SONT VIVANTS DEPUIS LA STORY 12.5
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 ILS ONT ÉTÉ INERTES DE LA STORY 1.5 AU 2026-09-01 — douze epics. Le TODO disait
+// « pages légales à rédiger (hors périmètre — RGPD bloquant) », et c'est resté vrai pendant
+// que le site se mettait à collecter des adresses e-mail (6.11), des comptes (8.1), des
+// pseudos de jeu (12.1) et des inscriptions nominatives (12.3). Un pied de page qui NOMME
+// deux pages et ne mène nulle part est une promesse non tenue, rendue sur TOUTES les pages.
+//
+// ⚠️ CE QUI A DÉCLENCHÉ LEUR ÉCRITURE N'EST PAS CE QUI LES RENDAIT OBLIGATOIRES : la console
+// Google Cloud a refusé de publier l'application OAuth sans ces deux liens (mesuré le
+// 2026-09-01, l'état « Test » ne peut pas être quitté). Elle a servi de révélateur — la
+// dette, elle, courait depuis la LCEN et le RGPD.
 const LEGAL_LINKS: FooterLink[] = [
-  // TODO : pages légales à rédiger (hors périmètre — RGPD bloquant). Elles ne sont PAS
-  // couvertes par R29 (qui ne porte que les 5 destinations externes) : ce sont des
-  // pages internes qui restent à écrire.
-  { label: "Mentions légales", href: DESTINATION_ABSENTE },
-  { label: "Confidentialité (RGPD)", href: DESTINATION_ABSENTE },
+  { label: "Mentions légales", href: "/mentions-legales" },
+  { label: "Confidentialité (RGPD)", href: "/confidentialite" },
 ];
 
 // ⚠️ `ExternalIcon` vivait ICI, dupliqué sciemment du header (Story 1.5, Garde-fou n°3).
