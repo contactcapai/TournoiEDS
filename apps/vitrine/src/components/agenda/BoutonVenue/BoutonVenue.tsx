@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { basculerMaVenue } from "@/server/actions/venues";
 import styles from "./BoutonVenue.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 /**
  * « J'y serai » — le seul geste interactif de l'agenda (Story 12.2).
@@ -40,7 +41,7 @@ export function BoutonVenue({
     return (
       <Link
         className={styles.bouton}
-        href={`/admin/login?next=${encodeURIComponent(chemin)}`}
+        href={`${CHEMIN_CONNEXION}?next=${encodeURIComponent(chemin)}`}
       >
         J&rsquo;y serai
       </Link>

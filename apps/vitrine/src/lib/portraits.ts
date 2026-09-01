@@ -100,7 +100,7 @@ export function cheminPortrait(nomFichier: string): string {
  * et l'appelant ne peut pas les dissocier.
  *
  * 🔴 CE QUE `sourceAdmin` EMPORTE VRAIMENT : l'optimiseur `/_next/image` fait sa requête
- * **depuis le serveur, sans cookie de session**. Il reçoit le `307 → /admin/login` de la garde,
+ * **depuis le serveur, sans cookie de session**. Il reçoit le `307 → /connexion` de la garde,
  * pas une image, et rend `400 The requested resource isn't a valid image`. **Aucune ressource
  * protégée par une session ne peut passer par lui, par construction** — quelle que soit
  * `images.localPatterns`. ⇒ tout rendu en `sourceAdmin` DOIT être `unoptimized`.

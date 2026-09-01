@@ -27,6 +27,7 @@ import type { FicheTournoiData } from "@/server/db/queries/tournaments";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
 import styles from "./FicheTournoi.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 /**
  * Le rendu public d'une fiche de tournoi (Story 9.3 — A20, A23). Server Component pur.
@@ -617,7 +618,7 @@ export function FicheTournoi({
                             connecterait pour s'inscrire et l'on atterrirait sur le back-office. */}
                         <Button
                           className={styles.ctaInscription}
-                          href={`/admin/login?next=${encodeURIComponent(`/tournois/${tournoi.slug}`)}`}
+                          href={`${CHEMIN_CONNEXION}?next=${encodeURIComponent(`/tournois/${tournoi.slug}`)}`}
                         >
                           Je m&rsquo;inscris
                         </Button>

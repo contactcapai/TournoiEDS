@@ -8,6 +8,7 @@ import { lireCompte } from "@/server/auth/guard";
 import { sectionsPour } from "../_sections";
 import { MenuAdmin } from "./_menu/MenuAdmin";
 import styles from "./layout.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 // COUCHE ② DE LA GARDE — le RENDU (Story 6.1, FR27, NFR4)
@@ -19,16 +20,17 @@ import styles from "./layout.module.css";
 //
 // 🔴 POURQUOI LE GROUPE `(protege)` PLUTÔT QU'UN `app/admin/layout.tsx` — DÉFAUT RÉEL,
 // TROUVÉ À L'ÉCRITURE. Un layout posé directement sur `app/admin/` s'appliquerait AUSSI à
-// `/admin/login` : un visiteur non connecté y serait redirigé vers `/admin/login`, dont le
+// `/connexion` : un visiteur non connecté y serait redirigé vers `/connexion`, dont le
 // rendu déclencherait de nouveau la garde, qui redirigerait encore — `ERR_TOO_MANY_REDIRECTS`,
 // c'est-à-dire une page de connexion INATTEIGNABLE, donc un back-office définitivement
 // fermé. Les groupes `(…)` n'affectent pas l'URL : `(protege)/page.tsx` sert bien `/admin`,
 // et `login/` reste hors de la garde. Ne pas « simplifier » en remontant ce layout d'un cran.
 //
 // 🔴 POURQUOI PAS LE HEADER PUBLIC : sa navigation est celle du VISITEUR (Agenda, L'asso,
-// Animations, Partenaires) et son CTA est « Nous rejoindre » — une invitation à adhérer,
-// absurde une fois connecté au back-office. Ce n'est pas une économie de code qu'on
-// refuse, c'est un contresens qu'on évite.
+// Animations, Partenaires) et son CTA doré s'adresse à qui n'a pas encore de compte
+// (« Créer mon profil », Story 12.4 — c'était « Nous rejoindre » vers HelloAsso jusque-là).
+// L'un comme l'autre est un contresens une fois connecté au back-office. Ce n'est pas une
+// économie de code qu'on refuse, c'est un contresens qu'on évite.
 //
 // ⚠️ Le back-office reste Esport des Sacres : tokens et primitives @repo/ui uniquement,
 // aucun hex de charte en dur (project-context.md §5).
@@ -57,7 +59,7 @@ export default async function AdminLayout({
   // page où atterrit justement un compte sans le bon rôle. Lui exiger un rôle l'y renverrait
   // en boucle. Ce qui protège chaque section, c'est le proxy et la garde de chaque page.
   const compte = await lireCompte();
-  if (compte === null) redirect("/admin/login");
+  if (compte === null) redirect(CHEMIN_CONNEXION);
 
   // Le menu ne montre que ce qui s'ouvre — un lien vers une porte fermée est une porte sans
   // pièce. Ce filtre lit le MÊME champ `role` que la garde du proxy.
@@ -139,7 +141,7 @@ export default async function AdminLayout({
           <form
             action={async () => {
               "use server";
-              await signOut({ redirectTo: "/admin/login" });
+              await signOut({ redirectTo: CHEMIN_CONNEXION });
             }}
           >
             <button className={styles.deconnexion} type="submit">

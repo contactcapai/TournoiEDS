@@ -144,7 +144,8 @@ export const siteSettingInputSchema = z.object({
    *
    * 🔴 Elle a valu `https://www.helloasso.com/` — la page d'accueil GÉNÉRIQUE — jusqu'à la
    * Story 5.5, et c'était le plus grave des cinq placeholders : une vraie URL `https`, donc
-   * classée **sortante**, donc le CTA « Nous rejoindre » du header ouvrait un nouvel onglet et
+   * classée **sortante**, donc le CTA « Nous rejoindre » — celui du header à l'époque, retiré
+   * par la 12.4 — ouvrait un nouvel onglet et
    * l'annonçait au lecteur d'écran, pour emmener le visiteur sur un site tiers **sans rapport
    * avec l'association**. Un placeholder est inerte ; cela était **actif et faux**. Ne jamais
    * re-semer une valeur « générique mais valide » dans cette colonne.

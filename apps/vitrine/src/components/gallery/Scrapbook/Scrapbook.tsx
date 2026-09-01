@@ -85,7 +85,7 @@ const TAILLE_LIGHTBOX = "(max-width: 880px) 92vw, 80vw";
  *   · `/admin/medias/…`          → *« The requested resource isn't a valid image. »*
  * Le motif était donc bien accepté. Ce qui échoue, c'est la récupération : **l'optimiseur
  * d'images de Next fait sa requête DEPUIS LE SERVEUR, sans le cookie de session**. Il reçoit
- * le `307 → /admin/login` de la garde, pas une image. ⇒ **Aucune ressource protégée par une
+ * le `307 → /connexion` de la garde, pas une image. ⇒ **Aucune ressource protégée par une
  * session ne peut, par construction, passer par `/_next/image`.**
  *
  * ⚠️ ET C'EST TANT MIEUX POUR UNE AUTRE RAISON : une variante optimisée serait écrite dans le

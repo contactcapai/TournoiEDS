@@ -16,6 +16,7 @@ import {
 } from "@/server/db/queries/rattachement";
 import editorial from "@/styles/editorial.module.css";
 import styles from "./page.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 // MON PROFIL (Story 12.1) — LA PREMIÈRE SURFACE AUTHENTIFIÉE **HORS `/admin`** DU SITE
@@ -65,7 +66,7 @@ export default async function ProfilPage() {
   ]);
   // La session existe mais la ligne `user` a disparu (suppression concurrente, restauration) :
   // on ne rend pas une page à moitié, on renvoie se reconnecter.
-  if (!donnees) redirect("/admin/login");
+  if (!donnees) redirect(CHEMIN_CONNEXION);
 
   /**
    * ⚠️ ENVELOPPÉE ICI PLUTÔT QU'APPELÉE DEPUIS LE CLIENT : `signOut()` écrit des en-têtes, ce

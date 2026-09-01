@@ -31,18 +31,22 @@
 // lit `workshop` depuis la 6.9 et `/l-asso` lit `member` depuis la 6.10. Et depuis
 // la 6.13, le layout `(public)` lui-même lit `site_setting`, donc les pages dépendent
 // de la base **par leur chrome** en plus de leur contenu.
-// 🔴 `/admin/login` ET `/admin/login/verifier` AJOUTÉES PAR LA STORY 8.1, ET ELLES SONT LES
-// SEULES ROUTES D'`/admin` QUE CETTE PORTE PEUT VOIR : toutes les autres exigent une session,
-// donc elles répondraient par une redirection vers le login — on mesurerait la page de
-// connexion en croyant mesurer l'agenda (faux vert). Les couvrir toutes reste le sujet de la
-// Story 13.2, et ça suppose une session, pas une entrée de liste.
-// ⚠️ Pourquoi celles-ci méritent d'y être : la 8.1 a mis un FORMULAIRE sur la page de
-// connexion (champ e-mail + trois boutons). `globals.css` pose `overflow-x: clip`, donc un
-// débordement y serait rogné SANS scrollbar ni erreur — invisible à l'œil par construction,
-// et sur le seul point d'entrée du back-office.
+// ✅ LA CONNEXION N'EST PLUS UNE EXCEPTION DANS CETTE LISTE — STORY 12.4. Elle y figurait
+// comme `/admin/login`, seule route d'`/admin` que cette porte pouvait voir : toutes les
+// autres exigent une session et lui répondraient par une redirection, si bien qu'elle
+// mesurerait la page de connexion en croyant mesurer l'agenda (faux vert). Depuis que les
+// deux écrans vivent en `/connexion`, ce sont des pages PUBLIQUES ordinaires — couvertes
+// pour la même raison que les six autres, et non plus par dérogation.
+// ⚠️ Pourquoi elles méritent d'y être : la 8.1 y a mis un FORMULAIRE (champ e-mail + trois
+// boutons). `globals.css` pose `overflow-x: clip`, donc un débordement y serait rogné SANS
+// scrollbar ni erreur — invisible à l'œil par construction, et sur le point d'entrée de tout
+// compte du site.
+// 🔴 LE BACK-OFFICE, LUI, RESTE NON COUVERT, et c'est toujours un angle mort déclaré : cette
+// porte interroge en HTTP nu. Le déplacement de la connexion ne le réduit pas — il retire
+// seulement la seule page qui donnait l'illusion du contraire.
 export const PAGES = (
   process.env.GATE_PAGES ??
-  "/,/agenda,/partenaires,/l-asso,/animations,/tournois,/admin/login,/admin/login/verifier"
+  "/,/agenda,/partenaires,/l-asso,/animations,/tournois,/connexion,/connexion/verifier"
 ).split(",");
 
 // 7 largeurs de référence du projet : 320 (le plus tendu), 412, 768, 880 (le

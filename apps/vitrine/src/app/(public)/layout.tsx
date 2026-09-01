@@ -85,7 +85,6 @@ export default async function PublicLayout({
           rôles, seulement s'il existe une porte à montrer. */}
       <SiteHeader
         discordUrl={reglages.discordUrl}
-        helloassoUrl={reglages.helloassoUrl}
         session={{ connecte: compte !== null, aDesRoles: (compte?.roles.length ?? 0) > 0 }}
       />
       <main id="content">{children}</main>

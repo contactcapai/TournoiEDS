@@ -68,7 +68,7 @@ function LignePartenaire({
   return (
     <li className={styles.ligne}>
       {/* 🔴 `unoptimized` — L'OPTIMISEUR NE PEUT PAS LIRE UNE ROUTE GARDÉE. `/_next/image`
-          requête depuis le serveur, sans cookie de session : il reçoit le `307 → /admin/login`
+          requête depuis le serveur, sans cookie de session : il reçoit le `307 → /connexion`
           de la garde, pas une image. Mesuré au gate visuel de la 6.4, où AUCUNE vignette ne
           s'affichait. `sourceLogo(..., true)` porte les deux faits à la fois (d'où vient
           l'image ET qu'elle ne doit pas être optimisée) — voir `lib/logos.ts`. */}

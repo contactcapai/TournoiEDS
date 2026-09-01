@@ -153,8 +153,8 @@ if (echecs.length === 0) {
       "      Cette porte interroge en HTTP NU, sans cookie. Les routes d'/admin protégées\n" +
       "      lui répondraient par une redirection vers la connexion : elle mesurerait le\n" +
       "      login en croyant mesurer l'agenda, et rendrait un VERT sur une page jamais vue.\n" +
-      "      Seules /admin/login et /admin/login/verifier y sont — les seules joignables\n" +
-      "      sans session.\n" +
+      "      AUCUNE route d'/admin n'y est. /connexion et /connexion/verifier, qui en\n" +
+      "      sortaient jusqu'à la Story 12.4, sont désormais des pages publiques ordinaires.\n" +
       "   ⚠️ LE RISQUE EST RÉEL : globals.css pose overflow-x: clip, donc un débordement\n" +
       "      du back-office est rogné SANS scrollbar ni erreur, invisible à l'œil PAR\n" +
       "      CONSTRUCTION. Seul un coup d'œil sur staging l'attrape. Arbitrage du 2026-08-25 :\n" +

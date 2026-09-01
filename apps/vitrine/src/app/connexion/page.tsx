@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 
 import { signIn } from "@/server/auth/config";
 import { lireCompte } from "@/server/auth/guard";
@@ -8,17 +9,31 @@ import { redirect } from "next/navigation";
 import { destinationApresConnexion } from "@/lib/auth/retour";
 import styles from "./page.module.css";
 
-// Page de connexion du back-office (Story 6.1, FR26).
+// Page de connexion du site (Story 6.1 pour le back-office, RÉÉCRITE PAR LA 12.4 pour tous).
 //
-// 🔴 SEULE ROUTE SOUS /admin QUI RESTE OUVERTE, ET ELLE L'EST À DEUX ENDROITS QUI DOIVENT
-// RESTER D'ACCORD :
-//   ① `proxy.ts` la laisse passer explicitement (`pathname === "/admin/login"`) ;
-//   ② elle vit HORS du groupe `(protege)`, donc hors de la garde du layout.
-// Si l'une des deux exemptions disparaît, la page de connexion devient inatteignable
-// (boucle de redirection) et le back-office est définitivement fermé. `gate:admin` mesure
-// ce point précis : `/admin/login` doit répondre 200 SANS session.
+// ══════════════════════════════════════════════════════════════════════════════════════
+// 🔴 CE N'EST PLUS « LA PAGE DU BACK-OFFICE », ET C'EST TOUTE LA STORY 12.4
+// ══════════════════════════════════════════════════════════════════════════════════════
 //
-// Elle n'a donc aucun chrome d'administration : elle rend son propre <main>.
+// Elle vivait en `/admin/login` et s'intitulait « Back-office — réservé à l'équipe de
+// l'association ». C'était vrai tant que seule l'équipe avait une raison de se connecter. La
+// 12.2 (« j'y serai ») et la 12.3 (s'inscrire à un tournoi) en ont donné une à tout le monde,
+// et les deux boutons envoient ICI : un joueur qui cliquait « S'inscrire » lisait donc, au
+// moment précis où il voulait entrer, qu'il n'avait rien à faire là.
+// ⚠️ La mécanique, elle, marchait déjà (`retour.ts` accepte `/tournois/…` depuis la 12.2).
+// C'était l'ÉNONCÉ qui était faux — 3ᵉ occurrence du motif « un contrat tenu dont on ne
+// réécrit pas l'énoncé devient un faux témoin ».
+//
+// 🔴 ELLE EST SORTIE DE `/admin` PLUTÔT QUE RENOMMÉE SUR PLACE : l'URL se lit dans la barre
+// d'adresse ET dans l'e-mail du lien magique. Un chemin qui dit « admin » à un joueur dément
+// l'écran qu'il ouvre. Les deux chemins hérités sont redirigés (`next.config.ts`).
+//
+// ⚠️ ELLE EST HORS DU GROUPE `(public)`, DONC SANS CHROME DE SITE : ni en-tête ni pied de
+// page. C'est délibéré — le CTA du chrome mène désormais ici, et l'afficher donnerait un
+// bouton pointant la page qu'on regarde. Le retour au site est explicite, en bas de la carte.
+// ⚠️ Elle est aussi hors du matcher du proxy (`/admin/:path*`), donc ouverte par construction,
+// et `gate` la mesure comme n'importe quelle page publique — ce qu'il ne pouvait pas faire
+// sous `/admin`.
 
 export const metadata: Metadata = {
   title: "Connexion",
@@ -57,7 +72,7 @@ const MESSAGES_ERREUR: Record<string, string> = {
 const MESSAGE_ERREUR_PAR_DEFAUT =
   "La connexion n’a pas abouti. Réessaie, et si ça recommence, signale-le.";
 
-export default async function AdminLoginPage({
+export default async function ConnexionPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; next?: string }>;
@@ -65,12 +80,6 @@ export default async function AdminLoginPage({
   // `searchParams` est une promesse depuis Next 15 — l'oublier ne casse pas toujours la
   // compilation, d'où l'`await` explicite (même garde-fou que `headers()` en Story 5.1).
   const params = await searchParams;
-
-  // Déjà connecté ⇒ on ne montre pas un écran de connexion, on emmène au back-office.
-  // Sans ça, revenir sur /admin/login avec une session valide afficherait un bouton
-  // « Se connecter » trompeur.
-  const compte = await lireCompte();
-  if (compte !== null) redirect("/admin");
 
   const messageErreur =
     params.error === undefined
@@ -97,22 +106,45 @@ export default async function AdminLoginPage({
   // (URL absolue, `//`, `..`, `\`) sont conservés mot pour mot. Douze tests les figent.
   const destination = destinationApresConnexion(params.next);
 
+  // 🔴 DÉJÀ CONNECTÉ ⇒ ON L'EMMÈNE OÙ IL ALLAIT, ET C'EST UN CORRECTIF DE LA 12.4. Cette
+  // garde disait `redirect("/admin")` : quelqu'un qui arrivait ici avec une session valide et
+  // `?next=/tournois/le-tournoi` PERDAIT sa destination et atterrissait sur le tableau de
+  // bord — c'est-à-dire nulle part, pour un joueur. Le défaut était invisible tant que seuls
+  // des administrateurs se connectaient : leur destination par défaut ÉTAIT `/admin`.
+  // ⚠️ Le calcul de `destination` doit donc rester AVANT cette garde, jamais après.
+  const compte = await lireCompte();
+  if (compte !== null) redirect(destination);
+
   return (
     <main className={styles.ecran} id="content">
       <div className={styles.carte}>
-        <Image
-          src="/logo-eds-blanc.png"
-          alt="Esport des Sacres"
-          width={56}
-          height={56}
-          className={styles.logo}
-          priority
-        />
+        <Link href="/" className={styles.logoLien} aria-label="Esport des Sacres — accueil">
+          <Image
+            src="/logo-eds-blanc.png"
+            alt="Esport des Sacres"
+            width={56}
+            height={56}
+            className={styles.logo}
+            priority
+          />
+        </Link>
 
-        <h1 className={styles.titre}>Back-office</h1>
+        {/* 🔴 UN SEUL ÉNONCÉ POUR DEUX PUBLICS, ET IL SE TOURNE VERS CELUI QUI N'A RIEN.
+            Le titre disait « Back-office » et le chapô « réservé à l'équipe de
+            l'association » : lu par un joueur qui vient de cliquer « S'inscrire », c'est un
+            refus. Lu par un bénévole, « Connexion » ne lui retire rien — il sait ce qu'il
+            vient faire, et son back-office l'attend derrière.
+            🔴 LA SECONDE PHRASE EST LA PLUS IMPORTANTE DE L'ÉCRAN : il n'existe AUCUN
+            formulaire d'inscription dans ce projet — les trois moyens créent le compte au
+            premier passage (Auth.js). Sans la dire, celui qui n'a pas de compte cherche un
+            bouton « créer un compte » qui n'existera jamais, et repart. */}
+        <h1 className={styles.titre}>Connexion</h1>
         <p className={styles.chapo}>
-          L&rsquo;espace de gestion du site. Réservé à l&rsquo;équipe de
-          l&rsquo;association.
+          Pour vous inscrire à un tournoi, annoncer votre venue un jeudi, ou gérer le site si
+          vous êtes de l&rsquo;équipe.
+          <br />
+          <strong>Première fois&nbsp;?</strong> Votre compte se crée tout seul en vous
+          connectant&nbsp;: il n&rsquo;y a rien d&rsquo;autre à remplir.
         </p>
 
         {messageErreur !== null && (
@@ -128,8 +160,12 @@ export default async function AdminLoginPage({
             ══════════════════════════════════════════════════════════════════════════════
             Trois boutons `--gold` empilés ne hiérarchisent plus rien : l'accent ne veut dire
             quelque chose que s'il est rare (leçon des 4 boutons or × 64 lignes, 13.1).
-            Discord reste l'entrée principale — c'est celle de l'équipe aujourd'hui ; Google
-            et le lien magique sont des portes secondaires, tracées et non remplies.
+            Discord reste l'entrée principale, et la 12.4 ne la déplace pas : c'est celle de
+            l'équipe, et c'est aussi là que vit la communauté de joueurs — le compte qu'ils ont
+            déjà. Google et le lien magique restent des portes secondaires.
+            ⚠️ GOOGLE REND UN 403 À QUI N'EST PAS UTILISATEUR TEST tant que l'application Cloud
+            « Oauth EDS » n'est pas PUBLIÉE. C'est un geste hors code, noté au cadrage de la
+            12.4 — pas un défaut de cet écran.
             ⚠️ Les trois fonctionnent SANS JavaScript : ce sont de vrais <form>, pas des
             onClick. Un back-office qui exigerait JS pour se connecter serait injoignable au
             pire moment. */}
@@ -190,9 +226,23 @@ export default async function AdminLoginPage({
           </button>
         </form>
 
+        {/* 🔴 LA SECONDE PHRASE A ÉTÉ RETIRÉE, PAS RÉÉCRITE. Elle disait « le site public,
+            lui, reste accessible à tous sans connexion » — vraie, et pourtant un contresens
+            adressée à quelqu'un qui vient de cliquer « S'inscrire » : elle lui explique qu'il
+            n'a pas besoin d'être là. Une phrase vraie qui se lit comme un renvoi vaut une
+            phrase fausse (leçon des PR #90 et #100). */}
         <p className={styles.aide}>
           Peu importe le moyen&nbsp;: si l&rsquo;adresse est la même, c&rsquo;est le même
-          compte. Le site public, lui, reste accessible à tous sans connexion.
+          compte.
+        </p>
+
+        {/* ⚠️ RETOUR EXPLICITE, ET PAS SEULEMENT LE LOGO. Cette page n'a pas le chrome du
+            site : sans ce lien, la seule sortie serait le bouton « précédent » du navigateur.
+            Le logo est cliquable lui aussi, mais une marque cliquable seule est une affordance
+            invisible — précisément celle qui a échoué en 13.2 (PR #81). Deux parades pour deux
+            personnes différentes. */}
+        <p className={styles.retour}>
+          <Link href="/">Retour au site</Link>
         </p>
       </div>
     </main>

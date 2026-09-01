@@ -78,18 +78,31 @@ test("un chemin qui COMMENCE comme une section n'en fait pas partie", () => {
 
 // ── ② Les routes ouvertes le restent, et elles seules ────────────────────────────────
 
-test("la page de connexion reste ouverte, le refus reste atteignable sans rôle", () => {
+test("les chemins hérités de la connexion restent OUVERTS, pour pouvoir rediriger", () => {
+  // 🔴 CE TEST A CHANGÉ DE SUJET AVEC LA 12.4, ET C'EST LE POINT DÉLICAT DE LA STORY. Ces
+  // deux chemins n'ont plus de page : les écrans vivent en `/connexion`. S'ils cessaient
+  // d'être déclarés ouverts, le fail-closed du proxy les refuserait AVANT que
+  // `next.config.ts` ait pu les rediriger — à moins que les `redirects` ne s'exécutent
+  // avant le proxy, un ordre qui dépend de la version de Next et qu'aucune porte ne mesure.
+  // ⚠️ Ce sont donc bien des chemins SANS page qui doivent rester ouverts. Les retirer
+  // « puisqu'ils ne servent plus » casserait la redirection, en silence, pour les bénévoles
+  // qui ont `/admin/login` en favori.
   assert.deepEqual(exigencePour("/admin/login"), { type: "ouvert" });
+  assert.deepEqual(exigencePour("/admin/login/verifier"), { type: "ouvert" });
+});
+
+test("le refus reste atteignable sans rôle", () => {
   assert.deepEqual(exigencePour("/admin/refus"), { type: "connecte" });
   assert.deepEqual(exigencePour("/admin"), { type: "connecte" });
 });
 
-test("l'écran « lien envoyé » est atteignable SANS session", () => {
-  // 🔴 Sans session par définition : on vient de demander un lien magique, on n'est pas
-  // encore connecté. S'il exigeait une session, il renverrait vers la page de connexion au
-  // moment précis où le lien part — la personne conclurait à un échec et en redemanderait
-  // un, invalidant le premier.
-  assert.deepEqual(exigencePour("/admin/login/verifier"), { type: "ouvert" });
+test("la connexion elle-même n'est plus sous /admin, donc hors de ce registre", () => {
+  // 🔴 `exigencePour` ne répond QUE pour les chemins couverts par le matcher du proxy
+  // (`/admin/:path*`). `/connexion` n'en fait pas partie : elle est ouverte parce qu'AUCUNE
+  // garde ne la regarde, pas parce qu'une liste l'y autorise.
+  // ⚠️ Ce test existe pour empêcher qu'on « répare » ce `inconnu` en ajoutant `/connexion`
+  // à `CHEMINS_OUVERTS` : elle y serait inerte, et l'entrée ferait croire à une garde.
+  assert.deepEqual(exigencePour("/connexion"), { type: "inconnu" });
 });
 
 test("l'ouverture du login n'est PAS un préfixe", () => {

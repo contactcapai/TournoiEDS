@@ -1,7 +1,39 @@
+import {
+  CHEMIN_CONNEXION,
+  CHEMIN_CONNEXION_HERITE,
+  CHEMIN_CONNEXION_VERIFIER,
+  CHEMIN_CONNEXION_VERIFIER_HERITE,
+} from "./src/lib/auth/chemins";
 import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  // ══════════════════════════════════════════════════════════════════════════════════
+  // LES DEUX CHEMINS HÉRITÉS DE LA CONNEXION — STORY 12.4
+  // ══════════════════════════════════════════════════════════════════════════════════
+  //
+  // 🔴 `permanent: false` (307/308 temporaire) ET NON `true`, DÉLIBÉRÉMENT. Un permanent
+  // est mis en cache par le navigateur *sans date d'expiration* : le jour où on voudrait
+  // rendre `/admin/login` à autre chose, les postes qui l'ont visité une fois
+  // continueraient de sauter vers `/connexion` sans jamais redemander au serveur. Une
+  // redirection qu'on ne peut plus retirer n'est pas un gain de SEO ici — ces deux URLs
+  // portent `robots: noindex`.
+  //
+  // ⚠️ LA QUERY EST CONSERVÉE PAR NEXT : `/admin/login?next=/tournois/x` arrive sur
+  // `/connexion?next=/tournois/x`. C'est le point à vérifier par l'EFFET et non par le
+  // code de statut — une redirection qui perd `next` renverrait le joueur sur son profil
+  // au lieu du tournoi où il voulait s'inscrire, et le 307 serait vert pendant ce temps.
+  async redirects() {
+    return [
+      { source: CHEMIN_CONNEXION_HERITE, destination: CHEMIN_CONNEXION, permanent: false },
+      {
+        source: CHEMIN_CONNEXION_VERIFIER_HERITE,
+        destination: CHEMIN_CONNEXION_VERIFIER,
+        permanent: false,
+      },
+    ];
+  },
+
   // Build autonome (binaire + assets minimal) requis pour l'image Docker de la vitrine.
   // Prerequis de la Story 1.8 (deploiement self-hosted Caddy/Docker sur VPS). Pose ici, exploite plus tard.
   output: "standalone",
@@ -71,7 +103,7 @@ const nextConfig: NextConfig = {
       //   · /admin/medias/…    → « The requested resource isn't a valid image. »
       // Le motif était donc accepté ; ce qui échouait, c'est la RÉCUPÉRATION. L'optimiseur
       // requête **depuis le serveur, sans cookie de session** : il reçoit le `307 →
-      // /admin/login` de la garde. ⇒ Une ressource protégée par une session ne peut PAS
+      // /connexion` de la garde. ⇒ Une ressource protégée par une session ne peut PAS
       // transiter par `/_next/image`, quelle que soit cette liste.
       // ⇒ Les écrans d'administration servent donc leurs images en `unoptimized`, et cette
       // entrée a été RETIRÉE : une autorisation que plus rien ne consomme est une « porte

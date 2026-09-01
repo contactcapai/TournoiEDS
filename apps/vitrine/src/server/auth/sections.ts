@@ -1,4 +1,8 @@
 import type { RoleAdmin } from "../../lib/roles";
+import {
+  CHEMIN_CONNEXION_HERITE,
+  CHEMIN_CONNEXION_VERIFIER_HERITE,
+} from "../../lib/auth/chemins";
 import { SECTIONS_ADMIN, cheminCouvertPar } from "../../app/admin/_sections";
 
 /**
@@ -19,7 +23,7 @@ import { SECTIONS_ADMIN, cheminCouvertPar } from "../../app/admin/_sections";
  * d'être silencieuse — elle devient une porte close, ce qui se voit.
  */
 export type ExigenceAcces =
-  /** Aucune session requise. Une seule route : la page de connexion. */
+  /** Aucune session requise. Les deux chemins hérités de la connexion (redirigés). */
   | { type: "ouvert" }
   /** Une session suffit, sans rôle : le tableau de bord et la page de refus. */
   | { type: "connecte" }
@@ -27,22 +31,35 @@ export type ExigenceAcces =
   /** Sous `/admin`, mais rattaché à aucune section : refusé. */
   | { type: "inconnu" };
 
-/** La page de connexion — la destination de tout refus faute de session. */
-export const CHEMIN_LOGIN = "/admin/login";
+/**
+ * 🔴 `CHEMIN_LOGIN` A DISPARU D'ICI — STORY 12.4. Il valait `/admin/login` et n'avait qu'UN
+ * consommateur (`proxy.ts`) pendant que 17 autres renvois écrivaient la chaîne en dur. La
+ * source unique vit désormais dans `lib/auth/chemins.ts`, importable **aussi** par les
+ * composants clients — ce que ce module, lu par le proxy, ne pouvait pas être.
+ */
 
 /**
  * Les routes ouvertes SANS session.
  *
- * 🔴 `/admin/login/verifier` EN FAIT PARTIE DEPUIS LE LIEN MAGIQUE (PR ②), ET C'EST
- * INDISPENSABLE : c'est l'écran « regardez votre boîte mail », affiché à quelqu'un qui, par
- * définition, N'EST PAS ENCORE CONNECTÉ. L'oublier ici le ferait renvoyer vers la page de
- * connexion au moment précis où on vient de lui envoyer un lien — il croirait à un échec et
- * redemanderait un lien, invalidant le premier.
+ * 🔴 CE SONT LES **ANCIENNES** URLS DE CONNEXION, ET ELLES N'ONT PLUS DE PAGE — STORY 12.4.
+ * Les deux écrans vivent maintenant en `/connexion` et `/connexion/verifier`, hors du matcher
+ * du proxy, donc hors de ce registre. Ce qui reste ici n'est plus la connexion elle-même mais
+ * les **deux chemins hérités** que `next.config.ts` redirige.
+ *
+ * 🔴 ET ILS DOIVENT RESTER OUVERTS, SANS QUOI LA REDIRECTION NE JOUE PLUS. Ce module est
+ * fail-closed : un chemin sous `/admin` qu'aucune section ne couvre rend `inconnu`, donc un
+ * refus. `/admin/login` deviendrait alors une porte close **avant** d'avoir pu rediriger — à
+ * moins que les `redirects` de `next.config` ne s'exécutent avant le proxy, un ordre qui
+ * dépend de la version de Next et qu'aucune de nos portes ne mesure. On ne parie pas sur
+ * l'ordre.
  *
  * ⚠️ Liste EXACTE, jamais un préfixe : ouvrir `/admin/login/*` ouvrirait aussi ce que
  * quelqu'un y ajouterait plus tard sans y penser.
  */
-const CHEMINS_OUVERTS = [CHEMIN_LOGIN, "/admin/login/verifier"] as const;
+const CHEMINS_OUVERTS = [
+  CHEMIN_CONNEXION_HERITE,
+  CHEMIN_CONNEXION_VERIFIER_HERITE,
+] as const;
 
 /**
  * Routes ouvertes à tout compte connecté, rôle ou non.
