@@ -3,11 +3,18 @@ import type { PhaseKind } from "./structure";
 /**
  * Classement, points et répartition en lobbies (Story 10.3).
  *
- * 🔴 GÉNÉRALISATION DE CE QUI MARCHE, PAS UNE RÉÉCRITURE. Le moteur de `apps/tournoi-api` a
+ * 🔴 GÉNÉRALISATION DE CE QUI MARCHE, PAS UNE RÉÉCRITURE. Le moteur d'`apps/tournoi-api`
+ * (l'ancienne app, RETIRÉE par la 10.7 (2026-09-01)) a
  * fait tourner de vrais tournois — c'est la meilleure preuve qui existe (A12). On garde son
  * barème, son ordre de départage et sa méthode suisse ; on retire le « 8 » codé en dur.
  *
- * ⚠️ Ce module ne touche PAS `tournoi-api` : ses 64 tests gardent l'application qui tourne
+ * ⚠️ CETTE PHRASE A CESSÉ D'ÊTRE VRAIE LE 2026-09-01. Elle disait « ce module ne touche pas
+ * `tournoi-api` : ses 64 tests gardent l'application qui tourne ». La 10.7 a retiré cette
+ * application, **et ses 64 tests avec elle** — ils gardaient ce qu'on a supprimé, pas le code
+ * vivant. ⇒ Le compte de la CI est passé de 406 à 342, et ce n'est PAS une régression : le
+ * moteur d'ici a ses propres tests, dans ce dossier. Aucune règle n'a été perdue au passage,
+ * c'est vérifié service par service dans la note de la 10.7.
+ * ⚠️ Le moteur retiré tournait
  * aujourd'hui. Le retrait de l'ancienne app est la Story 10.7, et pas avant.
  */
 

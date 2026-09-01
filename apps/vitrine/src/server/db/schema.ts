@@ -1399,7 +1399,9 @@ export const tournamentRegistrationState = pgEnum(
  * 🔴 LA RACINE MANQUANTE DU MODÈLE — ELLE N'EXISTAIT **NULLE PART**, ET C'EST MESURÉ
  * ══════════════════════════════════════════════════════════════════════════════════════
  *
- * Relevé le 2026-08-13 dans `apps/tournoi-api/prisma/schema.prisma` : les modèles sont
+ * Relevé le 2026-08-13 dans `apps/tournoi-api/prisma/schema.prisma` (l'ancienne app, RETIRÉE par la 10.7 (2026-09-01) ; ⚠️ le RELEVÉ reste
+ * valable, la base `tournoi_tft` n'a PAS été supprimée — arbitrage de Brice, elle porte un
+ * tournoi réellement joué) : les modèles sont
  * `Player`, `Day`, `Round`, `Lobby`, `LobbyPlayer`, `Admin` — **aucun `Tournament`**.
  * L'application tournoi gère **un seul tournoi, implicite**. Côté vitrine, rien non plus.
  * ⇒ *« Une page qui liste les tournois à venir et passés »* n'est donc pas une fonctionnalité

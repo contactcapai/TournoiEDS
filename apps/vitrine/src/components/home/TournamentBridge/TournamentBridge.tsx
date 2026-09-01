@@ -27,7 +27,8 @@ import styles from "./TournamentBridge.module.css";
  *
  * ⚠️ Ne pas « brancher » ce tableau sur la base : un classement LIVE est
  * ARCHITECTURALEMENT IMPOSSIBLE — le cloisonnement des deux bases a été prouvé dans
- * les deux sens (dette R21), il faudrait une API côté `apps/tournoi-api`, et UX-DR16
+ * les deux sens (dette R21), il faudrait une API côté moteur — celle d'`apps/tournoi-api`
+ * n'existe plus, la 10.7 l'a retirée le 2026-09-01 — et UX-DR16
  * exclut explicitement l'intégration live en v1.
  *
  * Valeurs CONTRACTUELLES : c'est l'aperçu exact validé par Brice au cadrage.

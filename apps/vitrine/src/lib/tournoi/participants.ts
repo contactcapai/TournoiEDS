@@ -7,7 +7,7 @@
  *
  * Une manche suisse se composait ainsi : `getClassementDuTournoi(...)` filtré sur
  * `!abandonne`. Deux défauts, mesurés le 2026-08-24 en relisant le moteur TFT historique
- * (`apps/tournoi-api`), qui traitait le premier **explicitement** :
+ * (`apps/tournoi-api`, l'ancienne app, RETIRÉE par la 10.7 (2026-09-01)), qui traitait le premier **explicitement** :
  *
  * ① **UN PRÉSENT QUI N'A PAS ENCORE JOUÉ ÉTAIT OUBLIÉ.** Le classement se construit depuis
  *    les `tournament_match_slot` : qui n'a jamais eu de place n'y figure pas. Quelqu'un qui
