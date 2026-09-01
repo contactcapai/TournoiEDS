@@ -163,9 +163,11 @@ export default async function ConnexionPage({
             Discord reste l'entrée principale, et la 12.4 ne la déplace pas : c'est celle de
             l'équipe, et c'est aussi là que vit la communauté de joueurs — le compte qu'ils ont
             déjà. Google et le lien magique restent des portes secondaires.
-            ⚠️ GOOGLE REND UN 403 À QUI N'EST PAS UTILISATEUR TEST tant que l'application Cloud
-            « Oauth EDS » n'est pas PUBLIÉE. C'est un geste hors code, noté au cadrage de la
-            12.4 — pas un défaut de cet écran.
+            ✅ L'APPLICATION CLOUD « OAUTH EDS » EST PUBLIÉE DEPUIS LE 2026-09-01 : Google
+            s'ouvre à tout le monde. Ce bloc portait jusque-là « Google rend un 403 à qui n'est
+            pas utilisateur test » — vrai pendant six epics, et faux à la minute où l'état a
+            changé. ⚠️ Un avertissement honoré qu'on laisse en place devient un faux témoin :
+            la prochaine lecture croirait Google encore fermé et déconseillerait ce bouton.
             ⚠️ Les trois fonctionnent SANS JavaScript : ce sont de vrais <form>, pas des
             onClick. Un back-office qui exigerait JS pour se connecter serait injoignable au
             pire moment. */}
