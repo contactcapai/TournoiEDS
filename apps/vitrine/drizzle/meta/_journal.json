@@ -218,6 +218,13 @@
       "when": 1788258092080,
       "tag": "0030_ordinary_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1788260381255,
+      "tag": "0031_orange_moon_knight",
+      "breakpoints": true
     }
   ]
 }

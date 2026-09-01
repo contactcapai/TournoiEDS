@@ -172,6 +172,8 @@ export async function lireReglagesPourSaisie() {
       // Remonter l'identifiant côté public ferait croire qu'il suffit, alors qu'il ne dit
       // rien de la publication du média.
       heroPhotoId: siteSetting.heroPhotoId,
+      quotePhotoId: siteSetting.quotePhotoId,
+      ogPhotoId: siteSetting.ogPhotoId,
     })
     .from(siteSetting)
     .limit(1);

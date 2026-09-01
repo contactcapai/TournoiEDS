@@ -12,7 +12,7 @@ import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { getUpcomingRendezVous } from "@/server/db/queries/rendez-vous";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
-import { getPublishedPhotos, getPhotoDuHero } from "@/server/db/queries/photos";
+import { getPublishedPhotos, getPhotoDuHero, getPhotoDeLaBande } from "@/server/db/queries/photos";
 import { lireReglages } from "@/server/db/queries/settings";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
@@ -114,12 +114,14 @@ export default async function Home() {
   // ⚠️ CINQUIÈME LECTURE, ET ELLE ENTRE DANS LE `Promise.all` — pas après. La photo du
   // hero ne dépend d'aucune des quatre autres : l'enchaîner ajouterait son aller-retour à
   // celui de la page pour rien (patron AC1 de la 3.2, tenu depuis).
-  const [upcoming, partners, photos, reglages, photoDuHero] = await Promise.all([
+  const [upcoming, partners, photos, reglages, photoDuHero, photoDeLaBande] =
+    await Promise.all([
     getUpcomingRendezVous(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
     getPublishedPhotos(HOME_PHOTO_COUNT),
     lireReglages(),
     getPhotoDuHero(),
+    getPhotoDeLaBande(),
   ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -146,7 +148,7 @@ export default async function Home() {
         venue={{ connecte: compte !== null, mesVenues }}
       />
       <ThreeAxes />
-      <QuoteBand />
+      <QuoteBand photoDeLaBande={photoDeLaBande} />
       {/* Passerelle Tournoi (5.4) — position FIXÉE PAR FR7 : entre la citation et le
           bloc de preuve. 100 % statique : il ne lit rien, il n'est donc pas dans le
           `Promise.all` ci-dessus et n'ajoute aucun aller-retour de base à la page. */}

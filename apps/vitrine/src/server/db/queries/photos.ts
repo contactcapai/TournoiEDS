@@ -259,12 +259,26 @@ export type GalerieDuDernierEvenement = Awaited<
  * coordonnées à elle, et les lire d'un autre appel les désynchroniserait au premier
  * changement de photo.
  */
-export async function getPhotoDuHero(): Promise<{
+export type PhotoDuSite = {
   filename: string;
   alt: string;
   focalX: number;
   focalY: number;
-} | null> {
+};
+
+/**
+ * ⚠️ UNE SEULE FONCTION POUR LES TROIS EMPLACEMENTS, PARAMÉTRÉE PAR LA COLONNE. La passe 1
+ * n'en servait qu'un et l'avait écrite en dur ; à trois, la recopier aurait donné trois
+ * jointures à garder d'accord — et c'est toujours la troisième qu'on oublie de corriger.
+ * ⚠️ La colonne arrive en ARGUMENT TYPÉ (une des trois références de `siteSetting`), pas
+ * en chaîne : un nom de colonne fautif ne compile pas.
+ */
+async function lirePhotoDuSite(
+  colonne:
+    | typeof siteSetting.heroPhotoId
+    | typeof siteSetting.quotePhotoId
+    | typeof siteSetting.ogPhotoId,
+): Promise<PhotoDuSite | null> {
   const lignes = await db
     .select({
       filename: photo.filename,
@@ -273,12 +287,16 @@ export async function getPhotoDuHero(): Promise<{
       focalY: photo.focalY,
     })
     .from(siteSetting)
-    .innerJoin(photo, eq(photo.id, siteSetting.heroPhotoId))
+    .innerJoin(photo, eq(photo.id, colonne))
     .where(and(eq(siteSetting.id, 1), eq(photo.isPublished, true)))
     .limit(1);
 
   return lignes[0] ?? null;
 }
+
+export const getPhotoDuHero = () => lirePhotoDuSite(siteSetting.heroPhotoId);
+export const getPhotoDeLaBande = () => lirePhotoDuSite(siteSetting.quotePhotoId);
+export const getPhotoDePartage = () => lirePhotoDuSite(siteSetting.ogPhotoId);
 
 /**
  * Les photos qu'on peut proposer comme photo d'accueil (Story 7.3).

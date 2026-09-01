@@ -1317,11 +1317,13 @@ export const siteSetting = pgTable(
      * remplaçant : « ce qui manque : une photo HD, `sizes` + l'optimisation Next, et le
      * passage par le back-office ». C'est cette story.
      *
-     * ⚠️ **UNE SEULE COLONNE, ET PAS TROIS.** La bande citation et l'og-image attendent
-     * elles aussi une photo, et il aurait été tentant de poser leurs colonnes ici « tant
-     * qu'on y est ». Une colonne que personne n'écrit ni ne lit est un CHEMIN MORT — le
-     * défaut que ce projet a déjà payé (`team_size`, 10.5). Elles viendront avec leur
-     * écran, pas avant.
+     * ✅ **LES TROIS Y SONT MAINTENANT, ET CHACUNE EST ARRIVÉE AVEC SON ÉCRAN.** La
+     * première passe n'en posait qu'une, et disait ici : « une colonne que personne n'écrit
+     * ni ne lit est un CHEMIN MORT (`team_size`, 10.5) — elles viendront avec leur écran,
+     * pas avant. » C'est exactement ce qui s'est passé le jour même : la bande citation et
+     * l'og-image ont reçu leur rendu, donc leurs colonnes.
+     * ⚠️ Le principe tient toujours pour la quatrième : ne pas en ajouter une « pour plus
+     * tard ».
      *
      * 🔴 `ON DELETE SET NULL`, JAMAIS `cascade` : supprimer une photo de la galerie ne
      * doit pas effacer la ligne de réglages du site. Le rendu retombe alors sur son
@@ -1331,6 +1333,29 @@ export const siteSetting = pgTable(
      * déploiement, et c'est ce qui rend cette story sûre.
      */
     heroPhotoId: uuid().references(() => photo.id, { onDelete: "set null" }),
+
+    /**
+     * La photo de la bande citation, pleine largeur (Story 7.3).
+     *
+     * ⚠️ **UNE COLONNE À PART, ET SÛREMENT PAS `heroPhotoId` RÉUTILISÉE** : les deux cadres
+     * n'ont rien en commun. Le hero est un 4/3 vertical dans une colonne étroite ; la bande
+     * est un bandeau panoramique sous un voile. Une photo qui sert bien l'un dessert
+     * souvent l'autre — et les lier obligerait à choisir la moins mauvaise pour les deux.
+     */
+    quotePhotoId: uuid().references(() => photo.id, { onDelete: "set null" }),
+
+    /**
+     * L'image de partage (Open Graph), celle qui s'affiche quand un lien du site est collé
+     * dans Discord ou sur les réseaux (Story 7.3).
+     *
+     * 🔴 IL N'Y EN AVAIT AUCUNE, et c'est ce que la mesure du 2026-09-01 a montré :
+     * `openGraph` ne portait que `title` et `description`. Un lien partagé sur Discord —
+     * c'est-à-dire là où vit la communauté — n'affichait donc **rien**.
+     * ⚠️ Encore une colonne distincte : le cadre est un 1200×630 très large, plus proche de
+     * la bande que du hero, mais l'image de partage se choisit pour ce qu'elle **dit de
+     * l'asso** à quelqu'un qui ne la connaît pas. Ce n'est pas le même critère.
+     */
+    ogPhotoId: uuid().references(() => photo.id, { onDelete: "set null" }),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
       .defaultNow()

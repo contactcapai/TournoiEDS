@@ -87,6 +87,29 @@
   background: linear-gradient(150deg, #3a3672, #221f4d);
 }
 
+/* 🔴 LE DÉGRADÉ S'EFFACE QUAND UNE PHOTO EST CHOISIE — Story 7.3. Le laisser sous l'image
+   ne se verrait pas (l'image est opaque et couvre la même réserve), mais il resterait un
+   fond peint pour rien à chaque frame de la parallaxe. Surtout : deux couches nommées
+   « la couche ① » se disputeraient le même rôle, et la prochaine lecture devrait deviner
+   laquelle gagne. Une seule couche ① à la fois. */
+.bandAvecPhoto::before {
+  display: none;
+}
+
+/* La photo occupe EXACTEMENT la réserve du pseudo-élément qu'elle remplace : -40px en haut
+   et en bas, rognés par `overflow: clip`, dans laquelle la parallaxe se déplace de ±30px.
+   ⚠️ Ne pas « simplifier » en `inset: 0` : la course perdrait sa marge et un bord
+   apparaîtrait aux extrémités du mouvement. */
+.photo {
+  position: absolute;
+  inset: -40px 0;
+  z-index: 0;
+  width: 100%;
+  height: auto;
+  min-height: calc(100% + 80px);
+  object-fit: cover;
+}
+
 /* ② VOILE ASSOMBRISSANT — STATIQUE, et c'est lui qui garantit le contraste AA du
    texte (cream 12,87:1 · or 7,42:1, recalculés en Story 2.8 au point le plus
    clair du composite, c'est-à-dire là où le voile est le plus fin — 0,55 — sur
@@ -184,7 +207,12 @@
    dans sa réserve de 40px. Rien à « rattraper ». */
 @media (prefers-reduced-motion: no-preference) {
   @supports (animation-timeline: view()) {
-    .band::before {
+    /* ⚠️ LES DEUX SÉLECTEURS PORTENT LA MÊME RÈGLE, ET C'EST VOULU (Story 7.3) : la
+       couche ① est le pseudo-élément SANS photo, l'image AVEC. Une seule des deux est
+       rendue à la fois. Les séparer en deux blocs aurait laissé la règle diverger — et
+       c'est la parallaxe, donc quelque chose qu'on ne remarque pas en la lisant. */
+    .band::before,
+    .photo {
       /* Le raccourci D'ABORD (il réinitialise `animation-timeline` à `auto`),
          la propriété longue ENSUITE — même garde que dans motion.module.css.
          `linear` et non `ease-out` : une parallaxe doit suivre le scroll de
