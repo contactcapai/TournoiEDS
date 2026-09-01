@@ -40,6 +40,31 @@
   color: var(--light);
 }
 
+/* Repris à l'identique du bouton du back-office (`admin/(protege)/layout.module.css`) :
+   même geste, même poids visuel. ⚠️ Contour et non plein : l'or plein est réservé au geste
+   que le site PROPOSE (« Créer mon profil »), pas à celui qui referme.
+   ⚠️ `min-height: 44px` — cible a11y AA, non négociable sur ce projet. */
+.deconnexion {
+  min-height: 44px;
+  margin-top: 24px;
+  padding: 0 18px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.deconnexion:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
 .aideConnexion {
   max-width: 72ch;
   margin-top: 18px;
