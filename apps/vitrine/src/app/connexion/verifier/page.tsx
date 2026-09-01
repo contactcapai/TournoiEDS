@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 import styles from "../page.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -9,10 +10,13 @@ import styles from "../page.module.css";
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 ROUTE OUVERTE SANS SESSION, ET IL LE FAUT : par définition, celui qui la voit vient de
-// demander un lien et n'est PAS encore connecté. Elle est déclarée dans `CHEMINS_OUVERTS`
-// (`server/auth/sections.ts`) — l'oublier la ferait renvoyer vers la page de connexion au
-// moment précis où le lien vient de partir. La personne croirait à un échec, redemanderait
-// un lien, et le premier deviendrait caduc.
+// demander un lien et n'est PAS encore connecté. La renvoyer vers la connexion au moment
+// précis où le lien vient de partir ferait croire à un échec — la personne en redemanderait
+// un, et le premier deviendrait caduc.
+// 🔴 DEPUIS LA 12.4, ELLE L'EST PAR CONSTRUCTION ET NON PLUS PAR EXEMPTION : elle vit en
+// `/connexion/verifier`, hors du matcher du proxy (`/admin/:path*`). Elle figurait avant dans
+// `CHEMINS_OUVERTS` (`server/auth/sections.ts`), qui ne contient plus que les deux chemins
+// HÉRITÉS, le temps que leur redirection serve.
 //
 // ⚠️ ELLE NE RÉPÈTE PAS L'ADRESSE SAISIE, et ce n'est pas un oubli d'ergonomie : Auth.js ne
 // la transmet pas ici, et la reprendre d'un paramètre d'URL ferait afficher à cette page
@@ -54,7 +58,7 @@ export default function VerifierPage() {
         </p>
 
         <p className={styles.aide}>
-          <Link href="/admin/login">Revenir à la page de connexion</Link>
+          <Link href={CHEMIN_CONNEXION}>Revenir à la page de connexion</Link>
         </p>
       </div>
     </main>

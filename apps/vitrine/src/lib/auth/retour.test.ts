@@ -39,6 +39,24 @@ describe("retour après connexion — ce qui est REFUSÉ (Story 12.2)", () => {
   });
 });
 
+describe("la destination par défaut", () => {
+  it("est /profil, la seule surface que TOUT compte connecté possède", () => {
+    // 🔴 CE TEST FIGE UNE VALEUR, PAS UN COMPORTEMENT, ET C'EST DÉLIBÉRÉ. Tous les autres
+    // tests de ce fichier comparent à `RETOUR_PAR_DEFAUT` — donc la valeur pouvait changer
+    // sans qu'AUCUN ne rougisse. Elle valait `/admin` : se connecter sans `next` déposait un
+    // joueur sur le tableau de bord du back-office, où il n'a aucun rôle et ne voit rien.
+    // La 12.4 l'a portée à `/profil` ; sans cette ligne, la ramener à `/admin` serait un
+    // changement muet, vert de bout en bout.
+    assert.equal(RETOUR_PAR_DEFAUT, "/profil");
+  });
+
+  it("est elle-même une racine admise — sinon la garde se refuserait sa propre issue", () => {
+    // Un défaut hors de `RACINES_DE_RETOUR` produirait une destination que la fonction
+    // rejetterait si on la lui repassait : la garde ne serait plus idempotente.
+    assert.equal(destinationApresConnexion(RETOUR_PAR_DEFAUT), RETOUR_PAR_DEFAUT);
+  });
+});
+
 describe("retour après connexion — ce qui est ADMIS", () => {
   it("les racines autorisées, elles-mêmes et ce qui est dessous", () => {
     for (const chemin of ["/admin", "/admin/tournois", "/profil", "/agenda", "/tournois/tft"]) {

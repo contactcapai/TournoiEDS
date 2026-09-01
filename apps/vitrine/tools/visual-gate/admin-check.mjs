@@ -9,7 +9,7 @@
 //   une sous-route d'admin non couverte par le matcher               ❌          ❌       ❌   ❌
 //   la page est RENDUE puis redirigée (le HTML a fuité)              ❌          ❌       ❌   ❌
 //   la garde teste la PRÉSENCE d'un cookie, pas sa VALIDITÉ          ❌          ❌       ❌   ❌
-//   `/admin/login` devient inatteignable (boucle de redirection)     ❌          ❌       ❌   ⚠️
+//   `/connexion` devient inatteignable (boucle de redirection)       ❌          ❌       ❌   ⚠️
 //   le matcher avale `/api/auth/*` → l'OAuth ne peut plus revenir    ❌          ❌       ❌   ⚠️
 //   une page publique se met à exiger une session (régression FR28)  ❌          ❌       ❌   ⚠️
 //
@@ -24,7 +24,40 @@
 //
 // Usage :  node tools/visual-gate/admin-check.mjs [baseUrl]
 //          ADMIN_AUTOTEST=1 …  → auto-validation de l'instrument (voir plus bas)
+import { readFileSync } from "node:fs";
+
 import { PAGES, BASE as BASE_DEFAUT } from "./config.mjs";
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LES CHEMINS DE CONNEXION SE DÉRIVENT DE LEUR SOURCE, ILS NE S'Y RECOPIENT PAS
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// 🔴 CE SCRIPT TOURNE SOUS `node` NU (`node tools/visual-gate/admin-check.mjs`), donc il ne
+// peut pas `import` un module TypeScript : `lib/auth/chemins.ts` lui est inatteignable. La
+// tentation est alors de recopier « /connexion » ici — et une porte qui recopie la constante
+// qu'elle devrait lire est précisément le défaut n°3 de `garde-sur-une-copie.md` : elle reste
+// VERTE en mesurant une URL que l'application n'utilise plus.
+// ⇒ On lit le fichier source et on en extrait la valeur. Si la constante est renommée ou
+// déplacée, la porte s'arrête net avec un message — au lieu de continuer à prouver l'ancien
+// monde.
+const SOURCE_CHEMINS = new URL("../../src/lib/auth/chemins.ts", import.meta.url);
+
+function cheminDeclare(nom) {
+  const source = readFileSync(SOURCE_CHEMINS, "utf8");
+  const trouve = source.match(new RegExp(`export const ${nom} = "([^"]+)"`));
+  if (trouve === null) {
+    throw new Error(
+      `admin-check : « ${nom} » est introuvable dans lib/auth/chemins.ts. La constante a été ` +
+        `renommée ou déplacée : cette porte mesurerait une URL périmée, elle s'arrête.`,
+    );
+  }
+  return trouve[1];
+}
+
+const CHEMIN_CONNEXION = cheminDeclare("CHEMIN_CONNEXION");
+const CHEMIN_CONNEXION_VERIFIER = cheminDeclare("CHEMIN_CONNEXION_VERIFIER");
+const CHEMIN_CONNEXION_HERITE = cheminDeclare("CHEMIN_CONNEXION_HERITE");
+const CHEMIN_CONNEXION_VERIFIER_HERITE = cheminDeclare("CHEMIN_CONNEXION_VERIFIER_HERITE");
 
 const BASE = process.argv[2] ?? BASE_DEFAUT;
 const AUTOTEST = process.env.ADMIN_AUTOTEST === "1";
@@ -46,10 +79,10 @@ const ROUTES_PROTEGEES = [
   "/admin/acces",
 ];
 
-// En autotest, on présente à la porte une route qu'on SAIT ouverte (`/admin/login`) comme si
+// En autotest, on présente à la porte une route qu'on SAIT ouverte (`/connexion`) comme si
 // elle devait être protégée. Si les gardes sont réelles, elles échouent. Si elles restent
 // vertes, c'est qu'elles ne mesurent rien — et il ne faut pas se fier à leurs verdicts.
-const ROUTES_EPROUVEES = AUTOTEST ? ["/admin/login"] : ROUTES_PROTEGEES;
+const ROUTES_EPROUVEES = AUTOTEST ? [CHEMIN_CONNEXION] : ROUTES_PROTEGEES;
 
 // Marqueurs de CONTENU d'administration. Leur présence dans une réponse servie SANS session
 // est une fuite, quel que soit le code de statut.
@@ -102,8 +135,11 @@ async function demander(chemin, entetes = {}) {
 }
 
 const estRedirection = (statut) => statut >= 300 && statut < 400;
+// ⚠️ `includes` ET NON UNE ÉGALITÉ : le proxy ajoute `?next=<la route demandée>`, donc
+// l'emplacement porte une query. Depuis la 12.4 la cible est `/connexion` — une chaîne plus
+// courte et plus commune que `/admin/login`, mais qui reste un préfixe de chemin propre.
 const versLogin = (emplacement) =>
-  typeof emplacement === "string" && emplacement.includes("/admin/login");
+  typeof emplacement === "string" && emplacement.includes(CHEMIN_CONNEXION);
 
 console.log(`\n🔎 Frontière de sécurité du back-office — ${BASE}`);
 if (AUTOTEST) {
@@ -118,7 +154,11 @@ for (const route of ROUTES_EPROUVEES) {
   if (!estRedirection(r.statut)) {
     ko("① redirection", route, `statut ${r.statut} au lieu d'une redirection`);
   } else if (!versLogin(r.emplacement)) {
-    ko("① redirection", route, `redirige vers « ${r.emplacement} » et non vers /admin/login`);
+    ko(
+      "① redirection",
+      route,
+      `redirige vers « ${r.emplacement} » et non vers ${CHEMIN_CONNEXION}`,
+    );
   } else {
     ok("① redirection", route, `${r.statut} → ${r.emplacement}`);
   }
@@ -149,17 +189,46 @@ for (const route of ROUTES_EPROUVEES) {
   }
 }
 
-// ── ⑤  La page de connexion reste atteignable (sinon le back-office est murré) ───────
+// ── ⑤  La page de connexion reste atteignable (sinon le back-office est muré) ────────
 {
-  const r = await demander("/admin/login");
+  const r = await demander(CHEMIN_CONNEXION);
   if (r.statut !== 200) {
     ko(
       "⑤ login ouvert",
-      "/admin/login",
+      CHEMIN_CONNEXION,
       `statut ${r.statut}${estRedirection(r.statut) ? " (boucle de redirection ?)" : ""}`,
     );
   } else {
-    ok("⑤ login ouvert", "/admin/login", "200 sans session");
+    ok("⑤ login ouvert", CHEMIN_CONNEXION, "200 sans session");
+  }
+}
+
+// ── ⑦  LES DEUX CHEMINS HÉRITÉS REDIRIGENT, ET ILS EMPORTENT LEUR QUERY (Story 12.4) ─
+//
+// 🔴 CETTE GARDE MESURE L'EFFET, PAS LE STATUT. Une redirection qui perd `?next=` rend un
+// 307 parfaitement vert tout en déposant le joueur sur son profil au lieu du tournoi où il
+// voulait s'inscrire — le défaut serait invisible à toute porte qui se contenterait du code.
+// ⚠️ Elle vaut aussi comme garde d'ORDRE : le proxy est fail-closed sous `/admin`, donc si
+// `/admin/login` cessait d'être déclaré ouvert dans `sections.ts`, il serait refusé AVANT
+// d'avoir pu rediriger. Ce cas rendrait une redirection vers `/connexion?next=/admin/login`,
+// que ce test refuse puisqu'il exige la destination exacte.
+{
+  const attendus = [
+    [
+      `${CHEMIN_CONNEXION_HERITE}?next=/tournois/exemple`,
+      `${CHEMIN_CONNEXION}?next=/tournois/exemple`,
+    ],
+    [CHEMIN_CONNEXION_VERIFIER_HERITE, CHEMIN_CONNEXION_VERIFIER],
+  ];
+  for (const [herite, attendu] of attendus) {
+    const r = await demander(herite);
+    if (!estRedirection(r.statut)) {
+      ko("⑦ chemin hérité", herite, `statut ${r.statut} au lieu d'une redirection`);
+    } else if (r.emplacement !== attendu) {
+      ko("⑦ chemin hérité", herite, `redirige vers « ${r.emplacement} », attendu « ${attendu} »`);
+    } else {
+      ok("⑦ chemin hérité", herite, `${r.statut} → ${r.emplacement}`);
+    }
   }
 }
 
@@ -178,10 +247,13 @@ for (const route of ROUTES_EPROUVEES) {
   // vers le login par le MATCHER.
   //
   // 🔴 INSTRUMENT FAUX À SA PREMIÈRE EXÉCUTION, ET IL ACCUSAIT LE PRODUIT — corrigé ici.
-  // La première version concluait « capturé par le matcher » sur toute redirection vers
-  // `/admin/login`. Or Auth.js redirige LUI-MÊME vers `/admin/login?error=Configuration`
-  // (c'est notre `pages.error`) quand le callback est appelé sans `state` ni `code`, ce qui
-  // est exactement le cas d'un appel à froid. Mesuré : `302 → http://…/admin/login?error=…`.
+  // La première version concluait « capturé par le matcher » sur toute redirection vers la
+  // page de connexion. Or Auth.js y redirige LUI-MÊME, avec `?error=Configuration` (c'est
+  // notre `pages.error`), quand le callback est appelé sans `state` ni `code` — exactement le
+  // cas d'un appel à froid. Mesuré en 8.1 : `302 → http://…/admin/login?error=…`.
+  // ⚠️ DEPUIS LA 12.4, CETTE DESTINATION EST `/connexion?error=…` : `pages.error` suit la
+  // constante. La mesure de 8.1 est conservée telle qu'elle a été faite — on ne réécrit pas
+  // une mesure datée, on dit ce qui a changé depuis. Le discriminant, lui, est inchangé.
   // ⇒ Le discriminant n'est PAS la destination, c'est la SIGNATURE : seul `proxy.ts` ajoute
   // `?next=`. C'est la 8ᵉ fois qu'un instrument de ce dossier est faux avant de servir, et la
   // 3ᵉ fois qu'il accuse le produit (`pieges/instrument-non-valide.md`).

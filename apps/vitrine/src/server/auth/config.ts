@@ -9,6 +9,7 @@ import Nodemailer from "next-auth/providers/nodemailer";
 import { COMPTE_SMTP, optionsSmtp } from "../mail/client";
 import { envoyerLienMagique } from "../mail/lienMagique";
 import { adaptateurDrizzle } from "./adapter";
+import { CHEMIN_CONNEXION, CHEMIN_CONNEXION_VERIFIER } from "@/lib/auth/chemins";
 
 /**
  * Authentification — Auth.js v5, TROIS moyens de connexion (Story 8.1, FR26, AR-SEC1).
@@ -97,14 +98,14 @@ const { handlers, auth, signIn, signOut } = NextAuth({
   // refus d'allowlist afficherait la page d'erreur brute d'Auth.js (`/api/auth/error`), qui
   // n'a ni la charte ni un message lisible par un bénévole (EXPERIENCE.md).
   pages: {
-    signIn: "/admin/login",
-    error: "/admin/login",
+    signIn: CHEMIN_CONNEXION,
+    error: CHEMIN_CONNEXION,
     // 🔴 SANS CETTE LIGNE, LE LIEN MAGIQUE FINIT SUR UNE PAGE ANGLAISE NON STYLÉE.
     // Auth.js affiche sinon son écran par défaut à `/api/auth/verify-request` — hors du
     // matcher du proxy, donc il s'afficherait bien, mais en anglais et sans la charte, juste
     // après qu'un bénévole a demandé un lien. `sections.ts` ouvre cette route SANS session :
     // celui qui la voit n'est, par définition, pas encore connecté.
-    verifyRequest: "/admin/login/verifier",
+    verifyRequest: CHEMIN_CONNEXION_VERIFIER,
   },
 
   // 🔴 `trustHost` EN DUR PLUTÔT QU'EN VARIABLE D'ENVIRONNEMENT — décision de la Story 6.1.

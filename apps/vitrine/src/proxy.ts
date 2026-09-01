@@ -27,15 +27,17 @@ import type { NextRequest } from "next/server";
 
 import { detientRole } from "./lib/roles";
 import { lireCompte } from "./server/auth/guard";
-import { CHEMIN_LOGIN, exigencePour } from "./server/auth/sections";
+import { CHEMIN_CONNEXION } from "./lib/auth/chemins";
+import { exigencePour } from "./server/auth/sections";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const exigence = exigencePour(pathname);
 
-  // 🔴 SANS CETTE SORTIE, LA REDIRECTION BOUCLE SUR ELLE-MÊME. Le matcher couvre
-  // `/admin/:path*`, donc `/admin/login` en fait partie : un visiteur non connecté serait
-  // renvoyé vers une page qui le renvoie vers elle-même (`ERR_TOO_MANY_REDIRECTS`).
+  // 🔴 CETTE SORTIE LAISSE PASSER LES DEUX CHEMINS HÉRITÉS pour que `next.config.ts` puisse
+  // les rediriger vers `/connexion`. Depuis la 12.4 la page de connexion vit HORS du matcher
+  // `/admin/:path*`, donc la boucle de redirection d'origine n'est plus possible ; ce qui le
+  // serait, sans cette sortie, c'est un refus opposé à `/admin/login` AVANT sa redirection.
   if (exigence.type === "ouvert") return NextResponse.next();
 
   const compte = await lireCompte();
@@ -43,7 +45,7 @@ export async function proxy(request: NextRequest) {
   // `next` porte la destination initiale pour que la page de login puisse y ramener après
   // connexion — sinon un lien profond vers `/admin/agenda` retomberait sur le tableau de bord.
   if (compte === null) {
-    const destination = new URL(CHEMIN_LOGIN, request.url);
+    const destination = new URL(CHEMIN_CONNEXION, request.url);
     destination.searchParams.set("next", pathname);
     return NextResponse.redirect(destination);
   }

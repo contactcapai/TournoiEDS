@@ -34,7 +34,10 @@
  * VISIBLE `ExternalIcon`). Le comportement se DÉRIVE de `classerDestination()` : aucun
  * composant ne décide seul de ce qu'il rend.
  *
- * ⚠️ Ne pas afficher de montant ni de palier sur le CTA « Nous rejoindre » (FR18).
+ * ⚠️ Ne pas afficher de montant ni de palier sur les appels à l'adhésion (FR18). ⚠️ Ils ne
+ * sont plus dans le chrome depuis la 12.4 : le CTA doré du header mène à `/connexion`, et
+ * l'adhésion se lit au pied de page (« Adhérer (HelloAsso) ») et sur la porte Joueurs de la
+ * home (« Adhérer via HelloAsso »). FR18 vaut pour ces deux-là.
  */
 
 /**

@@ -5,6 +5,7 @@ import { LIBELLE_ROLE, estRoleAdmin } from "@/lib/roles";
 import { lireCompte } from "@/server/auth/guard";
 import { sectionsPour } from "../../_sections";
 import styles from "@/styles/admin-page.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 // « CONNECTÉ, MAIS PAS POUR ÇA » (Story 8.1)
@@ -13,7 +14,7 @@ import styles from "@/styles/admin-page.module.css";
 // 🔴 POURQUOI UNE PAGE PLUTÔT QU'UN RENVOI VERS LE LOGIN. Depuis la 8.1 il existe DEUX
 // refus, et les confondre fait une boucle : « pas connecté » se répare en se connectant,
 // « connecté sans le rôle » ne se répare pas en se reconnectant. Renvoyer ce second cas
-// vers `/admin/login` le ferait renvoyer vers `/admin`, qui renverrait vers le login.
+// vers `/connexion` le ferait renvoyer vers `/admin`, qui renverrait vers la connexion.
 //
 // 🔴 ET POURQUOI PAS UN RENVOI SILENCIEUX VERS LE TABLEAU DE BORD : quelqu'un qui suit un
 // lien vers `/admin/agenda` et se retrouve ailleurs sans un mot croit à un bug, réessaie,
@@ -30,7 +31,7 @@ export default async function AdminRefusPage({
   searchParams: Promise<{ role?: string }>;
 }) {
   const compte = await lireCompte();
-  if (compte === null) redirect("/admin/login");
+  if (compte === null) redirect(CHEMIN_CONNEXION);
 
   const params = await searchParams;
   const sections = sectionsPour(compte.roles);

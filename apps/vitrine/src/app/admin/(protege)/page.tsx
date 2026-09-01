@@ -18,6 +18,7 @@ import {
 import { sectionsPour } from "../_sections";
 import { IconeSection } from "./_menu/IconeSection";
 import styles from "./page.module.css";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 
 // Tableau de bord du back-office (Story 6.1, refondu par la Story 13.3).
 //
@@ -27,7 +28,7 @@ import styles from "./page.module.css";
 // Une garde placée dans un `layout` N'EMPÊCHE PAS la `page` enfant de s'exécuter : Next rend
 // l'arbre de segments EN PARALLÈLE, et le `redirect()` du layout n'arrête pas un rendu déjà
 // commencé ailleurs. Mesuré le 2026-08-02 en débranchant volontairement le matcher du proxy :
-// la réponse était bien un `307 → /admin/login`, **et son corps contenait tout le tableau de
+// la réponse était bien un `307 → /connexion`, **et son corps contenait tout le tableau de
 // bord** sérialisé dans la charge RSC, le marqueur `NEXT_REDIRECT` n'arrivant qu'à la fin. Le
 // contenu avait donc déjà quitté le serveur.
 //
@@ -61,7 +62,7 @@ export default async function AdminDashboardPage() {
   // ⚠️ AUCUN RÔLE EXIGÉ : le tableau de bord doit rester atteignable par un compte qui n'en
   // porte aucun — c'est le seul endroit qui peut lui DIRE pourquoi il ne voit rien.
   const compte = await lireCompte();
-  if (compte === null) redirect("/admin/login");
+  if (compte === null) redirect(CHEMIN_CONNEXION);
 
   const sections = sectionsPour(compte.roles);
   const ouvre = (href: string) => sections.some((section) => section.href === href);

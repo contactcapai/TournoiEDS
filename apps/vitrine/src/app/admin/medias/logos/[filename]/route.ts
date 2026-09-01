@@ -22,7 +22,7 @@ import { ouvrirMedia } from "@/server/medias";
  *     navigateur ni d'un intermédiaire.
  *
  * 🔴 ET LES IMAGES QUI PASSENT PAR ICI NE PEUVENT PAS ÊTRE OPTIMISÉES. `/_next/image` requête
- * **depuis le serveur, sans cookie de session** : il reçoit le `307 → /admin/login`, pas une
+ * **depuis le serveur, sans cookie de session** : il reçoit le `307 → /connexion`, pas une
  * image. Aucune entrée `/admin/medias/**` n'est donc ajoutée à `images.localPatterns` — une
  * autorisation que plus rien ne consomme est une « porte sans pièce ». Le rendu passe
  * `unoptimized`, et les deux faits voyagent ensemble dans le booléen `sourceAdmin`

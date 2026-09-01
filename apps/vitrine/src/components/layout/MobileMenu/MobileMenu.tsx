@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ExternalIcon } from "@repo/ui";
 import { NEW_TAB_SR, classerDestination } from "@/lib/links";
+import { CHEMIN_CONNEXION } from "@/lib/auth/chemins";
 import styles from "./MobileMenu.module.css";
 
 // Lien de navigation sérialisable (données définies côté RSC dans SiteHeader).
@@ -21,33 +22,35 @@ export interface NavLink {
 // partager `usePathname`. Le SiteHeader parent reste un Server Component.
 
 // ⚠️ `DISCORD_URL` et `REJOINDRE_URL` ONT DISPARU DE `@/lib/links` (Story 6.13) : elles sont
-// devenues `site_setting.discord_url` / `site_setting.helloasso_url`, et arrivent en props.
+// devenues `site_setting.discord_url` / `site_setting.helloasso_url`. Seule la première arrive
+// encore ici — voir le CTA plus bas (Story 12.4).
 // `NEW_TAB_SR` et `isExternalUrl` sont désormais partagés depuis `@/lib/links`
 // (promus en Story 1.5 pour que header ET footer les consomment — Garde-fou n°3).
 // `ExternalIcon` l'est aussi depuis la Story 5.5 : il vivait ICI en copie locale,
 // à l'identique de celle du footer — les deux sont fondues dans `@repo/ui`.
 
 /**
- * 🔴 LES DEUX DESTINATIONS ARRIVENT EN PROPS — STORY 6.13, ET C'EST STRUCTUREL.
+ * 🔴 LA DESTINATION DISCORD ARRIVE EN PROP — STORY 6.13, ET C'EST STRUCTUREL.
  *
- * Ce composant porte `'use client'`. Les six réglages du site vivent en base
- * (`site_setting`) et se lisent par `server/db/queries/settings.ts`, qui est **`server-only`** :
- * l'importer d'ici casserait le build. `SiteHeader` (RSC) lit via le layout et transmet.
+ * Ce composant porte `'use client'`. Les réglages du site vivent en base (`site_setting`) et
+ * se lisent par `server/db/queries/settings.ts`, qui est **`server-only`** : l'importer d'ici
+ * casserait le build. `SiteHeader` (RSC) lit via le layout et transmet.
  *
- * ⚠️ Ce sont des chaînes SÉRIALISABLES, comme `links` — la frontière client reste exactement
- * celle de la Story 1.4, aucun `'use client'` n'a été ajouté ni déplacé par la 6.13.
+ * ⚠️ C'est une chaîne SÉRIALISABLE, comme `links` — la frontière client reste exactement celle
+ * de la Story 1.4, aucun `'use client'` n'a été ajouté ni déplacé depuis.
+ * 🔴 `helloassoUrl` N'ARRIVE PLUS ICI DEPUIS LA 12.4 : le CTA doré mène à `/connexion`, et
+ * l'adhésion se lit dans le pied de page et sur la home. Une prop que plus rien ne consomme
+ * est une « porte sans pièce » — elle a donc été retirée de toute la chaîne
+ * `layout → SiteHeader → MobileMenu`, et non laissée « au cas où ».
  */
 export function MobileMenu({
   links,
   discordUrl,
-  helloassoUrl,
   session,
 }: {
   links: NavLink[];
   /** Invitation Discord, ou `DESTINATION_ABSENTE`. */
   discordUrl: string;
-  /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
-  helloassoUrl: string;
   /** Deux booléens, et rien d'autre — voir `SiteHeaderProps` (Story 12.1). */
   session: { connecte: boolean; aDesRoles: boolean };
 }) {
@@ -192,41 +195,47 @@ export function MobileMenu({
     );
   }
 
-  // CTA « Nous rejoindre » (primitive Button gold, sortant sûr).
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 LE CTA DORÉ MÈNE À LA CONNEXION, PLUS À HELLOASSO — STORY 12.4
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Il portait « Nous rejoindre » et ouvrait la page d'adhésion HelloAsso, c'est-à-dire un
+   * **paiement**. C'était le seul accent doré du chrome, donc le premier geste que le site
+   * proposait à un inconnu — et le plus coûteux qu'on puisse lui demander. Trois raisons de
+   * l'avoir déplacé (arbitrage de Brice, 2026-08-31) :
+   *   ① l'accent doré ne veut dire quelque chose que s'il est **rare**, et le rare doit
+   *      porter le geste que TOUT LE MONDE peut faire (leçon 13.1, « 4 boutons or × 64 ») ;
+   *   ② « Nous rejoindre » est **ambigu** — ça se lit « rejoindre la communauté » et ça
+   *      menait à une caisse. `DoubleDoor`, sur la home, écrit « Adhérer via HelloAsso » : le
+   *      chrome en disait moins que la home sur sa propre destination ;
+   *   ③ depuis la 12.2 et la 12.3 il existe enfin un geste **gratuit et immédiat** derrière
+   *      un compte (annoncer sa venue, s'inscrire à un tournoi).
+   *
+   * ⚠️ **L'ADHÉSION N'A PAS DISPARU DU CHROME**, et c'est ce qui rend l'arbitrage tenable :
+   * `SiteFooter` porte « Adhérer (HelloAsso) » dans sa colonne « Participer », sur toutes les
+   * pages, et la porte Joueurs de la home la propose en toutes lettres. ⇒ Ne pas la
+   * « rétablir » ici en croyant réparer un oubli.
+   * ⚠️ **ADHÉRER ≠ AVOIR UN COMPTE** : l'un est associatif et payant, l'autre technique et
+   * gratuit. Les deux libellés doivent rester distincts — c'est ce que « Nous rejoindre »
+   * brouillait.
+   *
+   * 🔴 UN SEUL LIBELLÉ POUR DEUX GESTES, ET C'EST UN FAIT TECHNIQUE : il n'existe aucun
+   * formulaire d'inscription: Discord, Google et le lien magique créent le compte au premier
+   * passage. « Créer mon profil » et « Se connecter » désigneraient le même écran. On écrit
+   * celui qui parle à qui n'a rien — et `/connexion` dit lui-même que le compte se crée en
+   * se connectant, pour celui qui revient.
+   *
+   * ⚠️ **RIEN POUR UN CONNECTÉ** (arbitrage de Brice) : il a déjà « Mon profil » dans les
+   * actions, et un bouton doré « Créer mon profil » lui proposerait ce qu'il possède. Le
+   * chrome perd alors son accent doré une fois le compte créé, et c'est voulu.
+   */
   function renderCta(onNavigate?: () => void) {
-    const destination = classerDestination(helloassoUrl);
+    if (session.connecte) return null;
 
-    // 🔴 SANS DESTINATION, LE CTA RESTE VISIBLE MAIS NE CLIQUE PLUS — arbitrage de Brice
-    // du 2026-08-01 (Story 5.5). `REJOINDRE_URL` valait la page d'accueil GÉNÉRIQUE de
-    // HelloAsso : une vraie URL https, donc classée sortante, donc ce bouton ouvrait un
-    // nouvel onglet et l'annonçait au lecteur d'écran — vers un site tiers sans rapport
-    // avec l'association. Un placeholder est inerte ; cela était ACTIF ET FAUX.
-    //
-    // ⚠️ ET C'EST LE RAPPEL : rien n'est en ligne, et ce bouton mort est le SEUL signal
-    // visuel qui rappellera la dette R29 au moment du go-live. La dette R15 documente
-    // exactement l'inverse — le hero a cessé d'afficher son placeholder, et plus rien
-    // ne rappelle le travail restant. Le jour où l'URL arrive, UNE ligne de `lib/links.ts`
-    // rallume les quatre rendus de ce CTA, avec icône et annonce.
-    // 🔴 MISE À JOUR 6.13 : ce n'est plus « UNE ligne de `lib/links.ts` » — la valeur se SAISIT
-    // désormais dans `/admin/reglages` et arrive ici en prop. Le comportement, lui, est
-    // strictement inchangé : c'est toujours `classerDestination` qui décide.
-    if (destination === "absente") {
-      return <Button variant="gold" inactive>Nous rejoindre</Button>;
-    }
-
-    const external = destination === "externe";
     return (
-      <Button
-        variant="gold"
-        href={helloassoUrl}
-        icon={external ? <ExternalIcon /> : undefined}
-        {...(external
-          ? { target: "_blank", rel: "noopener noreferrer" }
-          : {})}
-        onClick={onNavigate}
-      >
-        Nous rejoindre
-        {external && <span className="sr-only">{NEW_TAB_SR}</span>}
+      <Button variant="gold" href={CHEMIN_CONNEXION} onClick={onNavigate}>
+        Créer mon profil
       </Button>
     );
   }
@@ -242,10 +251,15 @@ export function MobileMenu({
    * double. Ces deux liens vivent donc avec les CTA, où sont déjà les destinations qui ne sont
    * pas des pages du récit.
    *
-   * ⚠️ **RIEN POUR UN VISITEUR ANONYME**, et surtout pas un « Se connecter » : le site public ne
-   * demande de compte à personne aujourd'hui (aucune inscription en ligne avant la 12.3).
-   * Annoncer une porte dont personne n'a besoin, c'est promettre une fonction absente — le
-   * défaut que les planches Stitch ont écarté nommément.
+   * 🔴 **CE COMMENTAIRE DISAIT L'INVERSE, ET SA RAISON ÉTAIT PÉRIMÉE — CORRIGÉ PAR LA 12.4.**
+   * Il justifiait de ne RIEN montrer à un visiteur anonyme par « le site public ne demande de
+   * compte à personne (aucune inscription en ligne avant la 12.3) ». La 12.3 est déployée
+   * depuis le 2026-08-26 : annoncer une porte de compte ne promet plus une fonction absente,
+   * elle en désigne deux qui existent. ⇒ 3ᵉ occurrence du motif « un contrat tenu dont on ne
+   * réécrit pas l'énoncé devient un faux témoin » (après `AIDES_MODE_INSCRIPTION` et « a
+   * abandonné »).
+   * ⚠️ La porte d'un anonyme n'est pas ici pour autant : c'est le **CTA doré** (`renderCta`),
+   * là où était « Nous rejoindre ». Ces deux liens-ci restent réservés aux connectés.
    * ⚠️ **« Back-office » N'APPARAÎT QUE S'IL Y A UN RÔLE** : le montrer à un participant lui
    * offrirait une porte qui se refermerait sur `/admin/refus`.
    */

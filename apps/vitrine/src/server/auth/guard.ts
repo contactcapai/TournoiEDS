@@ -8,6 +8,7 @@ import { db } from "../db/client";
 import { account, userRole } from "../db/schema";
 import { estAdminAutorise } from "./allowlist";
 import { auth } from "./config";
+import { CHEMIN_CONNEXION } from "../../lib/auth/chemins";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -131,7 +132,7 @@ async function lireIdentifiantDiscord(utilisateurId: string): Promise<string | n
  * Exige un rôle depuis une PAGE ou un LAYOUT — redirige plutôt que de lever.
  *
  * 🔴 DEUX REFUS DIFFÉRENTS, DEUX DESTINATIONS DIFFÉRENTES, ET LES CONFONDRE FERAIT UNE
- * BOUCLE. « Pas connecté » se répare en se connectant (`/admin/login`). « Connecté mais sans
+ * BOUCLE. « Pas connecté » se répare en se connectant (`/connexion`). « Connecté mais sans
  * le rôle » ne se répare PAS en se reconnectant : renvoyer ce cas vers la page de login la
  * ferait renvoyer vers l'admin, qui renverrait vers le login. Il lui faut une page qui le
  * DISE — `/admin/refus`.
@@ -142,7 +143,7 @@ async function lireIdentifiantDiscord(utilisateurId: string): Promise<string | n
  */
 export async function exigerRolePage(role: RoleAdmin): Promise<CompteConnecte> {
   const compte = await lireCompte();
-  if (compte === null) redirect("/admin/login");
+  if (compte === null) redirect(CHEMIN_CONNEXION);
   if (!detientRole(compte.roles, role)) redirect(`/admin/refus?role=${role}`);
   return compte;
 }
@@ -166,7 +167,7 @@ export async function exigerRolePage(role: RoleAdmin): Promise<CompteConnecte> {
  */
 export async function exigerConnexionPage(): Promise<CompteConnecte> {
   const compte = await lireCompte();
-  if (compte === null) redirect("/admin/login");
+  if (compte === null) redirect(CHEMIN_CONNEXION);
   return compte;
 }
 

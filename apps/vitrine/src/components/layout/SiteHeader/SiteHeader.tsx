@@ -37,8 +37,10 @@ import styles from "./SiteHeader.module.css";
 // Le supprimer « puisque plus personne ne s'en sert » retirerait la branche, donc obligerait à
 // la réécrire — c'est le patron de l'exemption qu'on ne retire pas (garde ② de `gate:links`).
 //
-// Discord et le CTA « Nous rejoindre », eux, restent sortants : ils sont rendus à part dans
-// MobileMenu, depuis les réglages du site (Story 6.13).
+// Discord reste sortant, et il est rendu à part dans MobileMenu depuis les réglages du site
+// (Story 6.13). ⚠️ LE CTA DORÉ, LUI, N'EST PLUS SORTANT DEPUIS LA 12.4 : il portait « Nous
+// rejoindre » vers HelloAsso, il porte « Créer mon profil » vers `/connexion` — un chemin
+// interne, donc sans nouvel onglet, sans icône et sans mention pour lecteur d'écran.
 const NAV_LINKS: NavLink[] = [
   { label: "Accueil", href: "/" },
   { label: "Agenda", href: "/agenda" },
@@ -49,17 +51,21 @@ const NAV_LINKS: NavLink[] = [
 ];
 
 /**
- * 🔴 LES DEUX DESTINATIONS ARRIVENT EN PROPS DEPUIS LE LAYOUT — STORY 6.13.
+ * 🔴 LA DESTINATION DISCORD ARRIVE EN PROP DEPUIS LE LAYOUT — STORY 6.13.
  *
- * Ce composant ne les lit pas lui-même, et il ne le pourra jamais pour l'une des deux : c'est
- * `MobileMenu`, un composant CLIENT, qui les rend, et un module `server-only` ne peut pas y
- * être importé. Le layout lit une fois et distribue (patron AC1 de la 3.2).
+ * Ce composant ne la lit pas lui-même, et il ne le pourra jamais : c'est `MobileMenu`, un
+ * composant CLIENT, qui la rend, et un module `server-only` ne peut pas y être importé. Le
+ * layout lit une fois et distribue (patron AC1 de la 3.2).
+ *
+ * 🔴 `helloassoUrl` A ÉTÉ RETIRÉE DE TOUTE LA CHAÎNE PAR LA 12.4. Le CTA doré du chrome mène
+ * désormais à `/connexion` ; l'adhésion se lit dans le pied de page (« Adhérer (HelloAsso) »,
+ * colonne Participer) et sur la porte Joueurs de la home. Garder la prop « au cas où » aurait
+ * laissé une « porte sans pièce » — une valeur transportée sur trois niveaux que plus rien ne
+ * rend, et que la prochaine lecture croirait consommée quelque part.
  */
 export interface SiteHeaderProps {
   /** Invitation Discord, ou `DESTINATION_ABSENTE` — voir `lireReglages()`. */
   discordUrl: string;
-  /** Page d'adhésion HelloAsso, ou `DESTINATION_ABSENTE`. */
-  helloassoUrl: string;
   /**
    * Ce que le chrome sait de la session (Story 12.1) — **deux booléens, et rien d'autre**.
    *
@@ -71,7 +77,7 @@ export interface SiteHeaderProps {
   session: { connecte: boolean; aDesRoles: boolean };
 }
 
-export function SiteHeader({ discordUrl, helloassoUrl, session }: SiteHeaderProps) {
+export function SiteHeader({ discordUrl, session }: SiteHeaderProps) {
   return (
     <header className={styles.header}>
       <Wrap className={styles.row}>
@@ -88,12 +94,7 @@ export function SiteHeader({ discordUrl, helloassoUrl, session }: SiteHeaderProp
           />
         </Link>
 
-        <MobileMenu
-          links={NAV_LINKS}
-          discordUrl={discordUrl}
-          helloassoUrl={helloassoUrl}
-          session={session}
-        />
+        <MobileMenu links={NAV_LINKS} discordUrl={discordUrl} session={session} />
       </Wrap>
     </header>
   );

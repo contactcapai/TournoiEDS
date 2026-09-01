@@ -38,8 +38,27 @@
  */
 export const RACINES_DE_RETOUR = ["/admin", "/profil", "/agenda", "/tournois"] as const;
 
-/** Là où l'on va quand `next` est absent ou refusé. */
-export const RETOUR_PAR_DEFAUT = "/admin";
+/**
+ * Là où l'on va quand `next` est absent ou refusé.
+ *
+ * 🔴 `/profil` DEPUIS LA 12.4, ET CE N'ÉTAIT PLUS TENABLE À `/admin`. Se connecter sans
+ * `next` — en cliquant « Créer mon profil » dans le chrome, ou en revenant sur `/connexion`
+ * à la main — déposait le visiteur sur le **tableau de bord du back-office**. Un joueur n'y
+ * a aucun rôle : il y voit un écran qui n'annonce rien, au bout d'un parcours qui promettait
+ * un compte. C'est le mur que la 12.4 corrige, à un autre endroit que la page de connexion.
+ *
+ * ⚠️ `/profil` est la seule surface que TOUT compte connecté possède, rôle ou non — c'est
+ * ce qui en fait un défaut légitime. `/admin` n'en était un que du temps où seuls des
+ * administrateurs se connectaient.
+ * ⚠️ CE QUE ÇA COÛTE À L'ÉQUIPE, ET C'EST ASSUMÉ : un bénévole qui tape `/connexion` à la
+ * main arrive sur son profil, d'où le chrome lui offre « Back-office ». Un clic de plus pour
+ * quelques bénévoles, contre un cul-de-sac évité pour tous les joueurs.
+ * 🔴 AUCUN TEST N'AURAIT ROUGI EN CHANGEANT CETTE LIGNE : `retour.test.ts` compare à la
+ * CONSTANTE, jamais à sa valeur. C'est pour ça que `retour.test.ts` en fige désormais la
+ * valeur explicitement — une constante qu'aucun test ne lit littéralement peut changer de
+ * sens sans que rien ne le dise.
+ */
+export const RETOUR_PAR_DEFAUT = "/profil";
 
 export function destinationApresConnexion(next: unknown): string {
   if (typeof next !== "string" || next.length === 0) return RETOUR_PAR_DEFAUT;
