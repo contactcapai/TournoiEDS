@@ -43,6 +43,30 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 `force-dynamic` — ET ICI LA RAISON N'EST PAS CELLE DES CINQ AUTRES PAGES
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `/`, `/agenda`, `/partenaires`, `/animations` et `/l-asso` portent cette ligne parce
+ * qu'ELLES lisent la base. **Cette page-ci ne lit rien** : son contenu est du texte et
+ * `lib/legal.ts` est un objet constant. On peut donc croire, très raisonnablement, qu'elle
+ * n'en a pas besoin.
+ *
+ * 🔴 C'EST SON LAYOUT QUI LIT LA BASE. Depuis la Story 6.13, `(public)/layout.tsx` lit
+ * `site_setting` pour le pied de page et le chrome — donc TOUTE page de ce groupe touche la
+ * base, même celle qui n'a aucune requête à elle. Sans cette ligne, Next tente un PRÉRENDU au
+ * build, la connexion Drizzle s'ouvre, et `next build` échoue.
+ *
+ * ⚠️ ET LE DÉFAUT EST INVISIBLE EN LOCAL, PAR CONSTRUCTION : ici `.env.local` fournit
+ * `DATABASE_URL`, donc la lecture réussit et la page bascule d'elle-même en dynamique. La CI
+ * construit SANS AUCUN SECRET (garde-fou n°2 de la Story 1.7, structurel dans `ci.yml`) :
+ * elle est le seul endroit où ça casse. ⇒ Trouvé par la CI, et par elle seule — l'exact
+ * symétrique de « le rendu se regarde sur staging ».
+ * ⚠️ Le commentaire de `/l-asso` décrivait ce piège mot pour mot, AVANT qu'on le refasse.
+ */
+export const dynamic = "force-dynamic";
+
 export default function ConfidentialitePage() {
   return (
     <>
