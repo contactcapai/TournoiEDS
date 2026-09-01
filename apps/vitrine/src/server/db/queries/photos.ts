@@ -41,7 +41,11 @@ import { photo, siteSetting } from "../schema";
  */
 export async function getPublishedPhotos(limit?: number) {
   return db.query.photo.findMany({
-    columns: { id: true, filename: true, alt: true, caption: true },
+    // ⚠️ `focalX`/`focalY` AJOUTÉS PAR LE CORRECTIF DU 2026-09-01 : les vignettes du
+    // scrapbook recadrent en 4/3 (`PhotoFrame`, `object-fit: cover`), donc elles COUPENT.
+    // Elles ignoraient le point focal alors que c'est sur CET écran qu'on le pose — une
+    // incohérence que seul l'œil pouvait voir : le hero cadrait juste, la galerie non.
+    columns: { id: true, filename: true, alt: true, caption: true, focalX: true, focalY: true },
     where: (table, { eq }) => eq(table.isPublished, true),
     orderBy: (table, { asc }) => [asc(table.sortOrder), asc(table.id)],
     ...(limit === undefined ? {} : { limit }),
@@ -80,7 +84,17 @@ export async function getPhotosForEvents(eventIds: string[]) {
   if (eventIds.length === 0) return new Map<string, GalleryPhoto>();
 
   const lignes = await db.query.photo.findMany({
-    columns: { id: true, filename: true, alt: true, caption: true, eventId: true },
+    // Même correctif que `getPublishedPhotos` : la vignette d'un événement passé recadre
+    // elle aussi en 4/3.
+    columns: {
+      id: true,
+      filename: true,
+      alt: true,
+      caption: true,
+      eventId: true,
+      focalX: true,
+      focalY: true,
+    },
     where: (table, { and, eq }) =>
       and(eq(table.isPublished, true), inArray(table.eventId, eventIds)),
     orderBy: (table, { asc }) => [asc(table.sortOrder), asc(table.id)],
@@ -128,6 +142,12 @@ export async function getPhotosForAdmin(limit: number) {
       eventId: true,
       sortOrder: true,
       isPublished: true,
+      // ⚠️ Le point focal remonte AUSSI ici, et c'est l'aperçu du bénévole qui l'exige : il
+      // montre ce qu'un VISITEUR voit. Sans lui, il rendrait un cadrage que le site
+      // n'applique pas — un aperçu qui ment sur le cadrage est pire qu'une absence
+      // d'aperçu, puisqu'on le regarde précisément pour juger du rendu.
+      focalX: true,
+      focalY: true,
     },
     with: {
       // Le titre de l'événement rattaché : l'écran doit dire À QUOI la photo est rattachée,
