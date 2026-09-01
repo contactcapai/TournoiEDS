@@ -14,8 +14,13 @@ WORKDIR /repo
 # Manifests d'abord (cache des couches d'install tant que les deps ne bougent pas).
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY apps/vitrine/package.json               apps/vitrine/
-COPY apps/tournoi-web/package.json           apps/tournoi-web/
-COPY apps/tournoi-api/package.json           apps/tournoi-api/
+# 🔴 LES DEUX COPY DE L ANCIENNE APP ONT ETE RETIRES PAR LE CORRECTIF DE LA 10.7. Elle a
+# supprime apps/tournoi-web et apps/tournoi-api ; ces lignes ont survecu, et le build a
+# CONTINUE DE PASSER tant que le cache Docker tenait la couche. Il a casse au premier
+# rebuild reel — c est-a-dire au deploiement SUIVANT, pas a celui de la story fautive.
+# ⚠️ L audit de renvois de la 10.7 avait greppe *.json, *.yml, *.mjs, *.ts et *.tsx : il
+# n a jamais regarde les Dockerfile. Couvrir les QUATRE natures de domicile veut aussi
+# dire couvrir l INFRA, pas seulement le code et la doc.
 COPY packages/typescript-config/package.json packages/typescript-config/
 COPY packages/eslint-config/package.json     packages/eslint-config/
 COPY packages/ui/package.json                packages/ui/
@@ -26,8 +31,9 @@ RUN pnpm install --frozen-lockfile
 COPY packages/   packages/
 COPY apps/vitrine/ apps/vitrine/
 
-# NEXT_PUBLIC_SITE_URL : inlinée dans le bundle JS au build (comme VITE_API_URL
-# pour tournoi-web). Valeur prod = https://esportdessacres.fr.
+# NEXT_PUBLIC_SITE_URL : inlinée dans le bundle JS au build. Valeur prod =
+# https://esportdessacres.fr. (La comparaison avec VITE_API_URL de tournoi-web a ete
+# retiree : cette app n existe plus depuis la 10.7.)
 # Ne JAMAIS passer DATABASE_URL ici (server-only, contiendrait des identifiants).
 ARG NEXT_PUBLIC_SITE_URL=https://esportdessacres.fr
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
