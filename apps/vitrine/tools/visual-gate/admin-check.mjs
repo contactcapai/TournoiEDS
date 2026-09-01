@@ -203,31 +203,51 @@ for (const route of ROUTES_EPROUVEES) {
   }
 }
 
-// ── ⑦  LES DEUX CHEMINS HÉRITÉS REDIRIGENT, ET ILS EMPORTENT LEUR QUERY (Story 12.4) ─
+// ── ⑧  LES DEUX CHEMINS HÉRITÉS REDIRIGENT, ET ILS EMPORTENT LEUR QUERY (Story 12.4) ─
 //
 // 🔴 CETTE GARDE MESURE L'EFFET, PAS LE STATUT. Une redirection qui perd `?next=` rend un
 // 307 parfaitement vert tout en déposant le joueur sur son profil au lieu du tournoi où il
 // voulait s'inscrire — le défaut serait invisible à toute porte qui se contenterait du code.
 // ⚠️ Elle vaut aussi comme garde d'ORDRE : le proxy est fail-closed sous `/admin`, donc si
 // `/admin/login` cessait d'être déclaré ouvert dans `sections.ts`, il serait refusé AVANT
-// d'avoir pu rediriger. Ce cas rendrait une redirection vers `/connexion?next=/admin/login`,
-// que ce test refuse puisqu'il exige la destination exacte.
+// d'avoir pu rediriger. Ce cas rendrait `?next=/admin/login`, que ce test refuse.
+//
+// 🔴 INSTRUMENT FAUX À SA PREMIÈRE EXÉCUTION, ET IL ACCUSAIT LE PRODUIT — corrigé ici, sur
+// staging, le 2026-09-01. La première version comparait les emplacements EN CHAÎNES BRUTES :
+// elle attendait `/connexion?next=/tournois/exemple` et recevait
+// `/connexion?next=%2Ftournois%2Fexemple`. Next ENCODE la query, `%2F` EST le `/` — les deux
+// URLs sont équivalentes, la redirection était parfaite, et c'est le test qui avait tort.
+// ⇒ On compare désormais le CHEMIN d'un côté et la VALEUR DÉCODÉE de `next` de l'autre, ce
+// qui est exactement ce qu'on veut prouver : la destination arrive intacte.
+// ⚠️ ASSOUPLIR N'EST PAS RELÂCHER : comparer les URL décodées reste strictement plus exigeant
+// que « il y a un ?next= quelque part ». Une garde qu'on corrige doit continuer de savoir
+// échouer — mutation vérifiée : en attendant `/tournois/AUTRE`, elle repasse au rouge.
+// ⚠️ Numérotée ⑧ et non ⑦ : ⑦ est déjà « public sans login ». Deux gardes sous le même
+// chiffre rendent un rapport illisible le jour où l'une des deux échoue.
 {
   const attendus = [
-    [
-      `${CHEMIN_CONNEXION_HERITE}?next=/tournois/exemple`,
-      `${CHEMIN_CONNEXION}?next=/tournois/exemple`,
-    ],
-    [CHEMIN_CONNEXION_VERIFIER_HERITE, CHEMIN_CONNEXION_VERIFIER],
+    [`${CHEMIN_CONNEXION_HERITE}?next=/tournois/exemple`, CHEMIN_CONNEXION, "/tournois/exemple"],
+    [CHEMIN_CONNEXION_VERIFIER_HERITE, CHEMIN_CONNEXION_VERIFIER, null],
   ];
-  for (const [herite, attendu] of attendus) {
+  for (const [herite, cheminAttendu, nextAttendu] of attendus) {
     const r = await demander(herite);
     if (!estRedirection(r.statut)) {
-      ko("⑦ chemin hérité", herite, `statut ${r.statut} au lieu d'une redirection`);
-    } else if (r.emplacement !== attendu) {
-      ko("⑦ chemin hérité", herite, `redirige vers « ${r.emplacement} », attendu « ${attendu} »`);
+      ko("⑧ chemin hérité", herite, `statut ${r.statut} au lieu d'une redirection`);
+      continue;
+    }
+    // `new URL(…, BASE)` accepte aussi bien un `Location` absolu que relatif.
+    const cible = new URL(r.emplacement ?? "", BASE);
+    const nextRecu = cible.searchParams.get("next");
+    if (cible.pathname !== cheminAttendu) {
+      ko("⑧ chemin hérité", herite, `atterrit sur « ${cible.pathname} », attendu « ${cheminAttendu} »`);
+    } else if (nextRecu !== nextAttendu) {
+      ko(
+        "⑧ chemin hérité",
+        herite,
+        `next reçu « ${nextRecu} », attendu « ${nextAttendu} » — la destination s'est perdue`,
+      );
     } else {
-      ok("⑦ chemin hérité", herite, `${r.statut} → ${r.emplacement}`);
+      ok("⑧ chemin hérité", herite, `${r.statut} → ${cible.pathname}${nextRecu ? ` (next intact)` : ""}`);
     }
   }
 }
