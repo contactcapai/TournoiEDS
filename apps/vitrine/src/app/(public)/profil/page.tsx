@@ -186,6 +186,45 @@ export default async function ProfilPage() {
             Pour lier un autre moyen, déconnectez-vous et reconnectez-vous avec lui&nbsp;: les
             comptes qui partagent votre adresse se rattachent automatiquement.
           </p>
+
+          {/* ══════════════════════════════════════════════════════════════════════════════
+              🔴 SE DÉCONNECTER — TROUVÉ PAR BRICE LE 2026-09-01, SUR UN COMPTE RÉEL
+              ══════════════════════════════════════════════════════════════════════════════
+
+              Il n'y en avait AUCUN hors du back-office. Un participant — c'est-à-dire un
+              compte sans rôle, donc tout le public que la 12.4 vient de faire entrer — n'avait
+              qu'UNE façon de fermer sa session : **supprimer son compte**. Un geste
+              irréversible, offert à la place d'un geste anodin.
+
+              🔴 C'EST UN DÉFAUT CRÉÉ PAR LA 12.4, PAS RÉVÉLÉ PAR ELLE. Tant que seuls des
+              administrateurs se connectaient, le bouton du chrome d'administration suffisait :
+              tout compte connecté en avait un. En ouvrant la connexion à tout le monde, on a
+              fabriqué des comptes qui ne pouvaient plus sortir. ⚠️ Même famille que le défaut
+              de la PR #92 (un administrateur sans chemin vers son profil) : on ouvre une
+              capacité à un public, et on oublie de lui ouvrir la porte qui va avec.
+
+              🔴 ET LA PAGE PRESCRIVAIT DÉJÀ LE GESTE QU'ELLE NE PERMETTAIT PAS — la phrase
+              juste au-dessus dit « déconnectez-vous et reconnectez-vous ». Une instruction qui
+              demande une action introuvable est pire qu'un silence : elle fait chercher.
+              C'est pourquoi le bouton est ICI et pas ailleurs, immédiatement sous elle.
+
+              ⚠️ LOIN DE « SUPPRIMER MON COMPTE », ET C'EST LA VRAIE PRÉCAUTION : les deux
+              gestes ferment la session, un seul est irréversible. Ils vivent dans DEUX
+              sections distinctes (identité / votre compte), jamais côte à côte — la parade de
+              la 13.1 était déjà « qu'un seul des deux soit cliquable au même endroit ».
+
+              ⚠️ Server Action en ligne, aucun composant client : `signOut()` écrit des
+              en-têtes, ce qu'une action appelée depuis le client ne peut pas faire. */}
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}
+          >
+            <button className={styles.deconnexion} type="submit">
+              Se déconnecter
+            </button>
+          </form>
         </Wrap>
       </section>
     </>
