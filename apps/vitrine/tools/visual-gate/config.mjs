@@ -46,7 +46,8 @@
 // seulement la seule page qui donnait l'illusion du contraire.
 export const PAGES = (
   process.env.GATE_PAGES ??
-  "/,/agenda,/partenaires,/l-asso,/animations,/tournois,/connexion,/connexion/verifier"
+  "/,/agenda,/partenaires,/l-asso,/animations,/tournois,/connexion,/connexion/verifier," +
+    "/mentions-legales,/confidentialite"
 ).split(",");
 
 // 7 largeurs de référence du projet : 320 (le plus tendu), 412, 768, 880 (le
