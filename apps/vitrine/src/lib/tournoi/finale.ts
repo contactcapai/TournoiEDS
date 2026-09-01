@@ -13,7 +13,7 @@ import type { PhaseKind } from "./structure";
  * ══════════════════════════════════════════════════════════════════════════════════════
  *
  * 🔴 CETTE RÈGLE N'EST PAS NEUVE : elle tourne depuis le 2026-04-18 dans l'ancienne app
- * (`apps/tournoi-api/src/services/winnerDetector.ts`, validée par Brice), et le nouveau moteur
+ * (`apps/tournoi-api/src/services/winnerDetector.ts`, validée par Brice — l'ancienne app, RETIRÉE par la 10.7 (2026-09-01)), et le nouveau moteur
  * n'en avait **rien**. `finale` n'y différait de `lobbies` que par une seule ligne — une table
  * unique au lieu de lobbies équilibrés. ⚠️ **C'est donc un prérequis de la Story 10.7** :
  * retirer l'ancienne app sans ce module perdrait la règle qui désigne le vainqueur.
