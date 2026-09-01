@@ -167,6 +167,11 @@ export async function lireReglagesPourSaisie() {
       linkedinUrl: siteSetting.linkedinUrl,
       helloassoUrl: siteSetting.helloassoUrl,
       contactEmail: siteSetting.contactEmail,
+      // ⚠️ Ajoutée par la 7.3, et SEULEMENT ici : `lireReglages()` (le rendu public) n'en
+      // a pas besoin — c'est `getPhotoDuHero()` qui résout la photo, jointure comprise.
+      // Remonter l'identifiant côté public ferait croire qu'il suffit, alors qu'il ne dit
+      // rien de la publication du média.
+      heroPhotoId: siteSetting.heroPhotoId,
     })
     .from(siteSetting)
     .limit(1);

@@ -9,6 +9,7 @@ import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import { ALT_MAX, ALT_MIN, CAPTION_MAX, photoInputSchema } from "@/lib/schemas/photo";
 import { enregistrerPhoto } from "@/server/actions/galerie";
 import styles from "@/styles/admin-form.module.css";
+import { PointFocal } from "../PointFocal/PointFocal";
 
 /**
  * Modification d'une photo déjà téléversée (Story 6.4) — description, légende, rattachement.
@@ -40,9 +41,15 @@ const ETAT_INITIAL: EtatForm = { statut: "vierge" };
 export interface PhotoFormProps {
   photo: {
     id: string;
+    /** ⚠️ Ajouté par la 7.3 : `PointFocal` a besoin d'AFFICHER la photo pour qu'on
+        désigne son sujet. Sans le nom de fichier, il ne pourrait proposer que deux
+        champs numériques — c'est-à-dire l'outil que cette story a écarté. */
+    filename: string;
     alt: string;
     caption: string | null;
     eventId: string | null;
+    focalX: number;
+    focalY: number;
   };
   evenements: readonly { id: string; titre: string }[];
 }
@@ -147,6 +154,16 @@ export function PhotoForm({ photo, evenements }: PhotoFormProps) {
           "la description informe."
         }
         erreur={erreurs.caption}
+      />
+
+      {/* ⚠️ APRÈS le texte alternatif, AVANT le rattachement : on décrit la photo, on
+          cadre la photo, puis on la range. L'ordre suit ce qu'on fait, pas la structure
+          de la table. */}
+      <PointFocal
+        filename={photo.filename}
+        alt={photo.alt}
+        focalX={photo.focalX}
+        focalY={photo.focalY}
       />
 
       <div className={styles.champ}>

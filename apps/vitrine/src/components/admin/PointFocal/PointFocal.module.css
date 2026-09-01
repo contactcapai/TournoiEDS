@@ -1,0 +1,108 @@
+/* Point focal — Story 7.3. Tokens uniquement, breakpoint 880px en littéral. */
+
+.bloc {
+  margin-top: 26px;
+}
+
+.titre {
+  margin: 0 0 6px;
+  font-family: var(--font-body);
+  font-size: var(--fs-nav);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* Une borne de lisibilité se pose sur le PARAGRAPHE, jamais sur son conteneur — leçon
+   payée par `.form` en 13.1, qui bornait aussi les grilles qu'il contenait. */
+.aide {
+  max-width: 64ch;
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* 🔴 `nowrap` EST UNE GARDE, PAS UNE PRÉFÉRENCE (leçon 13.1, PR #77) : avec `wrap`, le
+   min-content de cette rangée vaudrait UN élément, et l'aperçu s'empilerait sous la zone
+   de clic EN SILENCE dès que la colonne se resserre. Sous 880px, on empile — mais on le
+   DÉCIDE, on ne le subit pas. */
+.paire {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+@media (max-width: 880px) {
+  .paire {
+    flex-direction: column;
+  }
+}
+
+/* `width: 0` + `flex-grow` plutôt que `min-width: 0` seul : un enfant flex reste
+   dimensionné par son CONTENU même à `min-width: 0` — piège mesuré sur ce projet. */
+.zone {
+  position: relative;
+  width: 0;
+  flex-grow: 1;
+  cursor: crosshair;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  line-height: 0;
+}
+
+.zone:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Le repère : deux anneaux concentriques, lisibles sur clair COMME sur sombre — une seule
+   couleur disparaîtrait sur la moitié des photos. */
+.repere {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.apercu {
+  flex: 0 0 220px;
+}
+
+@media (max-width: 880px) {
+  .apercu {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 260px;
+  }
+}
+
+.legende {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--grey);
+}
+
+/* Le cadre du hero : 4/3 et `cover`, à l'identique de la primitive `PhotoFrame`. C'est ce
+   qui rend l'aperçu HONNÊTE — un ratio approché montrerait un cadrage qui n'existe pas. */
+.imageApercu {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--navy-deep);
+}

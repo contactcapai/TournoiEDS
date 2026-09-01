@@ -187,6 +187,21 @@ export const photoInputSchema = z.object({
     .default(0),
   /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`). */
   isPublished: z.boolean().default(false),
+
+  /**
+   * Le point focal, en pourcentage (Story 7.3).
+   *
+   * ⚠️ `coerce` : ces valeurs arrivent d'un `<input type="hidden">`, donc en CHAÎNE. Sans
+   * elle, un `z.number()` refuserait `"38"` et le formulaire échouerait sur un champ que
+   * personne ne voit — la pire erreur à diagnostiquer.
+   * ⚠️ Les mêmes bornes qu'en base (`photo_focal_borne`), et c'est délibérément une
+   * REDONDANCE : Zod rend un message humain au point de saisie, le `CHECK` tient le
+   * plancher qu'aucun `UPDATE` direct ne contourne. Doctrine de ce fichier.
+   * ⚠️ `.default(50)` — le centre, c'est-à-dire le comportement de `object-fit: cover`
+   * sans point focal. Un formulaire qui ne poste pas ces champs ne déplace donc rien.
+   */
+  focalX: z.coerce.number().int().min(0).max(100).default(50),
+  focalY: z.coerce.number().int().min(0).max(100).default(50),
 });
 
 export type PhotoInput = z.infer<typeof photoInputSchema>;

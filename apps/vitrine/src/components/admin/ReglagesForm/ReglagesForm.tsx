@@ -72,7 +72,20 @@ export interface ReglagesFormProps {
     linkedinUrl: string | null;
     helloassoUrl: string | null;
     contactEmail: string;
+    /** La photo de l'accueil, ou `null` — Story 7.3. */
+    heroPhotoId: string | null;
   };
+
+  /**
+   * Les photos parmi lesquelles choisir celle de l'accueil (Story 7.3).
+   *
+   * 🔴 SEULEMENT LES PHOTOS PUBLIÉES, ET C'EST UNE GARDE. La route `/medias/[filename]`
+   * ne sert QUE les médias publiés — mesuré le 2026-09-01, un brouillon y rend **404**.
+   * Proposer un brouillon ici laisserait choisir une photo qui ne s'afficherait pas, et
+   * l'écran de réglages annoncerait un choix enregistré pendant que l'accueil rendrait un
+   * cadre vide. ⇒ Ce qu'on ne peut pas afficher ne se propose pas.
+   */
+  photos: readonly { id: string; alt: string }[];
 }
 
 /**
@@ -89,7 +102,7 @@ function aideDuChamp(base: string, valeur: string): string {
     : base;
 }
 
-export function ReglagesForm({ reglages }: ReglagesFormProps) {
+export function ReglagesForm({ reglages, photos }: ReglagesFormProps) {
   const router = useRouter();
 
   const [valeurs, setValeurs] = useState({
@@ -99,6 +112,7 @@ export function ReglagesForm({ reglages }: ReglagesFormProps) {
     linkedinUrl: reglages.linkedinUrl ?? "",
     helloassoUrl: reglages.helloassoUrl ?? "",
     contactEmail: reglages.contactEmail,
+    heroPhotoId: reglages.heroPhotoId ?? "",
   });
 
   const changer = (cle: keyof typeof valeurs) => (valeur: string) =>
@@ -190,6 +204,53 @@ export function ReglagesForm({ reglages }: ReglagesFormProps) {
         erreur={erreurs.contactEmail}
         autoComplete="off"
       />
+
+      {/* ══════════════════════════════════════════════════════════════════════════════
+          LA PHOTO DE LA PAGE D'ACCUEIL — STORY 7.3
+          ══════════════════════════════════════════════════════════════════════════════
+          🔴 ELLE ÉTAIT ÉCRITE EN DUR dans le code (`/photos/soiree-bar-eds-01.avif`,
+          922×480, posée hors story le 2026-07-28). Le commentaire de `Hero.tsx` annonçait
+          lui-même son remplaçant : « ce qui manque : une photo HD, l'optimisation Next, et
+          le passage par le back-office ».
+
+          ⚠️ UN `<select>` ET NON UNE GRILLE DE VIGNETTES : la liste des photos publiées se
+          compte en dizaines, chacune porte déjà un texte alternatif qui la décrit, et une
+          grille demanderait de charger autant d'images pour un choix qu'on fait deux fois
+          par an. ⇒ Ce qu'on ajoute est proportionné à l'usage, pas à l'envie.
+          ⚠️ Le cadrage, lui, se règle SUR LA PHOTO (galerie → point focal), pas ici : deux
+          écrans pour deux questions — « laquelle » et « cadrée comment ». */}
+      <div className={styles.champ}>
+        <label className={styles.label} htmlFor="reglage-heroPhotoId">
+          Photo de la page d&rsquo;accueil (facultatif)
+        </label>
+        <select
+          id="reglage-heroPhotoId"
+          name="heroPhotoId"
+          className={styles.saisie}
+          value={valeurs.heroPhotoId}
+          // `changer` est taillé pour `ChampTexte`, qui remonte la VALEUR ; un <select>
+          // natif remonte l'ÉVÉNEMENT. On extrait donc `target.value` ici plutôt que
+          // d'élargir le helper — l'élargir aurait fait accepter les deux formes partout,
+          // et une erreur d'appel serait passée sans bruit.
+          onChange={(evenement) => changer("heroPhotoId")(evenement.target.value)}
+        >
+          <option value="">
+            Aucune — garder la photo d&rsquo;origine du site
+          </option>
+          {photos.map((cliche) => (
+            <option key={cliche.id} value={cliche.id}>
+              {cliche.alt}
+            </option>
+          ))}
+        </select>
+        <p className={styles.sousChamp}>
+          <span>
+            Seules les photos <strong>publiées</strong> de la galerie apparaissent
+            ici&nbsp;: une photo en brouillon ne s&rsquo;afficherait pas sur le site.
+            Le cadrage se règle sur la photo elle-même, dans la galerie.
+          </span>
+        </p>
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════════
           🔴 CE QUI EST EN JEU, RAPPELÉ AU POINT DE SAISIE — PAS DANS UNE DOC

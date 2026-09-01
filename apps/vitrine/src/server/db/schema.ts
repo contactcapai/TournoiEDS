@@ -738,6 +738,37 @@ export const photo = pgTable(
     sortOrder: integer().notNull().default(0),
     /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`). */
     isPublished: boolean().notNull().default(false),
+
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════
+     * LE POINT FOCAL — « OÙ EST LE SUJET », EN POURCENTAGE (Story 7.3)
+     * ══════════════════════════════════════════════════════════════════════════════════
+     *
+     * 🔴 DEUX NOMBRES, PAS UNE IMAGE RECADRÉE, ET C'EST LA DÉCISION CENTRALE. Recadrer
+     * produit **une** variante figée : il faudrait la refaire pour chaque format, et
+     * encore au prochain format ajouté. Le site en demande déjà plusieurs — cadre 4/3 du
+     * hero, bande panoramique, og-image 1200×630 — et les publications réseaux en
+     * demanderont d'autres (1:1, 4:5, 9:16). Un point focal les sert **tous**, y compris
+     * ceux qu'on n'a pas encore inventés, parce que c'est le NAVIGATEUR qui recadre, à
+     * l'affichage, via `object-position`.
+     * ⚠️ Aucun fichier n'est produit ni stocké : c'est ce qui rend cette approche
+     * proportionnée. Un éditeur de recadrage, lui, aurait exigé des variantes, leur
+     * invalidation, et un ratio déclaré par usage.
+     *
+     * ⚠️ EN POURCENTAGE DE LA LARGEUR ET DE LA HAUTEUR, jamais en pixels : la même valeur
+     * doit valoir pour la photo d'origine, la vignette et chaque taille que `next/image`
+     * génère. Des pixels seraient justes sur une seule d'entre elles.
+     *
+     * ⚠️ `50/50` PAR DÉFAUT = le centre, c'est-à-dire le comportement actuel de
+     * `object-fit: cover`. Une photo déjà en ligne ne bouge donc pas d'un pixel tant que
+     * personne n'a posé son point — la migration est sans effet visible, et c'est voulu.
+     *
+     * 🔴 `integer` ET NON `numeric` : on borne à l'entier près (0-100). Un point focal
+     * n'a pas besoin de plus de précision qu'un pour cent de l'image — et un flottant
+     * inviterait à des comparaisons d'égalité qui se trompent.
+     */
+    focalX: integer().notNull().default(50),
+    focalY: integer().notNull().default(50),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -745,6 +776,16 @@ export const photo = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    /**
+     * ⚠️ LES BORNES SONT EN BASE, PAS SEULEMENT DANS ZOD — doctrine de ce fichier : un
+     * `UPDATE` direct, une restauration ou une migration de données ne passent par AUCUN
+     * schéma applicatif. Hors de 0-100, `object-position` recadrerait sur du vide et la
+     * photo partirait hors de son cadre, **sans erreur**.
+     */
+    check(
+      "photo_focal_borne",
+      sql`${table.focalX} between 0 and 100 and ${table.focalY} between 0 and 100`,
+    ),
     /**
      * 🔴 LISTE BLANCHE, JAMAIS LISTE NOIRE — et c'est la contrainte la plus importante
      * de ce fichier. Doctrine `event_has_venue` (3.1) puis `partner_*_not_blank` (4.1,
@@ -1264,6 +1305,32 @@ export const siteSetting = pgTable(
      * Cette colonne pilote l'adresse **publiée** et le **destinataire** des notifications.
      */
     contactEmail: text().notNull(),
+
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════
+     * LA PHOTO DU HERO SE CHOISIT DANS LA GALERIE (Story 7.3)
+     * ══════════════════════════════════════════════════════════════════════════════════
+     *
+     * 🔴 ELLE ÉTAIT ÉCRITE EN DUR : `/photos/soiree-bar-eds-01.avif`, versionnée dans
+     * `public/`, 922×480, `unoptimized` — un câblage provisoire posé hors story le
+     * 2026-07-28 (dette R15), dont le commentaire de `Hero.tsx` annonçait déjà le
+     * remplaçant : « ce qui manque : une photo HD, `sizes` + l'optimisation Next, et le
+     * passage par le back-office ». C'est cette story.
+     *
+     * ⚠️ **UNE SEULE COLONNE, ET PAS TROIS.** La bande citation et l'og-image attendent
+     * elles aussi une photo, et il aurait été tentant de poser leurs colonnes ici « tant
+     * qu'on y est ». Une colonne que personne n'écrit ni ne lit est un CHEMIN MORT — le
+     * défaut que ce projet a déjà payé (`team_size`, 10.5). Elles viendront avec leur
+     * écran, pas avant.
+     *
+     * 🔴 `ON DELETE SET NULL`, JAMAIS `cascade` : supprimer une photo de la galerie ne
+     * doit pas effacer la ligne de réglages du site. Le rendu retombe alors sur son
+     * repli, ce qui se voit — au lieu de casser.
+     * ⚠️ Le repli EST la photo versionnée d'aujourd'hui : tant que personne n'a choisi,
+     * le hero rend exactement ce qu'il rendait avant. Aucune régression possible au
+     * déploiement, et c'est ce qui rend cette story sûre.
+     */
+    heroPhotoId: uuid().references(() => photo.id, { onDelete: "set null" }),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
       .defaultNow()

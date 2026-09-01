@@ -224,6 +224,9 @@ export async function enregistrerPhoto(
     .safeParse({
       alt: formData.get("alt"),
       caption: formData.get("caption"),
+      // ⚠️ Postés par `PointFocal`, en champs cachés — voir `photoInputSchema`.
+      focalX: formData.get("focalX"),
+      focalY: formData.get("focalY"),
       eventId,
     });
 

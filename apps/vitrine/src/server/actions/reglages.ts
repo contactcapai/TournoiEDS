@@ -103,6 +103,8 @@ export async function enregistrerReglages(
     linkedinUrl: formData.get("linkedinUrl"),
     helloassoUrl: formData.get("helloassoUrl"),
     contactEmail: formData.get("contactEmail"),
+    // ⚠️ Le `<select>` poste `""` pour « aucune » — c'est le schéma qui le rend `null`.
+    heroPhotoId: formData.get("heroPhotoId"),
   });
 
   if (!analyse.success) {

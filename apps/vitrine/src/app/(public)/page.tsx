@@ -12,7 +12,7 @@ import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { getUpcomingRendezVous } from "@/server/db/queries/rendez-vous";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
-import { getPublishedPhotos } from "@/server/db/queries/photos";
+import { getPublishedPhotos, getPhotoDuHero } from "@/server/db/queries/photos";
 import { lireReglages } from "@/server/db/queries/settings";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
@@ -111,11 +111,15 @@ export default async function Home() {
   // RENDEZ-VOUS » : les événements publiés **et** les tournois publiés SANS événement, dans
   // un seul ordre chronologique. Un tournoi rattaché n'y figure pas — c'est son événement que
   // l'agenda montre, jamais ses animations (sans quoi la Game'in Reims paraîtrait onze fois).
-  const [upcoming, partners, photos, reglages] = await Promise.all([
+  // ⚠️ CINQUIÈME LECTURE, ET ELLE ENTRE DANS LE `Promise.all` — pas après. La photo du
+  // hero ne dépend d'aucune des quatre autres : l'enchaîner ajouterait son aller-retour à
+  // celui de la page pour rien (patron AC1 de la 3.2, tenu depuis).
+  const [upcoming, partners, photos, reglages, photoDuHero] = await Promise.all([
     getUpcomingRendezVous(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
     getPublishedPhotos(HOME_PHOTO_COUNT),
     lireReglages(),
+    getPhotoDuHero(),
   ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -134,7 +138,7 @@ export default async function Home() {
 
   return (
     <>
-      <Hero hasUpcomingEvent={next !== null} />
+      <Hero hasUpcomingEvent={next !== null} photoDuHero={photoDuHero} />
       <EventHub
         next={next}
         rest={rest}
