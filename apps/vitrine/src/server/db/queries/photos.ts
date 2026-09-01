@@ -3,11 +3,11 @@
 // doit jamais être atteint depuis un composant client. ⚠️ `Lightbox` EST un composant
 // client — elle reçoit ses photos en props depuis la page, elle n'importe rien d'ici.
 import "server-only";
-import { count, eq, inArray, max } from "drizzle-orm";
+import { and, count, desc, eq, inArray, max } from "drizzle-orm";
 
 import { jourParis } from "@/lib/date-paris";
 import { db } from "../client";
-import { photo } from "../schema";
+import { photo, siteSetting } from "../schema";
 
 /**
  * Lectures de la galerie (Story 4.3).
@@ -153,6 +153,12 @@ export async function getPhotoByIdForAdmin(id: string) {
       eventId: true,
       sortOrder: true,
       isPublished: true,
+      // ⚠️ Ajoutés par la 7.3 : `PointFocal` les affiche et les repose. Sans eux, l'écran
+      // rendrait toujours le centre puis écraserait le point choisi au premier
+      // enregistrement — et le typecheck a refusé de passer tant qu'ils manquaient, ce
+      // qui est exactement le rôle qu'on lui demande.
+      focalX: true,
+      focalY: true,
     },
     where: (table, { eq }) => eq(table.id, id),
   });
@@ -230,3 +236,63 @@ export async function getGalerieDuDernierEvenement(maintenant: Date) {
 export type GalerieDuDernierEvenement = Awaited<
   ReturnType<typeof getGalerieDuDernierEvenement>
 >;
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * LA PHOTO DU HERO, CHOISIE DANS LA GALERIE (Story 7.3)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Rend `null` quand aucune photo n'est choisie — l'appelant retombe alors sur la photo
+ * versionnée de `public/`, c'est-à-dire exactement ce que le hero rendait avant cette
+ * story. Aucune régression possible au déploiement.
+ *
+ * 🔴 ELLE EXIGE `isPublished`, ET C'EST UNE GARDE, PAS UNE PRÉCAUTION. La route
+ * `/medias/[filename]` ne sert QUE les médias publiés — mesuré le 2026-09-01 : une photo
+ * téléversée mais non publiée y rend **404**. Sans ce filtre, un bénévole qui choisit un
+ * brouillon casserait l'image de la page d'accueil, et rien ne le lui dirait : son écran
+ * de réglages afficherait un choix enregistré, la home un cadre vide.
+ * ⇒ Choisir un brouillon revient donc à ne rien choisir : on retombe sur le repli, qui
+ * s'affiche. Une image qui manque doit se voir sur l'écran QUI LA CHOISIT, pas sur celui
+ * qui la rend.
+ *
+ * ⚠️ `focalX`/`focalY` VOYAGENT AVEC LA PHOTO, jamais séparément : ce sont ses
+ * coordonnées à elle, et les lire d'un autre appel les désynchroniserait au premier
+ * changement de photo.
+ */
+export async function getPhotoDuHero(): Promise<{
+  filename: string;
+  alt: string;
+  focalX: number;
+  focalY: number;
+} | null> {
+  const lignes = await db
+    .select({
+      filename: photo.filename,
+      alt: photo.alt,
+      focalX: photo.focalX,
+      focalY: photo.focalY,
+    })
+    .from(siteSetting)
+    .innerJoin(photo, eq(photo.id, siteSetting.heroPhotoId))
+    .where(and(eq(siteSetting.id, 1), eq(photo.isPublished, true)))
+    .limit(1);
+
+  return lignes[0] ?? null;
+}
+
+/**
+ * Les photos qu'on peut proposer comme photo d'accueil (Story 7.3).
+ *
+ * 🔴 PUBLIÉES SEULEMENT, ET C'EST LA MÊME GARDE QUE `getPhotoDuHero` : la route
+ * `/medias/[filename]` ne sert QUE les médias publiés — un brouillon y rend 404. Proposer
+ * un brouillon reviendrait à laisser choisir une photo qui ne s'affichera pas.
+ * ⚠️ Ordonnées comme la galerie (`sortOrder`, puis la plus récente) : deux ordres
+ * différents pour la même liste feraient chercher.
+ */
+export async function getPhotosPubliablesPourReglages() {
+  return db
+    .select({ id: photo.id, alt: photo.alt })
+    .from(photo)
+    .where(eq(photo.isPublished, true))
+    .orderBy(photo.sortOrder, desc(photo.createdAt));
+}

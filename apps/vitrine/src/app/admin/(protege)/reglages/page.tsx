@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ReglagesForm } from "@/components/admin/ReglagesForm/ReglagesForm";
 import { exigerRolePage } from "@/server/auth/guard";
 import { lireReglagesPourSaisie } from "@/server/db/queries/settings";
+import { getPhotosPubliablesPourReglages } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-page.module.css";
 
 // Réglages du site (Story 6.13, FR38).
@@ -39,7 +40,12 @@ export default async function ReglagesPage() {
   // 🔴 `lireReglagesPourSaisie` ET NON `lireReglages` : cet écran a besoin des `null` bruts,
   // pour que le champ soit VIDE et non rempli d'une chaîne vide déguisée. Le lecteur du rendu,
   // lui, convertit `null` en `DESTINATION_ABSENTE` — deux besoins, deux lecteurs.
-  const reglages = await lireReglagesPourSaisie();
+  // ⚠️ EN PARALLÈLE : les deux lectures sont indépendantes. Les enchaîner ajouterait un
+  // aller-retour à un écran qui n'en a pas besoin (patron AC1 de la 3.2).
+  const [reglages, photos] = await Promise.all([
+    lireReglagesPourSaisie(),
+    getPhotosPubliablesPourReglages(),
+  ]);
 
   return (
     <>
@@ -84,7 +90,7 @@ export default async function ReglagesPage() {
             peut être modifié depuis cet écran. Prévenez la personne qui s&rsquo;occupe du site.
           </p>
         ) : (
-          <ReglagesForm reglages={reglages} />
+          <ReglagesForm photos={photos} reglages={reglages} />
         )}
       </div>
     </>

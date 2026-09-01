@@ -40,9 +40,27 @@ export interface HeroProps {
    * epics.md relie le macaron à « cette prochaine date », pas à un filtre sur le type.
    */
   hasUpcomingEvent: boolean;
+
+  /**
+   * La photo choisie dans la galerie, ou `null` quand aucune ne l'est (Story 7.3).
+   *
+   * 🔴 C'EST UNE PROP, POUR LA MÊME RAISON QUE `hasUpcomingEvent` : la page lit et
+   * distribue. Une lecture locale mettrait en série ce que `Promise.all` fait en
+   * parallèle, dans un composant dont c'est le premier rendu de la page.
+   * ⚠️ `null` N'EST PAS UNE ERREUR : c'est l'état normal tant que personne n'a choisi de
+   * photo dans le back-office, et le hero retombe alors sur celle de `public/` — celle
+   * qu'il rendait avant cette story.
+   */
+  photoDuHero: {
+    filename: string;
+    alt: string;
+    /** Point focal en pourcentage — voir `photo.focalX` dans le schéma. */
+    focalX: number;
+    focalY: number;
+  } | null;
 }
 
-export function Hero({ hasUpcomingEvent }: HeroProps) {
+export function Hero({ hasUpcomingEvent, photoDuHero }: HeroProps) {
   return (
     // aria-labelledby ↔ id du <h1> : nomme la région (pattern acquis review 1.6 F6).
     // Le <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici.
@@ -179,14 +197,52 @@ export function Hero({ hasUpcomingEvent }: HeroProps) {
                 ⚠️ Ne pas ré-ajouter un avertissement « consentement à obtenir » : ce
                 serait payer un garde-fou pour neutraliser un cadrage déjà tranché
                 (`00 référence/pieges/cadrage-perime.md`). */}
-            <Image
-              src="/photos/soiree-bar-eds-01.avif"
-              alt="Une soirée Esport des Sacres dans un bar rémois : des joueurs attablés devant un écran de jeu, sous le kakémono de l'association."
-              width={922}
-              height={480}
-              priority
-              unoptimized
-            />
+            {/* ══════════════════════════════════════════════════════════════════════
+                LA PHOTO VIENT DE LA GALERIE QUAND UNE Y EST CHOISIE — STORY 7.3
+                ══════════════════════════════════════════════════════════════════════
+
+                🔴 LE REPLI EST LA PHOTO VERSIONNÉE D'AVANT, ET C'EST CE QUI REND CETTE
+                STORY SANS RISQUE : tant que personne n'a choisi dans le back-office, ce
+                bloc rend exactement ce qu'il rendait — même fichier, même `unoptimized`,
+                même dimensions. Le déploiement ne peut donc rien casser.
+
+                ⚠️ LES DEUX BRANCHES NE SE RESSEMBLENT PAS, ET IL NE FAUT PAS LES FONDRE :
+                le repli est un fichier de `public/` en 922×480 servi tel quel (`unoptimized`
+                est délibéré, cf. le commentaire ci-dessus) ; la photo choisie vient de
+                `/medias/…`, passe par l'optimiseur (donc jeu de tailles, webp, ET rotation
+                EXIF appliquée — vérifié le 2026-09-01 : `next/image` appelle `.rotate()`),
+                et porte son point focal. Un seul `<Image>` paramétré aurait fait croire que
+                ces deux cas sont le même.
+
+                🔴 `objectPosition` PORTE LE POINT FOCAL, et c'est là que la décision de la
+                7.3 se paie : `PhotoFrame` recadre en `object-fit: cover` sur un cadre 4/3.
+                Sans point focal, le cadre garde le CENTRE de la photo — ce qui coupe le
+                sujet dès que la photo n'est pas cadrée comme le bloc. Les deux nombres
+                disent « garde ce point-là », et le navigateur fait le reste, à toutes les
+                tailles, sans qu'aucun fichier soit produit. */}
+            {photoDuHero === null ? (
+              <Image
+                src="/photos/soiree-bar-eds-01.avif"
+                alt="Une soirée Esport des Sacres dans un bar rémois : des joueurs attablés devant un écran de jeu, sous le kakémono de l'association."
+                width={922}
+                height={480}
+                priority
+                unoptimized
+              />
+            ) : (
+              <Image
+                src={`/medias/${photoDuHero.filename}`}
+                alt={photoDuHero.alt}
+                fill
+                // La colonne fait ~476px au plus large (maquette) ; en retina il faut
+                // donc ~950px. `sizes` évite de servir 1920px à un téléphone.
+                sizes="(max-width: 880px) 100vw, 480px"
+                priority
+                style={{
+                  objectPosition: `${photoDuHero.focalX}% ${photoDuHero.focalY}%`,
+                }}
+              />
+            )}
           </PhotoFrame>
         </div>
       </Wrap>

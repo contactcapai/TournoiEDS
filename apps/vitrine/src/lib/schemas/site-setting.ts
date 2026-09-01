@@ -151,6 +151,22 @@ export const siteSettingInputSchema = z.object({
    * re-semer une valeur « générique mais valide » dans cette colonne.
    */
   helloassoUrl: urlHttpOptionnelle(URL_MAX, "L'adresse HelloAsso"),
+
+  /**
+   * La photo de la page d'accueil, choisie dans la galerie (Story 7.3).
+   *
+   * ⚠️ CHAÎNE VIDE ⇒ `null`, comme les cinq destinations au-dessus : un `<select>` poste
+   * `""` quand on choisit « aucune », et `""` n'est pas un identifiant. Sans cette
+   * conversion, la contrainte de clé étrangère refuserait l'enregistrement avec une erreur
+   * brute du driver, là où l'intention est « remets le réglage à vide ».
+   * ⚠️ `uuid()` et non `string()` : c'est ce qui empêche qu'un identifiant fabriqué à la
+   * main atteigne la base. La clé étrangère tient le plancher derrière.
+   */
+  heroPhotoId: z
+    .union([z.uuid(), z.literal("")])
+    .nullable()
+    .default(null)
+    .transform((valeur) => (valeur === "" || valeur === null ? null : valeur)),
   /**
    * ⚠️ `.min(...)` COMPTERAIT DES UNITÉS DE CODE, PAS DES CARACTÈRES VISIBLES — leçon payée sur
    * `partner.name` puis `member.firstName`. Le `refine` sur `visiblementVide` rétablit le sens
