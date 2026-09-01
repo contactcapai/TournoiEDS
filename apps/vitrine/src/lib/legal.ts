@@ -81,10 +81,13 @@ export const ASSOCIATION = {
  * et le DNS d'`esportdessacres.fr` y est géré. La LCEN (art. 6 III-1) impose de nommer
  * l'hébergeur avec sa dénomination et son adresse.
  *
- * ⚠️ RAISON SOCIALE ET ADRESSE À CONFIRMER SUR LES CGV DE HOSTINGER avant publication :
- * elles sont reprises de la documentation publique de l'hébergeur et n'ont pas été vérifiées
- * sur une source officielle depuis ce dépôt. Une mention légale qui se trompe d'adresse
- * d'hébergeur est fausse, même de bonne foi.
+ * ✅ RAISON SOCIALE ET ADRESSE CONFIRMÉES PAR BRICE LE 2026-09-01. Elles ont d'abord été
+ * reprises de la documentation publique de l'hébergeur, et ce bloc portait un « à confirmer
+ * avant publication » — levé une fois la vérification faite. ⚠️ Un avertissement qui a été
+ * honoré et qu'on laisse en place devient un faux témoin : la prochaine lecture croirait la
+ * vérification encore due, et la referait ou publierait en doutant.
+ * ⚠️ Elles restent à re-vérifier si l'hébergement change de fournisseur — c'est le seul
+ * événement qui les périme.
  */
 export const HEBERGEUR = {
   nom: "Hostinger International Ltd",
