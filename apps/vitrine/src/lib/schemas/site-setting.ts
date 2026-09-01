@@ -167,6 +167,16 @@ export const siteSettingInputSchema = z.object({
     .nullable()
     .default(null)
     .transform((valeur) => (valeur === "" || valeur === null ? null : valeur)),
+  quotePhotoId: z
+    .union([z.uuid(), z.literal("")])
+    .nullable()
+    .default(null)
+    .transform((valeur) => (valeur === "" || valeur === null ? null : valeur)),
+  ogPhotoId: z
+    .union([z.uuid(), z.literal("")])
+    .nullable()
+    .default(null)
+    .transform((valeur) => (valeur === "" || valeur === null ? null : valeur)),
   /**
    * ⚠️ `.min(...)` COMPTERAIT DES UNITÉS DE CODE, PAS DES CARACTÈRES VISIBLES — leçon payée sur
    * `partner.name` puis `member.firstName`. Le `refine` sur `visiblementVide` rétablit le sens

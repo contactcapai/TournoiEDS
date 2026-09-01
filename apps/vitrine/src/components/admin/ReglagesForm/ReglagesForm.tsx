@@ -72,8 +72,10 @@ export interface ReglagesFormProps {
     linkedinUrl: string | null;
     helloassoUrl: string | null;
     contactEmail: string;
-    /** La photo de l'accueil, ou `null` — Story 7.3. */
+    /** Les trois photos du site, ou `null` — Story 7.3. */
     heroPhotoId: string | null;
+    quotePhotoId: string | null;
+    ogPhotoId: string | null;
   };
 
   /**
@@ -113,6 +115,8 @@ export function ReglagesForm({ reglages, photos }: ReglagesFormProps) {
     helloassoUrl: reglages.helloassoUrl ?? "",
     contactEmail: reglages.contactEmail,
     heroPhotoId: reglages.heroPhotoId ?? "",
+    quotePhotoId: reglages.quotePhotoId ?? "",
+    ogPhotoId: reglages.ogPhotoId ?? "",
   });
 
   const changer = (cle: keyof typeof valeurs) => (valeur: string) =>
@@ -248,6 +252,66 @@ export function ReglagesForm({ reglages, photos }: ReglagesFormProps) {
             Seules les photos <strong>publiées</strong> de la galerie apparaissent
             ici&nbsp;: une photo en brouillon ne s&rsquo;afficherait pas sur le site.
             Le cadrage se règle sur la photo elle-même, dans la galerie.
+          </span>
+        </p>
+      </div>
+
+      {/* ⚠️ MÊME MOTIF, DEUX CADRES QUI N'ONT RIEN EN COMMUN — et c'est pour ça que ce
+          sont trois réglages et non un seul. Le hero est un 4/3 vertical dans une colonne
+          étroite ; la bande est un bandeau panoramique sous un voile ; l'image de partage
+          se choisit pour ce qu'elle DIT DE L'ASSO à quelqu'un qui ne la connaît pas. Une
+          photo qui sert bien l'un dessert souvent les autres. */}
+      <div className={styles.champ}>
+        <label className={styles.label} htmlFor="reglage-quotePhotoId">
+          Photo de la bande citation (facultatif)
+        </label>
+        <select
+          id="reglage-quotePhotoId"
+          name="quotePhotoId"
+          className={styles.saisie}
+          value={valeurs.quotePhotoId}
+          onChange={(evenement) => changer("quotePhotoId")(evenement.target.value)}
+        >
+          <option value="">Aucune — garder le fond dégradé</option>
+          {photos.map((cliche) => (
+            <option key={cliche.id} value={cliche.id}>
+              {cliche.alt}
+            </option>
+          ))}
+        </select>
+        <p className={styles.sousChamp}>
+          <span>
+            Elle s&rsquo;affiche en <strong>pleine largeur</strong>, sous un voile sombre
+            qui garde la citation lisible. Une photo très large convient mieux qu&rsquo;un
+            portrait.
+          </span>
+        </p>
+      </div>
+
+      <div className={styles.champ}>
+        <label className={styles.label} htmlFor="reglage-ogPhotoId">
+          Image de partage (facultatif)
+        </label>
+        <select
+          id="reglage-ogPhotoId"
+          name="ogPhotoId"
+          className={styles.saisie}
+          value={valeurs.ogPhotoId}
+          onChange={(evenement) => changer("ogPhotoId")(evenement.target.value)}
+        >
+          <option value="">Aucune — le nom de l&rsquo;asso sur fond de charte</option>
+          {photos.map((cliche) => (
+            <option key={cliche.id} value={cliche.id}>
+              {cliche.alt}
+            </option>
+          ))}
+        </select>
+        <p className={styles.sousChamp}>
+          <span>
+            C&rsquo;est l&rsquo;image qui apparaît quand un lien du site est collé dans
+            <strong> Discord</strong> ou sur les réseaux. Sans photo, le nom de
+            l&rsquo;association s&rsquo;affiche sur le fond de la charte&nbsp;: il y a
+            toujours une image.
           </span>
         </p>
       </div>

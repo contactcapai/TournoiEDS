@@ -1,3 +1,4 @@
+import Image from "next/image";
 import styles from "./QuoteBand.module.css";
 
 // Bande citation pleine largeur (Story 2.3) — Server Component pur : aucune
@@ -20,7 +21,23 @@ import styles from "./QuoteBand.module.css";
 // (Story 4.3), qui codifiera (règle « payé deux fois », METHODE.md §5).
 //
 // Les formulations sont CONTRACTUELLES (UX-DR18) — ne pas les reformuler.
-export function QuoteBand() {
+export interface QuoteBandProps {
+  /**
+   * La photo de fond, ou `null` quand aucune n'est choisie (Story 7.3).
+   *
+   * ⚠️ `null` EST L'ÉTAT NOMINAL, et le rendu sans photo n'est pas dégradé : le
+   * pseudo-élément `.band::before` porte alors le dégradé de la maquette, exactement comme
+   * depuis la Story 2.3. C'est une amélioration progressive, pas un placeholder en attente.
+   */
+  photoDeLaBande: {
+    filename: string;
+    alt: string;
+    focalX: number;
+    focalY: number;
+  } | null;
+}
+
+export function QuoteBand({ photoDeLaBande }: QuoteBandProps) {
   return (
     // Ni aria-label ni aria-labelledby, contrairement au pattern des sections
     // 2.1/2.2 : cette section n'a PAS de titre (un <blockquote> n'en est pas un,
@@ -28,7 +45,46 @@ export function QuoteBand() {
     // <section> sans nom accessible n'est pas exposée comme landmark — c'est le
     // comportement voulu ici : nommer cette bande purement émotionnelle
     // ajouterait un repère de navigation de plus à parcourir. Décision, pas oubli.
-    <section className={styles.band}>
+    <section
+      className={`${styles.band} ${photoDeLaBande === null ? "" : styles.bandAvecPhoto}`}
+    >
+      {/* ══════════════════════════════════════════════════════════════════════════════
+          LA COUCHE ① — LE CSS AVAIT DÉJÀ TRANCHÉ COMMENT LA REMPLIR (Story 7.3)
+          ══════════════════════════════════════════════════════════════════════════════
+          `QuoteBand.module.css` l'écrivait depuis la 2.8, pour ce jour précis : « quand la
+          vraie photo arrivera, elle se glisse DANS CETTE COUCHE, sous le voile — qui doit
+          RESTER : une photo claire sans voile ferait tomber le contraste sous AA. Elle
+          passera par next/image en <Image fill> ; c'est alors l'image, et non ce
+          pseudo-élément, qui portera l'animation. » ⇒ On suit, on ne redécide pas.
+
+          🔴 LE VOILE (`.band::after`) N'EST PAS TOUCHÉ, ET C'EST UNE GARDE DE CONTRASTE :
+          le texte tient AA (cream 12,87:1 · or 7,42:1) parce qu'il est mesuré AU-DESSUS du
+          voile. Une photo claire sans lui ferait tomber la citation sous le seuil, sans que
+          rien ne le signale — le contraste ne casse pas, il se dégrade.
+          ⚠️ Et le calcul de la 2.8 reste valable : il majorait sur la couleur la PLUS
+          CLAIRE de la couche ①. Une photo peut être plus claire que `#3a3672` en un
+          point — c'est pourquoi le voile est indispensable ici, alors qu'il était une
+          simple précaution avec un dégradé.
+
+          ⚠️ `priority` VOLONTAIREMENT ABSENT : cette bande est sous la ligne de flottaison,
+          contrairement au hero. Le mettre ferait concurrence à l'image du hero pour la même
+          bande passante, au premier rendu, sur mobile. */}
+      {photoDeLaBande === null ? null : (
+        <Image
+          className={styles.photo}
+          src={`/medias/${photoDeLaBande.filename}`}
+          // Décorative : la citation porte le sens, et l'alt de la galerie décrirait une
+          // scène dont la bande ne parle pas. `alt=""` la retire de l'arbre, c'est la règle
+          // du projet pour tout décoratif.
+          alt=""
+          fill
+          sizes="100vw"
+          style={{
+            objectPosition: `${photoDeLaBande.focalX}% ${photoDeLaBande.focalY}%`,
+          }}
+        />
+      )}
+
       <div className={styles.content}>
         <span className={styles.hand}>notre raison d&apos;être</span>
 

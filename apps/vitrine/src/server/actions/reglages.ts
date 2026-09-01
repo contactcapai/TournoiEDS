@@ -105,6 +105,8 @@ export async function enregistrerReglages(
     contactEmail: formData.get("contactEmail"),
     // ⚠️ Le `<select>` poste `""` pour « aucune » — c'est le schéma qui le rend `null`.
     heroPhotoId: formData.get("heroPhotoId"),
+    quotePhotoId: formData.get("quotePhotoId"),
+    ogPhotoId: formData.get("ogPhotoId"),
   });
 
   if (!analyse.success) {
