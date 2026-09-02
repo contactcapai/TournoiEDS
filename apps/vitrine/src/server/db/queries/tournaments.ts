@@ -363,6 +363,28 @@ export async function getPublicTournaments(
  */
 export type PublicTournament = Awaited<ReturnType<typeof getUpcomingTournaments>>[number];
 
+/**
+ * Les tournois **publiés**, réduits à ce qu'un plan de site consomme : leur `slug` et la date
+ * de leur dernière modification. Story 7.5.
+ *
+ * 🔴 UNE LECTURE À PART, ET SURTOUT PAS `getPublicTournaments` AVEC DES LIMITES HAUTES. Cette
+ * dernière prend **trois** plafonds, dédoublonne, et lit l'horloge pour répartir en « à venir /
+ * en cours / passés » — trois décisions dont le plan de site n'a que faire, et un plafond qui
+ * ferait **disparaître silencieusement** les tournois les plus anciens du sitemap le jour où
+ * l'association en aura plus que la limite. Ici il n'y a pas de limite : un plan de site est
+ * exhaustif ou il ne sert à rien.
+ *
+ * ⚠️ `isPublished` FILTRE, il n'est pas remonté (même règle que les lectures publiques
+ * voisines) : lister un brouillon enverrait un moteur sur une fiche qui rend 404.
+ */
+export async function getSlugsTournoisPublies() {
+  return db.query.tournament.findMany({
+    columns: { slug: true, updatedAt: true },
+    where: (table, { eq }) => eq(table.isPublished, true),
+    orderBy: (table, { desc }) => [desc(table.startsAt)],
+  });
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    LA FICHE PUBLIQUE (Story 9.3, A20/A23)
    ═══════════════════════════════════════════════════════════════════════════════ */

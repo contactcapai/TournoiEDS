@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 
 import { toParisIso } from "../../lib/date-paris";
+import { baseDuSite } from "../../lib/site-url";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION } from "../../lib/schemas/publication";
 import { cleanText } from "../../lib/text";
 import { exigerRoleAction } from "../auth/guard";
@@ -85,18 +86,6 @@ function lieuDuPayload(evenement: NonNullable<Awaited<ReturnType<typeof getEvent
     lieu: cleanText(evenement.venueName),
     adresse: cleanText(evenement.venueAddress),
   };
-}
-
-/**
- * L'adresse publique du site, pour construire le lien de l'annonce.
- *
- * Même repli que `app/layout.tsx` (`metadataBase`, Story 1.6) — une seule idée de « où vit ce
- * site », et pas une seconde constante qui divergerait. ⚠️ En développement la valeur est
- * `http://localhost:3000` : le lien envoyé pointera donc vers le poste. C'est **visible et
- * assumé** (le verify d'entrée le montre), et c'est le prix d'un maillon vérifiable en local.
- */
-function baseDuSite(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://esportdessacres.fr").replace(/\/+$/, "");
 }
 
 /**
