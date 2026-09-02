@@ -516,20 +516,74 @@ n'apparaîtra qu'au premier appel réel, pas au démarrage du conteneur.
 A  staging.esportdessacres.fr  →  <IP_VPS>  (TTL 3600)
 ```
 
-**Bascule en production** (Story 7.5) : repointer l'apex
-sur `<IP_VPS>`, passer `VITRINE_HOST=esportdessacres.fr` + `VITRINE_ROBOTS=` (vide) dans
-`docker/.env`, puis `docker compose build vitrine && docker compose up -d vitrine`.
-⚠️ **Traiter `www` dans le même geste** : `www.esportdessacres.fr` est un CNAME vers le CDN
-Hostinger et servirait sinon l'**ancien** site à côté du nouveau. Le routeur Traefik ne
-déclare qu'un seul hôte — ajouter `www` à la règle + une redirection 301 vers l'apex.
-*Atout : le TTL de l'apex est à 17 s → bascule et rollback quasi instantanés.*
-
 Vérifier la propagation AVANT de démarrer (sinon Let's Encrypt brûle une tentative sur le
 rate limit prod, 5 / 7 jours) :
 ```bash
 dig +short staging.esportdessacres.fr
 # Attendu : <IP_VPS>, et RIEN d'autre.
 ```
+
+**Bascule en production** (Story 7.5). ⬇️ **L'ordre compte** — le DNS d'abord, le déploiement
+ensuite : renseigner `VITRINE_HOST_WWW` avant que `www` ne résolve ferait tenter à Traefik un
+challenge Let's Encrypt voué à l'échec, et chaque échec entame le **rate limit de production**
+(5 / 7 jours, partagé par les trois hôtes de la stack).
+
+> 🔴 **CETTE ÉTAPE A ÉTÉ RÉÉCRITE LE 2026-09-02, ET SA VERSION PRÉCÉDENTE AURAIT LAISSÉ LA
+> MOITIÉ DU PUBLIC SUR L'ANCIEN SITE.** Elle disait « repointer l'apex sur `<IP_VPS>` », au
+> singulier. Mesure du 2026-09-02 : l'apex porte **deux A** *et* **deux AAAA**, et le VPS
+> **n'a aucune adresse IPv6** (staging n'a pas d'enregistrement AAAA). Repointer les A en
+> laissant les AAAA enverrait tout visiteur en IPv6 — Free, Orange, Bouygues, donc une grande
+> part des mobiles — vers l'**ancien site Hostinger**, son navigateur préférant l'IPv6
+> (Happy Eyeballs). **Aucune erreur, aucun log, et invisible depuis une connexion IPv4** : le
+> site aurait l'air basculé pour celui qui vérifie, et pas pour son public.
+
+**1. Zone DNS (panel Hostinger).** ⚠️ **On touche `A` et `AAAA`, rien d'autre.**
+
+| Enregistrement | Geste |
+|---|---|
+| `A` esportdessacres.fr (×2, Hostinger) | **remplacer** par un seul `A` → `<IP_VPS>` |
+| `AAAA` esportdessacres.fr (×2, Hostinger) | 🔴 **supprimer** (le VPS n'a pas d'IPv6) |
+| `CNAME` www → `….cdn.hstgr.net` | **remplacer** par `A` www → `<IP_VPS>` |
+| `MX` mx1/mx2.hostinger.com | 🔴 **NE PAS TOUCHER** — le mail de l'asso |
+| `TXT` `v=spf1 include:_spf.mail.hostinger.com ~all` | 🔴 **NE PAS TOUCHER** — SPF du mail |
+| `A` staging | inchangé (le rollback en dépend) |
+
+**2. Vérifier la propagation AVANT tout `up -d`** — les quatre lignes, pas seulement la
+première :
+
+```bash
+dig +short A    esportdessacres.fr       # attendu : <IP_VPS>, et RIEN d'autre
+dig +short AAAA esportdessacres.fr       # attendu : VIDE
+dig +short A    www.esportdessacres.fr   # attendu : <IP_VPS>
+dig +short AAAA www.esportdessacres.fr   # attendu : VIDE
+```
+
+**3. Puis seulement, sur le VPS** — `docker/.env` :
+
+```
+VITRINE_HOST=esportdessacres.fr
+VITRINE_HOST_WWW=www.esportdessacres.fr
+VITRINE_ROBOTS=
+```
+```bash
+docker compose build vitrine && docker compose up -d vitrine
+```
+
+⚠️ **`build` et pas seulement `up -d`** : `NEXT_PUBLIC_SITE_URL` est inlinée dans le bundle au
+build (canoniques, sitemap, liens d'annonce n8n, image de partage). Un `up -d` seul laisserait
+tout cela pointer vers `staging.`.
+⚠️ **Vérifier par l'EFFET, jamais au code de retour** — le déploiement a échoué en silence deux
+fois le 2026-09-01 (Story 7.3) : `docker compose ps` doit montrer un conteneur **recréé**, pas
+un `Up 3 hours`.
+
+**4. 🔴 La bascule RENOMME l'hôte, elle ne duplique rien.** Il n'y a **qu'un** conteneur et
+**qu'une** base : `VITRINE_HOST` changé, `staging.esportdessacres.fr` **cesse d'être servi** (le
+routeur `eds-vitrine` ne déclare qu'un hôte) et le contenu saisi par les bénévoles devient le
+contenu public — c'est voulu, mais ça se sait avant, pas après.
+
+*Atout : le TTL de l'apex est à 17 s → bascule et rollback quasi instantanés. **Rollback** =
+remettre les enregistrements Hostinger d'origine, ou repasser `VITRINE_HOST=staging.…` +
+`VITRINE_HOST_WWW=` (vide) + `VITRINE_ROBOTS="noindex, nofollow"` et rebuild.*
 
 ### Étape 4 — Démarrer le service `vitrine` (CA Let's Encrypt **de production**)
 

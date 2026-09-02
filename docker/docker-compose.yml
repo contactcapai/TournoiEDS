@@ -212,6 +212,45 @@ services:
       # pas a vide), ce qui rend la bascule inoffensive pour le referencement.
       - "traefik.http.middlewares.eds-vitrine-robots.headers.customresponseheaders.X-Robots-Tag=${VITRINE_ROBOTS}"
       - "traefik.http.services.eds-vitrine.loadbalancer.server.port=3000"
+
+      # ══════════════════════════════════════════════════════════════════════════
+      # `www` — AJOUTE A LA BASCULE (Story 7.5)
+      # ══════════════════════════════════════════════════════════════════════════
+      #
+      # 🔴 SANS CE ROUTEUR, `www.esportdessacres.fr` CONTINUERAIT DE SERVIR L'ANCIEN SITE
+      # A COTE DU NOUVEAU. Mesure du 2026-09-02 : `www` est un CNAME vers
+      # `www.esportdessacres.fr.cdn.hstgr.net` (CDN Hostinger). Le routeur `eds-vitrine`
+      # ne declare qu'UN hote — repointer le seul apex laisserait donc DEUX sites en
+      # ligne, chacun se disant celui de l'association, et aucune porte ne le dirait.
+      #
+      # 🔴 UNE VARIABLE DEDIEE, PAS `www.${VITRINE_HOST}` CONCATENE. Sur le staging cela
+      # produirait `www.staging.esportdessacres.fr`, un nom qui n'a AUCUN enregistrement
+      # DNS : Traefik tenterait un challenge Let's Encrypt qui ECHOUE, et chaque echec
+      # entame le rate limit de PRODUCTION (5 / 7 jours) partage par les trois hotes de
+      # la stack. C'est exactement l'accident que le `dig +short` du runbook existe pour
+      # eviter (README, Etape 3).
+      # ⇒ 🔴 ORDRE OBLIGATOIRE LE JOUR DE LA BASCULE : le DNS de `www` pointe le VPS et
+      #   `dig +short www.esportdessacres.fr` le confirme AVANT de renseigner cette
+      #   variable et de faire `up -d`. Renseignee trop tot, elle brule une tentative.
+      #
+      # ⚠️ REDIRECTION 301 VERS L'APEX, ET LE CHEMIN EST CONSERVE : `www.…/agenda` arrive
+      # sur `…/agenda`, pas sur l'accueil. Un vieux lien vers une page interieure doit
+      # retomber sur SA page — sinon on transforme chaque lien entrant en visite perdue.
+      # ⚠️ `$$` DEVANT LE GROUPE DE CAPTURE : Compose interpole `${1}`, Traefik attend
+      # `${1}`. `$${1}` traverse Compose et arrive intact — meme famille que le « aucun $
+      # dans ces regex » du routeur herite ci-dessus, traitee ici plutot qu'evitee.
+      # ⚠️ ET ICI LE PERMANENT EST VOULU (contrairement aux deux autres redirections de ce
+      # fichier) : `www` n'a pas vocation a redevenir un site distinct un jour. C'est le
+      # cas nominal d'un 301 — la forme canonique du domaine est l'apex, definitivement.
+      - "traefik.http.routers.eds-vitrine-www.rule=Host(`${VITRINE_HOST_WWW}`)"
+      - "traefik.http.routers.eds-vitrine-www.entrypoints=websecure"
+      - "traefik.http.routers.eds-vitrine-www.tls=true"
+      - "traefik.http.routers.eds-vitrine-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.eds-vitrine-www.middlewares=eds-vitrine-www-redirect"
+      - "traefik.http.routers.eds-vitrine-www.service=eds-vitrine"
+      - "traefik.http.middlewares.eds-vitrine-www-redirect.redirectregex.regex=^https://[^/]+/(.*)"
+      - "traefik.http.middlewares.eds-vitrine-www-redirect.redirectregex.replacement=https://${VITRINE_HOST}/$${1}"
+      - "traefik.http.middlewares.eds-vitrine-www-redirect.redirectregex.permanent=true"
     networks:
       - tournoi-net
 

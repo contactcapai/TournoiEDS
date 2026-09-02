@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { baseDuSite } from "@/lib/site-url";
 import { getPhotoDePartage } from "@/server/db/queries/photos";
 
 /**
@@ -43,7 +44,7 @@ export default async function Image() {
   // carte partirait sans son fond — sans erreur, puisque le rendu, lui, réussit.
   // ⚠️ `NEXT_PUBLIC_SITE_URL` est inlinée au build (cf. `Dockerfile`) et suit donc la
   // bascule DNS toute seule, comme la cible des redirections héritées.
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://esportdessacres.fr";
+  const base = baseDuSite();
 
   return new ImageResponse(
     (

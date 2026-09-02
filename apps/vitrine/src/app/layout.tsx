@@ -4,6 +4,7 @@ import { Bebas_Neue, Roboto, Caveat } from "next/font/google";
 // les variables :root soient disponibles aux règles du body.
 import "@repo/ui/styles/tokens.css";
 import "./globals.css";
+import { baseDuSite } from "@/lib/site-url";
 
 // Bebas Neue = police STATIQUE : poids 400 seul, aucun italique (cf. Dev Notes 1.2).
 const bebasNeue = Bebas_Neue({
@@ -36,9 +37,7 @@ const caveat = Caveat({
 // `title.template` préfixe les titres des pages enfants.
 // Pas d'image OG / favicon custom / sitemap / JSON-LD ici (hors périmètre).
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://esportdessacres.fr",
-  ),
+  metadataBase: new URL(baseDuSite()),
   title: {
     default: "Esport des Sacres",
     template: "%s · Esport des Sacres",
