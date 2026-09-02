@@ -341,7 +341,9 @@ export default async function LAsso() {
       >
         <Wrap>
           <h2 id="venir-title" className={editorial.title}>
-            Envie de passer un <Brush>jeudi</Brush> ?
+            {/* Le « ? » DANS le Brush, collé par une insécable — patron du hub de la home
+                (EventHub), même correctif que /animations (« ? » orphelin à 320px). */}
+            Envie de passer un <Brush>jeudi&nbsp;?</Brush>
           </h2>
           <div className={editorial.prose}>
             <p>

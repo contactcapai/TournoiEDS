@@ -143,7 +143,11 @@ export default async function ConnexionPage({
           Pour vous inscrire à un tournoi, annoncer votre venue un jeudi, ou gérer le site si
           vous êtes de l&rsquo;équipe.
           <br />
-          <strong>Première fois&nbsp;?</strong> Votre compte se crée tout seul en vous
+          {/* `{" "}` explicite : l'espace après </strong> était AVALÉE au rendu
+              (« ?Votre », mesuré sur staging) — piège jsx-espace-avalee, même
+              correctif que la PR #90. */}
+          <strong>Première fois&nbsp;?</strong>{" "}
+          Votre compte se crée tout seul en vous
           connectant&nbsp;: il n&rsquo;y a rien d&rsquo;autre à remplir.
         </p>
 

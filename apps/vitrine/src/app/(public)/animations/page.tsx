@@ -370,7 +370,10 @@ export default async function Animations() {
       >
         <Wrap>
           <h2 id="contact-title" className={editorial.title}>
-            Un projet en <Brush>tête</Brush> ?
+            {/* Le « ? » DANS le Brush, collé par une insécable — patron du hub de la home
+                (EventHub). Mesuré à 320px : avec l'espace sécable, le « ? » restait seul
+                à la ligne. */}
+            Un projet en <Brush>tête&nbsp;?</Brush>
           </h2>
           <div className={editorial.prose}>
             <p>

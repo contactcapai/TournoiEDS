@@ -146,6 +146,10 @@
 .act {
   display: flex;
   align-items: center;
+  /* Les DEUX gestes peuvent cohabiter (CTA or + « J'y serai », Story 12.2) : sans gap ils
+     se toucheraient, et sans wrap ils déborderaient à 320px — rogné par `overflow-x: clip`. */
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 /* ═══════════════════════ Responsive (< 880px) ═══════════════════════
@@ -184,9 +188,17 @@
   /* 🔴 NEUTRALISE le plancher de 240px : à 320px la carte n'offre que ~223px utiles.
      Sans cette ligne, le corps déborde de ~17px — et `overflow-x: clip` le rognerait
      SANS scrollbar ni avertissement (dette R14, le mode de défaillance que la porte
-     outillée existe pour attraper). */
+     outillée existe pour attraper).
+     ⚠️ `flex-basis: 240px` EN PLUS, et les deux vont ensemble : `min-width: 0` seul
+     laissait `.act` rester sur la rangée et écraser les faits à ~40 % de large — un mot
+     par ligne, « Boomerang » coupé en deux (mesuré à 320px sur `/` et `/agenda`,
+     2026-09-02). Une BASE participe au calcul de rangée là où un min-width ne fait que
+     borner : quand base + bouton ne tiennent pas, c'est le bouton qui passe à la ligne
+     (« le CTA finit seul », comme l'annonce le commentaire de `.next`), et le corps
+     garde sa largeur. À 768-880px les deux tiennent côte à côte, rendu inchangé. */
   .body {
     min-width: 0;
+    flex-basis: 240px;
   }
 }
 
