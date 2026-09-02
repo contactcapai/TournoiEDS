@@ -255,6 +255,57 @@ services:
       - tournoi-net
 
   # ─────────────────────────────────────────────────
+  # Vitrine STAGING — doublon de test sur staging.esportdessacres.fr (2026-09-03,
+  # demande de Brice apres la bascule 7.5 : staging = base de test, l'apex = prod).
+  #
+  # 🔴 TOUT EST SEPARE DE LA PROD, ET CHAQUE SEPARATION A SA RAISON :
+  #   - base `vitrine_staging` (role dedie) : un essai de saisie ne doit jamais
+  #     paraitre sur le site public ; ⚠️ elle se cree A LA MAIN sur le volume deja
+  #     initialise (meme piege R21 que `vitrine`, initdb ne rejoue pas) ;
+  #   - volume `eds-medias-staging` : un televersement de test ne pollue pas la
+  #     galerie publique — et backup-medias.sh ne sauvegarde QUE la prod, voulu ;
+  #   - build DEDIE : NEXT_PUBLIC_SITE_URL est inlinee au build, une seule image ne
+  #     peut pas servir deux hotes.
+  # ⚠️ PAS de routeur www ni des hotes herites (tournoi.*) ici : ils appartiennent
+  # a la prod. ⚠️ X-Robots-Tag EN DUR et non par variable : un staging n'est jamais
+  # indexable, ce n'est pas un reglage.
+  vitrine-staging:
+    build:
+      context: ..
+      dockerfile: apps/vitrine/Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: https://${VITRINE_HOST_STAGING}
+    container_name: eds-vitrine-staging
+    restart: unless-stopped
+    env_file:
+      # Copie de .env.prod dont SEULE DATABASE_URL change (base vitrine_staging).
+      # MEDIA_DIR reste identique : c'est le VOLUME qui differe, pas le chemin.
+      - ../apps/vitrine/.env.staging
+    environment:
+      # Meme regle que la prod (Story 7.4) : derivee, jamais ecrite a la main.
+      - AUTH_URL=https://${VITRINE_HOST_STAGING}
+    volumes:
+      - eds-medias-staging:/repo/apps/vitrine/medias
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=tournoi-net"
+      - "traefik.http.routers.eds-vitrine-staging.rule=Host(`${VITRINE_HOST_STAGING}`)"
+      - "traefik.http.routers.eds-vitrine-staging.entrypoints=websecure"
+      - "traefik.http.routers.eds-vitrine-staging.tls=true"
+      - "traefik.http.routers.eds-vitrine-staging.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.eds-vitrine-staging.middlewares=eds-vitrine-staging-robots"
+      - "traefik.http.middlewares.eds-vitrine-staging-robots.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow"
+      - "traefik.http.services.eds-vitrine-staging.loadbalancer.server.port=3000"
+    networks:
+      - tournoi-net
+
+  # ─────────────────────────────────────────────────
   # n8n d'Esport des Sacres — publication reseaux (Story 7.1, dette R42 ①)
   # Instance PROPRE A L'ASSO (decision de Brice, 2026-08-07) : les jetons d'API des
   # comptes sociaux ne vivent pas sur l'instance d'un prestataire.
@@ -352,6 +403,9 @@ volumes:
   traefik-acme:
   # Medias de la vitrine (photos de la galerie, Epic 4/6) — ex-Supabase Storage.
   eds-medias:
+  # Medias du DOUBLON de staging (2026-09-03) — separes pour qu'un test de
+  # televersement ne paraisse jamais sur le site public. Pas sauvegardes : voulu.
+  eds-medias-staging:
   # Donnees n8n (SQLite : workflows, credentials chiffres, executions) — Story 7.1.
   # Sauvegarde par docker/backup-n8n.sh ; restauration : PASSATION.md §3.
   n8n-data:
