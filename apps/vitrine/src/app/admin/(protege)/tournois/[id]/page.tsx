@@ -7,10 +7,12 @@ import { formatLongDate } from "@/lib/date-paris";
 import { exigerRolePage } from "@/server/auth/guard";
 import {
   getEventsPourRattachement,
-  getPhotosPourVisuel,
   getTournamentById,
   tournoiADesEngages,
 } from "@/server/db/queries/tournaments";
+// 🔴 La liste des images proposables vient de `queries/photos.ts` depuis la 15.1 : elle
+// interroge `photo`, et elle a trois consommateurs (tournoi, événement, composeur réseaux).
+import { getImagesPourChoix } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-page.module.css";
 
 // Modification d'un tournoi (Story 9.1).
@@ -54,7 +56,7 @@ export default async function ModifierTournoiPage({
   const [tournoi, evenements, photos, aDesEngages] = await Promise.all([
     getTournamentById(id),
     getEventsPourRattachement(EVENEMENTS_MAX),
-    getPhotosPourVisuel(PHOTOS_MAX),
+    getImagesPourChoix(PHOTOS_MAX),
     tournoiADesEngages(id),
   ]);
   if (!tournoi) notFound();

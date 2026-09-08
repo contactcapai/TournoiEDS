@@ -38,7 +38,8 @@ import {
   type TournamentRegistrationState,
 } from "@/lib/schemas/tournament";
 import { enregistrerTournoi } from "@/server/actions/tournois";
-import type { EvenementRattachable, PhotoVisuel } from "@/server/db/queries/tournaments";
+import type { EvenementRattachable } from "@/server/db/queries/tournaments";
+import type { ImageChoisissable } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-form.module.css";
 import propre from "@/app/admin/(protege)/tournois/tournois.module.css";
 
@@ -149,9 +150,9 @@ export interface TournoiFormProps {
   evenements: readonly EvenementRattachable[];
   /**
    * Les photos de la galerie proposables comme visuel (A2). **Publiées uniquement** — voir
-   * `getPhotosPourVisuel`, et l'écart assumé d'A2 qu'elle referme.
+   * `getImagesPourChoix`, et l'écart assumé d'A2 qu'elle referme.
    */
-  photos: readonly PhotoVisuel[];
+  photos: readonly ImageChoisissable[];
 }
 
 export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {

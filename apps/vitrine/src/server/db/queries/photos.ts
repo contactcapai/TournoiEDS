@@ -6,6 +6,7 @@ import "server-only";
 import { and, count, desc, eq, inArray, max } from "drizzle-orm";
 
 import { jourParis } from "@/lib/date-paris";
+import { cleanText } from "@/lib/text";
 import { db } from "../client";
 import { photo, siteSetting } from "../schema";
 
@@ -46,7 +47,17 @@ export async function getPublishedPhotos(limit?: number) {
     // Elles ignoraient le point focal alors que c'est sur CET écran qu'on le pose — une
     // incohérence que seul l'œil pouvait voir : le hero cadrait juste, la galerie non.
     columns: { id: true, filename: true, alt: true, caption: true, focalX: true, focalY: true },
-    where: (table, { eq }) => eq(table.isPublished, true),
+    // 🔴 DEUX CONDITIONS DEPUIS LA 15.1, ET LA SECONDE EST UNE CORRECTION, PAS UN FILTRE DE
+    // CONFORT. `is_published` répond à « peut-on la servir ? » ; `dans_la_galerie` répond à
+    // « a-t-elle sa place dans le scrapbook ? ». Tant que cette table ne portait que des
+    // souvenirs, la première suffisait. Depuis qu'on y importe des visuels d'événement et des
+    // images de post, une affiche publiée — elle DOIT l'être pour s'afficher sur sa carte —
+    // entrerait ici et **pousserait une photo de soirée hors des huit**, sans erreur, sans
+    // test rouge, et sans que personne ne fasse le lien entre les deux écrans.
+    // ⚠️ Le raisonnement complet vit sur la colonne (`schema.ts`), pas ici : c'est là qu'on le
+    // cherchera le jour où quelqu'un voudra « simplifier » cette clause.
+    where: (table, { and, eq }) =>
+      and(eq(table.isPublished, true), eq(table.dansLaGalerie, true)),
     orderBy: (table, { asc }) => [asc(table.sortOrder), asc(table.id)],
     ...(limit === undefined ? {} : { limit }),
   });
@@ -148,6 +159,10 @@ export async function getPhotosForAdmin(limit: number) {
       // d'aperçu, puisqu'on le regarde précisément pour juger du rendu.
       focalX: true,
       focalY: true,
+      // 🔴 L'ÉCRAN SE COUPE EN DEUX SUR CETTE COLONNE (15.1) : la galerie de l'accueil d'un
+      // côté, les visuels de l'autre. Sans elle, les deux sections seraient rendues depuis
+      // une liste qui ne sait pas les distinguer — donc une seule liste, celle d'avant.
+      dansLaGalerie: true,
     },
     with: {
       // Le titre de l'événement rattaché : l'écran doit dire À QUOI la photo est rattachée,
@@ -179,6 +194,10 @@ export async function getPhotoByIdForAdmin(id: string) {
       // qui est exactement le rôle qu'on lui demande.
       focalX: true,
       focalY: true,
+      // ⚠️ MÊME RAISON, 15.1 : la case « dans la galerie de l'accueil » s'ouvrirait sur son
+      // défaut et le premier enregistrement écraserait un choix déjà fait — le défaut décrit
+      // juste au-dessus pour le point focal, et celui que `endsAt` a payé en 9.6.
+      dansLaGalerie: true,
     },
     where: (table, { eq }) => eq(table.id, id),
   });
@@ -334,3 +353,130 @@ export async function getPhotosPubliablesPourReglages() {
     .where(eq(photo.isPublished, true))
     .orderBy(photo.sortOrder, desc(photo.createdAt));
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LA MÉDIATHÈQUE (Story 15.1) — CHOISIR UNE IMAGE, ET SAVOIR À QUOI ELLE SERT
+// ══════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Les images proposables dans le bloc « choisir ou importer » — événement, tournoi, post.
+ *
+ * 🔴 ELLE REMPLACE `getPhotosPourVisuel`, QUI VIVAIT DANS `queries/tournaments.ts`. Sa place
+ * y était déjà discutable — elle interroge `photo`, pas `tournament` — mais tant qu'elle
+ * n'avait qu'un appelant, la déplacer aurait été du rangement. Elle en a **trois** depuis
+ * cette story : `architecture.md` pose une famille de requêtes **par domaine**, et c'est la
+ * règle d'extraction du projet (« au 2ᵉ consommateur »).
+ *
+ * 🔴 **PUBLIÉES SEULEMENT**, et le motif est mesuré, pas esthétique : `/medias/[filename]` ne
+ * sert **que** les images publiées (garde 6.4, 404 sur un brouillon). Proposer un brouillon
+ * laisserait choisir un visuel qui ne s'afficherait **jamais**, sans que rien ne le dise.
+ *
+ * ⚠️ **AUCUN FILTRE SUR `dans_la_galerie`, ET C'EST VOLONTAIRE.** Cette colonne dit où une
+ * image **paraît** (le scrapbook de l'accueil), jamais ce à quoi elle **sert**. Une photo de
+ * soirée fait un très bon visuel d'événement, et une affiche reste choisissable pour un autre
+ * post. Filtrer ici couperait la médiathèque en deux bibliothèques étanches — l'inverse exact
+ * de ce que cette story livre.
+ *
+ * ⚠️ `focalX`/`focalY` REMONTENT : la grille de vignettes recadre (`object-fit: cover`), donc
+ * elle COUPE. Sans eux elle montrerait un cadrage que le site n'applique pas — et c'est
+ * précisément sur une vignette qu'on choisit une image (défaut corrigé le 2026-09-01 sur le
+ * scrapbook, même famille).
+ */
+export async function getImagesPourChoix(limite: number) {
+  return db.query.photo.findMany({
+    columns: { id: true, filename: true, alt: true, focalX: true, focalY: true },
+    where: (table, { eq }) => eq(table.isPublished, true),
+    // La plus récente d'abord : on choisit presque toujours ce qu'on vient d'importer.
+    // ⚠️ Ordre TOTAL (`alt` puis `id` en départage) — deux images créées dans la même
+    // milliseconde par une boucle d'import sortiraient sinon dans un ordre non garanti, et
+    // la grille se réordonnerait d'un rendu à l'autre sur un écran `force-dynamic`.
+    orderBy: (table, { asc, desc }) => [desc(table.createdAt), asc(table.alt), asc(table.id)],
+    limit: limite,
+  });
+}
+
+/** Une image proposable dans le bloc de choix. DÉRIVÉE de la requête, jamais réécrite. */
+export type ImageChoisissable = Awaited<ReturnType<typeof getImagesPourChoix>>[number];
+
+/**
+ * À quoi sert chaque image — « Visuel du tournoi X », « Photo d'accueil », …
+ *
+ * 🔴 CE N'EST PAS UN CONFORT D'AFFICHAGE, C'EST CE QUI REND LA SUPPRESSION SÛRE. Depuis que
+ * cette table porte des visuels et des images de post, l'écran liste des images dont **rien à
+ * l'œil ne dit qu'elles sont utilisées** : `alt` décrit ce qu'on voit, pas où ça sert. Or
+ * supprimer est irréversible (la ligne **et** le fichier partent), et les `ON DELETE SET NULL`
+ * font que la perte est **silencieuse** — l'événement garde sa page, il perd juste son image.
+ * ⇒ L'écran doit pouvoir dire « celle-ci sert ici » **avant** le clic, pas après.
+ *
+ * ⚠️ **TROIS LECTURES, ET AUCUNE N'EST UN N+1** : on lit les lignes qui portent un `photo_id`
+ * (elles sont rares par nature — une par tournoi, une par événement, trois pour le site), pas
+ * une requête par image affichée.
+ *
+ * ⚠️ **`site_setting` COMPTE POUR TROIS EMPLOIS DISTINCTS** sur une seule ligne : le hero, la
+ * bande de citation et l'image de partage. Les fondre en « utilisée sur l'accueil » ferait
+ * disparaître l'information au moment où elle sert — retirer la photo de partage et celle du
+ * hero n'a pas du tout le même effet.
+ *
+ * @returns une `Map` de `photoId` → libellés. **Une image sans emploi n'a pas d'entrée** :
+ *   l'appelant n'affiche alors rien, plutôt qu'un « aucun emploi » qui se lirait comme une
+ *   invitation à supprimer.
+ */
+export async function getEmploisDesImages(): Promise<Map<string, string[]>> {
+  const [tournois, evenements, reglages] = await Promise.all([
+    db.query.tournament.findMany({
+      columns: { name: true, photoId: true },
+      where: (table, { isNotNull }) => isNotNull(table.photoId),
+    }),
+    db.query.event.findMany({
+      columns: { title: true, photoId: true },
+      where: (table, { isNotNull }) => isNotNull(table.photoId),
+    }),
+    db.query.siteSetting.findFirst({
+      columns: { heroPhotoId: true, quotePhotoId: true, ogPhotoId: true },
+      where: (table, { eq }) => eq(table.id, 1),
+    }),
+  ]);
+
+  const emplois = new Map<string, string[]>();
+  const ajouter = (photoId: string | null, libelle: string) => {
+    if (photoId === null) return;
+    const deja = emplois.get(photoId);
+    if (deja) deja.push(libelle);
+    else emplois.set(photoId, [libelle]);
+  };
+
+  // ⚠️ `cleanText` sur les deux textes libres : `btrim` ne retire pas U+200B (dette R41), et
+  // un titre fait uniquement d'invisible rendrait « Visuel du tournoi » suivi de RIEN —
+  // l'étiquette orpheline que tout ce dépôt s'applique à ne jamais produire.
+  for (const t of tournois) ajouter(t.photoId, `Visuel du tournoi « ${cleanText(t.name) ?? "sans nom"} »`);
+  for (const e of evenements) ajouter(e.photoId, `Visuel de « ${cleanText(e.title) ?? "sans titre"} »`);
+
+  ajouter(reglages?.heroPhotoId ?? null, "Photo d'accueil");
+  ajouter(reglages?.quotePhotoId ?? null, "Bande de citation");
+  ajouter(reglages?.ogPhotoId ?? null, "Image de partage");
+
+  return emplois;
+}
+
+/**
+ * Les colonnes d'une image **servant de visuel** — définies UNE fois, lues par deux familles.
+ *
+ * 🔴 ELLE EXISTE PARCE QUE DEUX DOMAINES LA CONSOMMENT DEPUIS LA 15.1 : `queries/tournaments.ts`
+ * (le visuel d'un tournoi) et `queries/events.ts` (celui d'un événement). Recopier la liste
+ * dans les deux aurait produit **deux définitions du même objet**, et ce dépôt sait ce que ça
+ * coûte : elles auraient divergé au premier ajustement — exactement comme le point focal, qui
+ * a été ajouté au scrapbook le 2026-09-01 et **oublié** sur le visuel de tournoi jusqu'ici.
+ *
+ * 🔴 `isPublished` EN FAIT PARTIE, ET CE N'EST PAS DÉCORATIF. `/medias/[filename]` répond
+ * **404** pour une image non publiée (garde 6.4) et rien n'empêche de dépublier une image déjà
+ * choisie comme visuel — `photo_id` reste alors intact, la dépublication n'étant pas une
+ * suppression. Sans ce booléen, le rendu produirait un `<img>` vers une URL morte, c'est-à-dire
+ * un cadre vide. **Le rendu DÉCIDE, il ne suppose pas.**
+ */
+export const COLONNES_VISUEL = {
+  filename: true,
+  alt: true,
+  isPublished: true,
+  focalX: true,
+  focalY: true,
+} as const;

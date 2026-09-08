@@ -26,6 +26,7 @@
 // noms de colonnes ne sont donc pas répétés ici : c'est la conversion qui fait foi.
 import { relations, sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -299,6 +300,34 @@ export const event = pgTable(
     description: text(),
     /** Compte-rendu, renseigné APRÈS l'événement (FR5). Nul tant qu'il n'a pas eu lieu. */
     recap: text(),
+
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════
+     * LE VISUEL DE L'ÉVÉNEMENT — MÊME PATRON QUE `tournament.photo_id` (Story 15.1)
+     * ══════════════════════════════════════════════════════════════════════════════════
+     *
+     * 🔴 CE N'EST PAS `photo.event_id` À L'ENVERS, ET LES DEUX DOIVENT COEXISTER. Cette
+     * colonne-ci dit **« l'image qui ANNONCE cet événement »** — une seule, choisie ; l'autre
+     * dit **« les photos PRISES à cet événement »** — plusieurs, subies. Une affiche se choisit
+     * avant, un souvenir se range après. Les confondre ferait de la première photo téléversée
+     * après la soirée le visuel de son annonce, alors que la soirée est passée.
+     * ⚠️ **Aucune des deux n'implique l'autre** : une affiche n'est pas rattachée à
+     * l'événement au sens de la galerie, et une photo de soirée n'en devient pas le visuel.
+     *
+     * ⚠️ **RÉFÉRENCE CIRCULAIRE ASSUMÉE** — `photo.event_id` pointe déjà dans l'autre sens.
+     * Postgres l'accepte (les deux sont nullables, aucune des deux insertions n'exige l'autre) ;
+     * TypeScript exige en revanche l'annotation `AnyPgColumn`, `photo` étant déclarée **après**
+     * `event` dans ce fichier. Sans elle, l'inférence boucle et le typecheck échoue.
+     *
+     * 🔴 `ON DELETE SET NULL`, JAMAIS `CASCADE` : supprimer une image de la médiathèque ne doit
+     * pas effacer un événement de l'agenda, son adresse et son compte-rendu. L'événement perd
+     * son visuel et se rend sans — même raisonnement, mot pour mot, que `tournament.photo_id`.
+     * ⚠️ Nullable **par conception** : un événement sans visuel est le cas nominal, et la carte
+     * doit être entière sans lui (le bloc est OMIS, jamais remplacé par un cadre vide qui
+     * promettrait une photo — arbitrage de Brice, 2026-09-08).
+     */
+    photoId: uuid().references((): AnyPgColumn => photo.id, { onDelete: "set null" }),
+
     /** Défaut `false` : rien n'est public par accident. */
     isPublished: boolean().notNull().default(false),
     /**
@@ -742,6 +771,41 @@ export const photo = pgTable(
     sortOrder: integer().notNull().default(0),
     /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`). */
     isPublished: boolean().notNull().default(false),
+
+    /**
+     * ══════════════════════════════════════════════════════════════════════════════════
+     * 🔴 « PUBLIER » VOULAIT DIRE DEUX CHOSES — CETTE COLONNE LES SÉPARE (Story 15.1)
+     * ══════════════════════════════════════════════════════════════════════════════════
+     *
+     * Jusqu'ici `is_published` gouvernait **à la fois** ce que sert `/medias/[filename]`
+     * (garde 6.4, 404 sur un brouillon) **et** ce qui entre dans la galerie de l'accueil
+     * (`getPublishedPhotos`, les `HOME_PHOTO_COUNT` premières). Tant que cette table ne
+     * portait que des souvenirs de soirée, les deux coïncidaient.
+     *
+     * 🔴 ELLES CESSENT DE COÏNCIDER DÈS QU'UNE IMAGE EST IMPORTÉE **POUR UN USAGE PRÉCIS**
+     * (le visuel d'un événement, l'image d'un post) : elle doit être **servable
+     * immédiatement**, sinon elle ne s'afficherait nulle part et il faudrait aller la
+     * publier ailleurs — la capacité sans signal, déjà payée en 10.13 et en 12.1. Mais
+     * publiée, elle entrerait dans le scrapbook de l'accueil et **pousserait une photo de
+     * soirée dehors**, sans erreur et sans que personne le voie. C'est ce défaut-là que
+     * cette colonne ferme, et il était atteignable dès la première affiche.
+     *
+     * ⇒ Deux réglages, deux questions : `is_published` dit **« visible sur le site »**,
+     * celle-ci dit **« dans la galerie de l'accueil »**.
+     *
+     * ⚠️ **DÉFAUT `true`, ET C'EST UNE MIGRATION SANS DÉPLACEMENT** : toutes les photos
+     * existantes sont des souvenirs, elles gardent exactement leur place. Un défaut à
+     * `false` aurait vidé la galerie de l'accueil au déploiement — une migration ne doit
+     * jamais changer ce qui est déjà à l'écran.
+     * ⚠️ Le formulaire d'import, lui, la pose à `false` : on importe pour un usage, pas
+     * pour le scrapbook. C'est le seul endroit où le défaut de la colonne ne s'applique pas,
+     * et il est explicite.
+     *
+     * ⚠️ **ELLE NE GARDE RIEN, ELLE TRIE** — une photo hors galerie reste servie, reste
+     * proposable comme visuel, et reste supprimable. Lui faire porter une garde de sécurité
+     * serait lui donner un rôle qu'`is_published` tient déjà.
+     */
+    dansLaGalerie: boolean().notNull().default(true),
 
     /**
      * ══════════════════════════════════════════════════════════════════════════════════
@@ -2497,6 +2561,11 @@ export const eventRelations = relations(event, ({ one, many }) => ({
   // événement passé, R25). Le sens inverse sert la galerie si elle veut un jour nommer
   // l'occasion ; il ne coûte rien à déclarer et évite de rouvrir ce fichier.
   photos: many(photo),
+  // 🔴 `photos` (au pluriel, ci-dessus) ET `visuel` (au singulier) NE SONT PAS LA MÊME CHOSE,
+  // et le nom au singulier est ce qui l'empêche de se confondre : `photos` sont les images
+  // PRISES à l'événement (via `photo.event_id`), `visuel` est l'image qui l'ANNONCE (via
+  // `event.photo_id`). Deux relations, deux clés, deux sens — voir le bloc de `event.photoId`.
+  visuel: one(photo, { fields: [event.photoId], references: [photo.id] }),
   // 🔴 `event → tournaments` : **UN événement peut en porter N** (A4). C'est le cas exact de
   // la Game'in Reims — un `event` de type `special`, dix animations. Le sens inverse
   // (`tournament → event`) est déclaré juste en dessous : c'est celui dont la fiche a besoin
