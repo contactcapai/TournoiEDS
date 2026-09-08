@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { EventForm } from "@/components/admin/EventForm/EventForm";
 import { exigerRolePage } from "@/server/auth/guard";
+import { getImagesPourChoix } from "@/server/db/queries/photos";
 import { getBars } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -17,10 +18,17 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+
+// Borne EXPLICITE de la médiathèque, comme partout : une page dont le temps de rendu dépend du
+// volume téléversé est un défaut qui n'apparaîtrait qu'une fois la base remplie, c'est-à-dire
+// en production. Même valeur que l'écran de tournoi, pour que les deux proposent la même chose.
+const IMAGES_MAX = 200;
+
 export default async function NouvelEvenementPage() {
   await exigerRolePage("admin_site");
 
-  const bars = await getBars();
+  // Les deux lectures sont indépendantes : elles partent ensemble.
+  const [bars, images] = await Promise.all([getBars(), getImagesPourChoix(IMAGES_MAX)]);
 
   return (
     <>
@@ -31,7 +39,7 @@ export default async function NouvelEvenementPage() {
       </p>
 
       <div className={styles.section}>
-        <EventForm bars={bars} />
+        <EventForm bars={bars} images={images} />
       </div>
     </>
   );

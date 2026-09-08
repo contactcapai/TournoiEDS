@@ -119,6 +119,29 @@ export async function televerserPhoto(formData: FormData): Promise<ResultatActio
   const eventIdBrut = String(formData.get("eventId") ?? "");
   const eventId = eventIdBrut === "" ? null : eventIdBrut;
 
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 DEUX PORTES D'ENTRÉE, DEUX ÉTATS DE DÉPART — ET LA SECONDE PUBLIE (Story 15.1)
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // · Depuis la MÉDIATHÈQUE : brouillon, dans la galerie. On téléverse trente photos après une
+  //   soirée, on les décrit, on les ordonne, **puis** on publie. C'est le comportement d'avant
+  //   cette story, inchangé.
+  // · Depuis le bloc « importer » d'un FORMULAIRE (événement, tournoi, post) : **publiée**,
+  //   hors galerie. Les deux moitiés sont nécessaires, et aucune n'est un confort :
+  //     · publiée, parce que `/medias/[filename]` répond **404** sur un brouillon (garde 6.4).
+  //       Un import qui resterait brouillon obligerait à aller le publier ailleurs pour voir
+  //       apparaître le visuel qu'on vient de choisir — la capacité sans signal, déjà payée
+  //       deux fois sur ce projet (10.13, 12.1) ;
+  //     · hors galerie, parce qu'on l'a importée POUR CET USAGE. L'y laisser entrer pousserait
+  //       une photo de soirée hors des huit de l'accueil, sans que personne fasse le lien.
+  //
+  // ⚠️ C'EST UN CHOIX QUI SE VOIT, pas un effet de bord : l'écran d'import le DIT au moment
+  // de l'import, et la case reste modifiable ensuite depuis la médiathèque.
+  // ⚠️ La valeur vient du client, donc elle est traitée en LISTE BLANCHE : tout ce qui n'est
+  // pas exactement `"visuel"` retombe sur le comportement de la médiathèque. Un `usage`
+  // inconnu ne doit pas pouvoir publier une image en silence.
+  const importePourUnUsage = formData.get("usage") === "visuel";
+
   if (eventId !== null && !identifiant.safeParse(eventId).success) {
     return { ok: false, error: "L'événement choisi n'est pas valide. Rechargez la page." };
   }
@@ -142,7 +165,14 @@ export async function televerserPhoto(formData: FormData): Promise<ResultatActio
   // une fois le fichier écrit, ce qui est la seule analyse dont le résultat est utilisé.
   const preAnalyse = photoInputSchema
     .omit({ filename: true })
-    .safeParse({ alt, caption, eventId, sortOrder, isPublished: false });
+    .safeParse({
+      alt,
+      caption,
+      eventId,
+      sortOrder,
+      isPublished: importePourUnUsage,
+      dansLaGalerie: !importePourUnUsage,
+    });
 
   if (!preAnalyse.success) {
     return {
@@ -166,7 +196,8 @@ export async function televerserPhoto(formData: FormData): Promise<ResultatActio
     caption,
     eventId,
     sortOrder,
-    isPublished: false,
+    isPublished: importePourUnUsage,
+    dansLaGalerie: !importePourUnUsage,
   });
 
   if (!analyse.success) {
@@ -219,6 +250,10 @@ export async function enregistrerPhoto(
 
   // `filename`, `sortOrder` et `isPublished` ne sont PAS dans ce formulaire : les omettre du
   // schéma est ce qui garantit qu'un POST direct ne peut pas les réécrire au passage.
+  // ⚠️ `dansLaGalerie` N'EN EST PAS, ET C'EST VOULU (15.1) : cette case-là **est** dans le
+  // formulaire — c'est le seul endroit où l'on décide qu'une image quitte le scrapbook ou y
+  // revient. L'omettre la laisserait retomber sur son défaut `true` à chaque enregistrement,
+  // donc un visuel importé redeviendrait une photo d'accueil au premier « Enregistrer ».
   const analyse = photoInputSchema
     .omit({ filename: true, sortOrder: true, isPublished: true })
     .safeParse({
@@ -227,6 +262,10 @@ export async function enregistrerPhoto(
       // ⚠️ Postés par `PointFocal`, en champs cachés — voir `photoInputSchema`.
       focalX: formData.get("focalX"),
       focalY: formData.get("focalY"),
+      // ⚠️ Une case décochée est un champ ABSENT en HTML, jamais `"off"` : la comparaison
+      // rend donc `false`, ce qui est exactement l'intention. Patron `isPublished` des
+      // formulaires d'événement et de tournoi.
+      dansLaGalerie: formData.get("dansLaGalerie") === "on",
       eventId,
     });
 
@@ -346,9 +385,19 @@ export async function reordonnerPhotos(
     // une photo AJOUTÉE entre-temps reçoit `max + 1`, donc se range APRÈS le préfixe et ne
     // fait pas échouer un réordonnancement légitime. Comparer la table entière casserait aussi
     // la fonction dès que la galerie dépasserait la borne de lecture de l'écran (200).
+    // 🔴 `dans_la_galerie` DANS LE `WHERE` DEPUIS LA 15.1, ET SANS LUI CETTE GARDE ACCUSERAIT
+    // À TORT. L'écran n'ordonne plus que la galerie de l'accueil — les visuels sont dans une
+    // seconde section, sans ordre, parce qu'ils n'en ont pas besoin. `ordreAttendu` ne contient
+    // donc QUE des photos de galerie, alors que cette lecture prenait les N premières de la
+    // table **toutes catégories confondues** : le premier visuel importé s'y serait glissé, la
+    // comparaison aurait échoué, et le bénévole aurait lu « la galerie a changé, rechargez » à
+    // chaque clic — sur une page qui, rechargée, aurait affiché exactement la même chose.
+    // ⚠️ Défaut qui n'existait pas avant cette story et qu'elle CRÉE : c'est le genre qu'on ne
+    // trouve qu'en ordonnant une galerie une fois qu'un visuel existe, donc pas au premier essai.
     const actuelles = await db
       .select({ id: photo.id })
       .from(photo)
+      .where(eq(photo.dansLaGalerie, true))
       .orderBy(asc(photo.sortOrder), asc(photo.id))
       .limit(ordreAttendu.length);
 

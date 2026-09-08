@@ -161,6 +161,26 @@ export const eventInputSchema = z
       .max(TITRE_MAX, `Le titre ne doit pas dépasser ${TITRE_MAX} caractères.`),
     /** Référence à un bar du roulement. `null` pour un temps fort hors bar. */
     barId: optionalUuid,
+    /**
+     * 🔴 LE VISUEL — **UNE IMAGE DE LA MÉDIATHÈQUE**, ET FACULTATIF (Story 15.1).
+     *
+     * Repris **mot pour mot** de `tournament.photoId` : même patron, même arbitrage **A2**
+     * (pas de 4ᵉ famille de médias), même `ON DELETE SET NULL`. Le raisonnement vit dans
+     * `server/db/schema.ts`, sur la colonne.
+     * ⚠️ **Facultatif, et l'absence est le cas NOMINAL** : la carte du prochain rendez-vous
+     * doit être entière sans lui — le bloc est OMIS, jamais remplacé par un cadre vide.
+     * ⚠️ La chaîne vide vaut `null` **avant** la validation de format, sinon « aucune image »
+     * (qui poste `value=""`) produirait « identifiant invalide ». Patron `optionalUuid`
+     * ci-dessus, mais avec **son propre message** : celui d'`optionalUuid` nomme le *bar*, et
+     * un message qui se trompe d'objet envoie corriger le mauvais champ.
+     */
+    photoId: trimmedText
+      .transform((value) => (value.length === 0 ? null : value))
+      .nullable()
+      .default(null)
+      .refine((value) => value === null || z.uuid().safeParse(value).success, {
+        message: "Cette image n'existe pas. Rechargez la page et choisissez-en une autre.",
+      }),
     /** Lieu libre, quand l'événement ne se tient pas dans un bar du roulement. */
     venueName: texteOptionnel(LIEU_NOM_MAX, "Le nom du lieu"),
     venueAddress: texteOptionnel(LIEU_ADRESSE_MAX, "L'adresse du lieu"),

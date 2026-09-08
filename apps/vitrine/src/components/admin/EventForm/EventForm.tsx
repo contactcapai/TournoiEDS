@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
+import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
 import {
   avertissementHeuresMurales,
   parisWallClockFromInput,
@@ -24,6 +25,7 @@ import {
   eventInputSchema,
 } from "@/lib/schemas/event";
 import { enregistrerEvenement } from "@/server/actions/agenda";
+import type { ImageChoisissable } from "@/server/db/queries/photos";
 import type { Bar, Event } from "@/server/db/schema";
 import styles from "@/styles/admin-form.module.css";
 
@@ -79,11 +81,17 @@ const ETAT_INITIAL: EtatForm = { statut: "vierge" };
 
 export interface EventFormProps {
   bars: readonly Bar[];
+  /**
+   * Les images proposables comme visuel (Story 15.1) — `getImagesPourChoix`, donc publiées.
+   * ⚠️ Vide est un état NOMINAL, pas une erreur : `ChoixImage` propose alors « aucune image »
+   * et le bloc d'import, qui est précisément ce dont on a besoin le premier jour.
+   */
+  images: readonly ImageChoisissable[];
   /** Absent en création. */
   evenement?: Event;
 }
 
-export function EventForm({ bars, evenement }: EventFormProps) {
+export function EventForm({ bars, images, evenement }: EventFormProps) {
   const router = useRouter();
 
   const [type, setType] = useState<(typeof EVENT_TYPES)[number]>(evenement?.type ?? "thursday");
@@ -404,6 +412,22 @@ export function EventForm({ bars, evenement }: EventFormProps) {
         multiligne
         aide="À écrire APRÈS l'événement : c'est ce qui apparaît dans « Déjà passé »."
         erreur={erreurs.recap}
+      />
+
+      {/* 🔴 LE VISUEL SE CHOISIT ICI, ENTRE LE CONTENU ET LA PUBLICATION (15.1) — après avoir
+          décrit l'événement (on sait alors quelle image lui va) et avant de décider de le
+          publier (c'est ce qu'on regarde en dernier avant de dire « c'est bon »).
+          ⚠️ `ChoixImage` N'EST PAS CONTRÔLÉ PAR CE FORMULAIRE, contrairement à tous les autres
+          champs : il porte son propre state et poste un `<input type="radio" name="photoId">`.
+          Ce n'est pas une entorse au patron 5.1 — la règle vise les champs que React 19
+          RÉINITIALISE après une action ; un radio coché est réinitialisé sur sa valeur
+          `checked`, que le composant tient. */}
+      <ChoixImage
+        nom="photoId"
+        valeurInitiale={evenement?.photoId ?? null}
+        images={images}
+        label="Visuel de l'événement (facultatif)"
+        erreur={erreurs.photoId}
       />
 
       <div className={styles.champ}>

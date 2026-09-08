@@ -1,0 +1,122 @@
+/*
+ * Le bloc « choisir ou importer une image » (Story 15.1).
+ *
+ * ⚠️ Tokens uniquement, jamais de hex en dur, et le point de rupture en LITTÉRAL dans les
+ * `@media` — conventions non négociables du projet.
+ */
+
+.groupe {
+  /* Un `<fieldset>` porte une bordure et un padding par défaut qu'aucun autre bloc de ces
+     formulaires n'a. On les retire : la structure sémantique reste, l'apparence suit le
+     reste de l'écran. */
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.grille {
+  display: grid;
+  /* `auto-fill` et non `auto-fit` : avec deux images, `auto-fit` étirerait les deux vignettes
+     sur toute la largeur du back-office (qui est en pleine largeur depuis la PR #76), donc
+     deux images énormes. `auto-fill` garde la taille de vignette et laisse le vide. */
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-block: 12px 20px;
+}
+
+.case {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey a 50 %, filet sans token */
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  /* La cible tactile est la vignette entière (140 px de large, ~105 de haut) : très au-delà
+     des 44×44 exigés (AA), et c'est la raison d'être de cette présentation. */
+}
+
+.case:hover {
+  border-color: var(--gold);
+}
+
+/*
+ * 🔴 LE RADIO EST MASQUÉ VISUELLEMENT, JAMAIS RETIRÉ. `display: none` et `visibility: hidden`
+ * le sortiraient de l'ordre de tabulation ET du groupe annoncé par un lecteur d'écran — on
+ * perdrait la navigation aux flèches et le « 3 sur 12 », c'est-à-dire tout ce pour quoi on a
+ * choisi des radios plutôt que des `<div>` cliquables.
+ */
+.radio {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * 🔴 LA MARQUE DE SÉLECTION EST SUR LE `<label>` PARENT, VIA `:has()`. Sans elle, cocher une
+ * vignette ne se verrait NULLE PART : le radio est masqué, donc l'unique retour visuel est
+ * cette bordure. C'est le seul endroit de ce fichier dont l'absence rendrait le composant
+ * inutilisable plutôt que moins joli.
+ */
+.case:has(.radio:checked) {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+/* Le focus clavier doit rester distinct de la sélection : on peut parcourir le groupe sans
+   changer son choix, et confondre les deux ferait croire qu'on a déjà coché. */
+.case:has(.radio:focus-visible) {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.vignette,
+.vignetteVide {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 4/3 comme le reste du site (`PhotoFrame`, les vignettes d'agenda) : on choisit une image
+     dans le cadre où elle sera rendue, pas dans un carré qui mentirait sur le cadrage. */
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--navy-deep);
+}
+
+.vignetteVide {
+  color: var(--grey);
+  font-size: 1.5rem;
+}
+
+.vignetteImage {
+  object-fit: cover;
+  /* ⚠️ `object-position` est posé EN LIGNE depuis le point focal de chaque image : il ne peut
+     pas vivre ici, il est différent pour chacune. */
+}
+
+.nom {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--light);
+  /* Deux lignes au plus : une description de 300 caractères ferait des cases de hauteurs
+     très inégales, et la grille perdrait son rythme. Le texte complet reste dans le titre
+     accessible du radio (le `<label>` entier). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.import {
+  padding-block-start: 16px;
+  border-block-start: 1px dashed rgba(146, 147, 173, 0.5); /* --grey a 50 % */
+  /* Borné comme un champ, pas comme un conteneur : règle de la PR #75 — une borne de
+     lisibilité se pose sur le champ ou le paragraphe, jamais sur leur parent. */
+  max-inline-size: 62ch;
+}

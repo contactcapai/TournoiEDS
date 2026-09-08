@@ -31,3 +31,32 @@
  * (FR21) se lit comme un rangement sans conséquence.
  */
 export const HOME_PHOTO_COUNT = 8;
+
+/**
+ * Poids maximal accepté **côté client** pour une image de la médiathèque.
+ *
+ * 🔴 EXTRAIT AU 2ᵉ CONSOMMATEUR (Story 15.1) — `PhotoUploader` le portait seul, `ChoixImage`
+ * le lit désormais aussi. Et la divergence serait du genre le plus désagréable : les deux
+ * écrans créent des lignes dans **la même table**, par **la même action**. L'un annonçant
+ * 10 Mo et l'autre 8 Mo, un même fichier serait accepté ici et refusé là, sans que rien ne
+ * l'explique à qui l'importe.
+ *
+ * 🔴 10 Mo CÔTÉ CLIENT POUR 12 Mo CÔTÉ SERVEUR (`next.config.ts`), ET L'ÉCART EST LA GARDE.
+ * La borne client est la seule qui produise un message UTILE — elle connaît la taille du
+ * `File` sans rien transmettre, donc elle peut nommer le fichier ET la limite. La borne
+ * serveur est le filet, et elle doit rester **strictement supérieure** : le multipart
+ * transporte plus que l'octet du fichier (frontières, en-têtes, autres champs). Sans cette
+ * marge, un fichier de 10,0 Mo accepté ici repartirait en `413` — un refus levé **avant** le
+ * corps de l'action, donc muet, c'est-à-dire exactement le défaut qu'on évite.
+ * ⚠️ Volontairement haute : la dette **R15** attend des originaux HAUTE DÉFINITION, et rien
+ * ne redimensionne à l'écriture. La baisser rendrait R15 insoluble.
+ * ⚠️ **Le logo d'un partenaire garde SA borne** (5 Mo, `LogoUploader`) : ce n'est pas la même
+ * table, pas la même route, pas la même nature de fichier. L'unifier serait ranger deux
+ * décisions différentes sous un même nom.
+ */
+export const IMAGE_TAILLE_MAX_OCTETS = 10 * 1024 * 1024;
+
+/** « 4,2 Mo ». Virgule décimale : c'est un texte affiché à un francophone, pas une valeur. */
+export function formaterTaille(octets: number): string {
+  return `${(octets / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
+}

@@ -69,7 +69,12 @@ export default async function ApercuGaleriePage() {
   // « telle qu'elle apparaîtra sur l'accueil » et disait faux.
   // ⚠️ L'écran voisin `/admin/galerie` faisait DÉJÀ la bonne chose (lire large, filtrer et
   // couper en mémoire) : c'est ce qui prouve que c'était un défaut et non un arbitrage.
-  const toutes = await getPhotosForAdmin(PHOTOS_MAX);
+  // 🔴 FILTRÉ SUR `dans_la_galerie` DEPUIS LA 15.1, ET SANS CE FILTRE CET ÉCRAN MENTIRAIT.
+  // Il promet « à quoi ressemblera l'accueil » : les visuels d'événement et les images de post
+  // n'y entrent jamais (voir `getPublishedPhotos`), donc les afficher ici montrerait un accueil
+  // que le site ne rendra pas — et pire, ferait croire qu'ils ÉVINCENT des photos de soirée,
+  // alors que c'est exactement ce que cette story a corrigé.
+  const toutes = (await getPhotosForAdmin(PHOTOS_MAX)).filter((photo) => photo.dansLaGalerie);
 
   // Ce qui est RENDU : les 8 premières de l'ordre, brouillons compris. C'est la réponse à la
   // question que le bénévole se pose ici — « à quoi ressemblera l'accueil si je publie ça ? ».

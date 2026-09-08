@@ -9,6 +9,7 @@ import { ChampFichier } from "@/components/admin/ChampFichier/ChampFichier";
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import { ALT_MAX, ALT_MIN, CAPTION_MAX, photoInputSchema } from "@/lib/schemas/photo";
 import { televerserPhoto } from "@/server/actions/galerie";
+import { IMAGE_TAILLE_MAX_OCTETS, formaterTaille } from "@/lib/galerie";
 import styles from "@/styles/admin-form.module.css";
 import propre from "./PhotoUploader.module.css";
 
@@ -45,27 +46,11 @@ import propre from "./PhotoUploader.module.css";
  * est une boucle, pas un envoi.
  */
 
-/**
- * 🔴 10 Mo CÔTÉ CLIENT, 12 Mo CÔTÉ SERVEUR — ET L'ÉCART EST LA GARDE (arbitrage Q1).
- *
- * La borne client est la seule qui produise un message UTILE : elle connaît la taille du
- * `File` sans rien transmettre, et peut donc nommer la taille du fichier ET la limite. La
- * borne serveur (`experimental.serverActions.bodySizeLimit`) est le filet, et elle doit
- * rester STRICTEMENT SUPÉRIEURE : le multipart transporte plus que l'octet du fichier
- * (frontières, en-têtes, encodage des autres champs). Sans cette marge de 2 Mo, un fichier
- * de 10,0 Mo accepté ici repartirait en 413 — c'est-à-dire exactement le défaut qu'on
- * cherche à éviter.
- *
- * ⚠️ Volontairement haute : la dette **R15** attend des originaux HAUTE DÉFINITION, et cette
- * story conserve l'original tel quel. La baisser rendrait R15 insoluble.
- */
-const TAILLE_MAX_OCTETS = 10 * 1024 * 1024;
-
-/** « 4,2 Mo » plutôt que « 4404019 octets » — le message doit être lisible, pas exact. */
-function formaterTaille(octets: number): string {
-  const mo = octets / (1024 * 1024);
-  return `${mo.toFixed(1).replace(".", ",")} Mo`;
-}
+// 🔴 LA BORNE (10 Mo) ET SON FORMATEUR VIVENT DANS `lib/galerie.ts` DEPUIS LA 15.1, ET LEUR
+// RAISONNEMENT AVEC : `ChoixImage` les lit aussi, et les deux écrans créent des lignes dans la
+// MÊME table, par la MÊME action. Deux valeurs auraient fait accepter ici ce qui serait refusé
+// là, sans que rien ne l'explique à qui importe l'image.
+// ⚠️ L'écart 10 Mo client / 12 Mo serveur (`next.config.ts`) EST la garde — voir la constante.
 
 /** État d'un fichier dans le lot. `attente` → `encours` → `fait` | `echec`. */
 type EtatFichier = {
@@ -132,13 +117,13 @@ export function PhotoUploader({ evenements }: PhotoUploaderProps) {
       Array.from(fichiers).map((fichier) => {
         // 🔴 LA BORNE CLIENT S'APPLIQUE À LA SÉLECTION, PAS À L'ENVOI : le refus est visible
         // AVANT le premier octet transmis, et il nomme la taille du fichier ET la limite.
-        if (fichier.size > TAILLE_MAX_OCTETS) {
+        if (fichier.size > IMAGE_TAILLE_MAX_OCTETS) {
           return {
             fichier,
             statut: "echec" as const,
             message:
               `Ce fichier fait ${formaterTaille(fichier.size)}, la limite est de ` +
-              `${formaterTaille(TAILLE_MAX_OCTETS)}. Réduisez-le, ou choisissez une autre photo. ` +
+              `${formaterTaille(IMAGE_TAILLE_MAX_OCTETS)}. Réduisez-le, ou choisissez une autre photo. ` +
               "Il n'a pas été envoyé.",
           };
         }
@@ -279,7 +264,7 @@ export function PhotoUploader({ evenements }: PhotoUploaderProps) {
         onChange={choisir}
         aide={
           <>
-            JPEG, PNG, WebP ou AVIF, {formaterTaille(TAILLE_MAX_OCTETS)} maximum par photo.
+            JPEG, PNG, WebP ou AVIF, {formaterTaille(IMAGE_TAILLE_MAX_OCTETS)} maximum par photo.
             Les fichiers <strong>.svg</strong> ne sont pas acceptés. Vous pouvez en
             sélectionner plusieurs d&rsquo;un coup.
           </>
