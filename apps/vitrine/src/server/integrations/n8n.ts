@@ -55,9 +55,9 @@ const VARIABLE_JETON = "N8N_WEBHOOK_TOKEN";
  * 🔴 EN EN-TÊTE, JAMAIS DANS L'URL NI DANS LE CORPS. Une URL part dans les journaux d'accès de
  * tout ce qu'elle traverse (proxy, Traefik, n8n lui-même) ; un corps part dans les **données
  * d'exécution** que n8n conserve et affiche. L'en-tête est le seul des trois que n8n ne
- * réaffiche pas dans le corps d'exécution. La garde ② de `gate:reseaux` mesure que la **valeur**
- * du jeton n'apparaît jamais dans le corps émis — même famille que la garde ⑬ de
- * `gate:sollicitations` sur `GMAIL_APP_PASSWORD`.
+ * réaffiche pas dans le corps d'exécution. ⚠️ La garde ② de `gate:reseaux` le mesurait sur le
+ * corps émis ; elle a été supprimée le 2026-08-15 avec la porte. Rien ne le vérifie plus —
+ * ne jamais déplacer ce jeton dans le corps « pour simplifier ».
  */
 const EN_TETE_JETON = "x-eds-webhook-token";
 
@@ -230,16 +230,7 @@ export async function publierEvenement(
   }
 }
 
-/**
- * Le nom des variables d'environnement, **exporté pour la porte**.
- *
- * ⚠️ Exporté pour que `gate:reseaux` garde l'**unicité** de l'appel (AR-API2) en cherchant le
- * nom réel plutôt qu'une chaîne recopiée dans l'instrument — `pieges/garde-nominale.md`.
- */
-export const VARIABLES_N8N = { url: VARIABLE_URL, jeton: VARIABLE_JETON } as const;
-
-/** L'en-tête du jeton, exporté pour la porte (même motif que `VARIABLES_N8N`). */
-export const EN_TETE_JETON_N8N = EN_TETE_JETON;
-
-/** Le délai maximal, exporté pour que la porte mesure le contrat réel et non une copie. */
-export const DELAI_PUBLICATION_MS = DELAI_MS;
+/* ⚠️ Trois exports vivaient ici — `VARIABLES_N8N`, `EN_TETE_JETON_N8N`, `DELAI_PUBLICATION_MS`
+   — tous « exportés pour la porte ». `gate:reseaux` a été supprimée le 2026-08-15 : ils
+   n'avaient plus aucun lecteur, et leur commentaire promettait une mesure qui n'existe plus.
+   Retirés, pas commentés. */

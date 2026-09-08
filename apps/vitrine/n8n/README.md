@@ -74,10 +74,29 @@ Il **reçoit, authentifie, valide et accuse réception**. Il ne publie sur aucun
 de la Story 5.1, entièrement câblé, jamais émis une seule fois). Leur absence est vérifiable
 d'un coup d'œil sur la structure du workflow — cinq nœuds, aucun connecteur social.
 
-Motif **mesuré**, pas supposé : aucun compte social de l'association n'est renseigné
-(`site_setting.instagram_url` / `x_url` / `discord_url` sont vides, dette **R29**, gelée), donc
-aucun identifiant d'API n'existe. ⇒ Dette **R42** dans `deferred-work.md`, avec son mode de
-défaillance écrit.
+🔴 **CE MOTIF A CHANGÉ LE 2026-09-08, ET LA PHRASE D'AVANT EST DEVENUE FAUSSE.** Elle disait
+*« aucun compte social de l'association n'est renseigné »* — mesuré en août, périmé depuis :
+les quatre comptes existent et sont publiés dans le pied de page du site.
+
+| Réseau | Compte | Ce qui manque encore |
+|---|---|---|
+| Discord | `discord.gg/ehx8YP7YYa` | un **webhook de salon** (2 minutes, gratuit) |
+| Instagram | `@esportdessacres` | compte pro + Page Facebook + app Meta — **et une image par événement**, l'API refusant le texte seul |
+| X | `@EDS_reims` | compte développeur + app (tier gratuit : 500 posts/mois) |
+| LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn |
+
+Ce qui manque n'est donc plus les **comptes** mais les **identifiants d'API**. ⇒ Dette **R42**
+dans `deferred-work.md`, avec son mode de défaillance écrit.
+
+⚠️ **Depuis la 7.6, le payload arrive avec les textes DÉJÀ COMPOSÉS** (`messages.discord`,
+`messages.x`, `messages.facebook`, `messages.instagram` — voir `lib/message-reseaux.ts`). Un
+nœud social n'a donc rien à rédiger : il **poste la chaîne qu'on lui donne**. C'est délibéré —
+un texte écrit dans un nœud Code de cette instance ne serait ni testé, ni relu, ni sauvegardé
+avec le dépôt.
+
+⚠️ **`version` reste à `1`** : le champ `messages` est **additif**, et le validateur ignore ce
+qu'il ne connaît pas. Passer à `2` ferait refuser toute annonce entre le déploiement du site et
+le ré-import du workflow.
 
 ## 🔴 Les deux pièges qui ont mordu en écrivant ce workflow
 

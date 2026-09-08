@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import { X_MAX, composerMessages, type EvenementAAnnoncer } from "./message-reseaux";
+
+/** Un vrai jeudi de l'agenda, relevé sur esportdessacres.fr le 2026-09-08. */
+const JEUDI: EvenementAAnnoncer = {
+  titre: "Party Game - Guitar Hero",
+  debut: new Date("2026-09-24T18:00:00+02:00"),
+  lieu: "Le Dropkick Bar Reims",
+  adresse: "Reims Courlancy, Reims",
+  jeux: "Guitar Hero",
+  lien: "https://esportdessacres.fr/agenda",
+};
+
+test("🔴 l'heure publiée est celle de PARIS, jamais l'UTC du payload", () => {
+  // Le premier brouillon annonçait « 16h00 » pour une soirée à 18h00 : `getUTCHours()` sur un
+  // instant porteur de `+02:00`. C'est le défaut que ce module existe pour empêcher.
+  for (const message of Object.values(composerMessages(JEUDI))) {
+    assert.match(message, /18h00/);
+    assert.doesNotMatch(message, /16h00/);
+  }
+});
+
+test("🔴 X tient dans 280 caractères, même sur un titre démesuré", () => {
+  const long = { ...JEUDI, titre: "T".repeat(400) };
+  assert.ok(composerMessages(long).x.length <= X_MAX, "le repli de dernier recours a cédé");
+  // ⚠️ Et le lien survit à la coupe : une annonce tronquée SANS lien ne mène nulle part.
+  assert.match(composerMessages(long).x, /https:\/\/esportdessacres\.fr\/agenda$/);
+});
+
+test("X abandonne l'adresse AVANT les jeux, et le titre en dernier", () => {
+  const ev = { ...JEUDI, adresse: "A".repeat(200) };
+  const x = composerMessages(ev).x;
+  assert.ok(x.length <= X_MAX);
+  assert.doesNotMatch(x, /AAAA/);
+  assert.match(x, /Guitar Hero/);
+  assert.match(x, /Le Dropkick Bar Reims/);
+});
+
+test("🔴 Instagram ne porte AUCUNE URL — elle n'y serait pas cliquable", () => {
+  const { instagram } = composerMessages(JEUDI);
+  assert.doesNotMatch(instagram, /https?:\/\//);
+  assert.match(instagram, /en bio/);
+});
+
+test("le markdown de Discord ne fuit PAS sur Facebook ni Instagram", () => {
+  const m = composerMessages(JEUDI);
+  assert.match(m.discord, /^## Party Game/);
+  for (const clair of [m.facebook, m.instagram, m.x]) {
+    assert.doesNotMatch(clair, /\*\*|^## /m);
+  }
+});
+
+test("un champ absent ne laisse pas de trou ni de séparateur orphelin", () => {
+  const nu = { ...JEUDI, lieu: null, adresse: null, jeux: null };
+  const m = composerMessages(nu);
+  for (const message of Object.values(m)) {
+    assert.doesNotMatch(message, /\n\n\n/, "ligne blanche en double");
+    assert.doesNotMatch(message, /·\s*$|📍\s*$|🎮\s*$/m, "séparateur sans valeur");
+  }
+  assert.doesNotMatch(m.facebook, /📍/);
+});
+
+test("une adresse absente ne perd pas le lieu", () => {
+  const m = composerMessages({ ...JEUDI, adresse: null });
+  assert.match(m.facebook, /📍 Le Dropkick Bar Reims\n/);
+});

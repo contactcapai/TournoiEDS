@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 
 import { toParisIso } from "../../lib/date-paris";
+import { composerMessages } from "../../lib/message-reseaux";
 import { baseDuSite } from "../../lib/site-url";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION } from "../../lib/schemas/publication";
 import { cleanText } from "../../lib/text";
@@ -133,6 +134,11 @@ export async function annoncerSurLesReseaux(
   }
 
   const { lieu, adresse } = lieuDuPayload(evenement);
+  /* 🔴 LE MÊME TITRE NETTOYÉ SERT AU PAYLOAD ET AU TEXTE PUBLIÉ. Les tirer de deux sources
+     ferait paraître sur Discord un titre que le message dit autrement. */
+  const titre = cleanText(evenement.title) ?? evenement.title;
+  const jeux = cleanText(evenement.games);
+  const lien = `${baseDuSite()}/agenda`;
 
   const resultat = await publierEvenement({
     version: PAYLOAD_VERSION,
@@ -146,16 +152,18 @@ export async function annoncerSurLesReseaux(
          intact jusqu'au payload, là où le même caractère est neutralisé dans `jeux` ou
          `description`. Le repli sur la valeur brute garde le contrat `min(1)` : un titre est
          non vide par construction (`texteVisible` à la saisie). */
-      titre: cleanText(evenement.title) ?? evenement.title,
+      titre,
       type: evenement.type,
       // 🔴 `toParisIso` et JAMAIS `toISOString()` : voir `lib/schemas/publication.ts`.
       debut: toParisIso(evenement.startsAt),
       lieu,
       adresse,
-      jeux: cleanText(evenement.games),
+      jeux,
       description: cleanText(evenement.description),
-      lien: `${baseDuSite()}/agenda`,
+      lien,
     },
+    /* Composés dans le site et non dans n8n : `lib/message-reseaux.ts` dit pourquoi. */
+    messages: composerMessages({ titre, debut: evenement.startsAt, lieu, adresse, jeux, lien }),
   });
 
   if (!resultat.ok) {
