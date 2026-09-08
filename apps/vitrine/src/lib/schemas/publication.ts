@@ -5,16 +5,19 @@
  * (`event`, `partner`, `solicitation`, `workshop`, `member`, `site-setting`) — mais pour une
  * raison **différente** de la leur, et il faut la dire : les six autres sont partagés entre un
  * formulaire CLIENT et une Server Action. Celui-ci n'a **aucun consommateur client**. Il est
- * ici parce que sa deuxième lectrice est la **porte** `gate:reseaux`, qui doit exercer **le
- * schéma lui-même** et non une copie de son contrat (`00 référence/pieges/garde-nominale.md`) —
- * une porte qui réimplémente la règle qu'elle garde valide sa propre copie, et reste verte le
- * jour où le produit diverge.
+ * ici parce que sa deuxième lectrice ÉTAIT la porte `gate:reseaux` — supprimée au dégraissage
+ * du 2026-08-15, avec seize autres. ⚠️ Il n'y reste donc plus qu'un consommateur, et le motif
+ * qui justifiait cet emplacement a disparu avec l'instrument ; le fichier reste ici parce qu'il
+ * ne porte aucun secret et que le déplacer serait du remue-ménage, pas parce qu'une porte le
+ * lit. Depuis la 7.6 il est aussi lu par `lib/message-reseaux.ts`, qui n'est pas serveur.
  *
  * ⚠️ Le mettre sous `server/` avec `import "server-only"` empêcherait la porte de l'importer
  * sans le drapeau `--conditions=react-server`, et surtout ferait croire qu'il protège quelque
  * chose : il ne contient que des règles de forme, aucun secret.
  */
 import { z } from "zod";
+
+import { X_MAX } from "../message-reseaux";
 
 import {
   BAR_ADRESSE_MAX,
@@ -111,17 +114,57 @@ const lienAbsolu = z
  * identifiant de session, ni adresse IP. Ce message **quitte le périmètre du site** vers une
  * instance tierce partagée entre douze projets, dont les journaux d'exécution conservent les
  * corps reçus. Les deux tables du projet qui portent de la donnée personnelle (`solicitation`,
- * `member`) n'ont donc **rien à faire ici**, et la garde ③ de `gate:reseaux` le mesure sur le
- * corps réellement émis — pas sur ce commentaire.
+ * `member`) n'ont donc **rien à faire ici**. 🔴 **ET PLUS RIEN NE LE MESURE** : la garde ③ de
+ * `gate:reseaux` le vérifiait sur le corps réellement émis, la porte a été supprimée le
+ * 2026-08-15. Ce commentaire est désormais la SEULE chose qui tient la règle — il disait
+ * précisément de ne pas s'y fier. Y ajouter un champ personnel ne ferait rougir personne.
  *
  * ⚠️ **Aucun champ de texte composé non plus** (« le post », « la légende »). La composition du
  * message publié vit **dans n8n**, qui est l'outil dont c'est le métier et le seul endroit où
  * elle peut être ajustée sans redéploiement. Ce que le site envoie, ce sont des **faits**.
  */
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LES TEXTES SONT COMPOSÉS ICI ET ENVOYÉS PRÊTS À PUBLIER (Story 7.6)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Le schéma de base de données disait l'inverse — *« la composition du message vit dans n8n »*.
+ * L'arbitrage a changé en écrivant la story : le workflow vit dans une instance partagée à
+ * douze projets, ré-importable et restaurable sans que personne ici ne le sache, et un texte
+ * qui y vivrait ne serait ni testé ni relu. `lib/message-reseaux.ts` le compose, sept tests le
+ * tiennent — dont l'heure de Paris, qu'un premier brouillon publiait en UTC (« 16h00 » pour
+ * une soirée à 18h00).
+ *
+ * ⚠️ **`version` RESTE À 1, ET C'EST DÉLIBÉRÉ.** Le champ est ADDITIF : le validateur du
+ * workflow déjà en service exige `version === 1` strictement et ignore ce qu'il ne connaît
+ * pas. Passer à 2 ferait refuser toute annonce entre le déploiement du site et le ré-import du
+ * workflow — une panne fabriquée par un numéro. La règle en tête de ce fichier le dit déjà :
+ * on incrémente quand un champ CHANGE DE SENS, pas quand on en ajoute un.
+ *
+ * ⚠️ Les bornes ne sont pas décoratives : **280 pour X est un REFUS d'API**, les autres sont
+ * les plafonds documentés des plateformes. Elles doublent la garde de `composerMessages`.
+ */
+export const messagesSchema = z.object({
+  discord: z.string().min(1).max(2000),
+  x: z.string().min(1).max(X_MAX),
+  facebook: z.string().min(1).max(5000),
+  instagram: z.string().min(1).max(2200),
+});
+
 export const publicationPayloadSchema = z.object({
   version: z.literal(PAYLOAD_VERSION),
   source: z.literal(PAYLOAD_SOURCE),
-  evenement: z.object({
+  /**
+   * 🔴 **NULLABLE DEPUIS L'ÉCRAN DE COMPOSITION** : un post libre (une photo, une nouvelle,
+   * un remerciement) ne se rattache à aucune ligne d'agenda.
+   *
+   * ⚠️ **LE WORKFLOW EN SERVICE REFUSERA CE CAS TANT QU'IL N'EST PAS RÉ-IMPORTÉ** — son
+   * validateur exige les cinq champs. Ce n'est pas une régression : les annonces d'événement
+   * passent exactement comme avant, et un post libre échoue en le DISANT. Le JSON à jour est
+   * dans `n8n/publication-reseaux.json`.
+   */
+  evenement: z
+    .object({
     id: z.uuid(),
     /**
      * Bornes reprises de `./event.ts`, **importées et jamais recopiées**. Les recopier
@@ -159,8 +202,11 @@ export const publicationPayloadSchema = z.object({
     jeux: z.string().max(JEUX_MAX).nullable(),
     description: z.string().max(DESCRIPTION_MAX).nullable(),
     /** Où l'annonce doit renvoyer : la page publique de l'agenda. */
-    lien: lienAbsolu,
-  }),
+      lien: lienAbsolu,
+    })
+    .nullable(),
+  /** Prêts à publier, un par réseau — voir `lib/message-reseaux.ts`. */
+  messages: messagesSchema,
 });
 
 export type PublicationPayload = z.infer<typeof publicationPayloadSchema>;

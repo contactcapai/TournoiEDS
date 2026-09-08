@@ -325,10 +325,14 @@ export const event = pgTable(
      * posée sur un envoi qui n'est pas parti est pire que pas de trace du tout — elle
      * empêcherait précisément le geste qu'il faut refaire.
      *
-     * ⚠️ **AUCUNE colonne de texte d'annonce, de brouillon, ni de statut par réseau.** La
-     * composition du message vit dans n8n, qui est l'outil dont c'est le métier et le seul
-     * endroit où elle s'ajuste sans redéploiement. Ce que le site envoie, ce sont des **faits**
-     * (voir `lib/schemas/publication.ts`). L'absence est une garde, tenue par `gate:reseaux` ⑧.
+     * ⚠️ **AUCUNE colonne de texte d'annonce, de brouillon, ni de statut par réseau.** Le
+     * texte n'est pas stocké : il se RECOMPOSE à chaque envoi depuis les faits de la ligne
+     * (`lib/message-reseaux.ts`), donc une soirée déplacée ne peut pas partir avec l'ancienne
+     * date. 🔴 Ce commentaire disait jusqu'à la 7.6 que « la composition vit dans n8n » — c'est
+     * faux depuis qu'elle vit ici, et la garde ⑧ de `gate:reseaux` qu'il invoquait a été
+     * supprimée le 2026-08-15. ⚠️ Un statut PAR RÉSEAU reste absent, et c'est une décision à
+     * reprendre le jour où plusieurs réseaux sont câblés : `social_posted_at` dit qu'on a
+     * envoyé, jamais où l'annonce a paru.
      *
      * ⚠️ Pas de `CHECK` : il n'y a aucune règle à tenir qu'un `timestamptz` ne tienne déjà.
      * Interdire une date future serait une garde nominale — l'horloge du conteneur et celle de

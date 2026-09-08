@@ -44,6 +44,15 @@ const CHEMINS: Record<CleIcone, React.ReactNode> = {
       <path d="M3 10h18M8 3v4M16 3v4" />
     </>
   ),
+  // Un point qui rayonne : la diffusion. ⚠️ Distinct de `sollicitations` (l'enveloppe qui
+  // ARRIVE) — ici ça part, et les deux vivent dans la même colonne.
+  reseaux: (
+    <>
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M7.8 16.2a6 6 0 0 1 0-8.4M16.2 7.8a6 6 0 0 1 0 8.4" />
+      <path d="M4.9 19.1a10 10 0 0 1 0-14.2M19.1 4.9a10 10 0 0 1 0 14.2" />
+    </>
+  ),
   // Image : un cadre, un horizon, un soleil.
   galerie: (
     <>
