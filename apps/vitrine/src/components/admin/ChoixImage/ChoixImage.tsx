@@ -56,9 +56,25 @@ export interface ChoixImageProps {
   label: string;
   /** Message d'erreur renvoyé par l'action pour ce champ. */
   erreur?: string;
+  /**
+   * Prévenu à chaque changement de choix — **pour les consommateurs qui ne soumettent pas un
+   * `<form>`** (le composeur réseaux appelle son action à la main).
+   *
+   * ⚠️ Le composant reste maître de son state : ce rappel NOTIFIE, il ne pilote pas. En faire
+   * un composant contrôlé obligerait les deux formulaires qui n'en ont pas besoin (événement,
+   * tournoi) à tenir un state pour un champ que le navigateur poste déjà tout seul.
+   */
+  onChange?: (id: string) => void;
 }
 
-export function ChoixImage({ nom, valeurInitiale, images, label, erreur }: ChoixImageProps) {
+export function ChoixImage({
+  nom,
+  valeurInitiale,
+  images,
+  label,
+  erreur,
+  onChange,
+}: ChoixImageProps) {
   const idBase = useId();
   // 🔴 LA LISTE VIT DANS LE STATE, ET C'EST CE QUI PERMET D'IMPORTER SANS RECHARGER. Une
   // image importée est ajoutée EN TÊTE (`getImagesPourChoix` trie par date décroissante :
@@ -67,6 +83,15 @@ export function ChoixImage({ nom, valeurInitiale, images, label, erreur }: Choix
   // main le geste qu'on vient de faire.
   const [liste, setListe] = useState<readonly ImageChoisissable[]>(images);
   const [choix, setChoix] = useState(valeurInitiale ?? "");
+
+  // ⚠️ UN SEUL POINT DE PASSAGE : les trois endroits qui changent le choix (« aucune », une
+  // vignette, un import qui vient d'aboutir) passent par ici. Trois `setChoix` directs
+  // auraient laissé le rappel s'oublier sur l'un des trois — et c'est toujours celui de
+  // l'import qu'on oublie, puisqu'il n'est pas un clic.
+  function choisir(id: string) {
+    setChoix(id);
+    onChange?.(id);
+  }
 
   const [fichier, setFichier] = useState<File | null>(null);
   const [description, setDescription] = useState("");
@@ -119,7 +144,7 @@ export function ChoixImage({ nom, valeurInitiale, images, label, erreur }: Choix
       { id: resultat.data.id, filename: resultat.data.filename, alt: description, focalX: 50, focalY: 50 },
       ...avant,
     ]);
-    setChoix(resultat.data.id);
+    choisir(resultat.data.id);
     setFichier(null);
     setDescription("");
   }
@@ -138,7 +163,7 @@ export function ChoixImage({ nom, valeurInitiale, images, label, erreur }: Choix
             name={nom}
             value=""
             checked={choix === ""}
-            onChange={() => setChoix("")}
+            onChange={() => choisir("")}
           />
           <span className={styles.vignetteVide} aria-hidden="true">
             &mdash;
@@ -154,7 +179,7 @@ export function ChoixImage({ nom, valeurInitiale, images, label, erreur }: Choix
               name={nom}
               value={image.id}
               checked={choix === image.id}
-              onChange={() => setChoix(image.id)}
+              onChange={() => choisir(image.id)}
             />
             <span className={styles.vignette}>
               {/* 🔴 SERVIE PAR LA ROUTE D'ADMIN ET `unoptimized` — les deux sont des gardes,

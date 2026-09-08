@@ -480,3 +480,24 @@ export const COLONNES_VISUEL = {
   focalX: true,
   focalY: true,
 } as const;
+
+/**
+ * Une image **publiée**, par son identifiant — pour un serveur qui doit lire son fichier.
+ *
+ * 🔴 ELLE EXISTE POUR QUE `filename` VIENNE DE LA BASE, JAMAIS DU CLIENT. Le composeur
+ * réseaux (7.6) poste un identifiant ; ce qui finit en chemin de fichier doit être la valeur
+ * que la base porte, pas celle qui a traversé le réseau. `ouvrirMedia` re-valide de son côté
+ * (défense en profondeur), mais lui donner une valeur d'origine cliente rouvrirait la porte
+ * que `photo_filename_safe` ferme.
+ *
+ * ⚠️ `is_published` EST DANS LE `WHERE`, PAS RENDU À L'APPELANT : ici on ne veut pas
+ * *décider*, on veut *ne rien obtenir* si l'image n'est plus servable. C'est l'inverse de
+ * `COLONNES_VISUEL`, qui remonte le booléen parce que le RENDU, lui, doit choisir entre
+ * afficher et omettre. Deux besoins, deux formes.
+ */
+export async function getImagePubliee(id: string) {
+  return db.query.photo.findFirst({
+    columns: { id: true, filename: true, alt: true },
+    where: (table, { and, eq }) => and(eq(table.id, id), eq(table.isPublished, true)),
+  });
+}

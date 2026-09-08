@@ -81,7 +81,7 @@ les quatre comptes existent et sont publiés dans le pied de page du site.
 | Réseau | Compte | Ce qui manque encore |
 |---|---|---|
 | Discord | `discord.gg/ehx8YP7YYa` | un **webhook de salon** (2 minutes, gratuit) |
-| Instagram | `@esportdessacres` | compte pro + Page Facebook + app Meta — **et une image par événement**, l'API refusant le texte seul |
+| Instagram | `@esportdessacres` | compte pro + Page Facebook + app Meta. ~~une image par événement~~ — ✅ **levé par la Story 15.1** : un événement porte `photo_id` et le composeur choisit une image de la médiathèque, donc servie à une URL publique |
 | X | `@EDS_reims` | compte développeur + app (tier gratuit : 500 posts/mois) |
 | LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn |
 

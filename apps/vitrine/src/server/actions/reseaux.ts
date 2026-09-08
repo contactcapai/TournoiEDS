@@ -10,6 +10,8 @@ import { cleanText } from "../../lib/text";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getEventById } from "../db/queries/events";
+import { getImagePubliee } from "../db/queries/photos";
+import { ouvrirMedia } from "../medias";
 import { event } from "../db/schema";
 import { proposerTextes } from "../integrations/gemini";
 import { publierEvenement } from "../integrations/n8n";
@@ -262,18 +264,61 @@ export async function proposerTextesPourReseaux(
     };
   }
 
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 L'IMAGE VIENT DE LA MÉDIATHÈQUE, PLUS D'UN FICHIER DE PASSAGE (Story 15.1)
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Elle était téléversée ici puis lue en base64 et **jetée** — l'écran le disait, et c'était
+  // juste. Depuis cette story on choisit (ou on importe) une image de la médiathèque : elle
+  // existe donc sur le site, avec une URL publique. ⚠️ Ce n'est pas un rangement : c'est le
+  // **blocage ① de la 7.6**, mesuré et écrit dans `n8n/README.md` — Instagram refuse un post
+  // sans image et la veut à une URL publique. Il tombe ici, sans qu'on ait rien construit
+  // pour lui : le contrat vers n8n ne change pas dans cette story.
+  //
+  // 🔴 ON RELIT LA LIGNE, ON NE FAIT PAS CONFIANCE À L'IDENTIFIANT POSTÉ. Deux raisons, et
+  // aucune n'est théorique : ① `is_published` doit être vérifié **maintenant** — une image
+  // dépubliée entre l'affichage de la page et le clic ne doit pas partir ; ② `filename` doit
+  // venir de la BASE, jamais du client, parce qu'il finit en chemin de fichier (`ouvrirMedia`
+  // le re-valide, mais lui donner une valeur d'origine cliente serait rouvrir la porte que
+  // `photo_filename_safe` ferme).
   let image: { base64: string; typeMime: string } | undefined;
-  const fichier = formData.get("image");
-  if (fichier instanceof File && fichier.size > 0) {
-    if (fichier.size > IMAGE_MAX_OCTETS) {
+  const photoIdBrut = String(formData.get("photoId") ?? "").trim();
+  if (photoIdBrut) {
+    if (!identifiant.safeParse(photoIdBrut).success) {
+      return { ok: false, error: "Cette image n'est pas valide. Rechargez la page." };
+    }
+    const ligne = await getImagePubliee(photoIdBrut);
+    if (!ligne) {
+      return {
+        ok: false,
+        error:
+          "Cette image n'est plus disponible : elle a été supprimée ou dépubliée. " +
+          "Rechargez la page et choisissez-en une autre.",
+      };
+    }
+
+    const media = await ouvrirMedia(ligne.filename);
+    if (!media) {
+      // ⚠️ La ligne existe mais le fichier a disparu du volume. Cas rare, et le dire est la
+      // seule réponse honnête : réessayer n'y changerait rien (famille du 4xx contre 5xx,
+      // corrigée dans la PR #122 sur cette même story).
+      return {
+        ok: false,
+        error: "Le fichier de cette image est introuvable. Choisissez-en une autre.",
+      };
+    }
+    if (media.taille > IMAGE_MAX_OCTETS) {
       return { ok: false, error: "Cette image dépasse 8 Mo. Choisissez-en une plus légère." };
     }
-    if (!IMAGE_TYPES.includes(fichier.type as (typeof IMAGE_TYPES)[number])) {
-      return { ok: false, error: "Formats acceptés : JPEG, PNG ou WebP." };
+    if (!IMAGE_TYPES.includes(media.typeMime as (typeof IMAGE_TYPES)[number])) {
+      // ⚠️ Le stockage accepte AVIF, que le modèle ne lit pas : le refus est donc réel, et il
+      // nomme les formats qui marchent plutôt que de laisser le modèle répondre à côté.
+      return { ok: false, error: "Formats lus par le modèle : JPEG, PNG ou WebP." };
     }
+
     image = {
-      base64: Buffer.from(await fichier.arrayBuffer()).toString("base64"),
-      typeMime: fichier.type,
+      base64: Buffer.from(await new Response(media.flux).arrayBuffer()).toString("base64"),
+      typeMime: media.typeMime,
     };
   }
 
