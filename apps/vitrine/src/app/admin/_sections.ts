@@ -77,7 +77,8 @@ export type IconeSection =
   | "sollicitations"
   | "reglages"
   | "tournois"
-  | "acces";
+  | "acces"
+  | "reseaux";
 
 /** Les familles, dans l'ordre où elles s'affichent. */
 export const FAMILLES_ADMIN = ["publication", "gestion", "configuration"] as const;
@@ -99,6 +100,18 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     role: "admin_site",
     famille: "publication",
     icone: "agenda",
+  },
+  {
+    href: "/admin/reseaux",
+    libelle: "Réseaux",
+    description:
+      "Composer une annonce pour Discord, X, Facebook et Instagram. Relire avant d'envoyer.",
+    role: "admin_site",
+    /* ⚠️ `gestion` et NON `publication` : cette famille PROMET un aperçu (« Voir le rendu
+       avant de publier »), et un test le garde. Il n'y a pas d'aperçu ici — les quatre textes
+       à l'écran SONT ce qui partira. C'est un espace qu'on pilote, comme /admin/tournois. */
+    famille: "gestion",
+    icone: "reseaux",
   },
   {
     href: "/admin/galerie",

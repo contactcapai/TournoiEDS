@@ -42,9 +42,22 @@ function ou(ev: EvenementAAnnoncer): string {
   return [ev.lieu, ev.adresse].filter((part) => part && part.trim()).join(" — ");
 }
 
-/** Assemble en sautant les lignes vides : un champ absent ne laisse pas de trou. */
+/** Assemble en sautant ce qui est absent : un champ vide ne laisse pas de séparateur orphelin. */
+function joindre(separateur: string, ...valeurs: (string | false | null | undefined)[]): string {
+  return valeurs.filter((v): v is string => Boolean(v && v.trim())).join(separateur);
+}
+
+/**
+ * Les lignes d'un message.
+ *
+ * 🔴 UNE CHAÎNE VIDE EST UNE LIGNE BLANCHE VOULUE, ET ELLE SURVIT. La première version la
+ * filtrait avec les champs absents : les quatre textes partaient **sans aucun paragraphe**,
+ * en un bloc compact. Aucun test ne le voyait — ils vérifiaient qu'il n'y a pas DE TROU, jamais
+ * qu'il y a bien la RESPIRATION. Un `""` explicite et un champ nul ne veulent pas dire la
+ * même chose ; les confondre était le défaut.
+ */
 function lignes(...valeurs: (string | false | null | undefined)[]): string {
-  return valeurs.filter((v): v is string => Boolean(v && v.trim())).join("\n");
+  return valeurs.filter((v): v is string => v === "" || Boolean(v && v.trim())).join("\n");
 }
 
 export function composerMessages(ev: EvenementAAnnoncer): MessagesReseaux {
@@ -56,7 +69,7 @@ export function composerMessages(ev: EvenementAAnnoncer): MessagesReseaux {
   return {
     discord: lignes(
       `## ${ev.titre}`,
-      lignes(`**${quand}**`, lieu).replace("\n", " · "),
+      joindre(" · ", `**${quand}**`, lieu),
       jeux,
       "",
       invitation,
@@ -65,7 +78,9 @@ export function composerMessages(ev: EvenementAAnnoncer): MessagesReseaux {
     x: composerX(ev, quand, lieu, jeux),
     facebook: lignes(
       `${ev.titre} — ${quand}`,
-      lieu && `📍 ${lieu}`,
+      // ⚠️ Ternaire et NON `lieu && …` : sans lieu, `&&` rend la CHAÎNE VIDE, que `lignes`
+      // traite désormais comme une ligne blanche voulue. Un trou de plus, en silence.
+      lieu ? `📍 ${lieu}` : null,
       jeux,
       "",
       invitation,
@@ -74,7 +89,9 @@ export function composerMessages(ev: EvenementAAnnoncer): MessagesReseaux {
     ),
     instagram: lignes(
       `${ev.titre} — ${quand}`,
-      lieu && `📍 ${lieu}`,
+      // ⚠️ Ternaire et NON `lieu && …` : sans lieu, `&&` rend la CHAÎNE VIDE, que `lignes`
+      // traite désormais comme une ligne blanche voulue. Un trou de plus, en silence.
+      lieu ? `📍 ${lieu}` : null,
       jeux,
       "",
       invitation,
@@ -100,9 +117,9 @@ function composerX(
   jeux: string | null,
 ): string {
   const essais = [
-    lignes(ev.titre, lignes(quand, lieu).replace("\n", " · "), jeux, "", ev.lien),
-    lignes(ev.titre, lignes(quand, ev.lieu).replace("\n", " · "), jeux, "", ev.lien),
-    lignes(ev.titre, lignes(quand, ev.lieu).replace("\n", " · "), "", ev.lien),
+    lignes(ev.titre, joindre(" · ", quand, lieu), jeux, "", ev.lien),
+    lignes(ev.titre, joindre(" · ", quand, ev.lieu), jeux, "", ev.lien),
+    lignes(ev.titre, joindre(" · ", quand, ev.lieu), "", ev.lien),
     lignes(ev.titre, quand, "", ev.lien),
   ];
   const tenu = essais.find((essai) => essai.length <= X_MAX);

@@ -144,7 +144,7 @@ const lienAbsolu = z
  * ⚠️ Les bornes ne sont pas décoratives : **280 pour X est un REFUS d'API**, les autres sont
  * les plafonds documentés des plateformes. Elles doublent la garde de `composerMessages`.
  */
-const messagesSchema = z.object({
+export const messagesSchema = z.object({
   discord: z.string().min(1).max(2000),
   x: z.string().min(1).max(X_MAX),
   facebook: z.string().min(1).max(5000),
@@ -154,7 +154,17 @@ const messagesSchema = z.object({
 export const publicationPayloadSchema = z.object({
   version: z.literal(PAYLOAD_VERSION),
   source: z.literal(PAYLOAD_SOURCE),
-  evenement: z.object({
+  /**
+   * 🔴 **NULLABLE DEPUIS L'ÉCRAN DE COMPOSITION** : un post libre (une photo, une nouvelle,
+   * un remerciement) ne se rattache à aucune ligne d'agenda.
+   *
+   * ⚠️ **LE WORKFLOW EN SERVICE REFUSERA CE CAS TANT QU'IL N'EST PAS RÉ-IMPORTÉ** — son
+   * validateur exige les cinq champs. Ce n'est pas une régression : les annonces d'événement
+   * passent exactement comme avant, et un post libre échoue en le DISANT. Le JSON à jour est
+   * dans `n8n/publication-reseaux.json`.
+   */
+  evenement: z
+    .object({
     id: z.uuid(),
     /**
      * Bornes reprises de `./event.ts`, **importées et jamais recopiées**. Les recopier
@@ -192,8 +202,9 @@ export const publicationPayloadSchema = z.object({
     jeux: z.string().max(JEUX_MAX).nullable(),
     description: z.string().max(DESCRIPTION_MAX).nullable(),
     /** Où l'annonce doit renvoyer : la page publique de l'agenda. */
-    lien: lienAbsolu,
-  }),
+      lien: lienAbsolu,
+    })
+    .nullable(),
   /** Prêts à publier, un par réseau — voir `lib/message-reseaux.ts`. */
   messages: messagesSchema,
 });

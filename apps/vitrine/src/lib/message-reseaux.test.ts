@@ -66,3 +66,12 @@ test("une adresse absente ne perd pas le lieu", () => {
   const m = composerMessages({ ...JEUDI, adresse: null });
   assert.match(m.facebook, /📍 Le Dropkick Bar Reims\n/);
 });
+
+test("🔴 la RESPIRATION existe : une ligne blanche sépare les faits de la suite", () => {
+  // Le défaut réel : `lignes()` filtrait les chaînes vides avec les champs absents, donc les
+  // quatre textes partaient en un seul bloc compact. Les tests d'à côté vérifiaient qu'il n'y
+  // a pas de TROU — jamais qu'il y a bien un PARAGRAPHE.
+  for (const [reseau, texte] of Object.entries(composerMessages(JEUDI))) {
+    assert.match(texte, /\n\n/, `${reseau} est rendu en bloc compact`);
+  }
+});

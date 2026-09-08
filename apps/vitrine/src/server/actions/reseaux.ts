@@ -2,15 +2,16 @@
 
 import { eq } from "drizzle-orm";
 
-import { toParisIso } from "../../lib/date-paris";
-import { composerMessages } from "../../lib/message-reseaux";
+import { formatLongDate, formatTime, toParisIso } from "../../lib/date-paris";
+import { composerMessages, type MessagesReseaux } from "../../lib/message-reseaux";
 import { baseDuSite } from "../../lib/site-url";
-import { PAYLOAD_SOURCE, PAYLOAD_VERSION } from "../../lib/schemas/publication";
+import { PAYLOAD_SOURCE, PAYLOAD_VERSION, messagesSchema } from "../../lib/schemas/publication";
 import { cleanText } from "../../lib/text";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getEventById } from "../db/queries/events";
 import { event } from "../db/schema";
+import { proposerTextes } from "../integrations/gemini";
 import { publierEvenement } from "../integrations/n8n";
 import { identifiant, type ResultatAction } from "./_commun";
 
@@ -190,4 +191,171 @@ export async function annoncerSurLesReseaux(
   }
 
   return { ok: true, data: { id, annonceLe, traceEcrite } };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+ * L'ÉCRAN DE COMPOSITION (`/admin/reseaux`) — proposer, puis envoyer ce qui a été relu
+ * ══════════════════════════════════════════════════════════════════════════════════════ */
+
+/** Borne du contexte saisi. Généreux pour un paragraphe, borné quand même. */
+const CONTEXTE_MAX = 2000;
+
+/** 8 Mo : très au-delà d'un visuel d'annonce, et sous la limite d'un envoi en base64. */
+const IMAGE_MAX_OCTETS = 8 * 1024 * 1024;
+
+/** Les formats que le stockage du site accepte déjà, et que le modèle sait lire. */
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/**
+ * 🔴 LES FAITS VIENNENT DE LA BASE, LE MODÈLE NE FAIT QUE LES METTRE EN PHRASES.
+ *
+ * ⚠️ Cette liste est PLUS RICHE que le payload envoyé à n8n : le tarif et l'heure de fin y
+ * figurent alors que le contrat ne les porte pas. C'est voulu — ils font une meilleure
+ * annonce, et ici ils ne traversent aucun système tiers, ils servent à écrire la phrase.
+ */
+function faitsDeLEvenement(evenement: NonNullable<Awaited<ReturnType<typeof getEventById>>>) {
+  const { lieu, adresse } = lieuDuPayload(evenement);
+  const debut = evenement.startsAt;
+  return [
+    `Titre : ${cleanText(evenement.title) ?? evenement.title}`,
+    `Quand : ${formatLongDate(debut)} à ${formatTime(debut)}`,
+    evenement.endsAt ? `Fin : ${formatTime(evenement.endsAt)}` : null,
+    lieu ? `Lieu : ${lieu}` : null,
+    adresse ? `Adresse : ${adresse}` : null,
+    cleanText(evenement.games) ? `Jeux : ${cleanText(evenement.games)}` : null,
+    cleanText(evenement.priceText) ? `Tarif : ${cleanText(evenement.priceText)}` : null,
+    cleanText(evenement.description) ? `Détail : ${cleanText(evenement.description)}` : null,
+    `Lien à mettre en fin de texte : ${baseDuSite()}/agenda`,
+  ].filter((fait): fait is string => fait !== null);
+}
+
+/**
+ * Demande quatre propositions de texte au modèle (Story 7.6).
+ *
+ * ⚠️ **Ne publie rien et n'écrit rien en base.** Le bénévole relit, corrige, puis envoie —
+ * ce sont deux gestes, et les confondre publierait un texte que personne n'a lu.
+ */
+export async function proposerTextesPourReseaux(
+  formData: FormData,
+): Promise<ResultatAction<MessagesReseaux>> {
+  await exigerRoleAction("admin_site");
+
+  const contexte = String(formData.get("contexte") ?? "").slice(0, CONTEXTE_MAX);
+  const eventIdBrut = String(formData.get("eventId") ?? "").trim();
+
+  let faits: string[] = [];
+  if (eventIdBrut) {
+    if (!identifiant.safeParse(eventIdBrut).success) {
+      return { ok: false, error: "Cet événement n'est pas valide. Rechargez la page." };
+    }
+    const evenement = await getEventById(eventIdBrut);
+    if (!evenement) {
+      return { ok: false, error: "Cet événement n'existe plus : il a été supprimé entre-temps." };
+    }
+    faits = faitsDeLEvenement(evenement);
+  }
+
+  if (faits.length === 0 && contexte.trim() === "") {
+    return {
+      ok: false,
+      error: "Dites de quoi il s'agit : choisissez un événement, ou écrivez un contexte.",
+    };
+  }
+
+  let image: { base64: string; typeMime: string } | undefined;
+  const fichier = formData.get("image");
+  if (fichier instanceof File && fichier.size > 0) {
+    if (fichier.size > IMAGE_MAX_OCTETS) {
+      return { ok: false, error: "Cette image dépasse 8 Mo. Choisissez-en une plus légère." };
+    }
+    if (!IMAGE_TYPES.includes(fichier.type as (typeof IMAGE_TYPES)[number])) {
+      return { ok: false, error: "Formats acceptés : JPEG, PNG ou WebP." };
+    }
+    image = {
+      base64: Buffer.from(await fichier.arrayBuffer()).toString("base64"),
+      typeMime: fichier.type,
+    };
+  }
+
+  const resultat = await proposerTextes({ contexte, faits, image });
+  if (!resultat.ok) {
+    return { ok: false, error: resultat.error };
+  }
+  return { ok: true, data: resultat.data };
+}
+
+/**
+ * Envoie les quatre textes RELUS vers l'outil de publication.
+ *
+ * 🔴 Distincte d'`annoncerSurLesReseaux` : celle-là recompose le texte depuis la base, celle-ci
+ * envoie **ce que le bénévole a sous les yeux**. Les fondre ferait qu'un écran promet un texte
+ * et qu'un autre en publie un différent.
+ */
+export async function annoncerTextesRelus(
+  entree: { eventId: string | null; messages: MessagesReseaux },
+): Promise<ResultatAction<{ annonceLe: Date; traceEcrite: boolean }>> {
+  await exigerRoleAction("admin_site");
+
+  const messages = messagesSchema.safeParse(entree.messages);
+  if (!messages.success) {
+    return {
+      ok: false,
+      error:
+        "Un des textes est vide ou trop long. Vérifiez le compteur, notamment celui de X.",
+    };
+  }
+
+  let evenementDuPayload = null;
+  if (entree.eventId) {
+    if (!identifiant.safeParse(entree.eventId).success) {
+      return { ok: false, error: "Cet événement n'est pas valide. Rechargez la page." };
+    }
+    const evenement = await getEventById(entree.eventId);
+    if (!evenement) {
+      return { ok: false, error: "Cet événement n'existe plus : il a été supprimé entre-temps." };
+    }
+    if (!evenement.isPublished) {
+      return {
+        ok: false,
+        error:
+          "Cet événement n'est pas publié : il n'apparaît pas sur le site. Publiez-le d'abord, " +
+          "sinon l'annonce renverrait vers une page où il ne figure pas.",
+      };
+    }
+    const { lieu, adresse } = lieuDuPayload(evenement);
+    evenementDuPayload = {
+      id: evenement.id,
+      titre: cleanText(evenement.title) ?? evenement.title,
+      type: evenement.type,
+      debut: toParisIso(evenement.startsAt),
+      lieu,
+      adresse,
+      jeux: cleanText(evenement.games),
+      description: cleanText(evenement.description),
+      lien: `${baseDuSite()}/agenda`,
+    };
+  }
+
+  const resultat = await publierEvenement({
+    version: PAYLOAD_VERSION,
+    source: PAYLOAD_SOURCE,
+    evenement: evenementDuPayload,
+    messages: messages.data,
+  });
+  if (!resultat.ok) {
+    console.error(`[annoncerTextesRelus] Échec de l'appel n8n (cause: ${resultat.cause})`);
+    return { ok: false, error: resultat.error };
+  }
+
+  const annonceLe = new Date();
+  let traceEcrite = true;
+  if (entree.eventId) {
+    try {
+      await db.update(event).set({ socialPostedAt: annonceLe }).where(eq(event.id, entree.eventId));
+    } catch (erreur) {
+      traceEcrite = false;
+      console.error("[annoncerTextesRelus] ANNONCE PARTIE mais trace NON écrite :", erreur);
+    }
+  }
+  return { ok: true, data: { annonceLe, traceEcrite } };
 }
