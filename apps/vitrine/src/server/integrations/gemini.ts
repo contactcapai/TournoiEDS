@@ -25,6 +25,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 import type { MessagesReseaux } from "../../lib/message-reseaux";
+import { estRefus, texteRendu } from "../../lib/reponse-gemini";
 import { X_MAX } from "../../lib/message-reseaux";
 
 /** ⚠️ Lues PARESSEUSEMENT, comme pour n8n : leur absence ne casse pas le build. */
@@ -127,10 +128,24 @@ export async function proposerTextes(
       input: entree,
       response_format: { type: "text", mime_type: "application/json", schema: FORME },
     });
-    brut = interaction.output_text ?? "";
+    brut = texteRendu(interaction);
   } catch (erreur) {
     // La cause nomme notre infrastructure ; elle va au journal, jamais à l'écran (leçon 5.1).
     console.error("[proposerTextes] Appel au modèle en échec :", erreur);
+    /* 🔴 UN REFUS N'EST PAS UNE ABSENCE DE RÉPONSE, ET LES CONFONDRE FAIT RÉESSAYER SANS FIN.
+       Mesuré le 2026-09-08 : la clé portait une restriction d'IP, l'API a répondu 403 — et
+       l'écran disait « le service n'a pas répondu ». Le bénévole aurait recliqué indéfiniment
+       sur un problème que seul un administrateur peut régler. */
+    if (estRefus(erreur)) {
+      return {
+        ok: false,
+        cause: "refus",
+        error:
+          "Le service de rédaction a refusé la demande : clé, quota ou restriction d'accès. " +
+          "Réessayer n'y changera rien — prévenez l'administrateur du site. Vous pouvez " +
+          "écrire les quatre textes à la main.",
+      };
+    }
     return {
       ok: false,
       cause: "reseau",
