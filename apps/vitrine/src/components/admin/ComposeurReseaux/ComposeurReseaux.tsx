@@ -101,124 +101,141 @@ export function ComposeurReseaux({ evenements }: { evenements: EvenementChoisiss
 
   return (
     <div className={styles.composeur}>
-      <section className={styles.bloc}>
-        <h2 className={styles.titreBloc}>De quoi on parle</h2>
+      {/* 🔴 La source à GAUCHE, le résultat à DROITE — c'est l'usage réel : on ajuste le
+          contexte, on régénère, on compare sans faire défiler. Les messages d'état restent
+          HORS de la grille, en pleine largeur : une erreur logée dans une colonne se lirait
+          comme le défaut de cette colonne-là. */}
+      <div className={styles.colonnes}>
+        <section className={styles.bloc}>
+          <h2 className={styles.titreBloc}>De quoi on parle</h2>
 
-        <div className={form.champ}>
-          <label className={form.label} htmlFor="evenement">
-            Un événement de l&rsquo;agenda <span className={styles.facultatif}>(facultatif)</span>
-          </label>
-          <select
-            id="evenement"
-            className={form.saisie}
-            value={eventId}
-            onChange={(e) => setEventId(e.target.value)}
-          >
-            <option value="">— Aucun, j&rsquo;écris librement —</option>
-            {evenements.map((evenement) => (
-              <option key={evenement.id} value={evenement.id}>
-                {evenement.libelle}
-                {evenement.publie ? "" : " (brouillon)"}
-              </option>
-            ))}
-          </select>
-          <p className={form.regle}>
-            🔴 Ses faits — date, lieu, jeux, tarif — sont repris <strong>tels quels</strong>. Le
-            service de rédaction écrit les phrases, il n&rsquo;invente aucun fait.
-          </p>
-          {evenementChoisi && !evenementChoisi.publie ? (
-            <p className={form.avertissement}>
-              ⚠️ Cet événement est un brouillon : l&rsquo;envoi sera refusé tant qu&rsquo;il
-              n&rsquo;est pas publié, sinon l&rsquo;annonce renverrait vers une page où il ne
-              figure pas.
+          <div className={form.champ}>
+            <label className={form.label} htmlFor="evenement">
+              Un événement de l&rsquo;agenda <span className={styles.facultatif}>(facultatif)</span>
+            </label>
+            <select
+              id="evenement"
+              className={form.saisie}
+              value={eventId}
+              onChange={(e) => setEventId(e.target.value)}
+            >
+              <option value="">— Aucun, j&rsquo;écris librement —</option>
+              {evenements.map((evenement) => (
+                <option key={evenement.id} value={evenement.id}>
+                  {evenement.libelle}
+                  {evenement.publie ? "" : " (brouillon)"}
+                </option>
+              ))}
+            </select>
+            <p className={form.regle}>
+              🔴 Ses faits — date, lieu, jeux, tarif — sont repris <strong>tels quels</strong>. Le
+              service de rédaction écrit les phrases, il n&rsquo;invente aucun fait.
             </p>
-          ) : null}
-        </div>
-
-        <div className={form.champ}>
-          <label className={form.label} htmlFor="contexte">
-            Le contexte, ou un début de texte
-          </label>
-          <textarea
-            id="contexte"
-            className={form.zone}
-            rows={4}
-            value={contexte}
-            maxLength={2000}
-            placeholder="Ex. : on fête les deux ans de l'asso, ambiance conviviale, insister sur le fait que les débutants sont bienvenus."
-            onChange={(e) => setContexte(e.target.value)}
-          />
-        </div>
-
-        <div className={form.champ}>
-          <label className={form.label} htmlFor="image">
-            Une image <span className={styles.facultatif}>(facultatif)</span>
-          </label>
-          <input
-            id="image"
-            ref={imageRef}
-            className={form.fichier}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-          />
-          <p className={form.regle}>
-            JPEG, PNG ou WebP, 8 Mo maximum. ⚠️ Elle est <strong>lue pour écrire le texte</strong>{" "}
-            et n&rsquo;est pas conservée : elle ne sera pas publiée avec l&rsquo;annonce.
-          </p>
-        </div>
-
-        <div className={form.actions}>
-          <Button type="button" onClick={lancerProposition} disabled={enProposition || enEnvoi}>
-            {enProposition ? "Rédaction en cours…" : "Proposer les textes"}
-          </Button>
-        </div>
-      </section>
-
-      <section className={styles.bloc}>
-        <h2 className={styles.titreBloc}>Les quatre textes</h2>
-        <p className={form.regle}>
-          Relisez et corrigez : c&rsquo;est <strong>ce qui est ici</strong> qui partira, mot pour
-          mot.
-        </p>
-
-        {RESEAUX.map((reseau) => {
-          const texte = messages[reseau.cle];
-          const trop = reseau.cle === "x" && texte.length > X_MAX;
-          return (
-            <div className={form.champ} key={reseau.cle}>
-              <label className={form.label} htmlFor={`texte-${reseau.cle}`}>
-                {reseau.libelle}
-              </label>
-              <textarea
-                id={`texte-${reseau.cle}`}
-                className={form.zone}
-                rows={reseau.cle === "x" ? 4 : 6}
-                value={texte}
-                onChange={(e) =>
-                  setMessages((actuel) => ({ ...actuel, [reseau.cle]: e.target.value }))
-                }
-              />
-              <p className={form.regle}>
-                {reseau.aide}{" "}
-                <span className={trop ? styles.compteurDepasse : form.compteur}>
-                  {texte.length}
-                  {reseau.cle === "x" ? ` / ${X_MAX}` : " caractères"}
-                </span>
+            {evenementChoisi && !evenementChoisi.publie ? (
+              <p className={form.avertissement}>
+                ⚠️ Cet événement est un brouillon : l&rsquo;envoi sera refusé tant qu&rsquo;il
+                n&rsquo;est pas publié, sinon l&rsquo;annonce renverrait vers une page où il ne
+                figure pas.
               </p>
-            </div>
-          );
-        })}
+            ) : null}
+          </div>
 
-        <div className={form.actions}>
-          <Button
-            type="button"
-            onClick={lancerEnvoi}
-            disabled={enEnvoi || enProposition || rienASoumettre}
-          >
-            {enEnvoi ? "Envoi…" : "Envoyer"}
-          </Button>
-        </div>
-      </section>
+          <div className={form.champ}>
+            <label className={form.label} htmlFor="contexte">
+              Le contexte, ou un début de texte
+            </label>
+            <textarea
+              id="contexte"
+              className={form.zone}
+              rows={4}
+              value={contexte}
+              maxLength={2000}
+              placeholder="Ex. : on fête les deux ans de l'asso, ambiance conviviale, insister sur le fait que les débutants sont bienvenus."
+              onChange={(e) => setContexte(e.target.value)}
+            />
+          </div>
+
+          <div className={form.champ}>
+            <label className={form.label} htmlFor="image">
+              Une image <span className={styles.facultatif}>(facultatif)</span>
+            </label>
+            <input
+              id="image"
+              ref={imageRef}
+              className={form.fichier}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+            />
+            <p className={form.regle}>
+              JPEG, PNG ou WebP, 8 Mo maximum. ⚠️ Elle est <strong>lue pour écrire le texte</strong>{" "}
+              et n&rsquo;est pas conservée : elle ne sera pas publiée avec l&rsquo;annonce.
+            </p>
+          </div>
+
+          <div className={form.actions}>
+            <Button type="button" onClick={lancerProposition} disabled={enProposition || enEnvoi}>
+              {enProposition ? "Rédaction en cours…" : "Proposer les textes"}
+            </Button>
+          </div>
+        </section>
+
+        <section className={styles.bloc}>
+          <h2 className={styles.titreBloc}>Les quatre textes</h2>
+                    {/* ⚠️ Au chargement les quatre zones sont VIDES : « relisez ce qui partira » y
+              parlait de rien. Une phrase vraie qui se lit à contretemps (motif PR #100). */}
+          <p className={form.regle}>
+            {rienASoumettre ? (
+              <>
+                Rien n&rsquo;est encore proposé. Remplissez la colonne de gauche, ou écrivez
+                directement ici.
+              </>
+            ) : (
+              <>
+                Relisez et corrigez : c&rsquo;est <strong>ce qui est ici</strong> qui partira,
+                mot pour mot.
+              </>
+            )}
+          </p>
+
+          {RESEAUX.map((reseau) => {
+            const texte = messages[reseau.cle];
+            const trop = reseau.cle === "x" && texte.length > X_MAX;
+            return (
+              <div className={form.champ} key={reseau.cle}>
+                <label className={form.label} htmlFor={`texte-${reseau.cle}`}>
+                  {reseau.libelle}
+                </label>
+                <textarea
+                  id={`texte-${reseau.cle}`}
+                  className={form.zone}
+                  rows={reseau.cle === "x" ? 4 : 6}
+                  value={texte}
+                  onChange={(e) =>
+                    setMessages((actuel) => ({ ...actuel, [reseau.cle]: e.target.value }))
+                  }
+                />
+                <p className={form.regle}>
+                  {reseau.aide}{" "}
+                  <span className={trop ? styles.compteurDepasse : form.compteur}>
+                    {texte.length}
+                    {reseau.cle === "x" ? ` / ${X_MAX}` : " caractères"}
+                  </span>
+                </p>
+              </div>
+            );
+          })}
+
+          <div className={form.actions}>
+            <Button
+              type="button"
+              onClick={lancerEnvoi}
+              disabled={enEnvoi || enProposition || rienASoumettre}
+            >
+              {enEnvoi ? "Envoi…" : "Envoyer"}
+            </Button>
+          </div>
+        </section>
+      </div>
 
       {erreur ? (
         <p className={form.erreur} role="alert">

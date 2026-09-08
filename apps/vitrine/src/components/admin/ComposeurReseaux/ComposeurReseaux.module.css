@@ -1,19 +1,51 @@
 /* Composer une annonce pour les réseaux (Story 7.6).
-   ⚠️ Six classes, exactement celles que le composant nomme : une classe absente rend
-   `undefined`, donc aucun attribut — muet au lint comme au typecheck (piège des CSS Modules,
+   ⚠️ Sept classes, exactement celles que le composant nomme : une classe absente rend
+   `undefined`, donc aucun attribut — muette au lint comme au typecheck (piège des CSS Modules,
    trois occurrences en 13.1). */
 
 .composeur {
+  margin-top: 28px; /* respire après le bandeau « aucun réseau raccordé » */
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  /* 🔴 AUCUN `max-width` : le back-office est en pleine largeur, aligné à gauche (PR #76).
-     Les bornes de lisibilité vivent sur les champs eux-mêmes, dans `admin-form`. */
+  gap: 20px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════
+   🔴 DEUX COLONNES BORNÉES — ET CE N'EST PAS UN PLAFOND SUR LE BACK-OFFICE
+   ══════════════════════════════════════════════════════════════════════════════════════
+
+   Le back-office est en pleine largeur, aligné à gauche (PR #76), et son chrome ne porte
+   aucun `max-width`. La règle qui l'accompagne dit exactement quoi faire ici : « une borne
+   de lisibilité se pose sur le champ ou le paragraphe, jamais sur leur conteneur ».
+
+   Premier jet livré : UN SEUL panneau, étiré à ~1600 px autour de champs bornés à 62ch par
+   `admin-form` — un grand rectangle vide, avec un filet or traversant tout l'écran. La borne
+   se pose donc sur LA COLONNE (680 px), pas sur `.contenu` : la réserve de la PR #76 tient,
+   et l'espace restant demeure à droite.
+
+   ⚠️ `min(100%, 560px)` en minimum, et non `320px` : avec un minimum trop bas, `auto-fit`
+   fabrique deux colonnes de 430 px dès 900 px de large — deux colonnes serrées valent moins
+   qu'une lisible. Le `100%` garde le cas étroit sans débordement. */
+.colonnes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 680px));
+  justify-content: start;
+  /* Sans ça les deux panneaux s'étirent à la hauteur du plus grand : la source, courte,
+     se retrouverait avec un grand vide sous son dernier bouton. */
+  align-items: start;
+  gap: 24px;
 }
 
 .bloc {
+  /* 🔴 Enfant de grille : sans `min-width: 0`, un `<textarea>` le dimensionnerait par son
+     contenu et pousserait la colonne hors de l'écran (même famille que la 13.2). */
+  min-width: 0;
   padding: 20px 22px;
-  border: 1px solid var(--surface);
+  /* Le filet des champs de `admin-form`, atténué : `--grey` à 35 %. Il n'existe pas de token
+     de bordure, et la feuille partagée pose déjà le même rgba avec ce commentaire.
+     ⚠️ Le premier jet mettait `1px solid var(--surface)` sur `background: var(--surface)` —
+     une bordure de la couleur du fond, donc aucune bordure. */
+  border: 1px solid rgba(146, 147, 173, 0.35);
   border-radius: var(--radius-card);
   background: var(--surface);
   display: flex;
