@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { conseilTraceManquante, precisionAnnonce, traceAnnonce } from "@/lib/reseaux";
 import { definirPublicationEvenement, supprimerEvenement } from "@/server/actions/agenda";
 import { annoncerSurLesReseaux } from "@/server/actions/reseaux";
 import styles from "@/styles/admin-actions.module.css";
@@ -44,6 +45,11 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
    */
   const [annonceLocale, setAnnonceLocale] = useState<Date | null>(null);
   const annonceLe = annonceLocale ?? socialPostedAt;
+  /* Une seule date lisible pour la confirmation ET pour la trace : l'heure murale de
+     Paris (`lib/date-paris`) est la seule que le bénévole reconnaîtra. */
+  const dateAnnonce = annonceLe
+    ? `${formatLongDate(annonceLe)} à ${formatTime(annonceLe)}`
+    : null;
 
   /**
    * L'annonce est partie mais la trace n'a pas pu être écrite (revue 6.7).
@@ -106,16 +112,13 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
         <BoutonConfirmation
           libelle="Annoncer sur les réseaux"
           question={`Annoncer « ${titre} » sur les réseaux ?`}
-          /* 🔴 LA PRÉCISION CHANGE SELON QU'IL A DÉJÀ ÉTÉ ANNONCÉ, ET C'EST TOUT L'INTÉRÊT DE
-             LA TRACE. On ne bloque pas une seconde annonce (republier après correction est un
-             besoin réel) — on la rend VISIBLE au moment où la décision se prend. Même
-             arbitrage que la fermeture de R31 : « acceptée AVEC FILET », pas corrigée. */
-          precision={
-            annonceLe
-              ? `⚠️ Déjà annoncé le ${formatLongDate(annonceLe)} à ${formatTime(annonceLe)}. ` +
-                "Confirmer publiera une SECONDE annonce, que ce back-office ne sait pas retirer."
-              : "L'annonce part vers l'outil de publication. Elle ne peut pas être annulée depuis ici."
-          }
+          /* 🔴 LA PHRASE SE CHOISIT DANS `lib/reseaux.ts`, PAS ICI. Elle dépend de DEUX faits
+             — un réseau est-il raccordé, l'événement a-t-il déjà été transmis — et la mauvaise
+             combinaison est fausse EN SILENCE : tant qu'aucun compte n'est câblé, menacer d'une
+             « SECONDE annonce » promet un effet public qui n'existe pas. On ne bloque toujours
+             pas un second envoi (republier après correction est un besoin réel) — on dit ce
+             qu'il fera vraiment, au moment où la décision se prend. */
+          precision={precisionAnnonce(dateAnnonce)}
           libelleConfirmation="Oui, annoncer"
           libelleEnCours="Envoi…"
           onConfirmer={async () => {
@@ -145,19 +148,18 @@ export function EventActions({ id, isPublished, titre, socialPostedAt }: EventAc
       {/* La trace, lisible sans ouvrir la confirmation. `formatLongDate` + `formatTime`
           (`lib/date-paris`) et jamais une date brute : l'heure murale de Paris est la seule
           que le bénévole reconnaîtra. */}
-      {annonceLe ? (
+      {dateAnnonce ? (
         /* `role="status"` : le succès INSÈRE ce texte au lieu de faire disparaître la ligne
            (contrairement aux 9 suppressions qui consomment `BoutonConfirmation`), donc sans
            région live un lecteur d'écran n'apprendrait jamais que l'annonce est partie.
            Convention déjà tenue par les 8 formulaires du back-office. Ajouté en revue 6.7. */
         <p className={styles.trace} role="status">
-          Annoncé sur les réseaux le {formatLongDate(annonceLe)} à {formatTime(annonceLe)}
+          {traceAnnonce(dateAnnonce)}
           {traceManquante ? (
             <>
               {" "}
               — ⚠️ <strong>cette trace n&apos;a pas pu être enregistrée</strong> : elle
-              disparaîtra au prochain rechargement. Notez-le, et ne recliquez pas sans vérifier
-              vos réseaux.
+              disparaîtra au prochain rechargement. {conseilTraceManquante()}
             </>
           ) : null}
         </p>
