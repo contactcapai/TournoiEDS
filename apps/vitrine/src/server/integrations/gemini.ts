@@ -12,11 +12,14 @@
  * parfaitement crédible et fausse — et c'est le genre de défaut qu'aucune porte ne voit.
  * La seconde parade est humaine : les quatre textes sont **relus et modifiables** avant envoi.
  *
- * ⚠️ **L'IMAGE EST LUE, PAS STOCKÉE.** `/medias/[filename]` ne sert que les fichiers portant
- * une ligne `photo` PUBLIÉE — une image déposée ici ne serait donc atteignable par personne.
- * Elle part en base64 vers le modèle et n'est écrite nulle part. Publier une image est un
- * autre sujet, qui viendra avec Instagram : c'est le seul réseau qui en EXIGE une, et il la
- * veut à une URL publique.
+ * 🔴 **CE PARAGRAPHE DISAIT « L'IMAGE EST LUE, PAS STOCKÉE » — C'EST FAUX DEPUIS LA 15.1**, et
+ * le réécrire fait partie du changement. L'image ne se téléverse plus ici : elle se **choisit
+ * dans la médiathèque** (ou s'y importe), donc elle porte une ligne `photo` publiée et une URL
+ * publique. Ce qui arrive jusqu'ici reste du base64 lu depuis le volume, et n'est toujours
+ * écrit nulle part par CE module — mais l'image, elle, existe désormais sur le site.
+ * ⚠️ **Conséquence à ne pas perdre** : le blocage ① de la 7.6 (« Instagram exige une image, à
+ * une URL publique, et le modèle n'en a aucune ») **n'a plus d'objet**. Rien n'a été construit
+ * pour lui ; il est tombé parce que l'image a cessé d'être un fichier de passage.
  *
  * ⚠️ **LES BORNES NE SONT PAS VÉRIFIÉES ICI.** Un texte X trop long est **rendu quand même**,
  * compteur en rouge : refuser la réponse entière ferait perdre les trois autres textes pour

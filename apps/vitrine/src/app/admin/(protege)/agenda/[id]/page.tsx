@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { EventForm } from "@/components/admin/EventForm/EventForm";
 import { exigerRolePage } from "@/server/auth/guard";
+import { getImagesPourChoix } from "@/server/db/queries/photos";
 import { getBars, getEventById } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -29,6 +30,11 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+// Borne EXPLICITE de la médiathèque, comme partout : une page dont le temps de rendu dépend du
+// volume téléversé est un défaut qui n'apparaîtrait qu'une fois la base remplie, c'est-à-dire
+// en production. Même valeur que l'écran de tournoi, pour que les deux proposent la même chose.
+const IMAGES_MAX = 200;
+
 export default async function ModifierEvenementPage({
   params,
 }: {
@@ -39,7 +45,11 @@ export default async function ModifierEvenementPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [evenement, bars] = await Promise.all([getEventById(id), getBars()]);
+  const [evenement, bars, images] = await Promise.all([
+    getEventById(id),
+    getBars(),
+    getImagesPourChoix(IMAGES_MAX),
+  ]);
   if (!evenement) notFound();
 
   return (
@@ -61,7 +71,7 @@ export default async function ModifierEvenementPage({
       </div>
 
       <div className={styles.section}>
-        <EventForm bars={bars} evenement={evenement} />
+        <EventForm bars={bars} images={images} evenement={evenement} />
       </div>
     </>
   );

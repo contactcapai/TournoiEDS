@@ -115,9 +115,13 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
   },
   {
     href: "/admin/galerie",
-    libelle: "Galerie",
+    // 🔴 LE LIBELLÉ CHANGE, L'URL NON (Story 15.1). L'écran ne porte plus seulement « la
+    // galerie » mais toutes les images du site. ⚠️ Renommer l'URL aurait coûté ce que la 12.4
+    // a mesuré — 52 renvois sur 25 fichiers — pour un gain nul : personne ne lit l'URL d'un
+    // back-office, tout le monde lit l'entrée de menu.
+    libelle: "Médiathèque",
     description:
-      "Les photos de la vie de l'asso : téléverser, décrire, ordonner. Voir le rendu avant de publier.",
+      "Toutes les images du site : photos de la vie de l'asso et visuels d'événement, de tournoi ou de post. Voir le rendu avant de publier.",
     role: "admin_site",
     famille: "publication",
     icone: "galerie",

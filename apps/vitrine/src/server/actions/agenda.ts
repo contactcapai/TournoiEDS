@@ -203,6 +203,9 @@ export async function enregistrerEvenement(
     type: formData.get("type") ?? undefined,
     title: formData.get("title"),
     barId: formData.get("barId"),
+    // Le visuel (15.1). Posté par `ChoixImage` en champ caché — « aucune image » vaut `""`,
+    // que le schéma transforme en `null` avant de valider le format.
+    photoId: formData.get("photoId"),
     venueName: formData.get("venueName"),
     venueAddress: formData.get("venueAddress"),
     startsAt: instant,

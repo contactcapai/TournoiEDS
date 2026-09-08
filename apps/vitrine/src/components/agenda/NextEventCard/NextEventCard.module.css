@@ -226,3 +226,29 @@
    Aucune propriété `animation-*` ici : l'apparition vient exclusivement de la classe
    partagée `motion.reveal`, composée en markup par l'appelant (aucun conflit de
    cascade possible avec l'ordre d'émission instable de Turbopack, dette R9). */
+
+/*
+ * Le visuel du rendez-vous (Story 15.1).
+ *
+ * 🔴 UNE BASE FIXE, JAMAIS UN BLOC DIMENSIONNÉ PAR SON CONTENU. `.next` est un conteneur
+ * flex : un enfant laissé en `auto` vaut `min-width: auto`, donc il est dimensionné par son
+ * contenu et peut POUSSER la carte hors de l'écran — le défaut mesuré le 2026-08-25 sur
+ * `.contenu` du back-office (PR #86), invisible ici par construction puisque `globals.css`
+ * pose `overflow-x: clip`. `flex: 0 0 240px` fige la question.
+ * ⚠️ C'est `gate` qui garde ce point (débordement horizontal × 7 largeurs), pas l'œil.
+ */
+.visuel {
+  flex: 0 0 240px;
+  /* `min-width: 0` en plus de la base : la base ne borne pas un enfant dont le contenu
+     déborderait (leçon `piege-flex-dimensionne-par-son-contenu.md`). */
+  min-width: 0;
+  align-self: center;
+}
+
+@media (max-width: 880px) {
+  /* La carte replie déjà en `flex-wrap: wrap` : le visuel prend la largeur comme la grande
+     date et le corps. Sans cette règle il resterait à 240px, seul sur sa ligne, décalé. */
+  .visuel {
+    flex-basis: 100%;
+  }
+}

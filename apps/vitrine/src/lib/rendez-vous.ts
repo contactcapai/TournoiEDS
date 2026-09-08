@@ -101,3 +101,43 @@ export function destinationDuCta(rendezVous: RendezVous): string | null {
   if (tournois.length === 0) return null;
   return tournois.length === 1 ? `/tournois/${tournois[0].slug}` : "/tournois";
 }
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 LE VISUEL D'UN RENDEZ-VOUS — ET IL PEUT ÊTRE FAUX **EN SILENCE** (Story 15.1)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Sortie du JSX pour la même raison qu'`etatInscriptionEnLigne` en 12.3 : ce n'est pas de la
+ * mise en page, c'est une **règle**, et chacune de ses deux moitiés se trompe sans rien casser.
+ *
+ * ① **La nature d'abord.** Un événement porte `visuel` (`event.photo_id`), un tournoi porte
+ *    `photo` (`tournament.photo_id`). Ce sont deux colonnes de deux tables : lire la mauvaise
+ *    rend `undefined`, donc **aucune image**, donc une carte qui a l'air normale. Rien ne
+ *    lève, rien ne rougit — on croit simplement que personne n'a choisi d'image.
+ *
+ * ② **`is_published` ensuite, et il DÉCIDE.** `/medias/[filename]` répond **404** pour une
+ *    image non publiée (garde 6.4), et rien n'empêche de dépublier une image déjà choisie
+ *    comme visuel : `photo_id` reste intact, la dépublication n'étant pas une suppression.
+ *    L'oublier produit un `<img>` vers une URL morte — un **cadre vide** sur la page la plus
+ *    vue du site. ⚠️ Et c'est invisible partout où l'on développe : en local comme sur
+ *    staging, on publie ce qu'on téléverse. Le défaut n'apparaît qu'après un geste de
+ *    bénévole, des semaines plus tard, sur un écran que personne ne regarde à ce moment-là.
+ *
+ * ⚠️ **UN ÉVÉNEMENT QUI PORTE DES TOURNOIS N'EMPRUNTE PAS LEUR VISUEL.** La branche
+ * `evenement` ne regarde que `rendezVous.evenement.visuel` : un événement est **son propre
+ * objet**, et afficher l'affiche d'une de ses dix animations (Game'in Reims) désignerait
+ * arbitrairement l'une d'elles. C'est la même retenue que `destinationDuCta`, qui refuse de
+ * choisir un tournoi quand il y en a plusieurs.
+ *
+ * @returns l'image à rendre, ou `null` — et `null` veut dire **« n'affiche pas de bloc »**,
+ *   jamais « affiche un cadre vide ». L'absence est le cas nominal (arbitrage de Brice).
+ */
+export function visuelDuRendezVous(rendezVous: RendezVous) {
+  const candidat =
+    rendezVous.nature === "evenement" ? rendezVous.evenement.visuel : rendezVous.tournoi.photo;
+  // ⚠️ `?? null` explicite : une relation absente vaut `null` côté Drizzle, mais le type d'un
+  // objet reconstruit à la main dans un test peut valoir `undefined`. Les deux doivent rendre
+  // la même chose, sans quoi la règle dépendrait de la façon dont on l'appelle.
+  if (!candidat?.isPublished) return null;
+  return candidat;
+}

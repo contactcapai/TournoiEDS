@@ -225,6 +225,13 @@
       "when": 1788260381255,
       "tag": "0031_orange_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788889047969,
+      "tag": "0032_light_callisto",
+      "breakpoints": true
     }
   ]
 }

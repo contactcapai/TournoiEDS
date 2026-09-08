@@ -2,6 +2,7 @@
 // 1.7) : ce module lit la base, il ne doit jamais être atteint depuis un composant client.
 import "server-only";
 import { db } from "../client";
+import { COLONNES_VISUEL } from "./photos";
 
 /**
  * Lectures de l'agenda (Story 3.2).
@@ -58,7 +59,21 @@ export async function getUpcomingEvents(limit: number, maintenant: Date) {
     orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.title), asc(table.id)],
     // Relation déclarée par la Story 3.1 : le bar arrive avec l'événement, pas en N+1.
     // `bar` est nullable (temps fort hors bar) — le rendu doit traiter les deux branches.
-    with: { bar: true },
+    //
+    // 🔴 `visuel` ARRIVE AVEC LUI DEPUIS LA 15.1 — L'IMAGE QUI **ANNONCE** L'ÉVÉNEMENT, à ne
+    // pas confondre avec `photos` (celles PRISES à l'événement, que `/agenda` lit dans l'autre
+    // sens pour ses vignettes de passés). Deux relations, deux clés : voir `event.photoId`.
+    //
+    // 🔴 LES **QUATRE** LECTURES D'ÉVÉNEMENT LA PORTENT, PASSÉS ET BACK-OFFICE COMPRIS — ET
+    // C'EST UN CHOIX, PRIS APRÈS QUE LE TYPECHECK A POSÉ LA QUESTION. `AgendaEvent` est dérivé
+    // d'ICI et consommé par `NextEventCard`, `EventList` **et** `PastEvent` : ne l'ajouter
+    // qu'aux « à venir » aurait scindé un type en deux formes, donc obligé chaque composant à
+    // savoir de quelle lecture vient son événement. C'est le patron de `recap`, porté partout
+    // et rendu SEULEMENT sur un passé : **la lecture remonte le fait, le composant décide de
+    // le montrer.** ⚠️ Corollaire à ne pas perdre : un événement passé a mieux qu'une affiche,
+    // il a ses photos — c'est le RENDU qui l'écrit, pas la requête. Et l'aperçu du bénévole
+    // voit ainsi exactement ce que voit le visiteur, ce qui est sa raison d'être (6.3).
+    with: { bar: true, visuel: { columns: COLONNES_VISUEL } },
     limit,
   });
 }
@@ -89,7 +104,7 @@ export async function getPastEvents(limit: number) {
     // suivants restent ascendants : ils ne servent qu'à départager, et les inverser aussi ne
     // rendrait pas l'ordre « plus décroissant », seulement différent, sans raison.
     orderBy: (table, { asc, desc }) => [desc(table.startsAt), asc(table.title), asc(table.id)],
-    with: { bar: true },
+    with: { bar: true, visuel: { columns: COLONNES_VISUEL } },
     limit,
   });
 }
@@ -120,7 +135,7 @@ export async function getUpcomingEventsForAdmin(limit: number) {
   return db.query.event.findMany({
     where: (table, { gt }) => gt(table.startsAt, new Date()),
     orderBy: (table, { asc }) => asc(table.startsAt),
-    with: { bar: true },
+    with: { bar: true, visuel: { columns: COLONNES_VISUEL } },
     limit,
   });
 }
@@ -130,7 +145,7 @@ export async function getPastEventsForAdmin(limit: number) {
   return db.query.event.findMany({
     where: (table, { lte }) => lte(table.startsAt, new Date()),
     orderBy: (table, { desc }) => desc(table.startsAt),
-    with: { bar: true },
+    with: { bar: true, visuel: { columns: COLONNES_VISUEL } },
     limit,
   });
 }
@@ -145,7 +160,7 @@ export async function getPastEventsForAdmin(limit: number) {
 export async function getEventById(id: string) {
   const ligne = await db.query.event.findFirst({
     where: (table, { eq }) => eq(table.id, id),
-    with: { bar: true },
+    with: { bar: true, visuel: { columns: COLONNES_VISUEL } },
   });
   if (!ligne) return undefined;
 

@@ -227,6 +227,12 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
               fill
               sizes="(max-width: 880px) 100vw, 320px"
               loading="lazy"
+              // 🔴 LE POINT FOCAL, AJOUTÉ PAR LA 15.1 — ET SON ABSENCE ÉTAIT UN DÉFAUT.
+              // `PhotoFrame` recadre en `object-fit: cover` : cette image COUPE. Sans
+              // `objectPosition` elle rendait le centre, c'est-à-dire un cadrage que le
+              // site n'applique nulle part ailleurs depuis la 7.3 — un visage hors cadre,
+              // sans erreur et sans test rouge. Même correctif que le scrapbook, 2026-09-01.
+              style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
             />
           </PhotoFrame>
         </div>

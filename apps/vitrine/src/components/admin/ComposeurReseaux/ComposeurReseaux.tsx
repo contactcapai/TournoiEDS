@@ -1,11 +1,14 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { Button } from "@repo/ui";
 
+import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
+
 import { X_MAX, type MessagesReseaux } from "@/lib/message-reseaux";
 import { RESEAUX_CABLES } from "@/lib/reseaux";
+import type { ImageChoisissable } from "@/server/db/queries/photos";
 import { annoncerTextesRelus, proposerTextesPourReseaux } from "@/server/actions/reseaux";
 import form from "@/styles/admin-form.module.css";
 import styles from "./ComposeurReseaux.module.css";
@@ -38,7 +41,14 @@ const RESEAUX = [
 
 const VIDE: MessagesReseaux = { discord: "", x: "", facebook: "", instagram: "" };
 
-export function ComposeurReseaux({ evenements }: { evenements: EvenementChoisissable[] }) {
+export function ComposeurReseaux({
+  evenements,
+  images,
+}: {
+  evenements: EvenementChoisissable[];
+  /** Les images de la médiathèque (15.1) — le 3ᵉ consommateur de `ChoixImage`. */
+  images: readonly ImageChoisissable[];
+}) {
   const [eventId, setEventId] = useState("");
   const [contexte, setContexte] = useState("");
   const [messages, setMessages] = useState<MessagesReseaux>(VIDE);
@@ -46,7 +56,14 @@ export function ComposeurReseaux({ evenements }: { evenements: EvenementChoisiss
   const [succes, setSucces] = useState<string | null>(null);
   const [enProposition, proposer] = useTransition();
   const [enEnvoi, envoyer] = useTransition();
-  const imageRef = useRef<HTMLInputElement>(null);
+  // 🔴 UNE RÉFÉRENCE À LA MÉDIATHÈQUE, PLUS UN FICHIER DE PASSAGE (Story 15.1). L'image
+  // choisie ici EXISTE désormais sur le site, avec une URL publique — et c'est exactement ce
+  // qu'Instagram exige, lui qui refuse un post sans image. Ce n'est pas un effet de bord :
+  // c'était le blocage ① mesuré de la 7.6, et il tombe de lui-même.
+  // ⚠️ Cet écran n'est PAS un `<form>` : il appelle ses actions à la main (deux gestes
+  // distincts, « proposer » et « envoyer »). Il tient donc l'identifiant choisi lui-même,
+  // via le rappel de `ChoixImage` — plutôt que de relire le DOM au moment de soumettre.
+  const [photoId, setPhotoId] = useState("");
 
   const rienASoumettre = Object.values(messages).every((texte) => texte.trim() === "");
   const evenementChoisi = evenements.find((evenement) => evenement.id === eventId);
@@ -57,8 +74,8 @@ export function ComposeurReseaux({ evenements }: { evenements: EvenementChoisiss
     const donnees = new FormData();
     donnees.set("contexte", contexte);
     donnees.set("eventId", eventId);
-    const fichier = imageRef.current?.files?.[0];
-    if (fichier) donnees.set("image", fichier);
+    // « Aucune image » vaut la chaîne vide, que l'action traite comme « pas d'image ».
+    donnees.set("photoId", photoId);
 
     proposer(async () => {
       try {
@@ -155,22 +172,18 @@ export function ComposeurReseaux({ evenements }: { evenements: EvenementChoisiss
             />
           </div>
 
-          <div className={form.champ}>
-            <label className={form.label} htmlFor="image">
-              Une image <span className={styles.facultatif}>(facultatif)</span>
-            </label>
-            <input
-              id="image"
-              ref={imageRef}
-              className={form.fichier}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-            />
-            <p className={form.regle}>
-              JPEG, PNG ou WebP, 8 Mo maximum. ⚠️ Elle est <strong>lue pour écrire le texte</strong>{" "}
-              et n&rsquo;est pas conservée : elle ne sera pas publiée avec l&rsquo;annonce.
-            </p>
-          </div>
+          {/* 🔴 L'IMAGE VIENT DE LA MÉDIATHÈQUE, ET ELLE Y RESTE (15.1). Elle était jusqu'ici
+              un fichier de passage : lu pour écrire le texte, jamais conservé — la phrase à
+              l'écran le disait, et elle était juste. Ce n'est plus le cas, donc elle change.
+              ⚠️ Ce n'est pas qu'un rangement : une image qui EXISTE sur le site a une URL
+              publique, et c'est ce qu'Instagram exige. Le blocage ① de la 7.6 tombe ici. */}
+          <ChoixImage
+            nom="photoId"
+            valeurInitiale={null}
+            images={images}
+            label="Une image (facultatif)"
+            onChange={setPhotoId}
+          />
 
           <div className={form.actions}>
             <Button type="button" onClick={lancerProposition} disabled={enProposition || enEnvoi}>

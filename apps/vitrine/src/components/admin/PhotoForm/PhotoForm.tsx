@@ -50,6 +50,10 @@ export interface PhotoFormProps {
     eventId: string | null;
     focalX: number;
     focalY: number;
+    /** ⚠️ Ajouté par la 15.1 : sans lui, la case s'ouvrirait sur son défaut et le premier
+        « Enregistrer » ferait rentrer un visuel dans la galerie de l'accueil — le défaut
+        qu'`endsAt` a payé en 9.6, et que le point focal a payé en 7.3. */
+    dansLaGalerie: boolean;
   };
   evenements: readonly { id: string; titre: string }[];
 }
@@ -60,6 +64,7 @@ export function PhotoForm({ photo, evenements }: PhotoFormProps) {
   const [alt, setAlt] = useState(photo.alt);
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [eventId, setEventId] = useState(photo.eventId ?? "");
+  const [dansLaGalerie, setDansLaGalerie] = useState(photo.dansLaGalerie);
 
   const [etat, soumettre, enCours] = useActionState(
     async (_precedent: EtatForm, formData: FormData): Promise<EtatForm> => {
@@ -198,6 +203,36 @@ export function PhotoForm({ photo, evenements }: PhotoFormProps) {
             {erreurs.eventId}
           </p>
         ) : null}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════════════
+          🔴 LA CASE QUI SÉPARE « VISIBLE SUR LE SITE » DE « DANS LA GALERIE » (15.1)
+          ══════════════════════════════════════════════════════════════════════════════
+          C'est le SEUL endroit où l'on décide qu'une image entre dans le scrapbook de
+          l'accueil ou en sort. Une image importée depuis un formulaire arrive décochée
+          (elle a été importée pour un usage) ; une image téléversée depuis la médiathèque
+          arrive cochée (c'est un souvenir jusqu'à preuve du contraire).
+          ⚠️ La phrase dit la CONSÉQUENCE, pas le mécanisme : « les 8 premières publiées »
+          est ce que le bénévole peut vérifier d'un coup d'œil sur l'accueil. */}
+      <div className={styles.champ}>
+        <label className={styles.choixLabel}>
+          <input
+            type="checkbox"
+            name="dansLaGalerie"
+            value="on"
+            checked={dansLaGalerie}
+            onChange={(evenement) => setDansLaGalerie(evenement.target.checked)}
+          />
+          Montrer dans la galerie de l&rsquo;accueil
+        </label>
+        <p className={styles.sousChamp}>
+          <span>
+            Décochée, l&rsquo;image reste dans la médiathèque et reste utilisable comme
+            visuel&nbsp;— elle n&rsquo;apparaît simplement pas dans la galerie de la page
+            d&rsquo;accueil. C&rsquo;est ce qu&rsquo;on veut pour une affiche ou une image
+            de post&nbsp;: sans ça, elle prendrait la place d&rsquo;une photo de soirée.
+          </span>
+        </p>
       </div>
 
       {etat.statut === "erreur" && etat.error ? (

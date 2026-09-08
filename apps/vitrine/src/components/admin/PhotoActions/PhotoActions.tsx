@@ -43,6 +43,17 @@ export interface PhotoActionsProps {
    */
   ordre: readonly string[];
   position: number;
+  /**
+   * 🔴 `false` POUR LES VISUELS (Story 15.1) — ILS N'ONT PAS D'ORDRE, ET C'EST UN FAIT, PAS
+   * UN RÉGLAGE. `sort_order` ne décide que d'une chose sur ce site : quelles photos entrent
+   * dans les huit de l'accueil. Une image hors galerie n'y entre jamais, donc la monter ou
+   * la descendre **ne produit aucun effet observable** — et une commande sans effet est
+   * exactement le défaut que `gate:carousel` a trouvé en 3.3 (« deux flèches MORTES »).
+   * ⚠️ Un booléen EXPLICITE plutôt qu'une liste vide : avec `ordre: []` et `position: 0`,
+   * l'arithmétique des extrémités (`position === ordre.length - 1`) rendrait `dernier`
+   * FAUX et afficherait une flèche « descendre » solitaire. Le défaut aurait été muet.
+   */
+  ordonnable?: boolean;
 }
 
 export function PhotoActions({
@@ -52,13 +63,14 @@ export function PhotoActions({
   filename,
   ordre,
   position,
+  ordonnable = true,
 }: PhotoActionsProps) {
   const router = useRouter();
   const [enTransition, demarrer] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const premier = position === 0;
-  const dernier = position === ordre.length - 1;
+  const premier = !ordonnable || position === 0;
+  const dernier = !ordonnable || position === ordre.length - 1;
 
   function deplacer(pas: -1 | 1) {
     const cible = position + pas;

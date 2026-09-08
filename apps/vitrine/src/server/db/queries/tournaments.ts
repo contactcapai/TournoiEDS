@@ -8,6 +8,7 @@ import { cache } from "react";
 import { ajouterJours, debutDuJourParis, jourParis } from "@/lib/date-paris";
 import { fusionnerCeQuiSeJoue } from "@/lib/tournoi/en-cours";
 import { db } from "../client";
+import { COLONNES_VISUEL } from "./photos";
 import { tournament, tournamentPhase } from "../schema";
 
 /**
@@ -224,7 +225,13 @@ const COLONNES_PUBLIQUES = {
  * traiter à la lecture, c'est ne jamais servir l'URL morte.
  */
 const RELATION_VISUEL = {
-  photo: { columns: { filename: true, alt: true, isPublished: true } },
+  // 🔴 LES COLONNES VIVENT DANS `queries/photos.ts` (`COLONNES_VISUEL`) DEPUIS LA 15.1 : deux
+  // domaines les lisent désormais (le tournoi ici, l'événement dans `events.ts`), et deux
+  // copies auraient divergé. Ce n'est pas une précaution : c'est très exactement ce qui est
+  // arrivé au **point focal**, ajouté aux vignettes du scrapbook le 2026-09-01 et **oublié
+  // ici** — la carte et la fiche recadrent pourtant en `object-fit: cover`, donc elles
+  // rendaient un cadrage que le site n'applique nulle part ailleurs.
+  photo: { columns: COLONNES_VISUEL },
 } as const;
 
 /**
@@ -635,31 +642,13 @@ export type EvenementRattachable = Awaited<
   ReturnType<typeof getEventsPourRattachement>
 >[number];
 
-/**
- * Les photos proposables comme **visuel** de tournoi (arbitrage **A2**).
- *
- * 🔴 **FILTRÉE SUR `is_published`, ET C'EST L'INVERSE DE LA LISTE DES ÉVÉNEMENTS.** Le
- * rattachement à un événement accepte un brouillon (on prépare la Game'in Reims des semaines à
- * l'avance) ; le visuel, non — et le motif est **mesuré**, pas esthétique : la route
- * `/medias/[filename]` ne sert **que** les photos publiées (garde de la Story 6.4). Proposer un
- * brouillon reviendrait à laisser choisir un visuel qui ne s'afficherait **jamais**, sans que
- * rien ne le dise. C'est l'« écart assumé » d'A2, refermé au point de saisie plutôt que subi.
- *
- * ⚠️ `alt` est le libellé montré au bénévole, et c'est le bon choix : il est **obligatoire**
- * depuis la 4.3 (NFR3) et il **décrit** l'image, là où `caption` la **commente** et peut être
- * absent. Confondre les deux livrerait une liste d'options vides.
+/*
+ * 🔴 `getPhotosPourVisuel` / `PhotoVisuel` ONT DÉMÉNAGÉ DANS `queries/photos.ts` (15.1), sous
+ * les noms `getImagesPourChoix` / `ImageChoisissable`. Elles interrogent `photo`, pas
+ * `tournament` : leur place ici tenait au fait qu'elles n'avaient qu'un seul appelant. Elles
+ * en ont trois depuis que l'événement et le composeur réseaux choisissent une image eux
+ * aussi, et `architecture.md` pose une famille de requêtes PAR DOMAINE.
  */
-export async function getPhotosPourVisuel(limite: number) {
-  return db.query.photo.findMany({
-    columns: { id: true, filename: true, alt: true },
-    where: (table, { eq }) => eq(table.isPublished, true),
-    orderBy: (table, { asc, desc }) => [desc(table.createdAt), asc(table.alt), asc(table.id)],
-    limit: limite,
-  });
-}
-
-/** Une photo proposable en visuel, dérivée de la requête. */
-export type PhotoVisuel = Awaited<ReturnType<typeof getPhotosPourVisuel>>[number];
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    LECTURES POUR L'AGENDA (Story 9.5) — LE TOURNOI VU COMME UN RENDEZ-VOUS
@@ -715,6 +704,12 @@ const COLONNES_RENDEZ_VOUS = {
 export async function getUpcomingTournamentsSansEvenement(limite: number, maintenant: Date) {
   return db.query.tournament.findMany({
     columns: COLONNES_RENDEZ_VOUS,
+    // 🔴 LE VISUEL REMONTE DEPUIS LA 15.1, ET SON ABSENCE ÉTAIT UNE INCOHÉRENCE MESURÉE : un
+    // tournoi qui A un visuel le montrait sur `/tournois` et sur sa fiche, mais PAS sur
+    // `/agenda` ni sur l'accueil — le même tournoi, deux rendus selon la page. Ce n'était pas
+    // un arbitrage : ces colonnes n'avaient jamais eu de raison de le porter, aucune des deux
+    // surfaces ne rendant d'image avant cette story.
+    with: RELATION_VISUEL,
     where: (table, { and, eq, gt, isNull }) =>
       and(eq(table.isPublished, true), isNull(table.eventId), gt(table.startsAt, maintenant)),
     orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],
@@ -755,6 +750,11 @@ export async function getTournoisParEvenement(eventIds: readonly string[]) {
 
   const lignes = await db.query.tournament.findMany({
     columns: { ...COLONNES_RENDEZ_VOUS, eventId: true },
+    // ⚠️ MÊME RELATION QUE SA JUMELLE, ET C'EST LE TYPE QUI L'EXIGE : `TournoiDuRendezVous`
+    // est dérivé de `getUpcomingTournamentsSansEvenement`, et les deux moitiés de l'union
+    // d'agenda doivent avoir la MÊME forme. Deux formes obligeraient `rendez-vous.ts` à
+    // savoir de quelle lecture vient chaque tournoi — exactement ce que l'union évite.
+    with: RELATION_VISUEL,
     where: (table, { and, eq, inArray }) =>
       and(eq(table.isPublished, true), inArray(table.eventId, [...eventIds])),
     orderBy: (table, { asc }) => [asc(table.startsAt), asc(table.name), asc(table.id)],

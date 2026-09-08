@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
+import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
 import {
   formatLongDate,
   parisWallClockFromInput,
@@ -38,7 +39,8 @@ import {
   type TournamentRegistrationState,
 } from "@/lib/schemas/tournament";
 import { enregistrerTournoi } from "@/server/actions/tournois";
-import type { EvenementRattachable, PhotoVisuel } from "@/server/db/queries/tournaments";
+import type { EvenementRattachable } from "@/server/db/queries/tournaments";
+import type { ImageChoisissable } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-form.module.css";
 import propre from "@/app/admin/(protege)/tournois/tournois.module.css";
 
@@ -149,9 +151,9 @@ export interface TournoiFormProps {
   evenements: readonly EvenementRattachable[];
   /**
    * Les photos de la galerie proposables comme visuel (A2). **Publiées uniquement** — voir
-   * `getPhotosPourVisuel`, et l'écart assumé d'A2 qu'elle referme.
+   * `getImagesPourChoix`, et l'écart assumé d'A2 qu'elle referme.
    */
-  photos: readonly PhotoVisuel[];
+  photos: readonly ImageChoisissable[];
 }
 
 export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
@@ -178,7 +180,6 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   const [endsAt, setEndsAt] = useState(tournoi?.endsAt ? toInputValue(tournoi.endsAt) : "");
   const [priceText, setPriceText] = useState(tournoi?.priceText ?? "");
   const [venueName, setVenueName] = useState(tournoi?.venueName ?? "");
-  const [photoId, setPhotoId] = useState(tournoi?.photoId ?? "");
   const [formatText, setFormatText] = useState(tournoi?.formatText ?? "");
   const [prizes, setPrizes] = useState(tournoi?.prizes ?? "");
   const [matchDuration, setMatchDuration] = useState(
@@ -474,53 +475,21 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           erreur={erreurs.priceText}
         />
 
-        {/* ── Le visuel ────────────────────────────────────────────────────────────────
-            🔴 UNE PHOTO DE LA **GALERIE**, PAS UN TÉLÉVERSEMENT (arbitrage A2). Une 4ᵉ
-            famille de médias coûterait une route, son schéma, sa garde, et rouvrirait le
-            piège du 404 silencieux de la Story 6.5. La galerie sait déjà téléverser,
-            décrire et publier.
-            ⚠️ SEULES LES PHOTOS **PUBLIÉES** SONT PROPOSÉES, et l'écran dit pourquoi : la
-            route qui sert les médias ne rend que du publié (garde de la 6.4). Proposer un
-            brouillon laisserait choisir un visuel qui ne s'afficherait jamais. */}
-        <div className={styles.champ}>
-          <label className={styles.label} htmlFor="tournoi-photoId">
-            Visuel (facultatif)
-          </label>
-          <select
-            id="tournoi-photoId"
-            name="photoId"
-            className={styles.saisie}
-            value={photoId}
-            onChange={(evenement) => setPhotoId(evenement.target.value)}
-            aria-invalid={erreurs.photoId ? "true" : undefined}
-            aria-describedby="tournoi-photoId-aide"
-          >
-            <option value="">Aucun visuel</option>
-            {photos.map((photo) => (
-              <option key={photo.id} value={photo.id}>
-                {photo.alt}
-              </option>
-            ))}
-          </select>
-          <p className={styles.sousChamp} id="tournoi-photoId-aide">
-            <span>
-              {photos.length > 0 ? (
-                <>
-                  Choisi parmi les photos de la <strong>galerie</strong> — il n&rsquo;y a rien
-                  à téléverser ici. Seules les photos <strong>publiées</strong> sont
-                  proposées : une photo en brouillon ne s&rsquo;afficherait nulle part.
-                </>
-              ) : (
-                <>
-                  Aucune photo publiée dans la galerie pour l&rsquo;instant. Téléversez-en une
-                  depuis la section <strong>Galerie</strong> et publiez-la : elle apparaîtra
-                  ici. Un tournoi sans visuel s&rsquo;affiche très bien.
-                </>
-              )}
-            </span>
-          </p>
-          {erreurs.photoId ? <p className={styles.erreur}>{erreurs.photoId}</p> : null}
-        </div>
+        {/* 🔴 CE CHAMP ÉTAIT UNE LISTE DÉROULANTE DE TEXTES, ET C'EST CE QUE LA 15.1 REMPLACE.
+            On y choisissait un visuel parmi des `<option>{alt}` — c'est-à-dire une image
+            **sans la voir**. Le bloc partagé montre les vignettes et permet d'importer sur
+            place ; l'arbitrage A2 (pas de 4ᵉ famille de médias) est inchangé, c'est toujours
+            une image de la médiathèque qu'on pointe.
+            ⚠️ Le contrat écrit au bénévole ne change pas : seules les images PUBLIÉES sont
+            proposées, parce que `/medias/[filename]` répond 404 sur un brouillon (garde 6.4).
+            La différence est qu'on peut désormais en publier une **depuis ici**. */}
+        <ChoixImage
+          nom="photoId"
+          valeurInitiale={tournoi?.photoId ?? null}
+          images={photos}
+          label="Visuel du tournoi (facultatif)"
+          erreur={erreurs.photoId}
+        />
       </fieldset>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════

@@ -1,9 +1,10 @@
-import { Button } from "@repo/ui";
+import Image from "next/image";
+import { Button, PhotoFrame } from "@repo/ui";
 
 import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
 import { formatBigDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
-import { estJeudiJeux } from "@/lib/rendez-vous";
+import { estJeudiJeux, visuelDuRendezVous } from "@/lib/rendez-vous";
 import { cleanText } from "@/lib/text";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
 import styles from "./NextEventCard.module.css";
@@ -139,6 +140,14 @@ export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
   const tarif = cleanText(evenement?.priceText ?? tournoi?.priceText ?? null);
   const fin = evenement?.endsAt ?? tournoi?.endsAt ?? null;
 
+  // 🔴 LE VISUEL — LA RÈGLE VIT DANS `lib/rendez-vous.ts`, PAS ICI (15.1). Elle lit la bonne
+  // colonne selon la nature ET refuse une image non publiée, et ses deux moitiés se trompent
+  // SANS RIEN CASSER : la première rend « pas d'image », la seconde un cadre vide. Elle est
+  // donc testée, comme `etatInscriptionEnLigne` l'a été en 12.3.
+  // ⚠️ L'ABSENCE EST LE CAS NOMINAL et le bloc est alors OMIS — jamais un cadre « photo à
+  // venir » (arbitrage de Brice) : il promettrait une photo qu'un jeudi ordinaire n'aura pas.
+  const visuel = visuelDuRendezVous(rendezVous);
+
   return (
     <div className={styles.next}>
       <div className={styles.bigDate}>
@@ -256,6 +265,26 @@ export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
           ) : null}
         </div>
       </div>
+
+      {visuel ? (
+        <div className={styles.visuel}>
+          {/* `alt=""` — L'IMAGE EST ILLUSTRATIVE ICI, et la carte porte déjà le titre, le lieu,
+              l'heure et les jeux juste à côté. Répéter la description ferait dire deux fois la
+              même chose à un lecteur d'écran. C'est le même arbitrage que la vignette des
+              passés, et l'inverse de la carte de `/tournois`, où l'image EST le contenu du
+              bloc. ⚠️ `alt=""` n'est PAS un `alt` manquant : il déclare l'image décorative. */}
+          <PhotoFrame rotation={-2}>
+            <Image
+              src={`/medias/${visuel.filename}`}
+              alt=""
+              fill
+              sizes="(max-width: 880px) 100vw, 240px"
+              // ⚠️ Le point focal : `PhotoFrame` recadre en `object-fit: cover`, donc coupe.
+              style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
+            />
+          </PhotoFrame>
+        </div>
+      ) : null}
 
       {/* CTA optionnel : pas de billetterie en v1 (UX-DR10).
           🔴 SA DESTINATION N'EST PLUS `/agenda` (R48 ③, arbitrage de Brice du 2026-08-14) —

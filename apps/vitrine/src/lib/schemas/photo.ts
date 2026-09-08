@@ -187,6 +187,20 @@ export const photoInputSchema = z.object({
     .default(0),
   /** Défaut `false` : rien n'est public par accident (patron `event`, `partner`). */
   isPublished: z.boolean().default(false),
+  /**
+   * 🔴 « DANS LA GALERIE DE L'ACCUEIL » — L'AUTRE MOITIÉ DE CE QUE `isPublished` DISAIT SEUL
+   * JUSQU'À LA 15.1. Celui-ci répond à « peut-on la servir ? », celle-ci à « a-t-elle sa place
+   * dans le scrapbook ? ». Le raisonnement complet vit sur la colonne (`server/db/schema.ts`).
+   *
+   * ⚠️ **DÉFAUT `true`, ET IL NE VAUT QUE POUR LA MÉDIATHÈQUE.** Une image téléversée depuis
+   * l'écran des images est un souvenir jusqu'à preuve du contraire. Le bloc « importer » d'un
+   * formulaire, lui, poste explicitement `false` : on importe pour un usage, pas pour le
+   * scrapbook. C'est le seul endroit où le défaut ne s'applique pas, et il est **écrit**.
+   * ⚠️ Un formulaire qui ne poste pas la case (case décochée = champ ABSENT en HTML) retombe
+   * donc sur `true` — c'est pourquoi l'écran d'édition envoie la valeur explicitement, comme
+   * il le fait déjà pour `isPublished`.
+   */
+  dansLaGalerie: z.boolean().default(true),
 
   /**
    * Le point focal, en pourcentage (Story 7.3).

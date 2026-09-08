@@ -5,6 +5,7 @@ import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { RESEAUX_CABLES, listerReseaux } from "@/lib/reseaux";
 import { cleanText } from "@/lib/text";
 import { exigerRolePage } from "@/server/auth/guard";
+import { getImagesPourChoix } from "@/server/db/queries/photos";
 import { getUpcomingEventsForAdmin } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
 
@@ -27,10 +28,19 @@ export const dynamic = "force-dynamic";
 /** Borne explicite : un écran dont le temps de rendu suit le remplissage de la base. */
 const EVENEMENTS_MAX = 40;
 
+// Borne EXPLICITE de la médiathèque, comme sur les écrans d'événement et de tournoi.
+const IMAGES_MAX = 200;
+
 export default async function AdminReseauxPage() {
   await exigerRolePage("admin_site");
 
-  const evenements = (await getUpcomingEventsForAdmin(EVENEMENTS_MAX)).map((evenement) => ({
+  // ⚠️ Les deux lectures sont indépendantes : elles partent ensemble (15.1).
+  const [lignes, images] = await Promise.all([
+    getUpcomingEventsForAdmin(EVENEMENTS_MAX),
+    getImagesPourChoix(IMAGES_MAX),
+  ]);
+
+  const evenements = lignes.map((evenement) => ({
     id: evenement.id,
     libelle: `${cleanText(evenement.title) ?? evenement.title} — ${formatLongDate(
       evenement.startsAt,
@@ -58,7 +68,7 @@ export default async function AdminReseauxPage() {
         </p>
       )}
 
-      <ComposeurReseaux evenements={evenements} />
+      <ComposeurReseaux evenements={evenements} images={images} />
     </>
   );
 }
