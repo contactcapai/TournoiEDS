@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  CLES_CABLEES,
   RESEAUX_CABLES,
+  ciblesRetenues,
+  libelleDuReseau,
   conseilTraceManquante,
   listerReseaux,
   precisionAnnonce,
@@ -11,10 +14,18 @@ import {
 
 const CABLES = ["Instagram", "Discord"];
 
-test("🔴 aujourd'hui AUCUN réseau n'est raccordé — le workflow n8n n'a pas de nœud social", () => {
-  // Ce test tombera le jour où la Story 7.6 câble un compte : c'est exactement là qu'il faut
-  // relire les phrases de l'écran, pas six mois plus tard.
-  assert.deepEqual([...RESEAUX_CABLES], []);
+test("🔴 DISCORD est raccordé, les trois autres ne le sont pas encore", () => {
+  // 🔴 CE TEST A DÉJÀ FAIT SON TRAVAIL UNE FOIS. Il affirmait « AUCUN réseau n'est raccordé »
+  // et son commentaire annonçait : « il tombera le jour où la 7.6 câble un compte, c'est
+  // exactement là qu'il faut relire les phrases de l'écran ». Il est tombé le 2026-09-10,
+  // quand Discord a été branché — et les phrases ont été relues.
+  //
+  // ⚠️ IL RESTE UN FIL-PIÈGE, et c'est sa raison d'être : `cable` est une copie à la main d'un
+  // fait qui vit dans n8n. Le jour où quelqu'un met `cable: true` sans avoir VU un post
+  // paraître, ce test tombe et pose la question — parce qu'un « raccordé » faux fait dire à
+  // l'écran « Annoncé sur X » à propos de rien.
+  assert.deepEqual([...RESEAUX_CABLES], ["Discord"]);
+  assert.deepEqual([...CLES_CABLEES], ["discord"]);
 });
 
 test("l'énumération met « et » devant le dernier", () => {
@@ -66,4 +77,45 @@ test("🔴 le rattrapage n'envoie PAS vérifier des réseaux qui ne reçoivent r
   // contredisaient sur la même ligne.
   assert.doesNotMatch(conseilTraceManquante([]), /vérifi/);
   assert.match(conseilTraceManquante(CABLES), /vérifié Instagram et Discord/);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LES DESTINATIONS D'UNE ANNONCE (2026-09-10) — l'écran ne peut pas les garantir
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// `ciblesRetenues` est testée parce qu'elle se trompe SANS RIEN CASSER : filtrer la demande
+// au lieu des raccordés ferait écrire « Annoncé sur Instagram » à propos de rien, et rendre
+// une liste vide en silence ferait partir un paquet qui ne publie nulle part. Aucune des deux
+// ne lève, et aucune ne se voit sur l'écran de celui qui clique.
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LES DESTINATIONS D'UNE ANNONCE (2026-09-10) — l'écran ne peut pas les garantir
+// ══════════════════════════════════════════════════════════════════════════════════════
+//
+// `ciblesRetenues` est testée parce qu'elle se trompe SANS RIEN CASSER : filtrer la demande
+// au lieu des raccordés ferait écrire « Annoncé sur Instagram » à propos de rien, et rendre
+// une liste vide en silence ferait partir un paquet qui ne publie nulle part. Aucune des deux
+// ne lève, et aucune ne se voit sur l'écran de celui qui clique.
+
+test("les destinations ne gardent que les réseaux RACCORDÉS, jamais ce qui est demandé", () => {
+  // Instagram n'a aucun nœud dans n8n : le demander ne doit RIEN produire.
+  assert.deepEqual(ciblesRetenues(["instagram"]), []);
+  assert.deepEqual(ciblesRetenues(["discord", "instagram"]), ["discord"]);
+});
+
+test("une demande vide ou inconnue ne retombe PAS sur « tous les réseaux »", () => {
+  // Le repli silencieux serait le pire des deux : on publierait sans l'avoir demandé.
+  assert.deepEqual(ciblesRetenues([]), []);
+  assert.deepEqual(ciblesRetenues(["reseau-qui-nexiste-pas"]), []);
+});
+
+test("l'ordre vient de la liste de référence, pas de l'ordre des clics", () => {
+  // Deux annonces identiques doivent produire le MÊME paquet.
+  assert.deepEqual(ciblesRetenues(["discord", "x"]), ciblesRetenues(["x", "discord"]));
+});
+
+test("les libellés affichés dérivent des mêmes lignes que les clés envoyées", () => {
+  // Deux listes tenues à la main divergeraient au premier réseau ajouté : l'écran nommerait
+  // un réseau que le paquet ne vise pas, ou l'inverse.
+  assert.deepEqual(CLES_CABLEES.map(libelleDuReseau), [...RESEAUX_CABLES]);
 });

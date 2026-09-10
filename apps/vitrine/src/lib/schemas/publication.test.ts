@@ -60,6 +60,10 @@ function payloadEvenement() {
       jeux: "Guitar Hero",
       lien: LIEN,
     }),
+    // 🔴 AJOUTÉ LE 2026-09-10 AVEC LE CHAMP LUI-MÊME : sans lui ces deux tests tombent, et
+    // c'est très bien — ils gardent le contrat ENTRE le site et le workflow, donc ils doivent
+    // rougir dès qu'un champ obligatoire apparaît d'un côté sans l'autre.
+    reseaux: ["discord" as const],
   };
 }
 
