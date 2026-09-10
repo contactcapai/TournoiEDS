@@ -3,7 +3,7 @@
 // doit jamais être atteint depuis un composant client. ⚠️ `Lightbox` EST un composant
 // client — elle reçoit ses photos en props depuis la page, elle n'importe rien d'ici.
 import "server-only";
-import { and, count, desc, eq, inArray, max } from "drizzle-orm";
+import { and, count, eq, inArray, max } from "drizzle-orm";
 
 import { jourParis } from "@/lib/date-paris";
 import { cleanText } from "@/lib/text";
@@ -337,22 +337,14 @@ export const getPhotoDuHero = () => lirePhotoDuSite(siteSetting.heroPhotoId);
 export const getPhotoDeLaBande = () => lirePhotoDuSite(siteSetting.quotePhotoId);
 export const getPhotoDePartage = () => lirePhotoDuSite(siteSetting.ogPhotoId);
 
-/**
- * Les photos qu'on peut proposer comme photo d'accueil (Story 7.3).
- *
- * 🔴 PUBLIÉES SEULEMENT, ET C'EST LA MÊME GARDE QUE `getPhotoDuHero` : la route
- * `/medias/[filename]` ne sert QUE les médias publiés — un brouillon y rend 404. Proposer
- * un brouillon reviendrait à laisser choisir une photo qui ne s'affichera pas.
- * ⚠️ Ordonnées comme la galerie (`sortOrder`, puis la plus récente) : deux ordres
- * différents pour la même liste feraient chercher.
+/*
+ * 🔴 `getPhotosPubliablesPourReglages` A ÉTÉ SUPPRIMÉE LE 2026-09-10, PAS DÉPLACÉE. Elle ne
+ * remontait que `id` et `alt` — de quoi peupler une liste déroulante de textes. Les Réglages
+ * utilisent désormais le même bloc à vignettes que les trois autres écrans, donc la même
+ * lecture (`getImagesPourChoix`). En garder deux aurait fait diverger ce qui est proposé
+ * d'un écran à l'autre, sans que rien ne le signale.
  */
-export async function getPhotosPubliablesPourReglages() {
-  return db
-    .select({ id: photo.id, alt: photo.alt })
-    .from(photo)
-    .where(eq(photo.isPublished, true))
-    .orderBy(photo.sortOrder, desc(photo.createdAt));
-}
+
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 // LA MÉDIATHÈQUE (Story 15.1) — CHOISIR UNE IMAGE, ET SAVOIR À QUOI ELLE SERT

@@ -4,7 +4,9 @@ import Link from "next/link";
 import { ReglagesForm } from "@/components/admin/ReglagesForm/ReglagesForm";
 import { exigerRolePage } from "@/server/auth/guard";
 import { lireReglagesPourSaisie } from "@/server/db/queries/settings";
-import { getPhotosPubliablesPourReglages } from "@/server/db/queries/photos";
+// Les mêmes images que les trois autres écrans qui en choisissent une (événement,
+// tournoi, réseaux) : une seule requête pour un seul geste.
+import { getImagesPourChoix } from "@/server/db/queries/photos";
 import styles from "@/styles/admin-page.module.css";
 
 // Réglages du site (Story 6.13, FR38).
@@ -34,6 +36,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+// Borne EXPLICITE, comme sur les trois autres écrans qui choisissent une image.
+const IMAGES_MAX = 200;
+
 export default async function ReglagesPage() {
   await exigerRolePage("admin_site");
 
@@ -44,7 +49,7 @@ export default async function ReglagesPage() {
   // aller-retour à un écran qui n'en a pas besoin (patron AC1 de la 3.2).
   const [reglages, photos] = await Promise.all([
     lireReglagesPourSaisie(),
-    getPhotosPubliablesPourReglages(),
+    getImagesPourChoix(IMAGES_MAX),
   ]);
 
   return (

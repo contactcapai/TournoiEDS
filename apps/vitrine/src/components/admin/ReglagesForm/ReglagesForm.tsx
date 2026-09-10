@@ -6,6 +6,8 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
+import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
+import type { ImageChoisissable } from "@/server/db/queries/photos";
 import {
   CHAMPS_URL,
   EMAIL_MAX,
@@ -87,7 +89,7 @@ export interface ReglagesFormProps {
    * l'écran de réglages annoncerait un choix enregistré pendant que l'accueil rendrait un
    * cadre vide. ⇒ Ce qu'on ne peut pas afficher ne se propose pas.
    */
-  photos: readonly { id: string; alt: string }[];
+  photos: readonly ImageChoisissable[];
 }
 
 /**
@@ -114,9 +116,6 @@ export function ReglagesForm({ reglages, photos }: ReglagesFormProps) {
     linkedinUrl: reglages.linkedinUrl ?? "",
     helloassoUrl: reglages.helloassoUrl ?? "",
     contactEmail: reglages.contactEmail,
-    heroPhotoId: reglages.heroPhotoId ?? "",
-    quotePhotoId: reglages.quotePhotoId ?? "",
-    ogPhotoId: reglages.ogPhotoId ?? "",
   });
 
   const changer = (cle: keyof typeof valeurs) => (valeur: string) =>
@@ -210,111 +209,75 @@ export function ReglagesForm({ reglages, photos }: ReglagesFormProps) {
       />
 
       {/* ══════════════════════════════════════════════════════════════════════════════
-          LA PHOTO DE LA PAGE D'ACCUEIL — STORY 7.3
+          LES TROIS IMAGES DU SITE — STORY 7.3, REPRISE LE 2026-09-10
           ══════════════════════════════════════════════════════════════════════════════
-          🔴 ELLE ÉTAIT ÉCRITE EN DUR dans le code (`/photos/soiree-bar-eds-01.avif`,
-          922×480, posée hors story le 2026-07-28). Le commentaire de `Hero.tsx` annonçait
-          lui-même son remplaçant : « ce qui manque : une photo HD, l'optimisation Next, et
-          le passage par le back-office ».
+          🔴 LA 7.3 AVAIT TRANCHÉ « UN `<select>` ET NON UNE GRILLE DE VIGNETTES », et son
+          argument central était : *« chacune porte déjà un texte alternatif qui la
+          décrit »*. **L'écran réel l'a démenti** : Brice a cherché son image dans la liste,
+          ne l'a pas trouvée, et en a déduit une règle qui n'existe pas — « il faut qu'elle
+          soit rattachée à un événement ». La vraie cause était qu'elle était en
+          **brouillon**, et rien ici ne le disait.
+          ⇒ L'arbitrage est **remplacé, pas oublié** : on voit les images, la règle est
+          écrite, et on peut en importer une sur place.
 
-          ⚠️ UN `<select>` ET NON UNE GRILLE DE VIGNETTES : la liste des photos publiées se
-          compte en dizaines, chacune porte déjà un texte alternatif qui la décrit, et une
-          grille demanderait de charger autant d'images pour un choix qu'on fait deux fois
-          par an. ⇒ Ce qu'on ajoute est proportionné à l'usage, pas à l'envie.
-          ⚠️ Le cadrage, lui, se règle SUR LA PHOTO (galerie → point focal), pas ici : deux
-          écrans pour deux questions — « laquelle » et « cadrée comment ». */}
-      <div className={styles.champ}>
-        <label className={styles.label} htmlFor="reglage-heroPhotoId">
-          Photo de la page d&rsquo;accueil (facultatif)
-        </label>
-        <select
-          id="reglage-heroPhotoId"
-          name="heroPhotoId"
-          className={styles.saisie}
-          value={valeurs.heroPhotoId}
-          // `changer` est taillé pour `ChampTexte`, qui remonte la VALEUR ; un <select>
-          // natif remonte l'ÉVÉNEMENT. On extrait donc `target.value` ici plutôt que
-          // d'élargir le helper — l'élargir aurait fait accepter les deux formes partout,
-          // et une erreur d'appel serait passée sans bruit.
-          onChange={(evenement) => changer("heroPhotoId")(evenement.target.value)}
-        >
-          <option value="">
-            Aucune — garder la photo d&rsquo;origine du site
-          </option>
-          {photos.map((cliche) => (
-            <option key={cliche.id} value={cliche.id}>
-              {cliche.alt}
-            </option>
-          ))}
-        </select>
-        <p className={styles.sousChamp}>
-          <span>
-            Seules les photos <strong>publiées</strong> de la galerie apparaissent
-            ici&nbsp;: une photo en brouillon ne s&rsquo;afficherait pas sur le site.
-            Le cadrage se règle sur la photo elle-même, dans la galerie.
-          </span>
-        </p>
-      </div>
+          ⚠️ SON AUTRE OBJECTION ÉTAIT JUSTE, ET ELLE EST TRAITÉE — pas balayée. Elle disait
+          qu'une grille « demanderait de charger autant d'images » que la médiathèque en
+          compte (bornée à 200). Les vignettes de `ChoixImage` sont donc en **chargement
+          différé** : le navigateur ne va chercher que ce qui entre à l'écran.
+          ⚠️ Reste vrai de la 7.3, et inchangé : le **cadrage** se règle SUR l'image
+          (médiathèque → point focal), jamais ici. Deux écrans, deux questions —
+          « laquelle » et « cadrée comment ».
 
-      {/* ⚠️ MÊME MOTIF, DEUX CADRES QUI N'ONT RIEN EN COMMUN — et c'est pour ça que ce
-          sont trois réglages et non un seul. Le hero est un 4/3 vertical dans une colonne
-          étroite ; la bande est un bandeau panoramique sous un voile ; l'image de partage
-          se choisit pour ce qu'elle DIT DE L'ASSO à quelqu'un qui ne la connaît pas. Une
-          photo qui sert bien l'un dessert souvent les autres. */}
-      <div className={styles.champ}>
-        <label className={styles.label} htmlFor="reglage-quotePhotoId">
-          Photo de la bande citation (facultatif)
-        </label>
-        <select
-          id="reglage-quotePhotoId"
-          name="quotePhotoId"
-          className={styles.saisie}
-          value={valeurs.quotePhotoId}
-          onChange={(evenement) => changer("quotePhotoId")(evenement.target.value)}
-        >
-          <option value="">Aucune — garder le fond dégradé</option>
-          {photos.map((cliche) => (
-            <option key={cliche.id} value={cliche.id}>
-              {cliche.alt}
-            </option>
-          ))}
-        </select>
-        <p className={styles.sousChamp}>
-          <span>
-            Elle s&rsquo;affiche en <strong>pleine largeur</strong>, sous un voile sombre
-            qui garde la citation lisible. Une photo très large convient mieux qu&rsquo;un
-            portrait.
-          </span>
-        </p>
-      </div>
+          ⚠️ CES TROIS BLOCS NE SONT PAS CONTRÔLÉS PAR CE FORMULAIRE, contrairement aux
+          champs texte : chacun tient son état et poste un `<input type="radio">`. Ce n'est
+          pas une entorse au patron 5.1 — la règle vise les champs que React 19 réinitialise
+          après une action, et un radio l'est sur sa valeur `checked`, que le bloc porte. */}
+      <ChoixImage
+        nom="heroPhotoId"
+        valeurInitiale={reglages.heroPhotoId}
+        images={photos}
+        label="Photo de la page d&rsquo;accueil (facultatif)"
+        aide={
+          <>
+            Elle passe <strong>derrière le titre</strong> de l&rsquo;accueil, dans un cadre
+            4/3. Sans image, la photo d&rsquo;origine du site reste en place.
+          </>
+        }
+      />
 
-      <div className={styles.champ}>
-        <label className={styles.label} htmlFor="reglage-ogPhotoId">
-          Image de partage (facultatif)
-        </label>
-        <select
-          id="reglage-ogPhotoId"
-          name="ogPhotoId"
-          className={styles.saisie}
-          value={valeurs.ogPhotoId}
-          onChange={(evenement) => changer("ogPhotoId")(evenement.target.value)}
-        >
-          <option value="">Aucune — le nom de l&rsquo;asso sur fond de charte</option>
-          {photos.map((cliche) => (
-            <option key={cliche.id} value={cliche.id}>
-              {cliche.alt}
-            </option>
-          ))}
-        </select>
-        <p className={styles.sousChamp}>
-          <span>
-            C&rsquo;est l&rsquo;image qui apparaît quand un lien du site est collé dans
-            <strong> Discord</strong> ou sur les réseaux. Sans photo, le nom de
+      {/* ⚠️ MÊME MOTIF, TROIS CADRES QUI N'ONT RIEN EN COMMUN — et c'est pour ça que ce sont
+          trois réglages et non un seul. Le hero est un 4/3 dans une colonne étroite ; la
+          bande est un bandeau panoramique sous un voile ; l'image de partage se choisit pour
+          ce qu'elle DIT DE L'ASSO à quelqu'un qui ne la connaît pas. Une image qui sert bien
+          l'un dessert souvent les autres. */}
+      <ChoixImage
+        nom="quotePhotoId"
+        valeurInitiale={reglages.quotePhotoId}
+        images={photos}
+        label="Photo de la bande citation (facultatif)"
+        aide={
+          <>
+            Elle s&rsquo;affiche en <strong>pleine largeur</strong>, sous un voile sombre qui
+            garde la citation lisible. Une image très large convient mieux qu&rsquo;un
+            portrait. Sans image, le fond dégradé reste en place.
+          </>
+        }
+      />
+
+      <ChoixImage
+        nom="ogPhotoId"
+        valeurInitiale={reglages.ogPhotoId}
+        images={photos}
+        label="Image de partage (facultatif)"
+        aide={
+          <>
+            C&rsquo;est l&rsquo;image qui apparaît quand un lien du site est collé dans{" "}
+            <strong>Discord</strong> ou sur les réseaux. Sans image, le nom de
             l&rsquo;association s&rsquo;affiche sur le fond de la charte&nbsp;: il y a
             toujours une image.
-          </span>
-        </p>
-      </div>
+          </>
+        }
+      />
 
       {/* ══════════════════════════════════════════════════════════════════════════════
           🔴 CE QUI EST EN JEU, RAPPELÉ AU POINT DE SAISIE — PAS DANS UNE DOC
