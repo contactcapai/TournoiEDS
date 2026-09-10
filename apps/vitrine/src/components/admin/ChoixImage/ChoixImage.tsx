@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "@repo/ui";
 
 import { ChampFichier } from "@/components/admin/ChampFichier/ChampFichier";
@@ -54,6 +54,16 @@ export interface ChoixImageProps {
   images: readonly ImageChoisissable[];
   /** Libellé du groupe. Il porte le `<legend>`, donc il nomme le champ entier. */
   label: string;
+  /**
+   * Ce que CE champ-ci a de particulier à dire — l'usage de l'image, ses conséquences.
+   *
+   * ⚠️ **Le bloc ne dit de lui-même que ce qui vaut PARTOUT** (le poids maximal, le fait
+   * qu'une image importée rejoigne la médiathèque hors galerie). Le reste appartient au
+   * champ : « c'est l'image qui apparaît quand un lien du site est collé », « elle passe
+   * derrière le titre de l'accueil ». Les écrire ici ferait un bloc qui parle de quatre
+   * usages à la fois, donc qui n'en explique aucun.
+   */
+  aide?: ReactNode;
   /** Message d'erreur renvoyé par l'action pour ce champ. */
   erreur?: string;
   /**
@@ -72,6 +82,7 @@ export function ChoixImage({
   valeurInitiale,
   images,
   label,
+  aide,
   erreur,
   onChange,
 }: ChoixImageProps) {
@@ -152,6 +163,18 @@ export function ChoixImage({
   return (
     <fieldset className={styles.groupe}>
       <legend className={form.legend}>{label}</legend>
+      {aide ? <p className={form.sousChamp}>{aide}</p> : null}
+      {/* 🔴 CETTE PHRASE-LÀ VAUT POUR LES QUATRE ÉCRANS, ET SON ABSENCE A COÛTÉ UN
+          DIAGNOSTIC FAUX (2026-09-10). Une image en brouillon n'apparaît pas dans la grille,
+          et rien ne le disait : Brice a cherché la sienne, ne l'a pas trouvée, et en a déduit
+          une règle qui n'existe pas (« il faut qu'elle soit rattachée à un événement »).
+          ⚠️ Ce n'est pas une précaution : `/medias/[filename]` répond 404 sur un brouillon
+          (garde 6.4), donc une image non publiée ne s'afficherait nulle part. */}
+      <p className={form.sousChamp}>
+        Seules les images <strong>publiées</strong> sont proposées&nbsp;: une image en
+        brouillon ne s&rsquo;afficherait nulle part. Vous pouvez la publier depuis la{" "}
+        <strong>médiathèque</strong>, ou en importer une ci-dessous.
+      </p>
 
       <div className={styles.grille} role="none">
         {/* « Aucune image » d'abord : c'est l'état par défaut et le plus fréquent, et il doit
@@ -193,6 +216,13 @@ export function ChoixImage({
                 fill
                 sizes="140px"
                 className={styles.vignetteImage}
+                /* 🔴 `lazy` RÉPOND À UNE OBJECTION ÉCRITE, il n'est pas décoratif. La 7.3
+                   avait écarté la grille de vignettes en Réglages au motif qu'elle
+                   « demanderait de charger autant d'images » que la médiathèque en compte
+                   (bornée à 200). Avec le chargement différé, le navigateur ne va chercher
+                   que ce qui entre à l'écran — l'objection tombe pour de bon, au lieu
+                   d'être balayée. */
+                loading="lazy"
                 // ⚠️ Le point focal, ici comme partout : la vignette recadre, donc elle COUPE.
                 // Sans lui on choisirait une image sur un cadrage que le site n'applique pas.
                 style={{ objectPosition: `${image.focalX}% ${image.focalY}%` }}
