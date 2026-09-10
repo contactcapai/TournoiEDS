@@ -7,6 +7,7 @@ import { Button } from "@repo/ui";
 import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
 
 import { X_MAX, type MessagesReseaux } from "@/lib/message-reseaux";
+import { CLES_CABLEES, RESEAUX, type CleReseau } from "@/lib/reseaux";
 import { RESEAUX_CABLES } from "@/lib/reseaux";
 import type { ImageChoisissable } from "@/server/db/queries/photos";
 import { annoncerTextesRelus, proposerTextesPourReseaux } from "@/server/actions/reseaux";
@@ -27,17 +28,17 @@ export interface EvenementChoisissable {
   publie: boolean;
 }
 
-/** L'ordre d'affichage. Discord d'abord : c'est le réseau le plus proche des joueurs. */
-const RESEAUX = [
-  { cle: "discord", libelle: "Discord", aide: "Le markdown est rendu (## titre, **gras**)." },
-  { cle: "x", libelle: "X", aide: `${X_MAX} caractères maximum — au-delà, X refuse.` },
-  { cle: "facebook", libelle: "Facebook", aide: "Texte simple, le lien est cliquable." },
-  {
-    cle: "instagram",
-    libelle: "Instagram",
-    aide: "Aucun lien cliquable en légende : renvoyez à la bio.",
-  },
-] as const satisfies readonly { cle: keyof MessagesReseaux; libelle: string; aide: string }[];
+/**
+ * Ce que chaque réseau impose à la SAISIE. ⚠️ La liste des réseaux, elle, vient de
+ * `lib/reseaux.ts` — c'est elle qui sait lequel est raccordé, et le paquet en dépend. Garder
+ * ici une seconde liste ferait diverger l'ordre d'affichage de l'ordre des destinations.
+ */
+const AIDE_PAR_RESEAU: Record<keyof MessagesReseaux, string> = {
+  discord: "Le markdown est rendu (## titre, **gras**).",
+  x: `${X_MAX} caractères maximum — au-delà, X refuse.`,
+  facebook: "Texte simple, le lien est cliquable.",
+  instagram: "Aucun lien cliquable en légende : renvoyez à la bio.",
+};
 
 const VIDE: MessagesReseaux = { discord: "", x: "", facebook: "", instagram: "" };
 
@@ -52,6 +53,9 @@ export function ComposeurReseaux({
   const [eventId, setEventId] = useState("");
   const [contexte, setContexte] = useState("");
   const [messages, setMessages] = useState<MessagesReseaux>(VIDE);
+  // 🔴 LES RACCORDÉS SONT COCHÉS AU DÉPART, ET SEULEMENT EUX. Le cas courant est « j'annonce
+  // partout où c'est possible » : le décochage est le geste rare, donc c'est lui qu'on demande.
+  const [cibles, setCibles] = useState<readonly CleReseau[]>(CLES_CABLEES);
   const [erreur, setErreur] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
   const [enProposition, proposer] = useTransition();
@@ -94,7 +98,7 @@ export function ComposeurReseaux({
     setSucces(null);
     envoyer(async () => {
       try {
-        const resultat = await annoncerTextesRelus({ eventId: eventId || null, messages });
+        const resultat = await annoncerTextesRelus({ eventId: eventId || null, messages, reseaux: cibles });
         if (!resultat.ok) {
           setErreur(resultat.error);
           return;
@@ -210,8 +214,59 @@ export function ComposeurReseaux({
             )}
           </p>
 
+          {/* ══════════════════════════════════════════════════════════════════════════
+              🔴 OÙ ÇA PART — ET UN RÉSEAU NON RACCORDÉ N'EST PAS PROPOSABLE
+              ══════════════════════════════════════════════════════════════════════════
+              Un réseau sans nœud dans n8n ne publie rien. L'offrir à cocher promettrait une
+              parution qui n'aurait pas lieu, et l'écran dirait « annoncé » — le défaut exact
+              que la PR #118 a corrigé sur cette page. On le montre donc **désactivé, avec sa
+              raison écrite** plutôt que masqué : le bénévole doit comprendre POURQUOI il ne
+              peut pas, sans quoi il croit à un bug. */}
+          <fieldset className={styles.cibles}>
+            <legend className={form.label}>Où publier</legend>
+            <div className={styles.ciblesListe}>
+              {RESEAUX.map((reseau) => {
+                const coche = cibles.includes(reseau.cle);
+                return (
+                  <label
+                    className={styles.cible}
+                    key={reseau.cle}
+                    /* Le titre porte la raison au survol ; la mention écrite juste après la
+                       porte pour tout le monde (le survol n'existe pas au tactile). */
+                    title={reseau.cable ? undefined : "Pas encore raccordé"}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={coche}
+                      disabled={!reseau.cable}
+                      onChange={(e) =>
+                        setCibles((actuel) =>
+                          e.target.checked
+                            ? [...actuel, reseau.cle]
+                            : actuel.filter((c) => c !== reseau.cle),
+                        )
+                      }
+                    />
+                    {reseau.libelle}
+                    {reseau.cable ? null : (
+                      <span className={styles.pasRaccorde}>pas encore raccordé</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+            {/* ⚠️ L'AVERTISSEMENT NE S'AFFICHE QU'AU MOMENT OÙ IL SERT — décocher les quatre
+                cases est un état atteignable, et « Envoyer » y serait un faux succès. */}
+            {cibles.length === 0 ? (
+              <p className={form.erreur}>
+                Aucun réseau sélectionné : l&rsquo;annonce ne paraîtrait nulle part.
+              </p>
+            ) : null}
+          </fieldset>
+
           {RESEAUX.map((reseau) => {
             const texte = messages[reseau.cle];
+            const aide = AIDE_PAR_RESEAU[reseau.cle];
             const trop = reseau.cle === "x" && texte.length > X_MAX;
             return (
               <div className={form.champ} key={reseau.cle}>
@@ -228,7 +283,7 @@ export function ComposeurReseaux({
                   }
                 />
                 <p className={form.regle}>
-                  {reseau.aide}{" "}
+                  {aide}{" "}
                   <span className={trop ? styles.compteurDepasse : form.compteur}>
                     {texte.length}
                     {reseau.cle === "x" ? ` / ${X_MAX}` : " caractères"}

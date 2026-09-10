@@ -94,3 +94,45 @@
     padding: 16px 14px;
   }
 }
+
+/*
+ * Le choix des destinations (2026-09-10).
+ * ⚠️ Tokens uniquement, et la cible tactile de chaque case tient les 44 px exigés (AA).
+ */
+.cibles {
+  border: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.ciblesListe {
+  display: flex;
+  /* `wrap` est ici légitime — ce sont des cases indépendantes, pas une rangée de contrôles
+     dont le min-content vaudrait UN élément (la garde de la PR #77 vise ce cas-là). */
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-block-start: 8px;
+}
+
+.cible {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 44px; /* cible >= 44x44 (project-context.md §5) */
+  color: var(--light);
+  cursor: pointer;
+}
+
+/* Une case désactivée doit se LIRE désactivée sans compter sur la seule couleur (AA) : le mot
+   « pas encore raccordé » l'accompagne toujours. */
+.cible:has(input:disabled) {
+  color: var(--grey);
+  cursor: not-allowed;
+}
+
+.pasRaccorde {
+  font-size: 0.8125rem;
+  color: var(--grey);
+  font-style: italic;
+}

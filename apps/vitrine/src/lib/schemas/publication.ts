@@ -207,6 +207,37 @@ export const publicationPayloadSchema = z.object({
     .nullable(),
   /** Prêts à publier, un par réseau — voir `lib/message-reseaux.ts`. */
   messages: messagesSchema,
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 OÙ L'ANNONCE DOIT PARAÎTRE — AJOUTÉ LE 2026-09-10, ET `version` RESTE À 1
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Jusqu'ici le paquet portait quatre textes et **aucune destination** : tout partait
+   * partout, et seuls les réseaux ayant un nœud recevaient quelque chose. Le bénévole ne
+   * pouvait donc pas décider « ce soir, Discord seulement ».
+   *
+   * 🔴 **CHAMP ADDITIF, DONC AUCUNE PANNE PENDANT LE DÉPLOIEMENT.** Le validateur en service
+   * ignore les champs qu'il ne connaît pas : le site peut commencer à l'envoyer **avant** que
+   * le workflow ne sache le lire. C'est exactement le raisonnement tenu pour `messages`, et
+   * c'est ce qui fixe l'ordre : **le site d'abord, n8n ensuite**. Un numéro de version
+   * incrémenté aurait fait refuser **toute** annonce entre les deux.
+   *
+   * 🔴 **`min(1)` : UNE LISTE VIDE EST UN REFUS, PAS UN SILENCE.** Sans cette borne, décocher
+   * les quatre cases enverrait un paquet parfaitement valide qui ne publierait nulle part —
+   * et l'écran dirait « annoncé ». Un faux succès, c'est-à-dire le défaut que la PR #118 a
+   * corrigé sur ce même écran.
+   *
+   * ⚠️ **LES QUATRE TEXTES RESTENT EXIGÉS**, même en ne visant qu'un réseau (arbitrage de
+   * Brice, 2026-09-10) : le modèle les rédige tous les quatre de toute façon, et n'exiger que
+   * les textes cochés aurait obligé à mettre n8n à jour **avant** le site — c'est-à-dire à
+   * fabriquer la fenêtre de panne que le paragraphe ci-dessus évite.
+   *
+   * ⚠️ **Les clés viennent de `lib/reseaux.ts`**, jamais réécrites ici : ce sont les mêmes que
+   * celles de `messages`, et le workflow les compare telles quelles.
+   */
+  reseaux: z
+    .array(z.enum(["discord", "x", "facebook", "instagram"]))
+    .min(1, "Choisissez au moins un réseau."),
 });
 
 export type PublicationPayload = z.infer<typeof publicationPayloadSchema>;

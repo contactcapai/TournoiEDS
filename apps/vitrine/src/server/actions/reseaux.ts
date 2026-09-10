@@ -7,6 +7,7 @@ import { composerMessages, type MessagesReseaux } from "../../lib/message-reseau
 import { situationDuBar } from "../../lib/lieu-bar";
 import { baseDuSite } from "../../lib/site-url";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION, messagesSchema } from "../../lib/schemas/publication";
+import { CLES_CABLEES, RESEAUX_CABLES, ciblesRetenues, listerReseaux } from "../../lib/reseaux";
 import { cleanText } from "../../lib/text";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
@@ -173,6 +174,14 @@ export async function annoncerSurLesReseaux(
     },
     /* Composés dans le site et non dans n8n : `lib/message-reseaux.ts` dit pourquoi. */
     messages: composerMessages({ titre, debut: evenement.startsAt, lieu, adresse, jeux, lien }),
+    /* 🔴 CE CHEMIN VISE **TOUS LES RÉSEAUX RACCORDÉS**, ET C'EST SON SENS MÊME : le bouton
+       s'appelle « Annoncer sur les réseaux » et n'offre aucun choix. Lui faire viser autre
+       chose ferait mentir son libellé.
+       ⚠️ **C'EST ICI QUE LE BOUTON SERAIT DEVENU MUET.** Dès que le workflow filtrera sur
+       `reseaux`, un paquet sans ce champ ne passerait plus **aucune** condition : l'annonce
+       partirait, répondrait 200, et ne paraîtrait nulle part. Un faux succès de plus, sur
+       l'écran même que la PR #118 a corrigé. */
+    reseaux: [...CLES_CABLEES],
   });
 
   if (!resultat.ok) {
@@ -343,7 +352,7 @@ export async function proposerTextesPourReseaux(
  * et qu'un autre en publie un différent.
  */
 export async function annoncerTextesRelus(
-  entree: { eventId: string | null; messages: MessagesReseaux },
+  entree: { eventId: string | null; messages: MessagesReseaux; reseaux: readonly string[] },
 ): Promise<ResultatAction<{ annonceLe: Date; traceEcrite: boolean }>> {
   await exigerRoleAction("admin_site");
 
@@ -353,6 +362,29 @@ export async function annoncerTextesRelus(
       ok: false,
       error:
         "Un des textes est vide ou trop long. Vérifiez le compteur, notamment celui de X.",
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 LES CIBLES SE FILTRENT SUR LES RÉSEAUX RACCORDÉS, ET LE REFUS EST EXPLICITE
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // L'écran ne propose que les réseaux raccordés — mais une action serveur ne peut pas s'en
+  // remettre à son écran : elle est appelable directement. Sans ce filtre, un paquet pourrait
+  // nommer « instagram » alors qu'aucun nœud ne l'écoute, et l'écran afficherait « Annoncé sur
+  // Instagram » à propos de rien. C'est le motif de la PR #118, à l'envers.
+  //
+  // ⚠️ **LE FILTRE PEUT TOUT RETIRER, ET C'EST ALORS UN REFUS** — jamais un envoi silencieux :
+  // un paquet sans cible partirait, répondrait 200, et ne publierait nulle part.
+  const cibles = ciblesRetenues(entree.reseaux);
+  if (cibles.length === 0) {
+    return {
+      ok: false,
+      error:
+        RESEAUX_CABLES.length === 0
+          ? "Aucun réseau n'est raccordé à l'outil de publication : il n'y a nulle part où " +
+            "publier pour l'instant."
+          : `Choisissez au moins un réseau parmi ${listerReseaux()}.`,
     };
   }
 
@@ -392,6 +424,10 @@ export async function annoncerTextesRelus(
     source: PAYLOAD_SOURCE,
     evenement: evenementDuPayload,
     messages: messages.data,
+    /* Ce que le bénévole a coché. ⚠️ Filtré sur les réseaux RACCORDÉS avant d'être posté :
+       l'écran ne propose que ceux-là, mais un POST direct pourrait en nommer d'autres — et le
+       paquet dirait alors qu'on publie quelque part où rien ne paraîtra. */
+    reseaux: [...cibles],
   });
   if (!resultat.ok) {
     console.error(`[annoncerTextesRelus] Échec de l'appel n8n (cause: ${resultat.cause})`);
