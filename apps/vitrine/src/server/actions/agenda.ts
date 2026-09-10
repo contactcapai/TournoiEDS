@@ -332,7 +332,7 @@ export async function enregistrerBar(
     name: formData.get("name"),
     address: formData.get("address"),
     district: formData.get("district"),
-    city: formData.get("city") || undefined,
+    city: formData.get("city"),
   });
 
   if (!analyse.success) {

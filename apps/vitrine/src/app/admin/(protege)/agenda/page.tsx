@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { EventActions } from "@/components/admin/EventActions/EventActions";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { joindreParTiret, situationDuBar } from "@/lib/lieu-bar";
 import { compterVenuesParEvenement } from "@/server/db/queries/venues";
 import { cleanText } from "@/lib/text";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -44,7 +45,7 @@ const PASSES_MAX = 50;
 
 function lieuDe(evenement: AgendaEvent): string | null {
   if (evenement.bar) {
-    return `${evenement.bar.name} — ${evenement.bar.district}, ${evenement.bar.city}`;
+    return joindreParTiret(evenement.bar.name, situationDuBar(evenement.bar));
   }
   return cleanText(evenement.venueName) ?? cleanText(evenement.venueAddress);
 }
