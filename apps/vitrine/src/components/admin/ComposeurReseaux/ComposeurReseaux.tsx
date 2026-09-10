@@ -98,7 +98,15 @@ export function ComposeurReseaux({
     setSucces(null);
     envoyer(async () => {
       try {
-        const resultat = await annoncerTextesRelus({ eventId: eventId || null, messages, reseaux: cibles });
+        const resultat = await annoncerTextesRelus({
+          eventId: eventId || null,
+          messages,
+          reseaux: cibles,
+          // 🔴 L'IMAGE VOYAGE JUSQU'À L'ENVOI, PAS SEULEMENT JUSQU'AU MODÈLE. Elle n'était
+          // passée qu'à « Proposer », où elle servait à écrire : le post partait sans elle,
+          // et l'écran ne pouvait pas le dire. Défaut trouvé par Brice en parcours réel.
+          photoId: photoId || null,
+        });
         if (!resultat.ok) {
           setErreur(resultat.error);
           return;
