@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { BarActions } from "@/components/admin/BarActions/BarActions";
 import { BarForm } from "@/components/admin/BarForm/BarForm";
+import { joindreParTiret, situationDuBar } from "@/lib/lieu-bar";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getBars } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
@@ -50,7 +51,7 @@ export default async function AdminBarsPage() {
                 <div className={styles.ligneCorps}>
                   <p className={styles.ligneTitre}>{etablissement.name}</p>
                   <p className={styles.ligneLieu}>
-                    {etablissement.address} — {etablissement.district}, {etablissement.city}
+                    {joindreParTiret(etablissement.address, situationDuBar(etablissement))}
                   </p>
                 </div>
                 <div className={styles.ligneActions}>

@@ -176,9 +176,25 @@ export const bar = pgTable(
     id: uuid().primaryKey().defaultRandom(),
     name: text().notNull(),
     address: text().notNull(),
-    /** Quartier rémois, affiché à côté du nom sur la carte du hub (UX-DR10). */
-    district: text().notNull(),
-    city: text().notNull().default("Reims"),
+    /**
+     * Quartier rémois, affiché à côté du nom sur la carte du hub (UX-DR10).
+     *
+     * 🔴 FACULTATIF DEPUIS LE 2026-09-10 (demande de Brice), COMME `city`. Les deux étaient
+     * `notNull` depuis la 3.1 : un bar dont on ne sait pas nommer le quartier — ou qui n'est
+     * pas à Reims — n'était pas saisissable, et le bénévole devait inventer une valeur.
+     * ⚠️ CE QUI SE PAIE EST LE RENDU, PAS LA COLONNE : six écrans composaient « Nom —
+     * Quartier, Ville » par interpolation, ce qui écrit « Nom — , » sur une absence. La
+     * composition vit désormais dans `lib/lieu-bar.ts`, testée, et **aucun écran ne
+     * réassemble ces trois champs à la main**.
+     */
+    district: text(),
+    /**
+     * ⚠️ PAS DE `default("Reims")` : la colonne l'a porté jusqu'au 2026-09-10, et un défaut
+     * qui remplit un champ laissé vide n'est plus un champ facultatif — c'est un fait
+     * fabriqué. Le formulaire pré-remplit « Reims » à la CRÉATION (c'est de l'aide à la
+     * saisie, effaçable) ; en ÉDITION il rend la valeur telle qu'elle est, vide comprise.
+     */
+    city: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -217,13 +233,22 @@ export const bar = pgTable(
       "bar_address_valide",
       sql`length(btrim(${table.address})) > 0 and length(${table.address}) <= ${sql.raw(String(BAR_ADRESSE_MAX))}`,
     ),
+    /**
+     * ⚠️ `is null or (...)` — MÊME FORME QUE `event_venue_name_valide`, ET POUR LA MÊME
+     * RAISON : la colonne est facultative, mais « renseignée avec du vide » reste interdit.
+     * Sans la branche `is null`, la contrainte vaudrait `NULL` sur une ligne sans quartier,
+     * et `NULL` **passe** un CHECK — donc elle n'échouerait pas ; c'est la garde d'à côté
+     * (`notNull`) qui a disparu, pas celle-ci. On l'écrit quand même explicitement : une
+     * contrainte dont on ne peut pas dire de tête ce qu'elle vaut sur `NULL` est celle qui
+     * se refabrique de travers (`event_has_venue`, trois epics).
+     */
     check(
       "bar_district_valide",
-      sql`length(btrim(${table.district})) > 0 and length(${table.district}) <= ${sql.raw(String(BAR_QUARTIER_MAX))}`,
+      sql`${table.district} is null or (length(btrim(${table.district})) > 0 and length(${table.district}) <= ${sql.raw(String(BAR_QUARTIER_MAX))})`,
     ),
     check(
       "bar_city_valide",
-      sql`length(btrim(${table.city})) > 0 and length(${table.city}) <= ${sql.raw(String(BAR_VILLE_MAX))}`,
+      sql`${table.city} is null or (length(btrim(${table.city})) > 0 and length(${table.city}) <= ${sql.raw(String(BAR_VILLE_MAX))})`,
     ),
   ],
 );

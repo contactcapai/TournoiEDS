@@ -242,13 +242,19 @@ export const barInputSchema = z.object({
   address: texteVisible("L'adresse doit contenir des caractères visibles.")
     .min(5, "Adresse trop courte.")
     .max(BAR_ADRESSE_MAX, `L'adresse ne doit pas dépasser ${BAR_ADRESSE_MAX} caractères.`),
-  district: texteVisible("Le quartier doit contenir des caractères visibles.")
-    .min(2, "Quartier requis.")
-    .max(BAR_QUARTIER_MAX, `Le quartier ne doit pas dépasser ${BAR_QUARTIER_MAX} caractères.`),
-  city: texteVisible("La ville doit contenir des caractères visibles.")
-    .min(2, "Ville requise.")
-    .max(BAR_VILLE_MAX, `La ville ne doit pas dépasser ${BAR_VILLE_MAX} caractères.`)
-    .default("Reims"),
+  /**
+   * 🔴 QUARTIER ET VILLE SONT FACULTATIFS DEPUIS LE 2026-09-10 (demande de Brice) — ils
+   * étaient requis depuis la 6.3, et `city` avait en plus un `.default("Reims")`.
+   *
+   * ⚠️ `texteOptionnel` REND `null`, PAS `""` : un champ effacé retire la donnée au lieu
+   * d'écrire une chaîne vide, que le `CHECK` de la base refuserait — et le message serait
+   * alors une erreur brute du driver, pas une phrase.
+   * ⚠️ Le `.default("Reims")` a été RETIRÉ, ici comme en base : un défaut qui remplit un
+   * champ laissé vide fabrique un fait. Le pré-remplissage de `BarForm` reste, lui — c'est
+   * une aide à la saisie, et elle s'efface.
+   */
+  district: texteOptionnel(BAR_QUARTIER_MAX, "Le quartier"),
+  city: texteOptionnel(BAR_VILLE_MAX, "La ville"),
 });
 
 export type BarInput = z.infer<typeof barInputSchema>;

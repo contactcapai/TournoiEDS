@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { formatLongDate, formatTime, toParisIso } from "../../lib/date-paris";
 import { composerMessages, type MessagesReseaux } from "../../lib/message-reseaux";
+import { situationDuBar } from "../../lib/lieu-bar";
 import { baseDuSite } from "../../lib/site-url";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION, messagesSchema } from "../../lib/schemas/publication";
 import { cleanText } from "../../lib/text";
@@ -81,8 +82,13 @@ function lieuDuPayload(evenement: NonNullable<Awaited<ReturnType<typeof getEvent
   if (evenement.bar) {
     return {
       lieu: cleanText(evenement.bar.name),
+      // ⚠️ Le séparateur est la VIRGULE ici, pas le tiret : c'est une adresse postale
+      // qu'n8n peut poser sur une affiche. Une situation absente s'efface entièrement,
+      // ponctuation comprise — sinon le texte annoncé porterait « 12 rue X, , ».
       adresse: cleanText(
-        `${evenement.bar.address}, ${evenement.bar.district}, ${evenement.bar.city}`,
+        [cleanText(evenement.bar.address), situationDuBar(evenement.bar)]
+          .filter(Boolean)
+          .join(", "),
       ),
     };
   }

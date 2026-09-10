@@ -7,6 +7,8 @@ import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
+import { joindreParTiret } from "@/lib/lieu-bar";
+import { cleanText } from "@/lib/text";
 import {
   avertissementHeuresMurales,
   parisWallClockFromInput,
@@ -277,7 +279,7 @@ export function EventForm({ bars, images, evenement }: EventFormProps) {
           <option value="">Aucun — c&rsquo;est un lieu libre</option>
           {bars.map((etablissement) => (
             <option key={etablissement.id} value={etablissement.id}>
-              {etablissement.name} — {etablissement.district}
+              {joindreParTiret(etablissement.name, cleanText(etablissement.district))}
             </option>
           ))}
         </select>

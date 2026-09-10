@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Tag } from "@repo/ui";
 import { formatPlageHoraire, formatRowDate } from "@/lib/date-paris";
+import { repereCourtDuBar } from "@/lib/lieu-bar";
 import { cleanText } from "@/lib/text";
 import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
 import { destinationDuCta } from "@/lib/rendez-vous";
@@ -71,7 +72,7 @@ export function EventRow({ rendezVous, variant = "compact", venue }: EventRowPro
   const evenement = rendezVous.nature === "evenement" ? rendezVous.evenement : null;
   const tournoi = rendezVous.nature === "tournoi" ? rendezVous.tournoi : null;
   const place = evenement?.bar
-    ? evenement.bar.district
+    ? repereCourtDuBar(evenement.bar)
     : (cleanText(evenement?.venueName ?? tournoi?.venueName ?? null) ??
       cleanText(evenement?.venueAddress ?? null));
   const detailed = variant === "detailed";

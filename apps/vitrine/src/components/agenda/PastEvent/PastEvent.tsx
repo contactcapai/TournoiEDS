@@ -3,6 +3,7 @@ import { PhotoFrame, Tag } from "@repo/ui";
 
 import carousel from "@/components/agenda/PastCarousel/PastCarousel.module.css";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { joindreParTiret, situationDuBar } from "@/lib/lieu-bar";
 import { cleanText, truncate } from "@/lib/text";
 import type { AgendaEvent } from "@/server/db/queries/events";
 import type { GalleryPhoto } from "@/server/db/queries/photos";
@@ -69,7 +70,7 @@ export function PastEvent({ event, photo }: PastEventProps) {
   const recap = truncate(event.recap, RECAP_MAX);
   const titre = truncate(event.title, PAST_TITLE_MAX);
   const place = event.bar
-    ? `${event.bar.name} — ${event.bar.district}, ${event.bar.city}`
+    ? joindreParTiret(event.bar.name, situationDuBar(event.bar))
     : (cleanText(event.venueName) ?? cleanText(event.venueAddress));
   const isHighlight = event.type === "special";
 

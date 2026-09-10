@@ -51,7 +51,14 @@ export function BarForm({ bar }: BarFormProps) {
   const [name, setName] = useState(bar?.name ?? "");
   const [address, setAddress] = useState(bar?.address ?? "");
   const [district, setDistrict] = useState(bar?.district ?? "");
-  const [city, setCity] = useState(bar?.city ?? "Reims");
+  /**
+   * 🔴 « Reims » N'EST PRÉ-REMPLI QU'EN CRÉATION. Depuis que la ville est facultative
+   * (2026-09-10), écrire `bar?.city ?? "Reims"` remettrait « Reims » dans le champ d'un bar
+   * dont quelqu'un a délibérément vidé la ville — et le premier enregistrement suivant la
+   * réécrirait, sans erreur, sans test rouge. Un pré-remplissage est une aide à la SAISIE
+   * NEUVE ; sur une ligne existante, le formulaire montre ce qui est en base, vide compris.
+   */
+  const [city, setCity] = useState(bar ? (bar.city ?? "") : "Reims");
 
   const [etat, soumettre, enCours] = useActionState(
     async (_precedent: EtatForm, formData: FormData): Promise<EtatForm> => {
@@ -59,7 +66,7 @@ export function BarForm({ bar }: BarFormProps) {
         name: formData.get("name"),
         address: formData.get("address"),
         district: formData.get("district"),
-        city: formData.get("city") || undefined,
+        city: formData.get("city"),
       });
 
       if (!analyse.success) {
@@ -137,17 +144,17 @@ export function BarForm({ bar }: BarFormProps) {
       <ChampTexte
         id="bar-district"
         name="district"
-        label="Quartier"
+        label="Quartier (facultatif)"
         valeur={district}
         onChange={setDistrict}
         max={BAR_QUARTIER_MAX}
-        aide="Affiché à côté du nom sur la carte du prochain rendez-vous."
+        aide="Affiché à côté du nom sur la carte du prochain rendez-vous. Laissez vide si le quartier ne dit rien d'utile."
         erreur={erreurs.district}
       />
       <ChampTexte
         id="bar-city"
         name="city"
-        label="Ville"
+        label="Ville (facultatif)"
         valeur={city}
         onChange={setCity}
         max={BAR_VILLE_MAX}

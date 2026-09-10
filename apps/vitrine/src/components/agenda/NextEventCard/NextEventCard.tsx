@@ -4,6 +4,7 @@ import { Button, PhotoFrame } from "@repo/ui";
 import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
 import { formatBigDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import { situationDuBar } from "@/lib/lieu-bar";
 import { estJeudiJeux, visuelDuRendezVous } from "@/lib/rendez-vous";
 import { cleanText } from "@/lib/text";
 import type { RendezVous } from "@/server/db/queries/rendez-vous";
@@ -129,6 +130,9 @@ export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
   const tournoi = rendezVous.nature === "tournoi" ? rendezVous.tournoi : null;
   const venueName = cleanText(evenement?.venueName ?? tournoi?.venueName ?? null);
   const venueAddress = cleanText(evenement?.venueAddress ?? null);
+  // Quartier et ville sont FACULTATIFS (2026-09-10) : `null` quand le bar n'en porte
+  // aucun, et c'est alors le tiret lui-même qui disparaît — pas seulement son contenu.
+  const situationBar = evenement?.bar ? situationDuBar(evenement.bar) : null;
   const games = cleanText(evenement?.games ?? tournoi?.game ?? null);
 
   // Story 9.6 — les deux faits neufs, lus des DEUX natures sous leur propre nom.
@@ -174,8 +178,8 @@ export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
             <div>
               <PinIcon />
               <span>
-                <strong>{evenement.bar.name}</strong> — {evenement.bar.district},{" "}
-                {evenement.bar.city}
+                <strong>{evenement.bar.name}</strong>
+                {situationBar ? <> — {situationBar}</> : null}
               </span>
             </div>
           ) : venueName ? (
