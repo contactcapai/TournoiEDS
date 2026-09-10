@@ -9,13 +9,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-eds",
+      "id": "c5d22c12-5a5d-4b52-aa69-c5176d7ddfe6",
       "name": "Webhook — annonce evenement",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        0,
-        0
+        -688,
+        112
       ],
       "webhookId": "fe1ac9f7-c10e-4b0c-8ef4-dee54bbcfdf5",
       "credentials": {
@@ -24,19 +24,19 @@
           "name": "x-eds-webhook-token"
         }
       },
-      "notes": "Recoit le POST de apps/vitrine/src/server/integrations/n8n.ts (Story 6.7). Reponse via 'Respond to Webhook' et NON 'immediately' : un 200 rendu avant validation ne prouverait rien (pieges/faux-succes.md). IGNORE BOTS VOLONTAIREMENT ABSENT (mesure Story 7.1) : l'option rejetait le User-Agent 'node' du fetch de la vitrine en 403 'Authorization data is wrong!' — indistinguable d'un mauvais jeton. L'authentification est portee par le jeton, pas par le filtrage d'UA (voir README)."
+      "notes": "Recoit le POST de apps/vitrine/src/server/integrations/n8n.ts (Story 6.7). Reponse via 'Respond to Webhook' et NON 'immediately' : un 200 rendu avant validation ne prouverait rien (pieges/faux-succes.md)."
     },
     {
       "parameters": {
-        "jsCode": "// Valide le message reçu du site avant toute publication.\n//\n// 🔴 `version` reste 1 : le champ `messages` a été AJOUTÉ (Story 7.6), il n'a rien changé de\n// sens. Un numéro incrémenté aurait fait refuser toute annonce entre le déploiement du site\n// et le ré-import de ce workflow.\n//\n// ⚠️ `evenement` peut être NULL : l'écran /admin/reseaux permet un post libre, qui ne se\n// rattache à aucune ligne d'agenda. Quand il est présent, ses cinq champs restent exigés.\n//\n// 🔴 LES TEXTES ARRIVENT DÉJÀ RÉDIGÉS. Aucun nœud n'a à composer quoi que ce soit : il POSTE\n// `messages.<reseau>` tel quel. Le texte est écrit et testé dans le site\n// (`lib/message-reseaux.ts`), ou relu par un bénévole sur /admin/reseaux.\nconst corps = $input.first().json.body ?? {};\nconst manques = [];\n\nif (corps.version !== 1) manques.push(`version attendue 1, recue ${JSON.stringify(corps.version)}`);\nif (corps.source !== 'vitrine-eds') manques.push(`source inattendue: ${JSON.stringify(corps.source)}`);\n\nconst e = corps.evenement ?? null;\nif (e !== null) {\n  for (const champ of ['id', 'titre', 'type', 'debut', 'lien']) {\n    if (typeof e[champ] !== 'string' || e[champ].trim() === '') manques.push(`evenement.${champ} absent`);\n  }\n  if (typeof e.debut === 'string' && !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$/.test(e.debut)) {\n    manques.push(`evenement.debut n'est pas un ISO avec offset: ${e.debut}`);\n  }\n}\n\nconst m = corps.messages ?? {};\nfor (const reseau of ['discord', 'x', 'facebook', 'instagram']) {\n  if (typeof m[reseau] !== 'string' || m[reseau].trim() === '') manques.push(`messages.${reseau} absent`);\n}\n// ⚠️ Borne DURE de X : au-dela l'API refuse. On le dit ici plutot que de laisser le noeud\n// social echouer avec un message qui n'accuse personne.\nif (typeof m.x === 'string' && m.x.length > 280) manques.push(`messages.x fait ${m.x.length} caracteres, X en accepte 280`);\n\nreturn [{ json: { valide: manques.length === 0, manques, evenement: e, messages: m } }];"
+        "jsCode": "// Valide le message reçu du site avant toute publication.\n//\n// 🔴 `version` reste 1 : le champ `messages` a été AJOUTÉ (Story 7.6), il n'a rien changé de\n// sens. Un numéro incrémenté aurait fait refuser toute annonce entre le déploiement du site\n// et le ré-import de ce workflow.\n//\n// ⚠️ `evenement` peut être NULL : l'écran /admin/reseaux permet un post libre, qui ne se\n// rattache à aucune ligne d'agenda. Quand il est présent, ses cinq champs restent exigés.\n//\n// 🔴 LES TEXTES ARRIVENT DÉJÀ RÉDIGÉS. Aucun nœud n'a à composer quoi que ce soit : il POSTE\n// `messages.<reseau>` tel quel. Le texte est écrit et testé dans le site\n// (`lib/message-reseaux.ts`), ou relu par un bénévole sur /admin/reseaux.\nconst corps = $input.first().json.body ?? {};\nconst manques = [];\n\nif (corps.version !== 1) manques.push(`version attendue 1, recue ${JSON.stringify(corps.version)}`);\nif (corps.source !== 'vitrine-eds') manques.push(`source inattendue: ${JSON.stringify(corps.source)}`);\n\nconst e = corps.evenement ?? null;\nif (e !== null) {\n  for (const champ of ['id', 'titre', 'type', 'debut', 'lien']) {\n    if (typeof e[champ] !== 'string' || e[champ].trim() === '') manques.push(`evenement.${champ} absent`);\n  }\n  if (typeof e.debut === 'string' && !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$/.test(e.debut)) {\n    manques.push(`evenement.debut n'est pas un ISO avec offset: ${e.debut}`);\n  }\n}\n\nconst m = corps.messages ?? {};\nfor (const reseau of ['discord', 'x', 'facebook', 'instagram']) {\n  if (typeof m[reseau] !== 'string' || m[reseau].trim() === '') manques.push(`messages.${reseau} absent`);\n}\n// ⚠️ Borne DURE de X : au-dela l'API refuse. On le dit ici plutot que de laisser le noeud\n// social echouer avec un message qui n'accuse personne.\nif (typeof m.x === 'string' && m.x.length > 280) manques.push(`messages.x fait ${m.x.length} caracteres, X en accepte 280`);\n\n\n// 🔴 OU L'ANNONCE DOIT PARAITRE — AJOUTE LE 2026-09-10, ET C'EST UN CHAMP EXIGE.\n// Le site l'envoie depuis son deploiement du meme jour ; ce validateur ne l'exige qu'ENSUITE,\n// jamais l'inverse. Un paquet sans destination partirait, repondrait 200, et ne publierait\n// nulle part : c'est le faux succes que la PR #118 a corrige sur cet ecran.\nconst r = Array.isArray(corps.reseaux) ? corps.reseaux : null;\nif (r === null || r.length === 0) {\n  manques.push('reseaux absent ou vide : le paquet ne dit pas ou publier');\n} else {\n  for (const cle of r) {\n    if (!['discord', 'x', 'facebook', 'instagram'].includes(cle)) manques.push(`reseau inconnu: ${cle}`);\n  }\n}\n\n// ⚠️ `reseaux` est TRANSPORTE : c'est lui que la condition de chaque noeud social lira.\n\n// 🔴 L'IMAGE — FACULTATIVE, ET C'EST LE CAS NOMINAL. Discord REFUSE un embed dont l'URL est\n// vide (mesure du 2026-09-10 : 400 {\"embeds\":[\"0\"]}), d'ou une condition dans le workflow\n// plutot qu'une URL vide envoyee « au cas ou ». On normalise ici : une chaine blanche vaut\n// ABSENTE, sans quoi elle passerait la condition et ferait echouer le post entier.\nconst img = typeof corps.imageUrl === 'string' && corps.imageUrl.trim() !== '' ? corps.imageUrl.trim() : null;\nif (img !== null && !/^https?:\\/\\//.test(img)) manques.push(`imageUrl n'est pas une URL absolue: ${img}`);\n\nreturn [{ json: { valide: manques.length === 0, manques, evenement: e, messages: m, reseaux: r ?? [], imageUrl: img } }];"
       },
-      "id": "valider-eds",
+      "id": "3ce08900-7bcb-4c18-a936-84b133e8f500",
       "name": "Valider le message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        0
+        -464,
+        112
       ],
       "notes": "Miroir de lib/schemas/publication.ts. Si l'un des deux change, l'autre doit changer."
     },
@@ -65,13 +65,13 @@
         },
         "options": {}
       },
-      "id": "if-eds",
+      "id": "511c166d-be01-4256-86a5-a11db7891e30",
       "name": "Message valide ?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
-        0
+        -240,
+        112
       ]
     },
     {
@@ -82,13 +82,13 @@
           "responseCode": 200
         }
       },
-      "id": "ok-eds",
+      "id": "fe43f915-1f6f-48e2-bb01-04905377a0dd",
       "name": "Repondre — accepte",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        680,
-        -100
+        448,
+        -80
       ],
       "notes": "🔴 ACCUSE RECEPTION — PAS UNE PUBLICATION. Aucun nœud Instagram / X / Discord n'existe ici, et leur ABSENCE est le livrable de la Story 6.7 (voir README.md)."
     },
@@ -100,15 +100,137 @@
           "responseCode": 400
         }
       },
-      "id": "ko-eds",
+      "id": "16b29bdc-9949-4aa0-bf71-f8ad29381adc",
       "name": "Repondre — refuse",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        680,
-        100
+        0,
+        208
       ],
       "notes": "400 et non 200 : c'est ce qui rend le verdict du site vrai. Le detail des manques reste cote n8n — le site n'affiche jamais un texte technique a un benevole."
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "operation": "sendLegacy",
+        "content": "={{ $('Webhook — annonce evenement').first().json.body.messages.discord }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -160
+      ],
+      "id": "86215bd8-9976-477e-95e6-628d6c4314ff",
+      "name": "Publier sur Discord",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "vBk2z0SoLOVhUsdg",
+          "name": "Discord — salon d'annonces EDS"
+        }
+      },
+      "webhookId": "ab382cb0-4212-4d51-b58d-d0f61a9c9429"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1",
+              "leftValue": "={{ $json.reseaux.includes('discord') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -16,
+        -240
+      ],
+      "id": "3e3ea036-b113-45c3-9b97-e2d695d7bbf9",
+      "name": "Discord demande ?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "i1",
+              "leftValue": "={{ $json.imageUrl !== null }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        -240
+      ],
+      "id": "c040038c-6bcd-4ba0-917a-a82e69e16cbb",
+      "name": "Image fournie ?"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "operation": "sendLegacy",
+        "content": "={{ $('Webhook — annonce evenement').first().json.body.messages.discord }}",
+        "options": {},
+        "embeds": {
+          "values": [
+            {
+              "inputMethod": "fields",
+              "image": "={{ $json.imageUrl }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -384
+      ],
+      "id": "a183a12e-c96a-4028-9f63-eb2154253569",
+      "name": "Publier sur Discord (avec image)",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "vBk2z0SoLOVhUsdg",
+          "name": "Discord — salon d'annonces EDS"
+        }
+      },
+      "webhookId": "ab382cb0-4212-4d51-b58d-d0f61a9c9429"
     }
   ],
   "connections": {
@@ -138,7 +260,7 @@
       "main": [
         [
           {
-            "node": "Repondre — accepte",
+            "node": "Discord demande ?",
             "type": "main",
             "index": 0
           }
@@ -151,13 +273,68 @@
           }
         ]
       ]
+    },
+    "Publier sur Discord": {
+      "main": [
+        [
+          {
+            "node": "Repondre — accepte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord demande ?": {
+      "main": [
+        [
+          {
+            "node": "Image fournie ?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Repondre — accepte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image fournie ?": {
+      "main": [
+        [
+          {
+            "node": "Publier sur Discord (avec image)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Publier sur Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier sur Discord (avec image)": {
+      "main": [
+        [
+          {
+            "node": "Repondre — accepte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "timezone": "Europe/Paris",
-    "saveDataSuccessExecution": "all",
-    "saveDataErrorExecution": "all"
-  },
-  "active": true
+    "binaryMode": "separate"
+  }
 }
