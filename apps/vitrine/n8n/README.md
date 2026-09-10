@@ -65,14 +65,47 @@ famille de R32** — un maillon entièrement écrit, jamais exercé, donc de **s
 différence avec R32 est qu'ici c'est **écrit, routé et décidé** au lieu d'être découvert après
 coup. Voir **R42** dans `deferred-work.md`.
 
-## 🔴 Ce que ce workflow NE FAIT PAS — et c'est le livrable
+## ✅ CE WORKFLOW PUBLIE — SUR DISCORD, DEPUIS LE 2026-09-10
 
-Il **reçoit, authentifie, valide et accuse réception**. Il ne publie sur aucun réseau social.
+🔴 **CE TITRE DISAIT « CE QUE CE WORKFLOW NE FAIT PAS », ET C'ÉTAIT VRAI JUSQU'AU 2026-09-10.**
+Le réécrire fait partie du raccordement : un énoncé tenu qu'on ne met pas à jour devient un
+**faux témoin**, et ce dépôt l'a payé sept fois.
 
-**Les nœuds Instagram / X / Discord sont ABSENTS, jamais « désactivés ».** Un nœud désactivé
-*ressemble* à une livraison : c'est exactement la forme que prend la dette **R32** (l'envoi SMTP
-de la Story 5.1, entièrement câblé, jamais émis une seule fois). Leur absence est vérifiable
-d'un coup d'œil sur la structure du workflow — cinq nœuds, aucun connecteur social.
+Il **reçoit, authentifie, valide, publie sur les réseaux visés, puis accuse réception** — dans
+cet ordre. 🔴 **PUBLIER AVANT DE RÉPONDRE, JAMAIS L'INVERSE** : si le workflow accusait
+réception d'abord, le `200` ne dirait plus rien de ce qui a paru, et l'écran écrirait
+« Annoncé » sur un envoi qui a échoué. C'est le défaut de la PR #118, remis à l'endroit.
+
+**Les nœuds X / Facebook / Instagram restent ABSENTS, jamais « désactivés ».** Un nœud
+désactivé *ressemble* à une livraison : c'est la forme exacte de la dette **R32** (l'envoi SMTP
+de la 5.1, entièrement câblé, jamais émis). Leur absence se vérifie d'un coup d'œil sur la
+structure — neuf nœuds, **un seul** connecteur social.
+
+**La structure, au 2026-09-10 :**
+
+```
+Webhook → Valider → Message valide ? ─[non]→ Répondre refusé (400, et il DIT ce qui manque)
+                            │
+                          [oui]
+                            ↓
+                    Discord demandé ? ─[non]→ Répondre accepté
+                            │
+                          [oui]
+                            ↓
+                     Image fournie ? ─[oui]→ Publier sur Discord (avec image) ─┐
+                            │                                                  ├→ Répondre accepté
+                          [non]→ Publier sur Discord ───────────────────────────┘
+```
+
+⚠️ **POURQUOI DEUX NŒUDS DISCORD, ET NON UN SEUL AVEC UNE IMAGE FACULTATIVE** : Discord
+**refuse** un post dont l'embed porte une URL vide — mesuré le 2026-09-10,
+`400 {"embeds": ["0"]}`. Un nœud unique aurait donc cassé **tout post sans image**, c'est-à-dire
+le cas nominal. Le doublon est le prix de cette borne, pas une maladresse.
+
+⚠️ **`reseaux` ET `imageUrl` SONT ARRIVÉS DANS LE PAYLOAD AVANT D'ÊTRE LUS ICI**, et l'ordre
+n'est pas négociable : le site les émet d'abord, le workflow apprend à les lire ensuite. Le
+validateur ignore les champs inconnus, donc cette fenêtre ne casse rien — alors qu'exiger un
+champ que le site n'envoie pas encore rendrait **toute** annonce impossible.
 
 🔴 **CE MOTIF A CHANGÉ LE 2026-09-08, ET LA PHRASE D'AVANT EST DEVENUE FAUSSE.** Elle disait
 *« aucun compte social de l'association n'est renseigné »* — mesuré en août, périmé depuis :
@@ -80,12 +113,12 @@ les quatre comptes existent et sont publiés dans le pied de page du site.
 
 | Réseau | Compte | Ce qui manque encore |
 |---|---|---|
-| Discord | `discord.gg/ehx8YP7YYa` | un **webhook de salon** (2 minutes, gratuit) |
+| Discord | `discord.gg/ehx8YP7YYa` | ✅ **RACCORDÉ le 2026-09-10** — webhook de salon, credential `Discord — salon d'annonces EDS`. Prouvé par des **posts réellement vus**, texte + image, pas par un `200`. |
 | Instagram | `@esportdessacres` | compte pro + Page Facebook + app Meta. ~~une image par événement~~ — ✅ **levé par la Story 15.1** : un événement porte `photo_id` et le composeur choisit une image de la médiathèque, donc servie à une URL publique |
 | X | `@EDS_reims` | compte développeur + app (tier gratuit : 500 posts/mois) |
 | LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn |
 
-Ce qui manque n'est donc plus les **comptes** mais les **identifiants d'API**. ⇒ Dette **R42**
+Ce qui manque n'est donc plus les **comptes** mais les **identifiants d'API** — pour les trois réseaux restants. ⇒ Dette **R42**
 dans `deferred-work.md`, avec son mode de défaillance écrit.
 
 ⚠️ **Depuis la 7.6, le payload arrive avec les textes DÉJÀ COMPOSÉS** (`messages.discord`,
