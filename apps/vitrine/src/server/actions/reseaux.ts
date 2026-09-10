@@ -182,6 +182,9 @@ export async function annoncerSurLesReseaux(
        partirait, répondrait 200, et ne paraîtrait nulle part. Un faux succès de plus, sur
        l'écran même que la PR #118 a corrigé. */
     reseaux: [...CLES_CABLEES],
+    /* Le visuel de l'événement (médiathèque, Story 15.1). ⚠️ `getEventById` le remonte déjà :
+       c'est la colonne `event.photo_id`, pas une des photos PRISES à la soirée. */
+    imageUrl: urlPubliqueDeLImage(evenement.visuel),
   });
 
   if (!resultat.ok) {
@@ -213,6 +216,23 @@ export async function annoncerSurLesReseaux(
 /* ══════════════════════════════════════════════════════════════════════════════════════
  * L'ÉCRAN DE COMPOSITION (`/admin/reseaux`) — proposer, puis envoyer ce qui a été relu
  * ══════════════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * L'adresse **publique** d'une image de la médiathèque — celle que Discord ira chercher.
+ *
+ * 🔴 UNE SEULE FABRIQUE POUR LES DEUX CHEMINS D'ENVOI (le bouton de l'agenda et l'écran de
+ * composition). Deux constructions de la même URL divergeraient au premier changement de
+ * route, et le symptôme serait une image **manquante chez un seul des deux** — donc un défaut
+ * qu'on met longtemps à voir.
+ *
+ * ⚠️ `null` DÈS QUE L'IMAGE N'EST PAS PUBLIÉE : `/medias/[filename]` répond **404** pour un
+ * brouillon (garde 6.4). Envoyer l'adresse quand même ferait échouer le post entier — Discord
+ * refuse un embed dont l'image ne se charge pas. **Le code décide, il ne suppose pas.**
+ */
+function urlPubliqueDeLImage(image: { filename: string; isPublished: boolean } | null | undefined) {
+  if (!image?.isPublished) return null;
+  return `${baseDuSite()}/medias/${image.filename}`;
+}
 
 /** Borne du contexte saisi. Généreux pour un paragraphe, borné quand même. */
 const CONTEXTE_MAX = 2000;
@@ -352,7 +372,19 @@ export async function proposerTextesPourReseaux(
  * et qu'un autre en publie un différent.
  */
 export async function annoncerTextesRelus(
-  entree: { eventId: string | null; messages: MessagesReseaux; reseaux: readonly string[] },
+  entree: {
+    eventId: string | null;
+    messages: MessagesReseaux;
+    reseaux: readonly string[];
+    /**
+     * 🔴 L'IMAGE CHOISIE — ET C'EST LE CŒUR DU CORRECTIF DU 2026-09-10. Elle n'arrivait
+     * jusqu'ici QUE dans `proposerTextesPourReseaux`, où le modèle la regardait pour écrire.
+     * L'action d'ENVOI ne la voyait pas : on choisissait une image, le post partait sans.
+     * ⚠️ Deux gestes, deux actions — ce que l'un reçoit, l'autre ne l'a pas. C'est la forme
+     * exacte du défaut, et elle est invisible depuis l'écran.
+     */
+    photoId: string | null;
+  },
 ): Promise<ResultatAction<{ annonceLe: Date; traceEcrite: boolean }>> {
   await exigerRoleAction("admin_site");
 
@@ -386,6 +418,28 @@ export async function annoncerTextesRelus(
             "publier pour l'instant."
           : `Choisissez au moins un réseau parmi ${listerReseaux()}.`,
     };
+  }
+
+  // ⚠️ ON RELIT LA LIGNE plutôt que de croire un identifiant posté : `is_published` doit être
+  // vérifié MAINTENANT (une image dépubliée entre l'affichage et le clic ne doit pas partir),
+  // et `filename` doit venir de la BASE — c'est lui qui devient une URL publique.
+  let imageUrl: string | null = null;
+  if (entree.photoId) {
+    if (!identifiant.safeParse(entree.photoId).success) {
+      return { ok: false, error: "Cette image n'est pas valide. Rechargez la page." };
+    }
+    const ligne = await getImagePubliee(entree.photoId);
+    if (!ligne) {
+      return {
+        ok: false,
+        error:
+          "Cette image n'est plus disponible : elle a été supprimée ou dépubliée. " +
+          "Rechargez la page et choisissez-en une autre.",
+      };
+    }
+    // `getImagePubliee` filtre déjà `is_published` dans son `WHERE` : la trouver SUFFIT à
+    // savoir qu'elle est servable. On le redit ici pour que la fabrique reste la même partout.
+    imageUrl = urlPubliqueDeLImage({ filename: ligne.filename, isPublished: true });
   }
 
   let evenementDuPayload = null;
@@ -428,6 +482,7 @@ export async function annoncerTextesRelus(
        l'écran ne propose que ceux-là, mais un POST direct pourrait en nommer d'autres — et le
        paquet dirait alors qu'on publie quelque part où rien ne paraîtra. */
     reseaux: [...cibles],
+    imageUrl,
   });
   if (!resultat.ok) {
     console.error(`[annoncerTextesRelus] Échec de l'appel n8n (cause: ${resultat.cause})`);

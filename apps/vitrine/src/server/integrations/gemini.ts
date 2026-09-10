@@ -76,6 +76,15 @@ function consigne(demande: DemandeDeTextes): string {
     `Contexte donné par le bénévole :\n${demande.contexte || "(aucun)"}`,
     demande.image ? "\nUne image accompagne la demande : sers-t'en pour le ton et le sujet." : "",
     "",
+    // 🔴 LE STYLE MAISON SE DIT AU MODÈLE, SINON IL NE LE DEVINE PAS. Les textes composés
+    // par le site (`lib/message-reseaux.ts`) portent 📍 pour le lieu et 🎮 pour les jeux
+    // depuis la 6.7 ; ceux du modèle n'en portaient AUCUN, et les deux chemins produisaient
+    // donc des annonces qui ne se ressemblaient pas. Défaut vu par Brice sur un post réel.
+    // ⚠️ On donne la GRAMMAIRE, pas une liste fermée : imposer trois émojis exacts rendrait
+    // plates les annonces qui ne parlent ni de lieu ni de jeux (un remerciement, une photo).
+    "Style de la maison : des émojis sobres en tête de ligne pour les faits — 📍 pour le lieu, " +
+      "🎮 pour les jeux, 🗓️ pour la date. Jamais d'émoji au milieu d'une phrase, jamais plus " +
+      "d'un par ligne. Sur X, où la place manque, ils sont facultatifs.",
     "Rends quatre textes, un par réseau, chacun autonome :",
     `- x : ${X_MAX} caractères MAXIMUM, lien final admis, pas de markdown.`,
     "- discord : markdown accepté (## titre, **gras**), lien final admis.",

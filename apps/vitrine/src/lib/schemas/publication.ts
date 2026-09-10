@@ -238,6 +238,30 @@ export const publicationPayloadSchema = z.object({
   reseaux: z
     .array(z.enum(["discord", "x", "facebook", "instagram"]))
     .min(1, "Choisissez au moins un réseau."),
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   * 🔴 L'IMAGE QUI ACCOMPAGNE LE POST — AJOUTÉE LE 2026-09-10, `version` TOUJOURS À 1
+   * ══════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Jusqu'ici l'image choisie dans `/admin/reseaux` servait **uniquement au modèle**, pour
+   * qu'il sache de quoi il parle : elle était lue puis oubliée. Le post partait sans elle, et
+   * personne ne pouvait le deviner depuis l'écran — on choisissait une image, elle ne
+   * paraissait nulle part. Défaut trouvé par Brice **en faisant le parcours réel**, connecté,
+   * là où toutes mes sondes voyaient un `200`.
+   *
+   * 🔴 **UNE URL PUBLIQUE, PAS DES OCTETS.** C'est ce que la médiathèque (15.1) a rendu
+   * possible : l'image porte une ligne `photo` **publiée**, donc `/medias/<filename>` la sert.
+   * Discord, Instagram et les autres veulent précisément ça — une adresse qu'ils vont
+   * chercher eux-mêmes. Envoyer du base64 obligerait chaque nœud à la reposer quelque part.
+   *
+   * ⚠️ **`null` EST LE CAS NOMINAL** : un post sans image doit partir. Discord **refuse** un
+   * embed dont l'URL est vide (mesuré : `400 {"embeds": ["0"]}`), donc c'est le workflow qui
+   * décide d'attacher ou non — jamais une URL vide qu'on enverrait « au cas où ».
+   * ⚠️ **Ce n'est PAS l'image de partage du site** (`site_setting.og_photo_id`), qui répond à
+   * une autre question : « à quoi ressemble un lien du site collé dans une conversation ».
+   * Les confondre a été proposé et **écarté par Brice** le 2026-09-10.
+   */
+  imageUrl: lienAbsolu.nullable(),
 });
 
 export type PublicationPayload = z.infer<typeof publicationPayloadSchema>;

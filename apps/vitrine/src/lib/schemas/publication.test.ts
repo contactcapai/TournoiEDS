@@ -64,6 +64,10 @@ function payloadEvenement() {
     // c'est très bien — ils gardent le contrat ENTRE le site et le workflow, donc ils doivent
     // rougir dès qu'un champ obligatoire apparaît d'un côté sans l'autre.
     reseaux: ["discord" as const],
+    // ⚠️ AVEC image : c'est le cas que Brice a trouvé cassé le 2026-09-10 — on en choisissait
+    // une, elle ne partait pas. Le cas SANS image est couvert juste en dessous, et c'est lui
+    // le nominal : Discord REFUSE un embed dont l'URL est vide, donc les deux doivent passer.
+    imageUrl: `${LIEN.replace("/agenda", "")}/medias/abc123.webp`,
   };
 }
 
@@ -73,6 +77,14 @@ test("🔴 ce que le site ÉMET, le workflow l'ACCEPTE — annonce d'événement
   const rendu = validateurDuWorkflow()(payload);
   assert.deepEqual(rendu.manques, []);
   assert.equal(rendu.valide, true);
+});
+
+test("🔴 un post SANS image passe les deux — c'est le cas NOMINAL", () => {
+  // Discord refuse un embed dont l'URL est vide (mesuré : 400). Le workflow doit donc pouvoir
+  // recevoir `imageUrl: null` et décider de ne rien attacher — jamais recevoir une URL vide.
+  const payload = { ...payloadEvenement(), imageUrl: null };
+  assert.ok(publicationPayloadSchema.safeParse(payload).success, "refusé par le schéma du site");
+  assert.deepEqual(validateurDuWorkflow()(payload).manques, []);
 });
 
 test("🔴 un post LIBRE (sans événement) passe les deux", () => {
