@@ -7,7 +7,13 @@ import { composerMessages, type MessagesReseaux } from "../../lib/message-reseau
 import { situationDuBar } from "../../lib/lieu-bar";
 import { baseDuSite } from "../../lib/site-url";
 import { PAYLOAD_SOURCE, PAYLOAD_VERSION, messagesSchema } from "../../lib/schemas/publication";
-import { CLES_CABLEES, RESEAUX_CABLES, ciblesRetenues, listerReseaux } from "../../lib/reseaux";
+import {
+  CLES_CABLEES,
+  RESEAUX_CABLES,
+  ciblesEffectives,
+  listerReseaux,
+  phraseIgnores,
+} from "../../lib/reseaux";
 import { cleanText } from "../../lib/text";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
@@ -149,6 +155,8 @@ export async function annoncerSurLesReseaux(
   const titre = cleanText(evenement.title) ?? evenement.title;
   const jeux = cleanText(evenement.games);
   const lien = `${baseDuSite()}/agenda`;
+  // Résolue AVANT le paquet : elle décide à la fois de `imageUrl` et des réseaux visés.
+  const imageUrlEvenement = urlPubliqueDeLImage(evenement.visuel);
 
   const resultat = await publierEvenement({
     version: PAYLOAD_VERSION,
@@ -181,10 +189,15 @@ export async function annoncerSurLesReseaux(
        `reseaux`, un paquet sans ce champ ne passerait plus **aucune** condition : l'annonce
        partirait, répondrait 200, et ne paraîtrait nulle part. Un faux succès de plus, sur
        l'écran même que la PR #118 a corrigé. */
-    reseaux: [...CLES_CABLEES],
+    /* 🔴 ET C'EST CE CHEMIN QUE L'ARBITRAGE B PROTÈGE. Ce bouton vise TOUS les réseaux
+       raccordés, donc Instagram en fait partie — or un jeudi ordinaire n'a pas de visuel.
+       Avec le refus global (option A), il aurait cessé de fonctionner pour la majorité des
+       événements. Ici Instagram sort de la liste quand il n'y a pas d'image, et le reste
+       part. ⚠️ Le DIRE est à la charge de l'écran qui porte le bouton. */
+    reseaux: [...ciblesEffectives(CLES_CABLEES, imageUrlEvenement !== null).retenues],
     /* Le visuel de l'événement (médiathèque, Story 15.1). ⚠️ `getEventById` le remonte déjà :
        c'est la colonne `event.photo_id`, pas une des photos PRISES à la soirée. */
-    imageUrl: urlPubliqueDeLImage(evenement.visuel),
+    imageUrl: imageUrlEvenement,
   });
 
   if (!resultat.ok) {
@@ -397,29 +410,6 @@ export async function annoncerTextesRelus(
     };
   }
 
-  // ══════════════════════════════════════════════════════════════════════════════════════
-  // 🔴 LES CIBLES SE FILTRENT SUR LES RÉSEAUX RACCORDÉS, ET LE REFUS EST EXPLICITE
-  // ══════════════════════════════════════════════════════════════════════════════════════
-  //
-  // L'écran ne propose que les réseaux raccordés — mais une action serveur ne peut pas s'en
-  // remettre à son écran : elle est appelable directement. Sans ce filtre, un paquet pourrait
-  // nommer « instagram » alors qu'aucun nœud ne l'écoute, et l'écran afficherait « Annoncé sur
-  // Instagram » à propos de rien. C'est le motif de la PR #118, à l'envers.
-  //
-  // ⚠️ **LE FILTRE PEUT TOUT RETIRER, ET C'EST ALORS UN REFUS** — jamais un envoi silencieux :
-  // un paquet sans cible partirait, répondrait 200, et ne publierait nulle part.
-  const cibles = ciblesRetenues(entree.reseaux);
-  if (cibles.length === 0) {
-    return {
-      ok: false,
-      error:
-        RESEAUX_CABLES.length === 0
-          ? "Aucun réseau n'est raccordé à l'outil de publication : il n'y a nulle part où " +
-            "publier pour l'instant."
-          : `Choisissez au moins un réseau parmi ${listerReseaux()}.`,
-    };
-  }
-
   // ⚠️ ON RELIT LA LIGNE plutôt que de croire un identifiant posté : `is_published` doit être
   // vérifié MAINTENANT (une image dépubliée entre l'affichage et le clic ne doit pas partir),
   // et `filename` doit venir de la BASE — c'est lui qui devient une URL publique.
@@ -441,6 +431,37 @@ export async function annoncerTextesRelus(
     // savoir qu'elle est servable. On le redit ici pour que la fabrique reste la même partout.
     imageUrl = urlPubliqueDeLImage({ filename: ligne.filename, isPublished: true });
   }
+
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  // 🔴 LES CIBLES SE FILTRENT SUR LES RÉSEAUX RACCORDÉS, ET LE REFUS EST EXPLICITE
+  // ══════════════════════════════════════════════════════════════════════════════════════
+  //
+  // L'écran ne propose que les réseaux raccordés — mais une action serveur ne peut pas s'en
+  // remettre à son écran : elle est appelable directement. Sans ce filtre, un paquet pourrait
+  // nommer « instagram » alors qu'aucun nœud ne l'écoute, et l'écran afficherait « Annoncé sur
+  // Instagram » à propos de rien. C'est le motif de la PR #118, à l'envers.
+  //
+  // ⚠️ **LE FILTRE PEUT TOUT RETIRER, ET C'EST ALORS UN REFUS** — jamais un envoi silencieux :
+  // un paquet sans cible partirait, répondrait 200, et ne publierait nulle part.
+  // ⚠️ L'IMAGE SE RÉSOUT AVANT LES CIBLES, parce qu'elle en fait partie : Instagram sort de
+  // la liste quand il n'y en a pas (arbitrage B). Voir `ciblesEffectives`.
+  const { retenues: cibles, ignorees } = ciblesEffectives(entree.reseaux, imageUrl !== null);
+  if (cibles.length === 0) {
+    // 🔴 TROIS REFUS DIFFÉRENTS, PAS UN SEUL — parce que trois causes mènent ici et qu'elles
+    // n'appellent pas le même geste : rien n'est raccordé (on ne peut rien y faire), rien
+    // n'est coché (il faut cocher), ou le seul réseau coché exige une image (il faut en
+    // choisir une). Un message unique enverrait deux personnes sur trois corriger la mauvaise
+    // chose — c'est la famille du 403 affiché « réessayez » de la PR #122.
+    const raison =
+      RESEAUX_CABLES.length === 0
+        ? "Aucun réseau n'est raccordé à l'outil de publication : il n'y a nulle part où " +
+          "publier pour l'instant."
+        : ignorees.length > 0
+          ? `${phraseIgnores(ignorees)} Choisissez une image, ou cochez un autre réseau.`
+          : `Choisissez au moins un réseau parmi ${listerReseaux()}.`;
+    return { ok: false, error: raison };
+  }
+
 
   let evenementDuPayload = null;
   if (entree.eventId) {

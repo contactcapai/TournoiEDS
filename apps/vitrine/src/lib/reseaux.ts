@@ -35,10 +35,16 @@
  * d'annonces.
  */
 export const RESEAUX = [
-  { cle: "discord", libelle: "Discord", cable: true },
-  { cle: "x", libelle: "X", cable: false },
-  { cle: "facebook", libelle: "Facebook", cable: false },
-  { cle: "instagram", libelle: "Instagram", cable: false },
+  { cle: "discord", libelle: "Discord", cable: true, exigeUneImage: false },
+  { cle: "x", libelle: "X", cable: false, exigeUneImage: false },
+  { cle: "facebook", libelle: "Facebook", cable: true, exigeUneImage: false },
+  /**
+   * 🔴 `exigeUneImage` EST UN FAIT DE L'API, PAS UNE PRÉFÉRENCE. Instagram **refuse** un post
+   * sans image — mesuré le 2026-09-11 en publiant pour de vrai. Le porter ici plutôt que dans
+   * un `if` du formulaire est ce qui permet aux deux chemins d'envoi (l'écran de composition
+   * ET le bouton de l'agenda) d'appliquer la même règle sans la recopier.
+   */
+  { cle: "instagram", libelle: "Instagram", cable: true, exigeUneImage: true },
 ] as const;
 
 /** La clé d'un réseau — celle qui voyage dans le paquet, jamais le libellé. */
@@ -141,4 +147,51 @@ export function conseilTraceManquante(reseaux: readonly string[] = RESEAUX_CABLE
  */
 export function ciblesRetenues(demandees: readonly string[]): readonly CleReseau[] {
   return CLES_CABLEES.filter((cle) => demandees.includes(cle));
+}
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ * 🔴 CE QUI PARTIRA VRAIMENT, ET CE QUI SERA SAUTÉ — AVEC SA RAISON (arbitrage B)
+ * ══════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Instagram **refuse** un post sans image. Brice a tranché le 2026-09-11 entre deux façons
+ * de traiter ce cas :
+ *   · **A** — refuser tout l'envoi. ⇒ **Écartée**, et pour une raison concrète : le bouton
+ *     « Annoncer » de l'agenda vise *tous* les réseaux raccordés, donc un jeudi ordinaire
+ *     **sans visuel** l'aurait bloqué à chaque fois.
+ *   · **B** — publier ailleurs, et **le dire**. ⇒ Retenue.
+ *
+ * 🔴 « ET LE DIRE » EST LA MOITIÉ QUI COMPTE, ET C'EST POURQUOI CETTE RÈGLE VIT DANS LE SITE
+ * ET NON DANS n8n. Le workflow peut sauter un réseau ; il ne peut pas l'écrire à l'écran de
+ * celui qui clique. Un saut muet, c'est le faux succès de la PR #118 : « Annoncé sur
+ * Instagram » à propos de rien.
+ *
+ * ⚠️ **`ignorees` N'EST PAS UN DÉTAIL D'AFFICHAGE** : un appelant qui ne rendrait que
+ * `retenues` produirait exactement le silence qu'on refuse. Les deux valeurs sortent
+ * ensemble pour qu'on ne puisse pas prendre l'une sans voir l'autre.
+ *
+ * ⚠️ n8n **refait la vérification de son côté** (condition à deux termes sur l'étage
+ * Instagram) : non par défiance, mais parce qu'un paquet sans image y ferait échouer l'appel
+ * — et emporterait **tout ce qui a déjà été publié** dans la même exécution.
+ */
+export function ciblesEffectives(
+  demandees: readonly string[],
+  aUneImage: boolean,
+): { retenues: readonly CleReseau[]; ignorees: readonly CleReseau[] } {
+  const possibles = ciblesRetenues(demandees);
+  if (aUneImage) return { retenues: possibles, ignorees: [] };
+  const exigeantes = new Set(RESEAUX.filter((r) => r.exigeUneImage).map((r) => r.cle as CleReseau));
+  return {
+    retenues: possibles.filter((cle) => !exigeantes.has(cle)),
+    ignorees: possibles.filter((cle) => exigeantes.has(cle)),
+  };
+}
+
+/** « Instagram exige une image : il sera ignoré. » — la phrase, ou `null` s'il n'y a rien à dire. */
+export function phraseIgnores(ignorees: readonly CleReseau[]): string | null {
+  if (ignorees.length === 0) return null;
+  const liste = listerReseaux(ignorees.map(libelleDuReseau));
+  return ignorees.length === 1
+    ? `${liste} exige une image : sans elle, il sera ignoré.`
+    : `${liste} exigent une image : sans elle, ils seront ignorés.`;
 }

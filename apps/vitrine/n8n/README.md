@@ -65,9 +65,11 @@ famille de R32** — un maillon entièrement écrit, jamais exercé, donc de **s
 différence avec R32 est qu'ici c'est **écrit, routé et décidé** au lieu d'être découvert après
 coup. Voir **R42** dans `deferred-work.md`.
 
-## ✅ CE WORKFLOW PUBLIE — SUR DISCORD, DEPUIS LE 2026-09-10
+## ✅ CE WORKFLOW PUBLIE — DISCORD, FACEBOOK ET INSTAGRAM
 
-🔴 **CE TITRE DISAIT « CE QUE CE WORKFLOW NE FAIT PAS », ET C'ÉTAIT VRAI JUSQU'AU 2026-09-10.**
+🔴 **DEUX ÉNONCÉS SUCCESSIFS, RÉÉCRITS À CHAQUE FOIS.** Ce titre disait « ce que ce workflow
+ne fait pas » jusqu'au 2026-09-10 ; puis « sur Discord » jusqu'au 2026-09-11, quand Facebook et
+Instagram l'ont rejoint.
 Le réécrire fait partie du raccordement : un énoncé tenu qu'on ne met pas à jour devient un
 **faux témoin**, et ce dépôt l'a payé sept fois.
 
@@ -76,31 +78,58 @@ cet ordre. 🔴 **PUBLIER AVANT DE RÉPONDRE, JAMAIS L'INVERSE** : si le workflo
 réception d'abord, le `200` ne dirait plus rien de ce qui a paru, et l'écran écrirait
 « Annoncé » sur un envoi qui a échoué. C'est le défaut de la PR #118, remis à l'endroit.
 
-**Les nœuds X / Facebook / Instagram restent ABSENTS, jamais « désactivés ».** Un nœud
+**Le nœud X reste ABSENT, jamais « désactivé ».** Un nœud
 désactivé *ressemble* à une livraison : c'est la forme exacte de la dette **R32** (l'envoi SMTP
 de la 5.1, entièrement câblé, jamais émis). Leur absence se vérifie d'un coup d'œil sur la
-structure — neuf nœuds, **un seul** connecteur social.
+structure — seize nœuds, **trois** connecteurs sociaux (Discord, Facebook, Instagram).
 
-**La structure, au 2026-09-10 :**
+**La structure, au 2026-09-11 — un ÉTAGE PAR RÉSEAU, en chaîne :**
 
 ```
 Webhook → Valider → Message valide ? ─[non]→ Répondre refusé (400, et il DIT ce qui manque)
                             │
                           [oui]
                             ↓
-                    Discord demandé ? ─[non]→ Répondre accepté
-                            │
-                          [oui]
-                            ↓
-                     Image fournie ? ─[oui]→ Publier sur Discord (avec image) ─┐
-                            │                                                  ├→ Répondre accepté
-                          [non]→ Publier sur Discord ───────────────────────────┘
+     ┌──────────────── Discord demandé ? ──[non]──────────────┐
+     │[oui]                                                   │
+     └→ Image ? ─[oui]→ Discord (avec image) ─┐               │
+                └[non]→ Discord ──────────────┴───────────────┤
+                                                              ↓
+     ┌─────────────── Facebook demandé ? ──[non]──────────────┐
+     │[oui]                                                   │
+     └→ Image ? ─[oui]→ Facebook (me/photos) ─┐               │
+                └[non]→ Facebook (me/feed) ───┴───────────────┤
+                                                              ↓
+     ┌── Instagram demandé ? ET image fournie ? ──[non]───────┐
+     │[oui]                                                   │
+     └→ préparer le média → publier ──────────────────────────┤
+                                                              ↓
+                                                    Répondre accepté
 ```
 
-⚠️ **POURQUOI DEUX NŒUDS DISCORD, ET NON UN SEUL AVEC UNE IMAGE FACULTATIVE** : Discord
-**refuse** un post dont l'embed porte une URL vide — mesuré le 2026-09-10,
-`400 {"embeds": ["0"]}`. Un nœud unique aurait donc cassé **tout post sans image**, c'est-à-dire
-le cas nominal. Le doublon est le prix de cette borne, pas une maladresse.
+🔴 **UNE CHAÎNE, PAS DES BRANCHES PARALLÈLES.** Chaque étage passe la main au suivant, qu'il
+ait publié ou non — sinon « Répondre accepté » serait atteint par plusieurs chemins et
+répondrait avant que les étages suivants n'aient tourné.
+
+🔴 **LES CONDITIONS LISENT `Valider le message` EXPLICITEMENT, JAMAIS `$json`.** Après un nœud
+de publication, `$json` est la **réponse de l'API**, plus notre paquet : un étage qui lirait
+`$json.reseaux` après Discord ne trouverait rien, **en silence**.
+
+⚠️ **`me` POUR FACEBOOK, UN ID EN DUR POUR INSTAGRAM** : avec un jeton de Page, `me` désigne la
+Page — donc une recopie d'identifiant ne peut pas publier sur la mauvaise. Instagram n'a pas
+d'alias équivalent : son identifiant de compte professionnel est obligatoire.
+
+⚠️ **POURQUOI DEUX NŒUDS PAR RÉSEAU** : Discord **refuse** un embed dont l'URL est vide
+(`400 {"embeds": ["0"]}`, mesuré le 2026-09-10), et Facebook n'utilise pas la même *edge* avec
+et sans image (`me/photos` contre `me/feed`). Un nœud unique aurait cassé **tout post sans
+image**, c'est-à-dire le cas nominal. Le doublon est le prix de ces bornes.
+
+🔴 **INSTAGRAM EST LE SEUL À EXIGER UNE IMAGE, ET CE N'EST PAS TRAITÉ ICI.** La règle vit dans
+le **site** (`lib/reseaux.ts`, `ciblesEffectives`) : il retire Instagram des destinations
+quand il n'y a pas d'image, **et il l'écrit à l'écran**. Le workflow ne peut pas dire à un
+bénévole ce qu'il a sauté ; seul l'écran le peut. ⚠️ La condition d'ici est malgré tout à
+**deux termes** — défense en profondeur : un paquet sans image ferait échouer l'appel Instagram
+et **emporterait tout ce qui a déjà été publié** dans la même exécution.
 
 ⚠️ **`reseaux` ET `imageUrl` SONT ARRIVÉS DANS LE PAYLOAD AVANT D'ÊTRE LUS ICI**, et l'ordre
 n'est pas négociable : le site les émet d'abord, le workflow apprend à les lire ensuite. Le
@@ -114,9 +143,10 @@ les quatre comptes existent et sont publiés dans le pied de page du site.
 | Réseau | Compte | Ce qui manque encore |
 |---|---|---|
 | Discord | `discord.gg/ehx8YP7YYa` | ✅ **RACCORDÉ le 2026-09-10** — webhook de salon, credential `Discord — salon d'annonces EDS`. Prouvé par des **posts réellement vus**, texte + image, pas par un `200`. |
-| Instagram | `@esportdessacres` | compte pro + Page Facebook + app Meta. ~~une image par événement~~ — ✅ **levé par la Story 15.1** : un événement porte `photo_id` et le composeur choisit une image de la médiathèque, donc servie à une URL publique |
+| Instagram | `@esportdessacres` | ✅ **RACCORDÉ le 2026-09-11** — app Meta, jeton de Page **sans expiration**, publication en deux temps (conteneur puis publication). ⚠️ **Exige une image** : sans elle il est **sauté, et l'écran le dit** (arbitrage B). |
 | X | `@EDS_reims` | compte développeur + app (tier gratuit : 500 posts/mois) |
-| LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn |
+| Facebook | Page `Esport des Sacres` | ✅ **RACCORDÉ le 2026-09-11** — même app, même jeton qu'Instagram. Publie sur `me/photos` avec image, `me/feed` sans. |
+| LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn. ⚠️ **Pas encore de place dans le paquet** — c'est le 5ᵉ réseau, à ajouter. |
 
 Ce qui manque n'est donc plus les **comptes** mais les **identifiants d'API** — pour les trois réseaux restants. ⇒ Dette **R42**
 dans `deferred-work.md`, avec son mode de défaillance écrit.

@@ -7,7 +7,13 @@ import { Button } from "@repo/ui";
 import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
 
 import { X_MAX, type MessagesReseaux } from "@/lib/message-reseaux";
-import { CLES_CABLEES, RESEAUX, type CleReseau } from "@/lib/reseaux";
+import {
+  CLES_CABLEES,
+  RESEAUX,
+  ciblesEffectives,
+  phraseIgnores,
+  type CleReseau,
+} from "@/lib/reseaux";
 import { RESEAUX_CABLES } from "@/lib/reseaux";
 import type { ImageChoisissable } from "@/server/db/queries/photos";
 import { annoncerTextesRelus, proposerTextesPourReseaux } from "@/server/actions/reseaux";
@@ -70,6 +76,10 @@ export function ComposeurReseaux({
   const [photoId, setPhotoId] = useState("");
 
   const rienASoumettre = Object.values(messages).every((texte) => texte.trim() === "");
+
+  // Ce qui partira vraiment, compte tenu de l'image choisie — et ce qui sera sauté.
+  const { ignorees } = ciblesEffectives(cibles, photoId !== "");
+  const avertissementImage = phraseIgnores(ignorees);
   const evenementChoisi = evenements.find((evenement) => evenement.id === eventId);
 
   function lancerProposition() {
@@ -269,6 +279,15 @@ export function ComposeurReseaux({
               <p className={form.erreur}>
                 Aucun réseau sélectionné : l&rsquo;annonce ne paraîtrait nulle part.
               </p>
+            ) : null}
+            {/* 🔴 DIT AVANT LE CLIC, PAS APRÈS — c'est la moitié qui compte de l'arbitrage B
+                (Brice, 2026-09-11). Instagram refuse un post sans image : on publie ailleurs,
+                mais on l'ÉCRIT. Sans cette phrase, un réseau coché ne recevrait rien et
+                l'écran n'en dirait rien — le faux succès de la PR #118, exactement.
+                ⚠️ Elle apparaît et disparaît AVEC le choix de l'image, en direct : c'est la
+                seule façon qu'elle soit lue au moment où elle sert. */}
+            {avertissementImage ? (
+              <p className={form.regle}>⚠️ {avertissementImage}</p>
             ) : null}
           </fieldset>
 

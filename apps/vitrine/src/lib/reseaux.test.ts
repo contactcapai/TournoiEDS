@@ -4,8 +4,10 @@ import { test } from "node:test";
 import {
   CLES_CABLEES,
   RESEAUX_CABLES,
+  ciblesEffectives,
   ciblesRetenues,
   libelleDuReseau,
+  phraseIgnores,
   conseilTraceManquante,
   listerReseaux,
   precisionAnnonce,
@@ -14,18 +16,19 @@ import {
 
 const CABLES = ["Instagram", "Discord"];
 
-test("🔴 DISCORD est raccordé, les trois autres ne le sont pas encore", () => {
+test("🔴 DISCORD, FACEBOOK et INSTAGRAM sont raccordés — X ne l'est pas encore", () => {
   // 🔴 CE TEST A DÉJÀ FAIT SON TRAVAIL UNE FOIS. Il affirmait « AUCUN réseau n'est raccordé »
   // et son commentaire annonçait : « il tombera le jour où la 7.6 câble un compte, c'est
-  // exactement là qu'il faut relire les phrases de l'écran ». Il est tombé le 2026-09-10,
-  // quand Discord a été branché — et les phrases ont été relues.
+  // exactement là qu'il faut relire les phrases de l'écran ». Il est tombé le 2026-09-10
+  // (Discord), puis le 2026-09-11 (Facebook et Instagram) — et les phrases ont été relues
+  // les deux fois. Il reste armé pour X et LinkedIn.
   //
   // ⚠️ IL RESTE UN FIL-PIÈGE, et c'est sa raison d'être : `cable` est une copie à la main d'un
   // fait qui vit dans n8n. Le jour où quelqu'un met `cable: true` sans avoir VU un post
   // paraître, ce test tombe et pose la question — parce qu'un « raccordé » faux fait dire à
   // l'écran « Annoncé sur X » à propos de rien.
-  assert.deepEqual([...RESEAUX_CABLES], ["Discord"]);
-  assert.deepEqual([...CLES_CABLEES], ["discord"]);
+  assert.deepEqual([...RESEAUX_CABLES], ["Discord", "Facebook", "Instagram"]);
+  assert.deepEqual([...CLES_CABLEES], ["discord", "facebook", "instagram"]);
 });
 
 test("l'énumération met « et » devant le dernier", () => {
@@ -98,9 +101,11 @@ test("🔴 le rattrapage n'envoie PAS vérifier des réseaux qui ne reçoivent r
 // ne lève, et aucune ne se voit sur l'écran de celui qui clique.
 
 test("les destinations ne gardent que les réseaux RACCORDÉS, jamais ce qui est demandé", () => {
-  // Instagram n'a aucun nœud dans n8n : le demander ne doit RIEN produire.
-  assert.deepEqual(ciblesRetenues(["instagram"]), []);
-  assert.deepEqual(ciblesRetenues(["discord", "instagram"]), ["discord"]);
+  // X n'a aucun nœud dans n8n : le demander ne doit RIEN produire.
+  // ⚠️ Cette assertion portait sur Instagram jusqu'au 2026-09-11 — elle a changé de réseau,
+  // pas de sens : il en faut un NON raccordé pour que le test prouve quelque chose.
+  assert.deepEqual(ciblesRetenues(["x"]), []);
+  assert.deepEqual(ciblesRetenues(["discord", "x"]), ["discord"]);
 });
 
 test("une demande vide ou inconnue ne retombe PAS sur « tous les réseaux »", () => {
@@ -118,4 +123,35 @@ test("les libellés affichés dérivent des mêmes lignes que les clés envoyée
   // Deux listes tenues à la main divergeraient au premier réseau ajouté : l'écran nommerait
   // un réseau que le paquet ne vise pas, ou l'inverse.
   assert.deepEqual(CLES_CABLEES.map(libelleDuReseau), [...RESEAUX_CABLES]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// INSTAGRAM EXIGE UNE IMAGE (arbitrage B, 2026-09-11) — et le saut doit se DIRE
+// ══════════════════════════════════════════════════════════════════════════════════════
+
+test("sans image, Instagram sort de la liste et les autres restent", () => {
+  const r = ciblesEffectives(["discord", "facebook", "instagram"], false);
+  assert.deepEqual(r.retenues, ["discord", "facebook"]);
+  // 🔴 LE SAUT DOIT ÊTRE RENDU, PAS SEULEMENT SUBI : sans `ignorees`, l'écran ne pourrait pas
+  // le dire, et un réseau coché ne recevrait rien en silence — le faux succès de la PR #118.
+  assert.deepEqual(r.ignorees, ["instagram"]);
+});
+
+test("avec une image, rien n'est sauté", () => {
+  const r = ciblesEffectives(["discord", "facebook", "instagram"], true);
+  assert.deepEqual(r.retenues, ["discord", "facebook", "instagram"]);
+  assert.deepEqual(r.ignorees, []);
+});
+
+test("Instagram SEUL et sans image ne laisse aucune cible — c'est un refus", () => {
+  // L'appelant DOIT traiter ce cas : un paquet sans cible partirait, répondrait 200, et ne
+  // publierait nulle part.
+  const r = ciblesEffectives(["instagram"], false);
+  assert.deepEqual(r.retenues, []);
+  assert.deepEqual(r.ignorees, ["instagram"]);
+});
+
+test("la phrase du saut nomme le réseau, et se tait quand il n'y a rien à dire", () => {
+  assert.equal(phraseIgnores([]), null);
+  assert.match(phraseIgnores(["instagram"]) ?? "", /^Instagram exige une image/);
 });

@@ -87,7 +87,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        448,
+        1984,
         -80
       ],
       "notes": "🔴 ACCUSE RECEPTION — PAS UNE PUBLICATION. Aucun nœud Instagram / X / Discord n'existe ici, et leur ABSENCE est le livrable de la Story 6.7 (voir README.md)."
@@ -145,7 +145,7 @@
           "conditions": [
             {
               "id": "d1",
-              "leftValue": "={{ $json.reseaux.includes('discord') }}",
+              "leftValue": "={{ $('Valider le message').first().json.reseaux.includes('discord') }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -179,7 +179,7 @@
           "conditions": [
             {
               "id": "i1",
-              "leftValue": "={{ $json.imageUrl !== null }}",
+              "leftValue": "={{ $('Valider le message').first().json.imageUrl !== null }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -231,6 +231,218 @@
         }
       },
       "webhookId": "ab382cb0-4212-4d51-b58d-d0f61a9c9429"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Face",
+              "leftValue": "={{ $('Valider le message').first().json.reseaux.includes('facebook') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        -240
+      ],
+      "id": "d1791a65-4597-4c1b-a7f9-0fce989a7e1e",
+      "name": "Facebook demande ?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "Imag",
+              "leftValue": "={{ $('Valider le message').first().json.imageUrl !== null }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -240
+      ],
+      "id": "9dccaa9a-58fe-4ac8-b804-747159399fea",
+      "name": "Image fournie ? (Facebook)"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v21.0",
+        "node": "me",
+        "edge": "photos",
+        "options": {
+          "queryParametersJson": "={{ JSON.stringify({ url: $('Valider le message').first().json.imageUrl, caption: $('Webhook — annonce evenement').first().json.body.messages.facebook }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        -384
+      ],
+      "id": "61b90cbe-a86f-414d-9392-c6c64c90d0d4",
+      "name": "Publier sur Facebook (avec image)",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "99289tqnNbWWawjv",
+          "name": "Meta — Page EDS (jeton sans expiration)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v21.0",
+        "node": "me",
+        "edge": "feed",
+        "options": {
+          "queryParametersJson": "={{ JSON.stringify({ message: $('Webhook — annonce evenement').first().json.body.messages.facebook }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        -160
+      ],
+      "id": "5b38b7a7-6b95-42bb-8751-dd478a4c7ce5",
+      "name": "Publier sur Facebook",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "99289tqnNbWWawjv",
+          "name": "Meta — Page EDS (jeton sans expiration)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ig1",
+              "leftValue": "={{ $('Valider le message').first().json.reseaux.includes('instagram') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "ig2",
+              "leftValue": "={{ $('Valider le message').first().json.imageUrl !== null }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        -240
+      ],
+      "id": "14dca33d-140a-47ec-8d80-2eeb51591826",
+      "name": "Instagram demande ?"
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v21.0",
+        "node": "17841456642734733",
+        "edge": "media",
+        "options": {
+          "queryParametersJson": "={{ JSON.stringify({ image_url: $('Valider le message').first().json.imageUrl, caption: $('Webhook — annonce evenement').first().json.body.messages.instagram }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        -336
+      ],
+      "id": "08f472bd-5f07-4fa8-814c-a92e37a65a7d",
+      "name": "Instagram — preparer le media",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "99289tqnNbWWawjv",
+          "name": "Meta — Page EDS (jeton sans expiration)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "graphApiVersion": "v21.0",
+        "node": "17841456642734733",
+        "edge": "media_publish",
+        "options": {
+          "queryParametersJson": "={{ JSON.stringify({ creation_id: $json.id }) }}"
+        }
+      },
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        -336
+      ],
+      "id": "637fdbd5-cfd7-4597-ba1c-d89da694a451",
+      "name": "Instagram — publier",
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "99289tqnNbWWawjv",
+          "name": "Meta — Page EDS (jeton sans expiration)"
+        }
+      }
     }
   ],
   "connections": {
@@ -278,7 +490,7 @@
       "main": [
         [
           {
-            "node": "Repondre — accepte",
+            "node": "Facebook demande ?",
             "type": "main",
             "index": 0
           }
@@ -296,7 +508,7 @@
         ],
         [
           {
-            "node": "Repondre — accepte",
+            "node": "Facebook demande ?",
             "type": "main",
             "index": 0
           }
@@ -322,6 +534,104 @@
       ]
     },
     "Publier sur Discord (avec image)": {
+      "main": [
+        [
+          {
+            "node": "Facebook demande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook demande ?": {
+      "main": [
+        [
+          {
+            "node": "Image fournie ? (Facebook)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instagram demande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image fournie ? (Facebook)": {
+      "main": [
+        [
+          {
+            "node": "Publier sur Facebook (avec image)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Publier sur Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier sur Facebook (avec image)": {
+      "main": [
+        [
+          {
+            "node": "Instagram demande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publier sur Facebook": {
+      "main": [
+        [
+          {
+            "node": "Instagram demande ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram demande ?": {
+      "main": [
+        [
+          {
+            "node": "Instagram — preparer le media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Repondre — accepte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram — preparer le media": {
+      "main": [
+        [
+          {
+            "node": "Instagram — publier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram — publier": {
       "main": [
         [
           {
