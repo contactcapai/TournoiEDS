@@ -10,7 +10,7 @@
  * arrivent ici depuis la base (chemin « événement ») ou depuis ce que le bénévole a écrit ;
  * la consigne lui interdit d'en ajouter. Un modèle qui invente une heure produit une phrase
  * parfaitement crédible et fausse — et c'est le genre de défaut qu'aucune porte ne voit.
- * La seconde parade est humaine : les quatre textes sont **relus et modifiables** avant envoi.
+ * La seconde parade est humaine : les textes sont **relus et modifiables** avant envoi.
  *
  * 🔴 **CE PARAGRAPHE DISAIT « L'IMAGE EST LUE, PAS STOCKÉE » — C'EST FAUX DEPUIS LA 15.1**, et
  * le réécrire fait partie du changement. L'image ne se téléverse plus ici : elle se **choisit
@@ -30,6 +30,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { MessagesReseaux } from "../../lib/message-reseaux";
 import { estRefus, texteRendu } from "../../lib/reponse-gemini";
 import { X_MAX } from "../../lib/message-reseaux";
+import { RESEAUX } from "../../lib/reseaux";
 
 /** ⚠️ Lues PARESSEUSEMENT, comme pour n8n : leur absence ne casse pas le build. */
 const VARIABLE_CLE = "GEMINI_API_KEY";
@@ -85,23 +86,31 @@ function consigne(demande: DemandeDeTextes): string {
     "Style de la maison : des émojis sobres en tête de ligne pour les faits — 📍 pour le lieu, " +
       "🎮 pour les jeux, 🗓️ pour la date. Jamais d'émoji au milieu d'une phrase, jamais plus " +
       "d'un par ligne. Sur X, où la place manque, ils sont facultatifs.",
-    "Rends quatre textes, un par réseau, chacun autonome :",
+    // ⚠️ « quatre » ÉTAIT ÉCRIT EN DUR, et c'est devenu faux au 5ᵉ réseau. Le nombre se compte
+    // désormais depuis la liste — un nombre recopié est exactement ce qui se désaligne
+    // (le défaut que `schema.ts` documente depuis six occurrences).
+    `Rends ${RESEAUX.length} textes, un par réseau, chacun autonome :`,
     `- x : ${X_MAX} caractères MAXIMUM, lien final admis, pas de markdown.`,
     "- discord : markdown accepté (## titre, **gras**), lien final admis.",
     "- facebook : texte clair, pas de markdown, lien final admis.",
     "- instagram : texte clair, AUCUNE URL (elles n'y sont pas cliquables), quelques hashtags à la fin.",
+    "- linkedin : audience professionnelle (partenaires, collectivités, bénévoles). On nomme " +
+      "l'association plutôt que de tutoyer un joueur. Lien final admis, pas de hashtags.",
   ].join("\n");
 }
 
+/**
+ * 🔴 LA FORME ATTENDUE SE DÉRIVE DE LA LISTE DES RÉSEAUX, ELLE N'EST PLUS RECOPIÉE. C'est le
+ * schéma que le modèle DOIT respecter : une clé oubliée ici lui ferait rendre un texte de
+ * moins — sans erreur, sans refus, et l'écran afficherait une zone vide que personne ne
+ * relierait à ce fichier.
+ * ⚠️ Troisième endroit de CE fichier où le nombre de réseaux était écrit en dur. Les trois ont
+ * été trouvés d'un coup au 5ᵉ réseau : aucun ne se serait signalé seul.
+ */
 const FORME = {
   type: "object",
-  properties: {
-    discord: { type: "string" },
-    x: { type: "string" },
-    facebook: { type: "string" },
-    instagram: { type: "string" },
-  },
-  required: ["discord", "x", "facebook", "instagram"],
+  properties: Object.fromEntries(RESEAUX.map((r) => [r.cle, { type: "string" }])),
+  required: RESEAUX.map((r) => r.cle),
 } as const;
 
 export async function proposerTextes(
@@ -114,7 +123,7 @@ export async function proposerTextes(
       cause: "config",
       error:
         "La proposition automatique n'est pas configurée : la clé d'API manque sur le serveur. " +
-        "Vous pouvez écrire les quatre textes à la main.",
+        "Vous pouvez écrire les textes à la main.",
     };
   }
 
@@ -155,7 +164,7 @@ export async function proposerTextes(
         error:
           "Le service de rédaction a refusé la demande : clé, quota ou restriction d'accès. " +
           "Réessayer n'y changera rien — prévenez l'administrateur du site. Vous pouvez " +
-          "écrire les quatre textes à la main.",
+          "écrire les textes à la main.",
       };
     }
     return {

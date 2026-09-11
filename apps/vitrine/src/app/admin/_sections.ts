@@ -105,7 +105,10 @@ export const SECTIONS_ADMIN: readonly SectionAdmin[] = [
     href: "/admin/reseaux",
     libelle: "Réseaux",
     description:
-      "Composer une annonce pour Discord, X, Facebook et Instagram. Relire avant d'envoyer.",
+      // ⚠️ LA LISTE NE SE RECOPIE PAS ICI : elle a été fausse deux fois en deux jours (Facebook
+      // et Instagram raccordés, puis LinkedIn ajouté). Une phrase qui ÉNUMÈRE des réseaux
+      // vieillit à chaque raccordement ; une phrase qui décrit le geste, non.
+      "Composer une annonce, un texte par réseau. Relire avant d'envoyer.",
     role: "admin_site",
     /* ⚠️ `gestion` et NON `publication` : cette famille PROMET un aperçu (« Voir le rendu
        avant de publier »), et un test le garde. Il n'y a pas d'aperçu ici — les quatre textes

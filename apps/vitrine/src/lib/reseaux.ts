@@ -45,10 +45,28 @@ export const RESEAUX = [
    * ET le bouton de l'agenda) d'appliquer la même règle sans la recopier.
    */
   { cle: "instagram", libelle: "Instagram", cable: true, exigeUneImage: true },
+  /**
+   * ⚠️ `cable: false` — LE COMPTE EXISTE, L'ACCÈS API NON. Publier sur une page d'entreprise
+   * LinkedIn passe par la *Community Management API*, dont l'accès se **demande à LinkedIn**
+   * et se fait valider par eux. Tant que ce n'est pas obtenu, la case reste grisée et l'écran
+   * écrit « pas encore raccordé » — jamais une case cochable qui ne publierait rien.
+   */
+  { cle: "linkedin", libelle: "LinkedIn", cable: false, exigeUneImage: false },
 ] as const;
 
 /** La clé d'un réseau — celle qui voyage dans le paquet, jamais le libellé. */
 export type CleReseau = (typeof RESEAUX)[number]["cle"];
+
+/**
+ * Les clés, sous la forme qu'attend `z.enum` — **dérivées, jamais recopiées**.
+ *
+ * 🔴 ELLE EXISTE PARCE QUE LA RECOPIE A DÉJÀ DIVERGÉ. `publicationPayloadSchema` portait la
+ * liste en dur (`z.enum(["discord", "x", "facebook", "instagram"])`) sous un commentaire qui
+ * affirmait pourtant : *« les clés viennent de `lib/reseaux.ts`, jamais réécrites ici »*. Au
+ * 5ᵉ réseau, le typecheck a montré l'écart — un commentaire juste au-dessus d'un code qui le
+ * contredit, c'est-à-dire le faux témoin que ce dépôt documente depuis la 12.3.
+ */
+export const CLES_RESEAUX = RESEAUX.map((r) => r.cle) as [CleReseau, ...CleReseau[]];
 
 /** Les clés des réseaux raccordés — ce vers quoi une annonce peut réellement partir. */
 export const CLES_CABLEES: readonly CleReseau[] = RESEAUX.filter((r) => r.cable).map((r) => r.cle);

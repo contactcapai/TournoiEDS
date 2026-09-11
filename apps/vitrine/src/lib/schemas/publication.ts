@@ -17,6 +17,8 @@
  */
 import { z } from "zod";
 
+import { CLES_RESEAUX } from "../reseaux";
+
 import { X_MAX } from "../message-reseaux";
 
 import {
@@ -149,6 +151,10 @@ export const messagesSchema = z.object({
   x: z.string().min(1).max(X_MAX),
   facebook: z.string().min(1).max(5000),
   instagram: z.string().min(1).max(2200),
+  // ⚠️ 3000 : la borne d'un post LinkedIn. Comme les quatre autres, elle est ÉCRITE ICI et
+  // non devinée — c'est ce qui permet au validateur du workflow de refuser lisiblement
+  // plutôt que de laisser l'API refuser avec un message qui n'accuse personne.
+  linkedin: z.string().min(1).max(3000),
 });
 
 export const publicationPayloadSchema = z.object({
@@ -235,9 +241,7 @@ export const publicationPayloadSchema = z.object({
    * ⚠️ **Les clés viennent de `lib/reseaux.ts`**, jamais réécrites ici : ce sont les mêmes que
    * celles de `messages`, et le workflow les compare telles quelles.
    */
-  reseaux: z
-    .array(z.enum(["discord", "x", "facebook", "instagram"]))
-    .min(1, "Choisissez au moins un réseau."),
+  reseaux: z.array(z.enum(CLES_RESEAUX)).min(1, "Choisissez au moins un réseau."),
   /**
    * ══════════════════════════════════════════════════════════════════════════════════════
    * 🔴 L'IMAGE QUI ACCOMPAGNE LE POST — AJOUTÉE LE 2026-09-10, `version` TOUJOURS À 1
