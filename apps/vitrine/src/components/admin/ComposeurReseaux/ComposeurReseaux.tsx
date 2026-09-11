@@ -44,9 +44,10 @@ const AIDE_PAR_RESEAU: Record<keyof MessagesReseaux, string> = {
   x: `${X_MAX} caractères maximum — au-delà, X refuse.`,
   facebook: "Texte simple, le lien est cliquable.",
   instagram: "Aucun lien cliquable en légende : renvoyez à la bio.",
+  linkedin: "Audience professionnelle : le lien est cliquable, le ton se tient.",
 };
 
-const VIDE: MessagesReseaux = { discord: "", x: "", facebook: "", instagram: "" };
+const VIDE: MessagesReseaux = { discord: "", x: "", facebook: "", instagram: "", linkedin: "" };
 
 export function ComposeurReseaux({
   evenements,
@@ -215,7 +216,7 @@ export function ComposeurReseaux({
         </section>
 
         <section className={styles.bloc}>
-          <h2 className={styles.titreBloc}>Les quatre textes</h2>
+          <h2 className={styles.titreBloc}>Les textes, un par réseau</h2>
                     {/* ⚠️ Au chargement les quatre zones sont VIDES : « relisez ce qui partira » y
               parlait de rien. Une phrase vraie qui se lit à contretemps (motif PR #100). */}
           <p className={form.regle}>

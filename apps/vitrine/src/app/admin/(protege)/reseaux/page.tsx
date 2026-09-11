@@ -52,8 +52,8 @@ export default async function AdminReseauxPage() {
     <>
       <h1 className={styles.titre}>Réseaux</h1>
       <p className={styles.chapo}>
-        Donnez une image et deux mots de contexte : les quatre textes vous sont proposés, un
-        par réseau. Vous les relisez, vous corrigez, et vous envoyez. Rien ne part avant.
+        Donnez une image et deux mots de contexte : un texte vous est proposé pour chaque
+        réseau. Vous les relisez, vous corrigez, et vous envoyez. Rien ne part avant.
       </p>
 
       {RESEAUX_CABLES.length === 0 ? (

@@ -75,3 +75,21 @@ test("🔴 la RESPIRATION existe : une ligne blanche sépare les faits de la sui
     assert.match(texte, /\n\n/, `${reseau} est rendu en bloc compact`);
   }
 });
+
+test("🔴 LinkedIn garde le lien, Instagram ne l'a jamais — et c'est l'inverse l'un de l'autre", () => {
+  // Les deux règles sont des faits de plateforme, pas des goûts : LinkedIn rend une URL
+  // cliquable, Instagram non (d'où « en bio »). Les intervertir ne casserait rien et ne
+  // rougirait nulle part — on publierait simplement une adresse que personne ne peut suivre,
+  // et on priverait l'autre réseau de la sienne.
+  const m = composerMessages(JEUDI);
+  assert.match(m.linkedin, /https?:\/\//);
+  assert.doesNotMatch(m.instagram, /https?:\/\//);
+});
+
+test("LinkedIn nomme l'association plutôt que de tutoyer un joueur", () => {
+  // Son audience est professionnelle (partenaires, collectivités). La copie fixe des autres
+  // réseaux — « Venez comme vous êtes, matériel ou pas » — y sonnerait faux.
+  const m = composerMessages(JEUDI);
+  assert.match(m.linkedin, /Esport des Sacres/);
+  assert.doesNotMatch(m.linkedin, /Venez comme vous êtes/);
+});

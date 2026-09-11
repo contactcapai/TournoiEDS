@@ -35,6 +35,14 @@ export interface MessagesReseaux {
   x: string;
   facebook: string;
   instagram: string;
+  /**
+   * 🔴 AJOUTÉ LE 2026-09-11, ET IL MANQUAIT DEPUIS LE DÉBUT. L'asso a un compte LinkedIn
+   * (`/company/esport-des-sacres`, dans les réglages du site depuis la 6.13), mais l'outil de
+   * publication ne lui composait **aucun texte** — pendant qu'il en composait un pour
+   * Facebook, dont personne n'avait vérifié qu'une Page existait. Une place pour un compte
+   * absent, et aucune place pour un compte présent : les deux moitiés du même oubli.
+   */
+  linkedin: string;
 }
 
 /** « Le Dropkick Bar — Reims Courlancy » · « Le Dropkick Bar » · « » si rien n'est su. */
@@ -86,6 +94,22 @@ export function composerMessages(ev: EvenementAAnnoncer): MessagesReseaux {
       invitation,
       "",
       `Tout l'agenda : ${ev.lien}`,
+    ),
+    /**
+     * 🔴 LINKEDIN N'EST PAS FACEBOOK AVEC UN AUTRE NOM. Son audience est professionnelle :
+     * partenaires, collectivités, bénévoles potentiels. Le texte y nomme donc **l'association**
+     * plutôt que de tutoyer un joueur, et il garde l'URL — LinkedIn la rend cliquable.
+     * ⚠️ Pas d'emoji en tête de titre ici : sur ce réseau ils passent pour du bruit. Les deux
+     * marqueurs de faits (📍 🎮) restent, eux : ils structurent, ils ne décorent pas.
+     */
+    linkedin: lignes(
+      `${ev.titre} — ${quand}`,
+      lieu ? `📍 ${lieu}` : null,
+      jeux,
+      "",
+      "Esport des Sacres organise des rendez-vous de jeu ouverts à tous, à Reims.",
+      "",
+      `Le programme complet : ${ev.lien}`,
     ),
     instagram: lignes(
       `${ev.titre} — ${quand}`,
