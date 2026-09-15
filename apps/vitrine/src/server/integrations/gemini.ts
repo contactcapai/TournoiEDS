@@ -28,7 +28,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 import type { MessagesReseaux } from "../../lib/message-reseaux";
-import { estRefus, texteRendu } from "../../lib/reponse-gemini";
+import { estRefus, lireMessages, texteRendu } from "../../lib/reponse-gemini";
 import { X_MAX } from "../../lib/message-reseaux";
 import { RESEAUX } from "../../lib/reseaux";
 
@@ -190,17 +190,3 @@ export async function proposerTextes(
 
 const MESSAGE_FORME =
   "La réponse du service de rédaction est inexploitable. Réessayez, ou écrivez les textes à la main.";
-
-/** ⚠️ On vérifie la FORME, jamais les longueurs — voir l'en-tête du fichier. */
-function lireMessages(valeur: unknown): MessagesReseaux | null {
-  if (typeof valeur !== "object" || valeur === null) return null;
-  const objet = valeur as Record<string, unknown>;
-  const cles = ["discord", "x", "facebook", "instagram"] as const;
-  const sortie: Partial<MessagesReseaux> = {};
-  for (const cle of cles) {
-    const texte = objet[cle];
-    if (typeof texte !== "string" || texte.trim() === "") return null;
-    sortie[cle] = texte.trim();
-  }
-  return sortie as MessagesReseaux;
-}

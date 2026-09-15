@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { estRefus, texteRendu } from "./reponse-gemini";
+import { composerMessages } from "./message-reseaux";
+import { estRefus, lireMessages, texteRendu } from "./reponse-gemini";
 
 /**
  * Les deux défauts trouvés le 2026-09-08 en éprouvant un appel RÉEL depuis le VPS — aucun des
@@ -68,4 +69,33 @@ test("un 5xx ou une panne réseau ne sont PAS des refus — là, réessayer a un
   assert.equal(estRefus({ status: 503 }), false);
   assert.equal(estRefus(new Error("fetch failed")), false);
   assert.equal(estRefus(null), false);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════
+// LES TEXTES D'UNE RÉPONSE — régression du 2026-09-15 (page du composeur tombée)
+// ══════════════════════════════════════════════════════════════════════════════════════
+
+const EVENEMENT = {
+  titre: "Jeudi jeux",
+  debut: new Date("2026-09-24T16:00:00Z"),
+  lieu: "Le Dropkick Bar",
+  adresse: null,
+  jeux: "TFT",
+  lien: "https://esportdessacres.fr/agenda",
+};
+
+test("🔴 l'analyseur lit TOUS les réseaux que le site sait composer — LinkedIn compris", () => {
+  // `composerMessages` rend chaque clé de `MessagesReseaux` (le typecheck l'y oblige). Si la
+  // liste de l'analyseur en oublie une, elle est jetée : c'est exactement ce qui a fait tomber
+  // la page quand LinkedIn est arrivé.
+  const m = composerMessages(EVENEMENT);
+  const attendu = Object.fromEntries(Object.entries(m).map(([cle, texte]) => [cle, texte.trim()]));
+  assert.deepEqual(lireMessages(m), attendu);
+});
+
+test("une réponse à laquelle il manque un réseau est refusée ENTIÈRE, jamais rendue à moitié", () => {
+  // L'objet incomplet est ce qui faisait planter l'écran ; `null` donne un message lisible.
+  const incomplet: Record<string, string> = { ...composerMessages(EVENEMENT) };
+  delete incomplet.linkedin;
+  assert.equal(lireMessages(incomplet), null);
 });
