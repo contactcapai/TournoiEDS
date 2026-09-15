@@ -1,3 +1,6 @@
+import type { MessagesReseaux } from "./message-reseaux";
+import { RESEAUX } from "./reseaux";
+
 /**
  * Lire la réponse du service de rédaction — la partie qui ne parle à personne.
  *
@@ -64,4 +67,27 @@ function statutHttp(valeur: unknown): number | null {
     if (typeof s === "number") return s;
   }
   return null;
+}
+
+/**
+ * Les textes rendus par le modèle, un par réseau — ou `null` si un seul manque.
+ *
+ * 🔴 LES CLÉS DÉRIVENT DE `RESEAUX`. Elles étaient écrites en dur (quatre), et le 5ᵉ réseau
+ * (LinkedIn, 2026-09-11) les a dépassées : le texte LinkedIn rendu par le modèle était jeté,
+ * l'écran recevait quatre clés pour cinq zones, lisait `.length` sur `undefined`, et la page
+ * entière tombait. Un `as MessagesReseaux` masquait l'écart au typecheck — il ment toujours
+ * sur une liste recopiée ; le test voisin le lie désormais aux textes que le site compose.
+ * ⚠️ Un texte manquant rend `null` (erreur lisible « réponse inexploitable »), jamais un objet
+ * à moitié rempli : c'est l'objet incomplet qui faisait planter l'écran.
+ */
+export function lireMessages(valeur: unknown): MessagesReseaux | null {
+  if (typeof valeur !== "object" || valeur === null) return null;
+  const objet = valeur as Record<string, unknown>;
+  const sortie: Record<string, string> = {};
+  for (const { cle } of RESEAUX) {
+    const texte = objet[cle];
+    if (typeof texte !== "string" || texte.trim() === "") return null;
+    sortie[cle] = texte.trim();
+  }
+  return sortie as unknown as MessagesReseaux;
 }
