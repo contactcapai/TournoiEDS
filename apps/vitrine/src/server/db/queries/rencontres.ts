@@ -15,7 +15,11 @@ import {
   seuilDeLaFinale,
 } from "../../../lib/tournoi/finale";
 import type { SourceResolue } from "../../../lib/tournoi/generation";
-import { rangsParParcours, rangsParVictoires } from "../../../lib/tournoi/parcours";
+import {
+  rangsParParcours,
+  rangsParPoule,
+  type LigneDeParcours,
+} from "../../../lib/tournoi/parcours";
 import { calculerPropagation, issueDeRencontre } from "../../../lib/tournoi/progression";
 import { joueCeJourLa, pointagesDuJour } from "../../../lib/tournoi/presence";
 import { estParTables, type PhaseKind } from "../../../lib/tournoi/structure";
@@ -77,6 +81,7 @@ export async function getRencontresDePhase(phaseId: string) {
       position: tournamentMatch.position,
       round: tournamentMatch.round,
       bracket: tournamentMatch.bracket,
+      pool: tournamentMatch.pool,
       state: tournamentMatch.state,
       slotId: tournamentMatchSlot.id,
       slotPosition: tournamentMatchSlot.position,
@@ -93,6 +98,7 @@ export async function getRencontresDePhase(phaseId: string) {
     .where(eq(tournamentMatch.phaseId, phaseId))
     .orderBy(
       asc(tournamentMatch.bracket),
+      asc(tournamentMatch.pool),
       asc(tournamentMatch.round),
       asc(tournamentMatch.position),
       asc(tournamentMatchSlot.position),
@@ -105,6 +111,7 @@ export async function getRencontresDePhase(phaseId: string) {
       position: number;
       round: number | null;
       bracket: (typeof lignes)[number]["bracket"];
+      pool: number | null;
       state: (typeof lignes)[number]["state"];
       places: {
         slotId: string;
@@ -126,6 +133,7 @@ export async function getRencontresDePhase(phaseId: string) {
         position: ligne.position,
         round: ligne.round,
         bracket: ligne.bracket,
+        pool: ligne.pool,
         state: ligne.state,
         places: [],
       };
@@ -206,10 +214,13 @@ export function rangsDeLaPhase(kind: PhaseKind, rencontres: readonly RencontreJo
     }
   }
 
-  const lignes =
+  // Une phase de poules découpée se classe POULE PAR POULE : un rang 1 par poule.
+  const lignes: (LigneDeParcours & { pool: number | null })[] =
     kind === "poule"
-      ? rangsParVictoires(rencontres, nomParEngage)
-      : rangsParParcours(rencontres, nomParEngage);
+      ? [...rangsParPoule(rencontres, nomParEngage).entries()].flatMap(([poule, rangs]) =>
+          rangs.map((ligne) => ({ ...ligne, pool: rencontres.some((r) => r.pool !== null) ? poule : null })),
+        )
+      : rangsParParcours(rencontres, nomParEngage).map((ligne) => ({ ...ligne, pool: null }));
 
   return {
     lignes: lignes.map((ligne) => ({ ...ligne, nom: nomParEngage.get(ligne.id) ?? "—" })),
@@ -539,6 +550,7 @@ export async function getRencontresPubliques(tournoiId: string, exigerPublie = t
       matchPosition: tournamentMatch.position,
       round: tournamentMatch.round,
       bracket: tournamentMatch.bracket,
+      pool: tournamentMatch.pool,
       slotPosition: tournamentMatchSlot.position,
       nom: tournamentEntry.displayName,
       etatEngage: tournamentEntry.state,
@@ -558,6 +570,7 @@ export async function getRencontresPubliques(tournoiId: string, exigerPublie = t
     .orderBy(
       asc(tournamentPhase.position),
       asc(tournamentMatch.bracket),
+      asc(tournamentMatch.pool),
       asc(tournamentMatch.round),
       asc(tournamentMatch.position),
       asc(tournamentMatchSlot.position),

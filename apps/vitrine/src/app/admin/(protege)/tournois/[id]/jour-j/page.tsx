@@ -14,6 +14,7 @@ import { exigerRolePage } from "@/server/auth/guard";
 import { getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import { ecartsDeTirage } from "@/lib/tournoi/tirage";
+import { lettreDePoule } from "@/lib/tournoi/parcours";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
   aDesResultatsSaisis,
@@ -137,10 +138,36 @@ export default async function JourJPage({
      qui y était assis à qui était là. Quelqu'un qui part garde alors sa chaise, sa table joue
      à sept, et les points suivent la taille RÉELLE de la table (10.3) : le classement devient
      faux sans que rien ne l'annonce. */
+  // Un tableau tiré des poules ne prend QUE les qualifiés : les autres présents n'y sont pas
+  // « arrivés sans table », ils sont éliminés. Seuls les départs restent à signaler.
+  const reglagesActifs = (phaseComplete?.settings ?? {}) as {
+    tailleDeLobby?: number;
+    doubleElimination?: boolean;
+    allerRetour?: boolean;
+    poules?: number;
+    qualifiesParPoule?: number;
+    depuis?: string;
+  };
+  const assis = new Set(rencontres.flatMap((r) => r.places.map((p) => p.entryId)));
   const ecarts = ecartsDeTirage(
     rencontres.flatMap((rencontre) => rencontre.places),
-    presents,
+    reglagesActifs.depuis === "poules" ? presents.filter((p) => assis.has(p.id)) : presents,
   );
+
+  // La phase de poules qui précède un TABLEAU : on peut n'y faire entrer que ses premiers.
+  const pouleAvant =
+    phaseComplete?.kind === "bracket"
+      ? phases.filter((p) => p.position < phaseComplete.position && p.kind === "poule").at(-1)
+      : undefined;
+  const rencontresDesPoules = pouleAvant ? await getRencontresDePhase(pouleAvant.id) : [];
+  const poulesAvant = pouleAvant
+    ? {
+        nom: pouleAvant.name,
+        poules: new Set(rencontresDesPoules.map((r) => r.pool ?? 1)).size,
+        terminees:
+          rencontresDesPoules.length > 0 && rencontresDesPoules.every((r) => r.issue.complete),
+      }
+    : null;
 
   // 🔴 LE RANG DANS LA PHASE, DÉDUIT DE SA STRUCTURE — c'est lui qui manquait au tournoi réel du
   // 2026-08-15 : un bracket joué au score ne produisait aucun classement, donc l'écran affirmait
@@ -225,12 +252,9 @@ export default async function JourJPage({
                   id: phaseComplete.id,
                   name: phaseComplete.name,
                   kind: phaseComplete.kind,
-                  settings: (phaseComplete.settings ?? {}) as {
-                    tailleDeLobby?: number;
-                    doubleElimination?: boolean;
-                    allerRetour?: boolean;
-                  },
+                  settings: reglagesActifs,
                 }}
+                poulesAvant={poulesAvant}
                 finale={
                   finale && finale.manches.some((manche) => manche.id === phaseComplete.id)
                     ? {
@@ -266,6 +290,7 @@ export default async function JourJPage({
                 <table className={propre.table}>
                   <thead>
                     <tr>
+                      {rangs.lignes.some((l) => l.pool !== null) ? <th scope="col">Poule</th> : null}
                       <th scope="col">Rang</th>
                       <th scope="col">Engagé</th>
                       <th scope="col">
@@ -276,6 +301,7 @@ export default async function JourJPage({
                   <tbody>
                     {rangs.lignes.map((ligne) => (
                       <tr key={ligne.id}>
+                        {ligne.pool !== null ? <td>{lettreDePoule(ligne.pool)}</td> : null}
                         <td>
                           {ligne.rang}
                           {ligne.exAequo > 1 ? (
@@ -302,8 +328,9 @@ export default async function JourJPage({
               <p className={styles.mention} role="note">
                 {phaseComplete?.kind === "poule" ? (
                   <>
-                    <strong>Classée aux victoires</strong>, puis à la différence de score. Dans une
-                    poule personne n&rsquo;est éliminé : chacun rencontre chacun.
+                    <strong>Classée aux victoires</strong>, puis à la différence de score, poule
+                    par poule. Dans une poule personne n&rsquo;est éliminé : chacun rencontre
+                    chacun de sa poule. Une exemption ne compte pas comme une victoire.
                   </>
                 ) : (
                   <>

@@ -8,11 +8,13 @@ import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/Bouton
 import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import {
+  POULES_MAX,
   TAILLE_LOBBY_DEFAUT,
   TAILLE_LOBBY_MAX,
   TAILLE_LOBBY_MIN,
 } from "@/lib/tournoi/generation";
 import { SEUIL_VICTOIRE_MAX, SEUIL_VICTOIRE_MIN } from "@/lib/tournoi/finale";
+import { lettreDePoule } from "@/lib/tournoi/parcours";
 import {
   estParTables,
   partDuClassement,
@@ -45,8 +47,19 @@ export interface JourJProps {
     id: string;
     name: string;
     kind: PhaseKind;
-    settings: { tailleDeLobby?: number; doubleElimination?: boolean; allerRetour?: boolean };
+    settings: {
+      tailleDeLobby?: number;
+      doubleElimination?: boolean;
+      allerRetour?: boolean;
+      poules?: number;
+      qualifiesParPoule?: number;
+    };
   };
+  /**
+   * La phase de poules qui précède ce TABLEAU, s'il y en a une : on peut alors n'y faire entrer
+   * que les premiers de chaque poule. `null` sinon.
+   */
+  poulesAvant: { nom: string; poules: number; terminees: boolean } | null;
   /**
    * La finale, quand CETTE phase en fait partie — `null` sinon (Story 10.14).
    *
@@ -73,6 +86,7 @@ export interface JourJProps {
 
 export function JourJ({
   phase,
+  poulesAvant,
   finale,
   rencontres,
   presents,
@@ -235,6 +249,30 @@ export function JourJ({
 
           {phase.kind === "poule" ? (
             <div className={formulaire.champ}>
+              <label className={formulaire.label} htmlFor="jourj-poules">
+                Nombre de poules
+              </label>
+              <input
+                className={formulaire.saisie}
+                id="jourj-poules"
+                name="poules"
+                type="number"
+                min={1}
+                max={POULES_MAX}
+                defaultValue={phase.settings.poules ?? 1}
+              />
+              <p className={formulaire.sousChamp}>
+                <span>
+                  Les présents sont répartis en serpentin (A, B, B, A…) et chacun ne rencontre que
+                  les membres de <strong>sa</strong> poule. 8 équipes en 2 poules : 12 rencontres
+                  au lieu de 28. Au moins 2 participants par poule.
+                </span>
+              </p>
+            </div>
+          ) : null}
+
+          {phase.kind === "poule" ? (
+            <div className={formulaire.champ}>
               <span className={formulaire.legend}>Format de la poule</span>
               <label className={formulaire.choixLabel}>
                 <input type="checkbox" name="allerRetour" value="true" />
@@ -261,8 +299,46 @@ export function JourJ({
           ) : (
           <div className={formulaire.champ}>
             <span className={formulaire.legend}>Qui entre, et dans quel ordre</span>
+            {poulesAvant ? (
+              <>
+                <label className={formulaire.choixLabel}>
+                  <input
+                    type="radio"
+                    name="depuis"
+                    value="poules"
+                    defaultChecked={poulesAvant.terminees}
+                    disabled={!poulesAvant.terminees}
+                  />
+                  Les premiers de chaque poule de « {poulesAvant.nom} »
+                  {poulesAvant.terminees ? "" : " (poules pas encore terminées)"}
+                </label>
+                <label className={formulaire.label} htmlFor="jourj-qualifies">
+                  Qualifiés par poule
+                </label>
+                <input
+                  className={formulaire.saisie}
+                  id="jourj-qualifies"
+                  name="qualifiesParPoule"
+                  type="number"
+                  min={1}
+                  max={POULES_MAX}
+                  defaultValue={phase.settings.qualifiesParPoule ?? 2}
+                />
+                <p className={formulaire.sousChamp}>
+                  <span>
+                    Le tableau croise les poules : le 1er de A rencontre le 2e de B, le 1er de B
+                    le 2e de A. Un qualifié absent est remplacé par le suivant de sa poule.
+                  </span>
+                </p>
+              </>
+            ) : null}
             <label className={formulaire.choixLabel}>
-              <input type="radio" name="depuis" value="presents" defaultChecked />
+              <input
+                type="radio"
+                name="depuis"
+                value="presents"
+                defaultChecked={!poulesAvant?.terminees}
+              />
               Les présents, dans l&rsquo;ordre de saisie
             </label>
             <label className={formulaire.choixLabel}>
@@ -299,13 +375,16 @@ export function JourJ({
      `Record<string, string>` d'alors laissait passer. `LIBELLE_TABLEAU` étant désormais
      exhaustif sur l'enum (14.3), le typecheck a refusé — et il avait raison : rien ne
      garantissait que la moitié gauche de la clef soit un tableau valide. */
-  const groupes = new Map<string, { bracket: MatchBracket; round: number; liste: RencontreJouable[] }>();
+  const groupes = new Map<
+    string,
+    { bracket: MatchBracket; pool: number | null; round: number; liste: RencontreJouable[] }
+  >();
   for (const rencontre of rencontres) {
     const round = rencontre.round ?? 1;
-    const clef = `${rencontre.bracket}|${round}`;
+    const clef = `${rencontre.bracket}|${rencontre.pool ?? 0}|${round}`;
     const groupe = groupes.get(clef);
     if (groupe) groupe.liste.push(rencontre);
-    else groupes.set(clef, { bracket: rencontre.bracket, round, liste: [rencontre] });
+    else groupes.set(clef, { bracket: rencontre.bracket, pool: rencontre.pool, round, liste: [rencontre] });
   }
 
   const dépouillées = rencontres.filter((r) => r.issue.complete).length;
@@ -403,8 +482,13 @@ export function JourJ({
         )}
       </p>
 
-      {[...groupes.entries()].map(([clef, { bracket, round, liste: groupe }]) => {
-        const titre = [LIBELLE_TABLEAU[bracket], `Tour ${round}`].filter(Boolean).join(" — ");
+      {[...groupes.entries()].map(([clef, { bracket, pool, round, liste: groupe }]) => {
+        const titre = [
+          pool === null ? LIBELLE_TABLEAU[bracket] : `Poule ${lettreDePoule(pool)}`,
+          `Tour ${round}`,
+        ]
+          .filter(Boolean)
+          .join(" — ");
 
         return (
           <section key={clef} className={styles.groupe} aria-label={titre}>

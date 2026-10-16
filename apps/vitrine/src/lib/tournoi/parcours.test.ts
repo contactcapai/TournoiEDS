@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { structureDePhase } from "./generation";
-import { podiumDepuis, rangsParParcours, rangsParVictoires } from "./parcours";
+import {
+  podiumDepuis,
+  qualifiesDesPoules,
+  rangsParParcours,
+  rangsParPoule,
+  rangsParVictoires,
+} from "./parcours";
 import { calculerPropagation, issueDeRencontre } from "./progression";
 
 /**
@@ -27,6 +33,7 @@ function phaseGeneree(
   return structureDePhase(kind, participants.length, reglages).map((rencontre) => ({
     matchId: `m${rencontre.position}`,
     position: rencontre.position,
+    pool: rencontre.pool,
     places: rencontre.places.map((place) => ({
       slotId: `m${rencontre.position}s${place.position}`,
       position: place.position,
@@ -258,6 +265,68 @@ describe("rangsParVictoires — POULE : personne n'est éliminé", () => {
     const lignes = rangsParVictoires(pourRang(phase), noms(["a", "b"]));
     assert.equal(lignes[0].exAequo, 1, "une différence de score sépare deux joueurs");
     assert.equal(lignes[1].exAequo, 1);
+  });
+});
+
+describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (GIR 2026)", () => {
+  /** Comme l'application : l'issue vient de la PROPAGATION, qui dépouille les exemptions. */
+  const commeEnBase = (phase: Phase) => {
+    const { issues } = calculerPropagation(phase);
+    return phase.map((r) => ({ ...r, issue: issues.get(r.matchId) ?? issueDeRencontre(r.places) }));
+  };
+
+  /** La place de gauche gagne toujours : la tête de série la plus basse finit première. */
+  const jouerPoules = (phase: Phase) => {
+    for (const r of phase) {
+      if (r.places.every((p) => p.entryId !== null)) {
+        r.places[0].score = 2;
+        r.places[1].score = 0;
+      }
+    }
+    return propager(phase);
+  };
+
+  it("chaque poule ne joue qu'entre ses membres, et en serpentin", () => {
+    const phase = propager(phaseGeneree("poule", HUIT, { poules: 2 }));
+    assert.equal(phase.length, 12, "deux poules de 4 = 2 × 6 rencontres, pas 28");
+    const membres = (poule: number) =>
+      new Set(phase.filter((r) => r.pool === poule).flatMap((r) => r.places.map((p) => p.entryId)));
+    assert.deepEqual([...membres(1)].sort(), ["a", "d", "e", "h"]);
+    assert.deepEqual([...membres(2)].sort(), ["b", "c", "f", "g"]);
+  });
+
+  it("🔴 une exemption n'est pas une victoire (poule impaire)", () => {
+    const NEUF = [...HUIT, "i"];
+    const phase = jouerPoules(propager(phaseGeneree("poule", NEUF, { poules: 2 })));
+    const poules = rangsParPoule(commeEnBase(phase), noms(NEUF));
+    const victoiresA = (poules.get(1) ?? []).reduce((n, l) => n + (l.profondeur ?? 0), 0);
+    assert.equal(victoiresA, 10, "5 joueurs = 10 vraies rencontres, donc 10 victoires, pas 15");
+  });
+
+  it("les qualifiés se croisent : A1 contre B2, B1 contre A2", () => {
+    const phase = jouerPoules(propager(phaseGeneree("poule", HUIT, { poules: 2 })));
+    const poules = rangsParPoule(pourRang(phase), noms(HUIT));
+    const qualifies = qualifiesDesPoules(poules, 2, new Set(HUIT));
+    const [a1, b1, a2, b2] = qualifies;
+    assert.equal(qualifies.length, 4);
+    assert.equal(poules.get(1)?.[0].id, a1);
+    assert.equal(poules.get(2)?.[1].id, b2);
+
+    const tableau = phaseGeneree("bracket", qualifies);
+    const affiches = tableau
+      .filter((r) => r.places.every((p) => p.entryId !== null))
+      .map((r) => r.places.map((p) => p.entryId).sort().join("-"));
+    assert.deepEqual(affiches.sort(), [[a1, b2].sort().join("-"), [a2, b1].sort().join("-")].sort());
+  });
+
+  it("un qualifié absent cède sa place au suivant de SA poule", () => {
+    const phase = jouerPoules(propager(phaseGeneree("poule", HUIT, { poules: 2 })));
+    const poules = rangsParPoule(pourRang(phase), noms(HUIT));
+    const a1 = poules.get(1)?.[0].id ?? "";
+    const a3 = poules.get(1)?.[2].id ?? "";
+    const qualifies = qualifiesDesPoules(poules, 2, new Set(HUIT.filter((id) => id !== a1)));
+    assert.ok(!qualifies.includes(a1));
+    assert.ok(qualifies.includes(a3), "le 3e de la poule A remplace le 1er absent");
   });
 });
 

@@ -267,6 +267,13 @@
       "when": 1792159219348,
       "tag": "0037_reglement_tft_departage",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792163258015,
+      "tag": "0038_poule_des_rencontres",
+      "breakpoints": true
     }
   ]
 }

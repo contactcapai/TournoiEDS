@@ -17,6 +17,7 @@ const ligne = (o: Partial<LigneDeRencontre> = {}): LigneDeRencontre => ({
   matchPosition: 1,
   round: null,
   bracket: "principal",
+  pool: null,
   slotPosition: 1,
   nom: "Alice",
   etatEngage: "present",
@@ -109,3 +110,14 @@ describe("le regroupement — phases, tours, rencontres", () => {
     assert.equal(phase.groupes[0].rencontres[0].places.length, 0);
   });
 });
+
+describe("poules séparées sur la fiche publique", () => {
+  it("deux poules au même tour font deux groupes, jamais un seul", () => {
+    const [phase] = regrouperRencontresPubliques([
+      ligne({ phaseKind: "poule", matchId: "m1", pool: 1, round: 1 }),
+      ligne({ phaseKind: "poule", matchId: "m2", pool: 2, round: 1, nom: "Bob" }),
+    ]);
+    assert.deepEqual(phase.groupes.map((g) => g.pool), [1, 2]);
+  });
+});
+

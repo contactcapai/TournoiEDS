@@ -224,7 +224,9 @@ export function rangsParVictoires(
   }
 
   for (const rencontre of rencontres) {
-    if (rencontre.issue.complete && rencontre.issue.vainqueur !== null) {
+    // ⚠️ UNE EXEMPTION N'EST PAS UNE VICTOIRE : dans une poule impaire, chacun « joue » une
+    // fois contre personne. La compter donnerait une victoire gratuite à chaque tour.
+    if (rencontre.issue.complete && rencontre.issue.vainqueur !== null && !rencontre.issue.exemption) {
       const gagnant = rencontre.issue.vainqueur;
       victoires.set(gagnant, (victoires.get(gagnant) ?? 0) + 1);
     }
@@ -259,6 +261,49 @@ export function rangsParVictoires(
   return rangsDenses(
     lignes.map((l) => ({ id: l.id, profondeur: l.profondeur * 1_000_000 + l.difference })),
   ).map((l) => ({ ...l, profondeur: victoires.get(l.id) ?? 0 }));
+}
+
+/** Une rencontre de poule, avec sa poule (`null` = poule unique). */
+export type RencontreDePoule = RencontrePourRang & { readonly pool: number | null };
+
+/** Le classement de CHAQUE poule d'une phase découpée, poule par poule (1 = A, 2 = B…). */
+export function rangsParPoule(
+  rencontres: readonly RencontreDePoule[],
+  nomParEngage: ReadonlyMap<string, string>,
+): Map<number, LigneDeParcours[]> {
+  const poules = [...new Set(rencontres.map((r) => r.pool ?? 1))].sort((a, b) => a - b);
+  return new Map(
+    poules.map((poule) => [
+      poule,
+      rangsParVictoires(
+        rencontres.filter((r) => (r.pool ?? 1) === poule),
+        nomParEngage,
+      ),
+    ]),
+  );
+}
+
+/** La lettre d'une poule : 1 → A, 2 → B… */
+export const lettreDePoule = (poule: number) => String.fromCharCode(64 + poule);
+
+/**
+ * Les qualifiés d'une phase de poules pour le tableau suivant : les `parPoule` premiers PRÉSENTS
+ * de chaque poule, rangés A1, B1, A2, B2… — un tableau « naturel » oppose alors A1 à B2 et B1 à
+ * A2. ⚠️ Un qualifié absent cède sa place au suivant de SA poule, jamais d'une autre.
+ */
+export function qualifiesDesPoules(
+  classements: ReadonlyMap<number, readonly LigneDeParcours[]>,
+  parPoule: number,
+  presents: ReadonlySet<string>,
+): string[] {
+  const retenus = [...classements.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, lignes]) => lignes.filter((l) => presents.has(l.id)).slice(0, parPoule));
+  const ordre: string[] = [];
+  for (let rang = 0; rang < parPoule; rang += 1) {
+    for (const poule of retenus) if (poule[rang]) ordre.push(poule[rang].id);
+  }
+  return ordre;
 }
 
 /**
