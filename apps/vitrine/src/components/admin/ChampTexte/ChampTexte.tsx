@@ -30,6 +30,8 @@ export interface ChampTexteProps {
   max?: number;
   /** Rend un `<textarea>` plutôt qu'un `<input>`. */
   multiligne?: boolean;
+  /** Hauteur d'une zone multiligne, en lignes. */
+  lignes?: number;
   type?: "text" | "datetime-local";
   /** Une phrase sous le champ : ce que la personne doit y mettre. */
   aide?: string;
@@ -45,6 +47,7 @@ export function ChampTexte({
   onChange,
   max,
   multiligne = false,
+  lignes = 5,
   type = "text",
   aide,
   erreur,
@@ -81,7 +84,7 @@ export function ChampTexte({
       </label>
 
       {multiligne ? (
-        <textarea className={styles.zone} rows={5} {...commun} />
+        <textarea className={styles.zone} rows={lignes} {...commun} />
       ) : (
         <input className={styles.saisie} type={type} {...commun} />
       )}

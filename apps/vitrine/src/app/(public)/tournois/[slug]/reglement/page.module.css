@@ -1,0 +1,59 @@
+/* Le règlement : un long texte à lire, donc la mesure de `.prose` (680px) et des titres
+   d'article subordonnés au <h1>, jamais à l'échelle d'un titre de section. */
+
+.retour {
+  margin-top: 18px;
+}
+
+.lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.lien:hover {
+  color: var(--gold);
+}
+
+.texte p {
+  margin-top: 14px;
+  line-height: var(--lh-body);
+}
+
+.article {
+  font-family: var(--font-display);
+  font-size: 24px; /* px structurel, valeur de `.subtitle` (editorial) */
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  text-transform: uppercase;
+  color: var(--cream);
+  margin-top: 44px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gold);
+}
+
+.sousArticle {
+  font-family: var(--font-body);
+  font-size: 17px; /* px structurel */
+  font-weight: 700;
+  color: var(--gold);
+  margin-top: 26px;
+}
+
+.liste {
+  margin-top: 12px;
+  padding-left: 22px;
+  line-height: var(--lh-body);
+}
+
+.liste li + li {
+  margin-top: 6px;
+}
+
+/* Une adresse ou un Riot ID long ne doit jamais élargir la page à 320px. */
+.texte {
+  overflow-wrap: anywhere;
+}

@@ -239,6 +239,20 @@
       "when": 1789046546584,
       "tag": "0033_spooky_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792157347645,
+      "tag": "0034_reglements",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792157359086,
+      "tag": "0035_modele_reglement_tft",
+      "breakpoints": true
     }
   ]
 }
