@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   Brush,
   Button,
@@ -9,6 +10,7 @@ import {
   Sticker,
 } from "@repo/ui";
 import { Wrap } from "@/components/common/Wrap/Wrap";
+import { formatLongDate, formatTime } from "@/lib/date-paris";
 import styles from "./Hero.module.css";
 
 // Hero de l'accueil (Story 2.1) — Server Component pur : toute l'animation est en
@@ -16,7 +18,7 @@ import styles from "./Hero.module.css";
 //
 // ⚠️ La home n'est PLUS prérendue Static depuis la Story 3.2 : elle lit l'agenda à
 // chaque requête (`force-dynamic` dans page.tsx). Ce composant, lui, ne lit rien — il
-// reçoit `hasUpcomingEvent` en prop.
+// reçoit `prochain` en prop.
 //
 // Composé EXCLUSIVEMENT à partir des primitives @repo/ui livrées en Story 1.3 :
 // aucune brique visuelle n'est réimplémentée ici, seul le layout est local.
@@ -25,26 +27,20 @@ import styles from "./Hero.module.css";
 
 export interface HeroProps {
   /**
-   * Y a-t-il une prochaine date publiée ? Pilote l'affichage du macaron « CE JEUDI »
-   * (Story 3.2, AC5).
+   * Le prochain rendez-vous publié, ou `null`. Pilote le macaron et la ligne « Prochain
+   * rendez-vous » (retour UX du 2026-10-16).
    *
-   * 🔴 C'EST UNE PROP, ET SÛREMENT PAS UNE LECTURE LOCALE. La page fait UNE seule
-   * requête et la distribue au hero et au hub : c'est ce qui garantit que le macaron
-   * et la carte désignent la MÊME date. Deux lectures indépendantes pourraient
-   * diverger à la milliseconde près autour d'un `starts_at`, et surtout dériveraient
-   * au premier changement de filtre d'un seul côté.
-   *
-   * ⚠️ Le libellé du macaron reste LITTÉRALEMENT « CE JEUDI » dans tous les cas
-   * (formulation contractuelle, UX-DR18) : il ne dépend PAS du `type` de l'événement.
-   * Le prochain rendez-vous peut être un temps fort un autre jour de la semaine —
-   * epics.md relie le macaron à « cette prochaine date », pas à un filtre sur le type.
+   * 🔴 C'EST UNE PROP : la page fait UNE lecture et la distribue au hero et au hub, si bien que
+   * le macaron, la ligne et la carte désignent la MÊME date.
+   * ⚠️ Le macaron disait « CE JEUDI » en dur (UX-DR18) — faux dès que le prochain rendez-vous
+   * n'était pas un jeudi de la semaine. Il suit désormais la date (`macaronDuRendezVous`).
    */
-  hasUpcomingEvent: boolean;
+  prochain: { libelle: string; startsAt: Date; macaron: [string, string] } | null;
 
   /**
    * La photo choisie dans la galerie, ou `null` quand aucune ne l'est (Story 7.3).
    *
-   * 🔴 C'EST UNE PROP, POUR LA MÊME RAISON QUE `hasUpcomingEvent` : la page lit et
+   * 🔴 C'EST UNE PROP, POUR LA MÊME RAISON QUE `prochain` : la page lit et
    * distribue. Une lecture locale mettrait en série ce que `Promise.all` fait en
    * parallèle, dans un composant dont c'est le premier rendu de la page.
    * ⚠️ `null` N'EST PAS UNE ERREUR : c'est l'état normal tant que personne n'a choisi de
@@ -60,7 +56,7 @@ export interface HeroProps {
   } | null;
 }
 
-export function Hero({ hasUpcomingEvent, photoDuHero }: HeroProps) {
+export function Hero({ prochain, photoDuHero }: HeroProps) {
   return (
     // aria-labelledby ↔ id du <h1> : nomme la région (pattern acquis review 1.6 F6).
     // Le <main id="content"> est fourni par (public)/layout.tsx → pas de <main> ici.
@@ -108,6 +104,17 @@ export function Hero({ hasUpcomingEvent, photoDuHero }: HeroProps) {
             Une asso locale et conviviale. Viens comme tu es, même sans manette.
           </p>
 
+          {/* Une information concrète dès le premier écran, avant le slogan ne suffit pas. */}
+          {prochain ? (
+            <p className={styles.prochain}>
+              <span className={styles.prochainLabel}>Prochain rendez-vous</span>{" "}
+              <Link className={styles.prochainLien} href="/agenda">
+                {formatLongDate(prochain.startsAt)} · {formatTime(prochain.startsAt)} ·{" "}
+                {prochain.libelle}
+              </Link>
+            </p>
+          ) : null}
+
           {/* /agenda (Epic 3) et /l-asso (Story 2.6) ne sont pas encore créées :
               ces liens renvoient un 404 par défaut, comportement ATTENDU et
               cohérent avec le SiteHeader depuis la Story 1.4. Ne pas retomber sur
@@ -132,7 +139,7 @@ export function Hero({ hasUpcomingEvent, photoDuHero }: HeroProps) {
             // `@media (prefers-reduced-motion: no-preference)`) suit le macaron : rien
             // à ajouter ni à dupliquer côté animation (AC8).
             sticker={
-              hasUpcomingEvent ? (
+              prochain ? (
                 <Sticker className={styles.sticker}>
                   {/* Deux blocs plutôt qu'un <br> : le conteneur du Sticker est un
                       flex, un <br> y deviendrait un item et casserait l'empilement.
@@ -141,8 +148,8 @@ export function Hero({ hasUpcomingEvent, photoDuHero }: HeroProps) {
                       texte blanc seul n'est pas rendu comme item flex : aucun effet
                       visuel. */}
                   <span className={styles.stickerLines}>
-                    <span>CE</span>{" "}
-                    <span>JEUDI</span>
+                    <span>{prochain.macaron[0]}</span>{" "}
+                    <span>{prochain.macaron[1]}</span>
                   </span>
                 </Sticker>
               ) : undefined
