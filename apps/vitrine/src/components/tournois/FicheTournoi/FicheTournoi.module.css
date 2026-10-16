@@ -187,12 +187,46 @@
   overflow-wrap: anywhere;
 }
 
-/* ═════════ ④ Le visuel ═════════
-   Borné : `PhotoFrame` remplit son conteneur (`fill`), donc c'est ICI que la largeur se décide.
-   640px est la largeur des `sizes` déclarés côté TSX — les deux doivent dire la même chose,
-   sinon Next sert une image de mauvaise taille sans que rien ne le signale. */
-.media {
-  max-width: 640px;
+/* ═════════ ④ Le visuel, dans l'en-tête ═════════
+   Bureau : à côté du titre, la liste « Quand / Jeu / Où » dessous à gauche. Mobile : titre,
+   PUIS visuel, puis la liste — l'ordre du DOM. 320px = les `sizes` déclarés côté TSX. */
+.tete {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "titre" "infos";
+}
+
+.teteAvecVisuel {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: "titre visuel" "infos visuel";
+  column-gap: 48px; /* px structurel */
+  align-items: start;
+}
+
+.teteTitre {
+  grid-area: titre;
+  min-width: 0;
+}
+
+.teteVisuel {
+  grid-area: visuel;
+  width: 100%;
+}
+
+.teteInfos {
+  grid-area: infos;
+}
+
+@media (max-width: 880px) {
+  .teteAvecVisuel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "titre" "visuel" "infos";
+  }
+
+  .teteVisuel {
+    max-width: 360px;
+    margin-top: var(--block-gap);
+  }
 }
 
 /* ═════════ ⑤ Renvoi de fin ═════════
