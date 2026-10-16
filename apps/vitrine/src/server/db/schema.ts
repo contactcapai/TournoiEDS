@@ -91,6 +91,7 @@ import {
 // la consomme pour construire son `CHECK`. L'inverse ferait entrer Drizzle dans le
 // navigateur. Une seule liste pour Zod, la base et la table de `Content-Type`.
 import { EXTENSIONS } from "../../lib/schemas/photo";
+import { MODELE_NOM_MAX, REGLEMENT_MAX } from "../../lib/reglement";
 import { EMAIL_MAX, MOTIF_EMAIL_SQL, URL_MAX } from "../../lib/schemas/site-setting";
 import { SOLICITATION_TYPES } from "../../lib/schemas/solicitation";
 // 🔴 CE BLOC DISAIT « AUCUN ALIAS ICI, ET C'EST UNE MESURE » JUSQU'AU 2026-08-14 — LE JOUR
@@ -1761,6 +1762,11 @@ export const tournament = pgTable(
     /** Les lots (A23 ③). Une ligne, pas un règlement. */
     prizes: text(),
     /**
+     * Le règlement, COPIÉ depuis un modèle à la création puis retouchable : modifier le modèle
+     * ensuite ne change pas ce que les inscrits ont lu. Servi sur `/tournois/<slug>/reglement`.
+     */
+    rules: text(),
+    /**
      * Durée estimée d'un match, **en minutes** (A23 ③).
      * Un entier et non du texte : c'est la seule des données d'A23 ③ que la Story 11.1 devra
      * **envoyer à MATELY**, et que l'assistance au choix de format consommera (§7 ③, qui a
@@ -1985,6 +1991,10 @@ export const tournament = pgTable(
       sql`${table.prizes} is null or (length(btrim(${table.prizes})) > 0 and length(${table.prizes}) <= ${sql.raw(String(LOTS_MAX))})`,
     ),
     check(
+      "tournament_rules_valide",
+      sql`${table.rules} is null or (length(btrim(${table.rules})) > 0 and length(${table.rules}) <= ${sql.raw(String(REGLEMENT_MAX))})`,
+    ),
+    check(
       "tournament_price_text_valide",
       sql`${table.priceText} is null or (length(btrim(${table.priceText})) > 0 and length(${table.priceText}) <= ${sql.raw(String(TOURNAMENT_TARIF_MAX))})`,
     ),
@@ -2098,6 +2108,31 @@ export const tournament = pgTable(
     index("tournament_published_starts_at_idx").on(table.isPublished, table.startsAt),
     /** Sert la fiche `/tournois/<slug>` (Story 9.3) : lecture par identifiant lisible. */
     index("tournament_event_starts_at_idx").on(table.eventId, table.startsAt),
+  ],
+);
+
+/** Les modèles de règlement : un texte à trous `{{…}}`, copié dans le tournoi à sa création. */
+export const rulesTemplate = pgTable(
+  "rules_template",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    name: text().notNull().unique(),
+    body: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    check(
+      "rules_template_name_valide",
+      sql`length(btrim(${table.name})) > 0 and length(${table.name}) <= ${sql.raw(String(MODELE_NOM_MAX))}`,
+    ),
+    check(
+      "rules_template_body_valide",
+      sql`length(btrim(${table.body})) > 0 and length(${table.body}) <= ${sql.raw(String(REGLEMENT_MAX))}`,
+    ),
   ],
 );
 

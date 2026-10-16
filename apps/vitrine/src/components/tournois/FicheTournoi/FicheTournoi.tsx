@@ -687,6 +687,16 @@ export function FicheTournoi({
                 )}
               </div>
             )}
+
+            {/* Le règlement a sa propre adresse (`/tournois/<slug>/reglement`) : un lien,
+                passé ou à venir, et rien du tout quand il n'y en a pas. */}
+            {tournoi.aUnReglement ? (
+              <p className={styles.etatAide}>
+                <Link className={styles.lienDoux} href={`/tournois/${tournoi.slug}/reglement`}>
+                  Lire le règlement du tournoi
+                </Link>
+              </p>
+            ) : null}
           </div>
         </Wrap>
       </section>

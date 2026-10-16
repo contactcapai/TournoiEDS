@@ -166,6 +166,9 @@ export default async function AdminTournoisPage() {
         <Link className={styles.lien} href="/admin/tournois/nouveau">
           Ajouter un tournoi
         </Link>
+        <Link className={styles.lien} href="/admin/tournois/reglements">
+          Modèles de règlement
+        </Link>
         <Link className={styles.lien} href="/admin/agenda">
           Gérer l&rsquo;agenda
         </Link>

@@ -102,6 +102,7 @@ const COLONNES_ADMIN = {
   podiumFirst: true,
   podiumSecond: true,
   podiumThird: true,
+  rules: true,
   isPublished: true,
 } as const;
 
@@ -489,6 +490,10 @@ export const getTournamentBySlug = cache(async function getTournamentBySlug(slug
   const ligne = await db.query.tournament.findFirst({
     columns: COLONNES_FICHE,
     where: (table, { and, eq }) => and(eq(table.isPublished, true), eq(table.slug, slug)),
+    // La fiche ne lit pas le règlement (jusqu'à 40 000 caractères) : seulement s'il existe.
+    extras: (table, { sql }) => ({
+      aUnReglement: sql<boolean>`${table.rules} is not null`.as("a_un_reglement"),
+    }),
     with: {
       ...RELATION_VISUEL,
       event: { columns: { id: true, title: true, startsAt: true, isPublished: true } },
@@ -536,6 +541,10 @@ export async function getTournamentApercuById(id: string) {
     // la fiche sans le modifier : le composant ne la voit pas, l'écran d'admin oui.
     columns: { ...COLONNES_FICHE, isPublished: true },
     where: (table, { eq }) => eq(table.id, id),
+    // La fiche ne lit pas le règlement (jusqu'à 40 000 caractères) : seulement s'il existe.
+    extras: (table, { sql }) => ({
+      aUnReglement: sql<boolean>`${table.rules} is not null`.as("a_un_reglement"),
+    }),
     with: {
       ...RELATION_VISUEL,
       event: { columns: { id: true, title: true, startsAt: true, isPublished: true } },

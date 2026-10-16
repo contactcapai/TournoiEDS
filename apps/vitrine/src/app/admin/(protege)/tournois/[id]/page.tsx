@@ -13,6 +13,7 @@ import {
 // 🔴 La liste des images proposables vient de `queries/photos.ts` depuis la 15.1 : elle
 // interroge `photo`, et elle a trois consommateurs (tournoi, événement, composeur réseaux).
 import { getImagesPourChoix } from "@/server/db/queries/photos";
+import { getModelesReglement } from "@/server/db/queries/reglements";
 import styles from "@/styles/admin-page.module.css";
 
 // Modification d'un tournoi (Story 9.1).
@@ -53,11 +54,12 @@ export default async function ModifierTournoiPage({
 
   // `aDesEngages` décide si le champ d'effectif d'équipe s'explique ou s'invite ; la garde
   // qui compte est dans `enregistrerTournoi`.
-  const [tournoi, evenements, photos, aDesEngages] = await Promise.all([
+  const [tournoi, evenements, photos, aDesEngages, modeles] = await Promise.all([
     getTournamentById(id),
     getEventsPourRattachement(EVENEMENTS_MAX),
     getImagesPourChoix(PHOTOS_MAX),
     tournoiADesEngages(id),
+    getModelesReglement(),
   ]);
   if (!tournoi) notFound();
 
@@ -100,6 +102,7 @@ export default async function ModifierTournoiPage({
           tournoi={{ ...tournoi, aDesEngages }}
           evenements={evenements}
           photos={photos}
+          modeles={modeles}
         />
       </div>
     </>
