@@ -382,6 +382,11 @@ export function FicheTournoi({
           `headingLevel` descend d'un cran — d'où la prop plutôt qu'un niveau en dur. */}
       <section className={editorial.head} aria-labelledby="tournoi-title">
         <Wrap>
+          {/* Le visuel est À CÔTÉ du titre en bureau, JUSTE SOUS lui en mobile (Brice,
+              2026-10-16) : la grille `.tete` place les trois zones, l'ordre du DOM reste
+              titre → visuel → infos pour le lecteur d'écran comme pour le mobile. */}
+          <div className={visuel ? `${styles.tete} ${styles.teteAvecVisuel}` : styles.tete}>
+          <div className={styles.teteTitre}>
           {/* ══════════════════════════════════════════════════════════════════════════
               « ÇA SE JOUE » — AVANT LE TITRE, PARCE QUE C'EST PÉRISSABLE (Story 14.1)
               ══════════════════════════════════════════════════════════════════════════
@@ -407,6 +412,23 @@ export function FicheTournoi({
             eyebrow={tournoi.estPasse ? "Déjà joué" : "Compétition"}
             title={<Brush>{tournoi.name}</Brush>}
           />
+          </div>
+
+          {visuel ? (
+            <div className={styles.teteVisuel}>
+              {/* ⚠️ Pas de `caption` : le `figcaption` de `PhotoFrame` ne se coupe pas (6.4). */}
+              <PhotoFrame rotation={-2}>
+                <Image
+                  src={`/medias/${visuel.filename}`}
+                  alt={visuel.alt}
+                  fill
+                  sizes="(max-width: 880px) 100vw, 320px"
+                  // Le point focal (15.1) : `PhotoFrame` recadre en `object-fit: cover`.
+                  style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
+                />
+              </PhotoFrame>
+            </div>
+          ) : null}
 
           {/* ══════════════════════════════════════════════════════════════════════════
               L'ESSENTIEL (A23 ①) — UNE LISTE DE DESCRIPTION, PAS UN TABLEAU
@@ -422,7 +444,7 @@ export function FicheTournoi({
               🔴 CE BLOC EST LE CONTENU D'A23 ①, ET LA STORY 9.6 L'ÉTEND de deux faits — le
               tarif et l'horaire de fin. La note d'architecture §13 est corrigée À LA SOURCE
               plutôt que contredite en silence ici. */}
-          <dl className={styles.essentiel}>
+          <dl className={`${styles.essentiel} ${styles.teteInfos}`}>
             <div className={styles.ligne}>
               <dt className={styles.terme}>Quand</dt>
               {/* `densite="longue"` : la fiche a la place d'écrire la date en toutes lettres
@@ -483,6 +505,7 @@ export function FicheTournoi({
               </div>
             ) : null}
           </dl>
+          </div>
         </Wrap>
       </section>
 
@@ -995,38 +1018,6 @@ export function FicheTournoi({
                   </details>
                 );
               })}
-            </div>
-          </Wrap>
-        </section>
-      ) : null}
-
-      {/* ④ LE VISUEL — omis complètement quand il n'y en a pas (cas NOMINAL). */}
-      {visuel ? (
-        <section className={`${editorial.section} ${motion.reveal}`}>
-          <Wrap>
-            <div className={styles.media}>
-              {/* ⚠️ AUCUNE `caption` sur le cadre : le `figcaption` de `PhotoFrame` est
-                  rendu en Caveat et NE SE COUPE PAS — en Story 6.4, un titre long y a fait
-                  déborder /agenda de 33px à 320px. Aucune donnée de tournoi n'est bornée
-                  assez court (le nom va à 80 caractères). Le nom du tournoi est déjà le
-                  titre, juste au-dessus.
-                  ⚠️ `alt` vient de la photo elle-même : obligatoire depuis la 4.3 (NFR3),
-                  et il DÉCRIT l'image là où le texte de la page décrit le tournoi. */}
-              <PhotoFrame rotation={-2}>
-                <Image
-                  src={`/medias/${visuel.filename}`}
-                  alt={visuel.alt}
-                  fill
-                  sizes="(max-width: 880px) 100vw, 640px"
-                  loading="lazy"
-                // 🔴 LE POINT FOCAL, AJOUTÉ PAR LA 15.1 — ET SON ABSENCE ÉTAIT UN DÉFAUT.
-                // `PhotoFrame` recadre en `object-fit: cover` : cette image COUPE. Sans
-                // `objectPosition` elle rendait le centre, c'est-à-dire un cadrage que le
-                // site n'applique nulle part ailleurs depuis la 7.3 — un visage hors cadre,
-                // sans erreur et sans test rouge. Même correctif que le scrapbook, 2026-09-01.
-                style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
-                />
-              </PhotoFrame>
             </div>
           </Wrap>
         </section>
