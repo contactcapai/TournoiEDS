@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   ajouterJours,
   jourLisible,
+  macaronDuRendezVous,
   parisWallClockFromInput,
   parisWallClockOptionnelFromInput,
   toInputValue,
@@ -91,5 +92,19 @@ describe("les jours-calendriers d'une phase", () => {
     } finally {
       process.env.TZ = original;
     }
+  });
+});
+
+describe("macaronDuRendezVous — compté en jours de PARIS", () => {
+  const maintenant = new Date("2026-10-16T21:30:00Z"); // vendredi 16, 23h30 à Paris
+  it("le lendemain dès minuit à Paris, même s'il reste 30 minutes", () => {
+    assert.deepEqual(macaronDuRendezVous(new Date("2026-10-16T22:15:00Z"), maintenant), ["C'EST", "DEMAIN"]);
+  });
+  it("dans la semaine, le jour ; au-delà, la date", () => {
+    assert.deepEqual(macaronDuRendezVous(new Date("2026-10-22T16:00:00Z"), maintenant), ["CE", "JEUDI"]);
+    assert.deepEqual(macaronDuRendezVous(new Date("2026-11-21T09:15:00Z"), maintenant), ["LE", "21 NOV."]);
+  });
+  it("le jour même", () => {
+    assert.deepEqual(macaronDuRendezVous(new Date("2026-10-16T21:45:00Z"), maintenant), ["C'EST", "LE JOUR"]);
   });
 });

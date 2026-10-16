@@ -174,6 +174,7 @@ export function nextThursdays(count: number, options: { from?: Date; hour?: numb
 const MONTH_LONG = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, month: "long" });
 const WEEKDAY_SHORT = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, weekday: "short" });
 const WEEKDAY_LONG = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, weekday: "long" });
+const MONTH_COURT = new Intl.DateTimeFormat("fr-FR", { timeZone: PARIS_TZ, month: "short" });
 
 /**
  * ⚠️ `Intl` rend les noms français en MINUSCULES — « juin », « jeu. » —, alors que la
@@ -664,4 +665,22 @@ export function jourParis(instant: Date): string {
 export function debutDuJourParis(jour: string): Date {
   const [annee, mois, quantieme] = jour.split("-").map(Number);
   return parisWallClock(annee, mois, quantieme);
+}
+
+/**
+ * Le macaron du prochain rendez-vous, en deux lignes courtes (retour UX du 2026-10-16) : il
+ * disait « CE JEUDI » en dur, donc faux dès que le prochain rendez-vous n'était pas un jeudi de
+ * la semaine. Les jours se comptent en heure de PARIS, jamais par différence de millisecondes.
+ */
+export function macaronDuRendezVous(debut: Date, maintenant: Date): [string, string] {
+  const versUtc = (jour: string) => {
+    const [annee, mois, quantieme] = jour.split("-").map(Number);
+    return Date.UTC(annee, mois - 1, quantieme);
+  };
+  const ecart = Math.round((versUtc(jourParis(debut)) - versUtc(jourParis(maintenant))) / 86_400_000);
+  if (ecart <= 0) return ["C'EST", "LE JOUR"];
+  if (ecart === 1) return ["C'EST", "DEMAIN"];
+  if (ecart < 7) return ["CE", WEEKDAY_LONG.format(debut).toUpperCase()];
+  const { day } = parisParts(debut);
+  return ["LE", `${day} ${MONTH_COURT.format(debut).toUpperCase()}`];
 }

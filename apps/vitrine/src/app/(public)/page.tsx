@@ -14,6 +14,8 @@ import { getUpcomingRendezVous } from "@/server/db/queries/rendez-vous";
 import { getPartnersWithLogo } from "@/server/db/queries/partners";
 import { getPublishedPhotos, getPhotoDuHero, getPhotoDeLaBande } from "@/server/db/queries/photos";
 import { lireReglages } from "@/server/db/queries/settings";
+import { getPublicTournaments } from "@/server/db/queries/tournaments";
+import { macaronDuRendezVous } from "@/lib/date-paris";
 
 // Accueil (long-scroll). Les blocs s'empilent ici dans l'ordre figé par UX-DR19 :
 // Hero (2.1) → hub événementiel (3.2) → trois axes (2.2) → citation (2.3) →
@@ -78,6 +80,9 @@ export const dynamic = "force-dynamic";
  */
 const HOME_EVENT_COUNT = 5;
 
+/** Les prochains tournois montrés sur l'accueil : trois, le reste est sur /tournois. */
+const HOME_TOURNOI_COUNT = 3;
+
 /**
  * ⚠️ `HOME_PHOTO_COUNT` A QUITTÉ CE FICHIER (Story 6.4) : il vit dans `lib/galerie.ts`.
  * Il est né ici, seul consommateur, puis la 6.4 lui en a donné deux autres — l'écran de
@@ -114,7 +119,7 @@ export default async function Home() {
   // ⚠️ CINQUIÈME LECTURE, ET ELLE ENTRE DANS LE `Promise.all` — pas après. La photo du
   // hero ne dépend d'aucune des quatre autres : l'enchaîner ajouterait son aller-retour à
   // celui de la page pour rien (patron AC1 de la 3.2, tenu depuis).
-  const [upcoming, partners, photos, reglages, photoDuHero, photoDeLaBande] =
+  const [upcoming, partners, photos, reglages, photoDuHero, photoDeLaBande, tournoisAVenir] =
     await Promise.all([
     getUpcomingRendezVous(HOME_EVENT_COUNT),
     getPartnersWithLogo(),
@@ -122,6 +127,7 @@ export default async function Home() {
     lireReglages(),
     getPhotoDuHero(),
     getPhotoDeLaBande(),
+    getPublicTournaments(HOME_TOURNOI_COUNT, 0, 0),
   ]);
   const next = upcoming[0] ?? null;
   const rest = upcoming.slice(1);
@@ -140,7 +146,18 @@ export default async function Home() {
 
   return (
     <>
-      <Hero hasUpcomingEvent={next !== null} photoDuHero={photoDuHero} />
+      <Hero
+        prochain={
+          next
+            ? {
+                libelle: next.libelle,
+                startsAt: next.startsAt,
+                macaron: macaronDuRendezVous(next.startsAt, new Date()),
+              }
+            : null
+        }
+        photoDuHero={photoDuHero}
+      />
       <EventHub
         next={next}
         rest={rest}
@@ -152,7 +169,7 @@ export default async function Home() {
       {/* Passerelle Tournoi (5.4) — position FIXÉE PAR FR7 : entre la citation et le
           bloc de preuve. 100 % statique : il ne lit rien, il n'est donc pas dans le
           `Promise.all` ci-dessus et n'ajoute aucun aller-retour de base à la page. */}
-      <TournamentBridge />
+      <TournamentBridge tournois={tournoisAVenir.aVenir} />
       {/* Se rend `null` si aucun partenaire n'a de logo — pas de tête de section
           orpheline ni de cadre vide (AC6). C'est le composant qui décide, pas cette
           page : la règle appartient au bloc de preuve, pas à l'ordre des blocs. */}

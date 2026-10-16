@@ -96,6 +96,35 @@
   color: var(--grey);
 }
 
+/* Le prochain rendez-vous, au premier écran (retour UX du 2026-10-16). */
+.prochain {
+  max-width: 480px;
+  margin-top: 18px;
+  font-size: 15.5px; /* px structurel, valeur reprise d'/agenda */
+  color: var(--light);
+}
+
+.prochainLabel {
+  display: block;
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.prochainLien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  color: var(--cream);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.prochainLien:hover {
+  color: var(--gold);
+}
+
 .cta {
   display: flex;
   flex-wrap: wrap;
