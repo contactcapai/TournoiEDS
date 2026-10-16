@@ -9,7 +9,6 @@ import {
 // 🔴 La liste des images proposables vient de `queries/photos.ts` depuis la 15.1 : elle
 // interroge `photo`, et elle a trois consommateurs (tournoi, événement, composeur réseaux).
 import { getImagesPourChoix } from "@/server/db/queries/photos";
-import { getModelesReglement } from "@/server/db/queries/reglements";
 import styles from "@/styles/admin-page.module.css";
 
 // Création d'un tournoi (Story 9.1).
@@ -41,10 +40,9 @@ const PHOTOS_MAX = 200;
 export default async function NouveauTournoiPage() {
   await exigerRolePage("admin_tournoi");
 
-  const [evenements, photos, modeles] = await Promise.all([
+  const [evenements, photos] = await Promise.all([
     getEventsPourRattachement(EVENEMENTS_MAX),
     getImagesPourChoix(PHOTOS_MAX),
-    getModelesReglement(),
   ]);
 
   return (
@@ -63,7 +61,7 @@ export default async function NouveauTournoiPage() {
       </div>
 
       <div className={styles.section}>
-        <TournoiForm evenements={evenements} photos={photos} modeles={modeles} />
+        <TournoiForm evenements={evenements} photos={photos} />
       </div>
     </>
   );

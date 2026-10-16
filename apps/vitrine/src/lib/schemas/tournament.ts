@@ -23,7 +23,6 @@ import { texteOptionnel, urlHttpOptionnelle, visiblementVide, texteNettoye } fro
 // au tournoi restent locales, exactement comme `workshop.ts` garde les siennes (voir le bloc
 // d'alias obligatoires de `schema.ts`).
 import { URL_MAX } from "./site-setting";
-import { REGLEMENT_MAX, trousDu } from "../reglement";
 
 export { URL_MAX };
 
@@ -458,8 +457,6 @@ export const tournamentInputSchema = z
     formatText: texteOptionnel(FORMAT_MAX, "Le déroulé annoncé"),
     /** Les lots (A23 ③). Une ligne, pas un règlement. Facultatif. */
     prizes: texteOptionnel(LOTS_MAX, "Les lots"),
-    /** Le règlement, copié d'un modèle puis retouché. Facultatif. */
-    rules: texteOptionnel(REGLEMENT_MAX, "Le règlement"),
     /**
      * Durée estimée d'un match, en minutes (A23 ③). Facultative.
      *
@@ -613,17 +610,6 @@ export const tournamentInputSchema = z
         message:
           "L'heure de fin doit être après le début. Vérifiez le jour autant que l'heure : une " +
           "fin après minuit tombe le lendemain.",
-      });
-    }
-    // Un trou laissé tel quel s'afficherait au public : « {{places}} joueurs maximum ».
-    const trous = valeurs.rules === null ? [] : trousDu(valeurs.rules);
-    if (trous.length > 0) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["rules"],
-        message: `Le règlement contient encore des informations à compléter : ${trous
-          .map((trou) => `« {{${trou}}} »`)
-          .join(", ")}. Remplacez-les par la bonne valeur, ou retirez la phrase.`,
       });
     }
     if (valeurs.registrationMode === "mately" && valeurs.registrationUrl === null) {

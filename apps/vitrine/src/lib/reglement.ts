@@ -1,4 +1,6 @@
-import { formatLongDate, formatTime, parisWallClockFromInput } from "./date-paris";
+import { formatLongDate, formatTime, jourLisible, jourParis } from "./date-paris";
+import { SEUIL_VICTOIRE_DEFAUT } from "./tournoi/finale";
+import { estParTables, type PhaseKind } from "./tournoi/structure";
 
 /**
  * Le règlement d'un tournoi : un modèle à trous `{{…}}`, rempli à la création du tournoi.
@@ -28,36 +30,89 @@ export function remplir(texte: string, valeurs: Readonly<Record<string, string>>
   });
 }
 
-/** Ce que le formulaire du tournoi sait déjà — tel que saisi, champs vides compris. */
-export type SaisieTournoi = {
+/** Les trous remplis par le site — affichés au bénévole ; un test les tient d'accord avec `valeursDuTournoi`. */
+export const TROUS_AUTOMATIQUES = [
+  "nom du tournoi", "jeu", "date", "heure", "heure de fin", "lieu", "tarif", "places", "lots",
+  "format d'équipe", "durée d'un match", "déroulé", "jour des qualifications",
+  "jour de la finale", "nombre de manches de qualification", "seuil du matchpoint",
+  "adresse de la fiche", "adresse du règlement",
+] as const;
+
+/** Ce que le site sait du tournoi : sa fiche ENREGISTRÉE et son déroulé. */
+export type DonneesTournoi = {
   name: string;
   game: string;
   slug: string;
-  startsAt: string;
-  venueName: string;
-  priceText: string;
-  capacity: string;
-  prizes: string;
+  startsAt: Date;
+  endsAt: Date | null;
+  venueName: string | null;
+  priceText: string | null;
+  capacity: number | null;
+  prizes: string | null;
+  teamSize: number;
+  matchDurationMinutes: number | null;
+  formatText: string | null;
+  phases: readonly { name: string; kind: PhaseKind; playedOn: string | null; settings: unknown }[];
 };
 
+const NATURE: Record<PhaseKind, string> = {
+  poule: "poule",
+  bracket: "tableau",
+  lobbies: "lobbies",
+  suisse: "manche suisse",
+  finale: "finale",
+};
+
+function seuilDe(settings: unknown): number {
+  const brut =
+    typeof settings === "object" && settings !== null
+      ? (settings as Record<string, unknown>).seuilDeVictoire
+      : undefined;
+  return typeof brut === "number" && Number.isInteger(brut) && brut >= 1
+    ? brut
+    : SEUIL_VICTOIRE_DEFAUT;
+}
+
 /**
- * Les trous que le site remplit seul. ⚠️ Un champ vide ne remplit RIEN : le trou reste et
+ * Les trous que le site remplit seul. ⚠️ Une donnée absente ne remplit RIEN : le trou reste et
  * la fenêtre le demande — jamais « 0 place » ni « gratuit » par défaut.
  */
-export function valeursDuTournoi(saisie: SaisieTournoi, baseDuSite: string): Record<string, string> {
-  const debut = parisWallClockFromInput(saisie.startsAt);
-  const fiche = saisie.slug.trim() ? `${baseDuSite}/tournois/${saisie.slug.trim()}` : "";
+export function valeursDuTournoi(t: DonneesTournoi, baseDuSite: string): Record<string, string> {
+  const fiche = `${baseDuSite}/tournois/${t.slug}`;
+  const jour = (p: { playedOn: string | null }) => jourLisible(p.playedOn ?? jourParis(t.startsAt));
+  const finale = t.phases.find((p) => p.kind === "finale");
+  const qualifs = t.phases.filter((p) => p.kind !== "finale");
+  const avecJours = new Set(t.phases.map((p) => p.playedOn)).size > 1;
+
+  const deroule =
+    t.phases.length > 0
+      ? t.phases
+          .map((p) => `- ${avecJours ? `${jour(p)} — ` : ""}${p.name} (${NATURE[p.kind]})`)
+          .join("\n")
+      : (t.formatText ?? "");
+
   return {
-    "nom du tournoi": saisie.name,
-    jeu: saisie.game,
-    date: debut ? formatLongDate(debut) : "",
-    heure: debut ? formatTime(debut) : "",
-    lieu: saisie.venueName,
-    tarif: saisie.priceText,
-    places: saisie.capacity,
-    lots: saisie.prizes,
+    "nom du tournoi": t.name,
+    jeu: t.game,
+    date: formatLongDate(t.startsAt),
+    heure: formatTime(t.startsAt),
+    "heure de fin": t.endsAt ? formatTime(t.endsAt) : "",
+    lieu: t.venueName ?? "",
+    tarif: t.priceText ?? "",
+    places: t.capacity?.toString() ?? "",
+    lots: t.prizes ?? "",
+    "format d'équipe":
+      t.teamSize > 1 ? `équipes de ${t.teamSize} joueurs (${t.teamSize}v${t.teamSize})` : "individuel",
+    "durée d'un match": t.matchDurationMinutes ? `environ ${t.matchDurationMinutes} minutes` : "",
+    "déroulé": deroule,
+    "jour des qualifications": qualifs[0] ? jour(qualifs[0]) : "",
+    "jour de la finale": finale ? jour(finale) : "",
+    "nombre de manches de qualification": qualifs.every((p) => estParTables(p.kind)) && qualifs.length > 0
+      ? String(qualifs.length)
+      : "",
+    "seuil du matchpoint": finale ? String(seuilDe(finale.settings)) : "",
     "adresse de la fiche": fiche,
-    "adresse du règlement": fiche && `${fiche}/reglement`,
+    "adresse du règlement": `${fiche}/reglement`,
   };
 }
 

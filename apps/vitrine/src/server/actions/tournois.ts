@@ -78,7 +78,6 @@ const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
   tournament_format_text_valide: "le déroulé annoncé",
   tournament_prizes_valide: "les lots",
   tournament_price_text_valide: "le tarif", // Story 9.6
-  tournament_rules_valide: "le règlement",
 
   tournament_match_duration_valide: "la durée d'un match",
   tournament_capacity_valide: "le nombre de places",
@@ -271,7 +270,6 @@ export async function enregistrerTournoi(
     venueName: formData.get("venueName"),
     formatText: formData.get("formatText"),
     prizes: formData.get("prizes"),
-    rules: formData.get("rules"),
     matchDurationMinutes: entierOptionnel(formData.get("matchDurationMinutes")),
     capacity: entierOptionnel(formData.get("capacity")),
     // `?? 1` : la colonne est `notNull`, un champ vidé retombe sur l'individuel. Une saisie

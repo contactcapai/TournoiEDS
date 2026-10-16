@@ -1,9 +1,9 @@
 import "server-only";
 
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 import { db } from "../client";
-import { rulesTemplate } from "../schema";
+import { rulesTemplate, tournamentPhase } from "../schema";
 
 /** Les modèles de règlement, texte compris : le formulaire du tournoi les remplit côté client. */
 export async function getModelesReglement() {
@@ -30,4 +30,18 @@ export async function getReglementPublic(slug: string) {
       and(eq(table.isPublished, true), eq(table.slug, slug), isNotNull(table.rules)),
   });
   return ligne?.rules ? { ...ligne, rules: ligne.rules } : undefined;
+}
+
+/** Le déroulé tel que le règlement le lit : nom, nature, jour et réglages de chaque phase. */
+export async function getPhasesPourReglement(tournoiId: string) {
+  return db
+    .select({
+      name: tournamentPhase.name,
+      kind: tournamentPhase.kind,
+      playedOn: tournamentPhase.playedOn,
+      settings: tournamentPhase.settings,
+    })
+    .from(tournamentPhase)
+    .where(eq(tournamentPhase.tournamentId, tournoiId))
+    .orderBy(asc(tournamentPhase.position));
 }

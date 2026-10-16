@@ -26,8 +26,9 @@ export default async function ModelesReglementPage() {
     <>
       <h1 className={styles.titre}>Modèles de règlement</h1>
       <p className={styles.chapo}>
-        Un modèle se choisit à la création d&rsquo;un tournoi : la fiche remplit ce
-        qu&rsquo;elle sait, une fenêtre demande le reste, et le texte obtenu est{" "}
+        Un modèle se choisit dans l&rsquo;onglet « Le règlement » d&rsquo;un tournoi : la
+        fiche et le déroulé remplissent ce qu&rsquo;ils savent, une fenêtre demande le reste, et
+        le texte obtenu est{" "}
         <strong>copié</strong> dans le tournoi. Modifier un modèle ne change donc pas le
         règlement des tournois déjà créés.
       </p>

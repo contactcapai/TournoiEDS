@@ -35,6 +35,11 @@ export const ENTREES_ESPACE_TOURNOI: readonly EntreeEspaceTournoi[] = [
     moment: "Poules, tableau, finale",
   },
   {
+    segment: "/reglement",
+    libelle: "Le règlement",
+    moment: "D'après la fiche et le déroulé",
+  },
+  {
     segment: "/engages",
     libelle: "Les engagés",
     moment: "Qui joue, et qui est là",

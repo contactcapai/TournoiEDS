@@ -2,10 +2,10 @@
 
 import { eq } from "drizzle-orm";
 
-import { modeleReglementSchema } from "../../lib/schemas/reglement";
+import { modeleReglementSchema, reglementTournoiSchema } from "../../lib/schemas/reglement";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
-import { rulesTemplate } from "../db/schema";
+import { rulesTemplate, tournament } from "../db/schema";
 import { erreursParChamp, identifiant, messageErreurBase, type ResultatAction } from "./_commun";
 
 const CHAMP_PAR_CONTRAINTE: Record<string, string> = {
@@ -81,5 +81,42 @@ export async function supprimerModeleReglement(id: string): Promise<ResultatActi
   } catch (erreur) {
     console.error("[supprimerModeleReglement] Échec de la suppression :", erreur);
     return { ok: false, error: messageErreurBase(erreur, CHAMP_PAR_CONTRAINTE) };
+  }
+}
+
+/** Enregistre le règlement d'un tournoi — seule colonne touchée, la fiche n'est pas réécrite. */
+export async function enregistrerReglementTournoi(
+  tournoiId: string,
+  formData: FormData,
+): Promise<ResultatAction<undefined>> {
+  await exigerRoleAction("admin_tournoi");
+
+  if (!identifiant.safeParse(tournoiId).success) {
+    return { ok: false, error: "Cet identifiant n'est pas valide. Rechargez la page." };
+  }
+
+  const analyse = reglementTournoiSchema.safeParse({ rules: formData.get("rules") });
+  if (!analyse.success) {
+    return {
+      ok: false,
+      error: analyse.error.issues[0]?.message ?? "Le règlement contient une erreur.",
+      fieldErrors: erreursParChamp(analyse.error.issues),
+    };
+  }
+
+  try {
+    const [ligne] = await db
+      .update(tournament)
+      .set({ rules: analyse.data.rules })
+      .where(eq(tournament.id, tournoiId))
+      .returning({ id: tournament.id });
+    if (!ligne) return { ok: false, error: "Ce tournoi n'existe plus : il a été supprimé entre-temps." };
+    return { ok: true, data: undefined };
+  } catch (erreur) {
+    console.error("[enregistrerReglementTournoi] Échec de l'enregistrement :", erreur);
+    return {
+      ok: false,
+      error: messageErreurBase(erreur, { tournament_rules_valide: "le règlement" }),
+    };
   }
 }

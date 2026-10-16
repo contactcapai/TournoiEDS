@@ -7,7 +7,6 @@ import { Button } from "@repo/ui";
 
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
 import { ChoixImage } from "@/components/admin/ChoixImage/ChoixImage";
-import { ChoixReglement } from "@/components/admin/ChoixReglement/ChoixReglement";
 import {
   formatLongDate,
   parisWallClockFromInput,
@@ -20,8 +19,6 @@ import {
   LIBELLES_ETAT_INSCRIPTION,
   LIBELLES_MODE_INSCRIPTION,
 } from "@/lib/libelles-tournoi";
-import { valeursDuTournoi } from "@/lib/reglement";
-import { baseDuSite } from "@/lib/site-url";
 import {
   DUREE_MATCH_MAX,
   FORMAT_MAX,
@@ -99,7 +96,6 @@ const ORDRE_CHAMPS = [
   "formatText",
   "matchDurationMinutes",
   "prizes",
-  "rules",
   "podiumFirst",
   "podiumSecond",
   "podiumThird",
@@ -141,7 +137,6 @@ export interface TournoiFormProps {
     podiumFirst: string | null;
     podiumSecond: string | null;
     podiumThird: string | null;
-    rules: string | null;
     photoId: string | null;
     /** Décide si l'identifiant d'adresse est encore modifiable (A3). */
     isPublished: boolean;
@@ -159,11 +154,9 @@ export interface TournoiFormProps {
    * `getImagesPourChoix`, et l'écart assumé d'A2 qu'elle referme.
    */
   photos: readonly ImageChoisissable[];
-  /** Les modèles de règlement proposés au pré-remplissage. */
-  modeles: readonly { id: string; name: string; body: string }[];
 }
 
-export function TournoiForm({ tournoi, evenements, photos, modeles }: TournoiFormProps) {
+export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   const router = useRouter();
   const creation = tournoi === undefined;
 
@@ -206,7 +199,6 @@ export function TournoiForm({ tournoi, evenements, photos, modeles }: TournoiFor
   const [podiumFirst, setPodiumFirst] = useState(tournoi?.podiumFirst ?? "");
   const [podiumSecond, setPodiumSecond] = useState(tournoi?.podiumSecond ?? "");
   const [podiumThird, setPodiumThird] = useState(tournoi?.podiumThird ?? "");
-  const [rules, setRules] = useState(tournoi?.rules ?? "");
 
   /**
    * 🔴 L'IDENTIFIANT SE DÉRIVE DU NOM **TANT QUE PERSONNE NE L'A TOUCHÉ** (A3).
@@ -678,27 +670,6 @@ export function TournoiForm({ tournoi, evenements, photos, modeles }: TournoiFor
           s&rsquo;affichera à la place. Écrivez donc ici ce que vous <em>promettez</em>, sans
           craindre de devoir le corriger pendant l&rsquo;événement.
         </p>
-      </fieldset>
-
-      {/* ══════════════════════════════════════════════════════════════════════════════════
-          LE RÈGLEMENT — un modèle pré-rempli d'après la fiche, puis retouché
-          ══════════════════════════════════════════════════════════════════════════════ */}
-      <fieldset className={propre.bloc}>
-        <legend className={propre.blocTitre}>Le règlement</legend>
-        <p className={propre.blocAide}>
-          Il paraît sur sa propre page, avec un lien depuis celle du tournoi. Modifier un modèle
-          plus tard ne change pas le règlement d&rsquo;un tournoi déjà créé.
-        </p>
-        <ChoixReglement
-          modeles={modeles}
-          valeur={rules}
-          onChange={setRules}
-          valeursAuto={valeursDuTournoi(
-            { name, game, slug, startsAt, venueName, priceText, capacity, prizes },
-            baseDuSite(),
-          )}
-          erreur={erreurs.rules}
-        />
       </fieldset>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════
