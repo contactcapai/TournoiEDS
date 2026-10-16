@@ -529,6 +529,15 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           <p className={styles.sousChamp} id="tournoi-registrationMode-aide" aria-live="polite">
             <span>{AIDES_MODE_INSCRIPTION[registrationMode]}</span>
           </p>
+          {/* Le site n'inscrit pas d'équipes (A9) : le dire AU CHOIX, pas sur la page publique. */}
+          {registrationMode === "interne" && Number(teamSize) > 1 ? (
+            <p className={styles.avertissement} role="note">
+              <strong>Le site n&rsquo;inscrit pas d&rsquo;équipes.</strong> En « Sur notre site »,
+              la page de ce tournoi par équipe dira seulement « inscription auprès de nous ». Pour
+              un bouton « S&rsquo;inscrire », choisissez « Par MATELY » et collez l&rsquo;adresse
+              de l&rsquo;événement.
+            </p>
+          ) : null}
           {erreurs.registrationMode ? (
             <p className={styles.erreur}>{erreurs.registrationMode}</p>
           ) : null}
@@ -667,10 +676,8 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
             du même format et personne ne saura laquelle croire. Le dire au point de saisie
             évite que quelqu'un tienne ce texte à jour à la main pendant un tournoi. */}
         <p className={styles.regle} role="note">
-          <strong>Ce texte est une annonce, pas le déroulé réel.</strong> Quand le site saura
-          faire tourner les tournois, c&rsquo;est le déroulé réel qui fera foi et
-          s&rsquo;affichera à la place. Écrivez donc ici ce que vous <em>promettez</em>, sans
-          craindre de devoir le corriger pendant l&rsquo;événement.
+          <strong>Ce texte est une annonce.</strong> Dès que le déroulé est composé (onglet
+          « Le déroulé »), c&rsquo;est lui qui s&rsquo;affiche à la place sur la page publique.
         </p>
       </fieldset>
 
@@ -758,9 +765,8 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
         /* ⚠️ DIT AVANT LE GESTE, PAS APRÈS : un tournoi naît en brouillon. Sans cette phrase,
            on croit avoir publié et on cherche pourquoi le site ne change pas. */
         <p className={styles.avertissement} role="note">
-          Le tournoi sera créé <strong>en brouillon</strong>. Vous pourrez le publier depuis
-          la liste — et tant que la page publique des tournois n&rsquo;est pas en ligne,
-          publier ne change encore rien pour les visiteurs.
+          Le tournoi sera créé <strong>en brouillon</strong>, invisible des visiteurs. Vous le
+          publierez depuis la liste des tournois.
         </p>
       ) : null}
     </form>

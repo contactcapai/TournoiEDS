@@ -88,7 +88,7 @@ function LigneMembre({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/membres/${membre.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/membres/${membre.id}`}>
           Modifier
         </Link>
         <MembreActions

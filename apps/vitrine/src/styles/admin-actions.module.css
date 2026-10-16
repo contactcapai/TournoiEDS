@@ -47,15 +47,17 @@
   color: var(--ink);
 }
 
+/* « Dépublier » / « Retirer du site » : un geste RARE, donc au second plan — il était l'aplat
+   doré de la ligne, plus visible que « Modifier » (retour UX du 2026-10-16). */
 .basculePubliee {
-  border: 1px solid var(--gold);
-  background: var(--gold);
-  color: var(--ink);
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  background: transparent;
+  color: var(--grey);
 }
 
 .basculePubliee:hover {
-  background: transparent;
-  color: var(--gold);
+  border-color: var(--light);
+  color: var(--light);
 }
 
 .erreur {

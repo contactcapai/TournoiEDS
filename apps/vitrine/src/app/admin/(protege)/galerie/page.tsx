@@ -131,7 +131,7 @@ function LignePhoto({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/galerie/${photo.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/galerie/${photo.id}`}>
           Modifier
         </Link>
         <PhotoActions

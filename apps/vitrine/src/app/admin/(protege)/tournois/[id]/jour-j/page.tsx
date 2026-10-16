@@ -540,7 +540,7 @@ export default async function JourJPage({
             <strong>Podium enregistré :</strong> 1ᵉʳ {fiche.podiumFirst}
             {fiche.podiumSecond ? `, 2ᵉ ${fiche.podiumSecond}` : ""}
             {fiche.podiumThird ? `, 3ᵉ ${fiche.podiumThird}` : ""}. Il paraît sur la fiche
-            publique du tournoi — la corriger se fait depuis « Modifier ».
+            publique du tournoi — la corriger se fait depuis l&rsquo;onglet « La fiche ».
           </p>
         ) : null}
 
