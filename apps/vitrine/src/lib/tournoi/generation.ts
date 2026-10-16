@@ -40,6 +40,8 @@ export const TAILLE_LOBBY_DEFAUT = 8;
 /** Bornes de saisie : en dessous de 2, une « table » n'oppose personne. */
 export const TAILLE_LOBBY_MIN = 2;
 export const TAILLE_LOBBY_MAX = 16;
+/** Borne de saisie du nombre de poules et des qualifiés par poule. */
+export const POULES_MAX = 8;
 
 /**
  * D'où vient l'occupant d'une place, **en coordonnées de base**.
@@ -64,6 +66,8 @@ export type RencontreAGenerer = {
   position: number;
   round: number;
   bracket: MatchBracket;
+  /** La poule (1 = A, 2 = B…) d'une phase de poules découpée ; `null` partout ailleurs. */
+  pool: number | null;
   places: PlaceAGenerer[];
 };
 
@@ -76,7 +80,22 @@ export type ReglagesGeneration = {
   tailleDeLobby?: number;
   /** Comment les rangs entrent dans le tableau (`bracket` seulement). */
   ordre?: OrdreDePlacement;
+  /** `poule` seulement : en combien de poules répartir les participants. 1 = une seule. */
+  poules?: number;
 };
+
+/**
+ * Répartition en SERPENTIN des têtes de série 1..N en `poules` groupes — A, B, B, A, A, B… —
+ * pour que chaque poule reçoive un niveau comparable quand l'ordre est celui d'un classement.
+ */
+export function repartirEnPoules(nombre: number, poules: number): number[][] {
+  const groupes: number[][] = Array.from({ length: poules }, () => []);
+  for (let i = 0; i < nombre; i += 1) {
+    const colonne = i % poules;
+    groupes[Math.floor(i / poules) % 2 === 0 ? colonne : poules - 1 - colonne].push(i + 1);
+  }
+  return groupes;
+}
 
 /** Clef d'une rencontre dans les coordonnées de `bracket.ts`. */
 const clef = (bracket: MatchBracket, round: number, rang: number) => `${bracket}|${round}|${rang}`;
@@ -163,11 +182,16 @@ export function structureDePhase(
         position: index + 1,
         round: 1,
         bracket: "principal" as MatchBracket,
+        pool: null,
         places: table.map((rang, rangDansLaTable) => ({
           position: rangDansLaTable + 1,
           source: { de: "tete_de_serie" as const, rang },
         })),
       }));
+  }
+
+  if (kind === "poule" && (reglages.poules ?? 1) > 1) {
+    return poulesSeparees(nombre, reglages.poules ?? 1, reglages.allerRetour ?? false);
   }
 
   if (kind === "poule") {
@@ -189,11 +213,53 @@ export function structureDePhase(
     position: index + 1,
     round: rencontre.round,
     bracket: rencontre.bracket,
+    pool: null,
     places: rencontre.sources.map((source, rangDeLaPlace) => ({
       position: rangDeLaPlace + 1,
       source: resoudre(source, etat.parClef, simple),
     })),
   }));
+}
+
+/**
+ * Plusieurs poules : un « chacun rencontre chacun » par poule, les tours ENTRELACÉS (tour 1 de
+ * A, tour 1 de B, tour 2 de A…) pour que les poules jouent en parallèle. Une poule ne cite que
+ * des têtes de série — aucune source « vainqueur » à résoudre.
+ */
+function poulesSeparees(nombre: number, poules: number, allerRetour: boolean): RencontreAGenerer[] {
+  const parPoule = repartirEnPoules(nombre, poules).map((graines) =>
+    roundRobin(graines.length, allerRetour).map((tour) => ({
+      round: tour.round,
+      rencontres: tour.rencontres.map((rencontre) =>
+        rencontre.sources.map((source) => {
+          if (source.de !== "tete_de_serie") {
+            throw new Error("Génération impossible : une poule ne cite que des têtes de série.");
+          }
+          return source.place === null ? null : graines[source.place - 1];
+        }),
+      ),
+    })),
+  );
+
+  const resultat: RencontreAGenerer[] = [];
+  const toursMax = Math.max(0, ...parPoule.map((tours) => tours.length));
+  for (let r = 0; r < toursMax; r += 1) {
+    parPoule.forEach((tours, indexPoule) => {
+      for (const rangs of tours[r]?.rencontres ?? []) {
+        resultat.push({
+          position: resultat.length + 1,
+          round: tours[r].round,
+          bracket: "principal",
+          pool: indexPoule + 1,
+          places: rangs.map((rang, i) => ({
+            position: i + 1,
+            source: { de: "tete_de_serie" as const, rang },
+          })),
+        });
+      }
+    });
+  }
+  return resultat;
 }
 
 /**

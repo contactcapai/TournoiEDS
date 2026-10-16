@@ -10,6 +10,7 @@ import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-paris";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
+import { lettreDePoule } from "@/lib/tournoi/parcours";
 import type { EtatDuJour } from "@/lib/tournoi/en-cours";
 import {
   etatInscriptionEnLigne,
@@ -1151,7 +1152,12 @@ function PhaseDeRencontres({ phase }: { phase: PhaseAvecRencontres }) {
            tour du tout — son groupe unique ne se nomme donc pas non plus. */
         const titre = parTables
           ? null
-          : [LIBELLE_TABLEAU[groupe.bracket], `Tour ${groupe.round}`].filter(Boolean).join(" — ");
+          : [
+              groupe.pool === null ? LIBELLE_TABLEAU[groupe.bracket] : `Poule ${lettreDePoule(groupe.pool)}`,
+              `Tour ${groupe.round}`,
+            ]
+              .filter(Boolean)
+              .join(" — ");
 
         return (
           <div className={styles.groupe} key={groupe.clef}>

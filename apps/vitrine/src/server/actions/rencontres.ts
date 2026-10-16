@@ -4,6 +4,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+  POULES_MAX,
   rangsPlaces,
   structureDePhase,
   TAILLE_LOBBY_DEFAUT,
@@ -17,7 +18,7 @@ import {
   saisieAdmissible,
   type PlaceJouee,
 } from "../../lib/tournoi/progression";
-import { podiumDepuis } from "../../lib/tournoi/parcours";
+import { podiumDepuis, qualifiesDesPoules, rangsParPoule } from "../../lib/tournoi/parcours";
 import { participantsDepuisLeClassement } from "../../lib/tournoi/participants";
 import {
   SEUIL_VICTOIRE_DEFAUT,
@@ -83,7 +84,21 @@ const reglagesSaisis = z.object({
    * `presents` : ordre de saisie, pour une première manche. `classement` : ordre du classement,
    * pour une manche suisse ou une finale. `generation.ts` ne tranche pas cet ordre exprès.
    */
-  depuis: z.enum(["presents", "classement"]).default("presents"),
+  depuis: z.enum(["presents", "classement", "poules"]).default("presents"),
+  /** `poule` seulement : en combien de poules répartir les présents. */
+  poules: z.coerce
+    .number()
+    .int()
+    .min(1, "Il faut au moins une poule.")
+    .max(POULES_MAX, `Pas plus de ${POULES_MAX} poules.`)
+    .default(1),
+  /** Tableau tiré des poules : combien de premiers de chaque poule y entrent. */
+  qualifiesParPoule: z.coerce
+    .number()
+    .int()
+    .min(1, "Au moins un qualifié par poule.")
+    .max(POULES_MAX, `Pas plus de ${POULES_MAX} qualifiés par poule.`)
+    .default(2),
   /**
    * `finale` seulement : combien de points il faut avoir AVANT de pouvoir l'emporter d'un top 1.
    *
@@ -329,6 +344,46 @@ export async function prerremplirPodium(
  * génération est le seul endroit où « une table de 8 » et « double élimination » ont un sens :
  * on annonce un tournoi des semaines avant, on choisit son format quand on sait qui est là.
  */
+/**
+ * Les qualifiés d'un tableau tiré de la phase de poules qui le PRÉCÈDE : les premiers présents
+ * de chaque poule, croisés A1, B1, A2, B2… Refuse tant que les poules ne sont pas terminées —
+ * qualifier sur un classement provisoire ferait entrer les mauvaises équipes.
+ */
+async function qualifiesDeLaPouleAvant(
+  phase: { id: string; tournoiId: string; position: number },
+  reglages: { qualifiesParPoule: number },
+  presents: readonly { id: string; nom: string }[],
+): Promise<
+  | { ok: true; participants: { id: string; nom: string }[] }
+  | { ok: false; error: string }
+> {
+  const pouleAvant = (await getPhasesForTournament(phase.tournoiId))
+    .filter((p) => p.position < phase.position && p.kind === "poule")
+    .at(-1);
+  if (!pouleAvant) {
+    return { ok: false, error: "Aucune phase de poules ne précède ce tableau dans le déroulé." };
+  }
+
+  const rencontres = await getRencontresDePhase(pouleAvant.id);
+  if (rencontres.length === 0 || !rencontres.every((r) => r.issue.complete)) {
+    return {
+      ok: false,
+      error: `Les poules de « ${pouleAvant.name} » ne sont pas terminées : saisissez d'abord tous leurs résultats.`,
+    };
+  }
+
+  const nomParEngage = new Map(presents.map((p) => [p.id, p.nom]));
+  const ids = qualifiesDesPoules(
+    rangsParPoule(rencontres, nomParEngage),
+    reglages.qualifiesParPoule,
+    new Set(presents.map((p) => p.id)),
+  );
+  if (ids.length < 2) {
+    return { ok: false, error: "Moins de deux qualifiés présents : pas de tableau possible." };
+  }
+  return { ok: true, participants: ids.map((id) => ({ id, nom: nomParEngage.get(id) ?? "—" })) };
+}
+
 export async function genererPhase(
   phaseId: string,
   donnees: FormData,
@@ -357,6 +412,8 @@ export async function genererPhase(
     allerRetour: donnees.get("allerRetour") ?? false,
     depuis: donnees.get("depuis") ?? undefined,
     seuilDeVictoire: donnees.get("seuilDeVictoire") ?? undefined,
+    poules: donnees.get("poules") ?? undefined,
+    qualifiesParPoule: donnees.get("qualifiesParPoule") ?? undefined,
   });
   if (!analyse.success) {
     return { ok: false, error: analyse.error.issues[0]?.message ?? "Vérifiez les réglages." };
@@ -399,7 +456,13 @@ export async function genererPhase(
   // du moment où l'on clique — c'est exactement le piège que `date-paris.ts` documente.
   const presents = await getPresentsDuTournoi(phase.tournoiId, phase.playedOn);
 
-  const participants = depuisLeClassement
+  const depuisLesPoules = phase.kind === "bracket" && reglages.depuis === "poules";
+  const qualifies = depuisLesPoules ? await qualifiesDeLaPouleAvant(phase, reglages, presents) : null;
+  if (qualifies !== null && !qualifies.ok) return { ok: false, error: qualifies.error };
+
+  const participants = qualifies !== null
+    ? qualifies.participants
+    : depuisLeClassement
     ? participantsDepuisLeClassement(
         /**
          * 🔴 LE CLASSEMENT DE **QUALIFICATION**, ET JAMAIS CELUI DE LA FINALE (10.14) : c'est
@@ -424,6 +487,15 @@ export async function genererPhase(
       ok: false,
       error:
         "Aucun engagé n'est pointé « présent ». Pointez-les d'abord depuis l'écran des engagés.",
+    };
+  }
+
+  if (phase.kind === "poule" && participants.length < reglages.poules * 2) {
+    return {
+      ok: false,
+      error:
+        `${participants.length} présent(s) pour ${reglages.poules} poules : chaque poule doit ` +
+        "compter au moins 2 participants. Réduisez le nombre de poules.",
     };
   }
 
@@ -480,6 +552,7 @@ export async function genererPhase(
             position: rencontre.position,
             round: rencontre.round,
             bracket: rencontre.bracket,
+            pool: rencontre.pool,
           })
           .returning({ id: tournamentMatch.id });
 
@@ -511,6 +584,8 @@ export async function genererPhase(
             doubleElimination: reglages.doubleElimination,
             allerRetour: reglages.allerRetour,
             depuis: reglages.depuis,
+            ...(phase.kind === "poule" ? { poules: reglages.poules } : {}),
+            ...(depuisLesPoules ? { qualifiesParPoule: reglages.qualifiesParPoule } : {}),
             ...(gouverneLeSeuil ? { seuilDeVictoire: reglages.seuilDeVictoire } : {}),
           },
           state: "en_cours",

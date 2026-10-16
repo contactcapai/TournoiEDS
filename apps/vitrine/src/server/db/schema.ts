@@ -2361,6 +2361,8 @@ export const tournamentMatch = pgTable(
      * ⚠️ `notNull()` avec un défaut, jamais nullable : voir `MATCH_BRACKETS`.
      */
     bracket: tournamentMatchBracket().notNull().default("principal"),
+    /** La poule (1 = A, 2 = B…) d'une phase de poules découpée ; `null` hors poules séparées. */
+    pool: integer(),
     state: tournamentMatchState().notNull().default("a_jouer"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -2370,6 +2372,7 @@ export const tournamentMatch = pgTable(
     // NULL-SAFE : `round >= 1` seul vaudrait NULL — donc PASSERAIT — sur la colonne nulle,
     // qui est le cas nominal d'une phase sans tours. Même défaut qu'`event_has_venue`.
     check("tournament_match_round_positive", sql`${table.round} is null or ${table.round} >= 1`),
+    check("tournament_match_pool_positive", sql`${table.pool} is null or ${table.pool} >= 1`),
     uniqueIndex("tournament_match_ordre_unique").on(table.phaseId, table.position),
   ],
 );

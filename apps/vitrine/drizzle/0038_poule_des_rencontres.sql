@@ -1,0 +1,2 @@
+ALTER TABLE "tournament_match" ADD COLUMN "pool" integer;--> statement-breakpoint
+ALTER TABLE "tournament_match" ADD CONSTRAINT "tournament_match_pool_positive" CHECK ("tournament_match"."pool" is null or "tournament_match"."pool" >= 1);

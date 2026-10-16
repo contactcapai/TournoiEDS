@@ -35,6 +35,8 @@ export type LigneDeRencontre = {
   readonly matchPosition: number;
   readonly round: number | null;
   readonly bracket: MatchBracket;
+  /** La poule d'une phase découpée ; `null` hors poules séparées. */
+  readonly pool: number | null;
   /** `null` quand la rencontre n'a aucune place (cas dégénéré) — la jointure est `left`. */
   readonly slotPosition: number | null;
   readonly nom: string | null;
@@ -63,6 +65,7 @@ export type RencontrePublique = {
 export type GroupeDeRencontres = {
   clef: string;
   bracket: MatchBracket;
+  pool: number | null;
   round: number;
   rencontres: RencontrePublique[];
 };
@@ -118,10 +121,10 @@ export function regrouperRencontresPubliques(
     }
 
     const round = ligne.round ?? 1;
-    const clefGroupe = `${ligne.phaseId}|${ligne.bracket}|${round}`;
+    const clefGroupe = `${ligne.phaseId}|${ligne.bracket}|${ligne.pool ?? 0}|${round}`;
     let groupe = groupes.get(clefGroupe);
     if (!groupe) {
-      groupe = { clef: clefGroupe, bracket: ligne.bracket, round, rencontres: [] };
+      groupe = { clef: clefGroupe, bracket: ligne.bracket, pool: ligne.pool, round, rencontres: [] };
       groupes.set(clefGroupe, groupe);
       phase.groupes.push(groupe);
     }

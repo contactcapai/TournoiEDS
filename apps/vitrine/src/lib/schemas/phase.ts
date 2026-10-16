@@ -89,7 +89,8 @@ export const LIBELLE_NATURE: Record<(typeof PHASE_KINDS)[number], string> = {
  * personne qui compose un tournoi pense « chacun rencontre chacun », pas « round-robin ».
  */
 export const AIDE_NATURE: Record<(typeof PHASE_KINDS)[number], string> = {
-  poule: "Chacun rencontre chacun. On classe aux victoires.",
+  poule:
+    "Chacun rencontre chacun, dans une poule ou plusieurs (choisi au jour J). On classe aux victoires.",
   bracket: "On s'affronte deux à deux, le perdant sort. Simple ou double élimination.",
   lobbies: "Plusieurs joueurs par table, classés à chaque manche. Un premier tour.",
   suisse:
