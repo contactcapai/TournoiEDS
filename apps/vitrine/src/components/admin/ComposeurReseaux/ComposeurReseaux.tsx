@@ -292,7 +292,9 @@ export function ComposeurReseaux({
             ) : null}
           </fieldset>
 
-          {RESEAUX.map((reseau) => {
+          {/* Un texte par réseau COCHÉ seulement (retour UX du 2026-10-16) : les zones des
+              réseaux non raccordés ou décochés ne partiraient nulle part. */}
+          {RESEAUX.filter((reseau) => reseau.cable && cibles.includes(reseau.cle)).map((reseau) => {
             const texte = messages[reseau.cle];
             const aide = AIDE_PAR_RESEAU[reseau.cle];
             const trop = reseau.cle === "x" && texte.length > X_MAX;
@@ -320,6 +322,16 @@ export function ComposeurReseaux({
               </div>
             );
           })}
+
+          {cibles.length > 0 ? (
+            <p className={form.regle} role="note">
+              <strong>Partira sur :</strong>{" "}
+              {RESEAUX.filter((reseau) => cibles.includes(reseau.cle))
+                .map((reseau) => reseau.libelle)
+                .join(", ")}{" "}
+              — {photoId ? "avec l'image choisie" : "sans image"}.
+            </p>
+          ) : null}
 
           <div className={form.actions}>
             <Button

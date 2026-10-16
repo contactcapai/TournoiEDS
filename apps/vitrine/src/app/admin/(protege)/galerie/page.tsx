@@ -131,7 +131,7 @@ function LignePhoto({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/galerie/${photo.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/galerie/${photo.id}`}>
           Modifier
         </Link>
         <PhotoActions
@@ -148,7 +148,19 @@ function LignePhoto({
   );
 }
 
-export default async function AdminGaleriePage() {
+const FILTRES = {
+  tous: "Toutes les images",
+  asso: "Vie de l'asso (galerie)",
+  tournois: "Visuels de tournoi",
+  evenements: "Visuels d'événement",
+  inutilisees: "Inutilisées",
+} as const;
+
+export default async function AdminGaleriePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; type?: string }>;
+}) {
   await exigerRolePage("admin_site");
 
   // ⚠️ DEUX LECTURES, EN PARALLÈLE : elles sont indépendantes. `getEmploisDesImages` ne dépend
@@ -180,6 +192,31 @@ export default async function AdminGaleriePage() {
     galerie.filter((photo) => photo.isPublished).slice(0, HOME_PHOTO_COUNT).map((p) => p.id),
   );
   const publiees = galerie.filter((photo) => photo.isPublished).length;
+
+  // Recherche et filtre portés par l'URL (retour UX du 2026-10-16), « Sert à » compris.
+  // ⚠️ `ordre` et les positions restent ceux de la galerie ENTIÈRE : monter une photo d'une
+  // liste filtrée la déplace dans le vrai classement, pas dans l'extrait affiché.
+  const { q, type } = await searchParams;
+  const recherche = (q ?? "").trim().toLocaleLowerCase("fr");
+  const filtre: keyof typeof FILTRES =
+    type && type in FILTRES ? (type as keyof typeof FILTRES) : "tous";
+  const retenue = (photo: AdminPhoto) => {
+    const usages = emplois.get(photo.id) ?? [];
+    const parType =
+      filtre === "tous" ||
+      (filtre === "asso" && photo.dansLaGalerie) ||
+      (filtre === "tournois" && usages.some((u) => u.startsWith("Visuel du tournoi"))) ||
+      (filtre === "evenements" && usages.some((u) => u.startsWith("Visuel de «"))) ||
+      (filtre === "inutilisees" && !photo.dansLaGalerie && usages.length === 0);
+    const texte = [photo.alt, photo.caption, photo.filename, photo.event?.title, ...usages]
+      .filter(Boolean)
+      .join(" ")
+      .toLocaleLowerCase("fr");
+    return parType && (recherche === "" || texte.includes(recherche));
+  };
+  const filtrageActif = filtre !== "tous" || recherche !== "";
+  const galerieAffichee = galerie.filter(retenue);
+  const visuelsAffiches = visuels.filter(retenue);
 
   return (
     <>
@@ -223,19 +260,53 @@ export default async function AdminGaleriePage() {
         aperçoive : chaque envoi crée un fichier distinct. En cas de doublon, supprimez-en un.
       </p>
 
+      <form className={styles.filtres} method="get" role="search">
+        <label className={styles.filtreLabel} htmlFor="medias-q">
+          Rechercher
+        </label>
+        <input
+          id="medias-q"
+          className={styles.recherche}
+          name="q"
+          type="search"
+          defaultValue={q ?? ""}
+          placeholder="Description, tournoi, événement…"
+        />
+        <select
+          className={styles.recherche}
+          name="type"
+          defaultValue={filtre}
+          aria-label="Type d'image"
+        >
+          {Object.entries(FILTRES).map(([valeur, libelle]) => (
+            <option key={valeur} value={valeur}>
+              {libelle}
+            </option>
+          ))}
+        </select>
+        <button className={styles.filtrer} type="submit">
+          Filtrer
+        </button>
+        {filtrageActif ? (
+          <Link className={styles.lien} href="/admin/galerie">
+            Tout afficher
+          </Link>
+        ) : null}
+      </form>
+
       <section className={styles.section} aria-labelledby="admin-galerie">
         <h2 className={styles.sectionTitre} id="admin-galerie">
           Galerie de l&rsquo;accueil
         </h2>
 
-        {galerie.length > 0 ? (
+        {galerieAffichee.length > 0 ? (
           <ul className={styles.liste}>
-            {galerie.map((photo, position) => (
+            {galerieAffichee.map((photo) => (
               <LignePhoto
                 key={photo.id}
                 photo={photo}
                 ordre={ordre}
-                position={position}
+                position={ordre.indexOf(photo.id)}
                 surAccueil={surAccueil.has(photo.id)}
                 emplois={emplois.get(photo.id)}
               />
@@ -245,11 +316,15 @@ export default async function AdminGaleriePage() {
           /* ⚠️ Un état vide qui dirait « aucune photo » se lirait comme une panne. Celui-ci
              dit quoi faire — même doctrine que les états vides de la home (3.2), d'/agenda
              (3.3), du tableau de bord (6.1) et de l'agenda d'admin (6.3). */
+          filtrageActif ? (
+          <p className={styles.vide}>Aucune photo de la galerie ne correspond à ce filtre.</p>
+          ) : (
           <p className={styles.vide}>
             Aucune photo dans la galerie pour l&rsquo;instant. « Téléverser des photos » ouvre
             l&rsquo;écran d&rsquo;envoi — vous pourrez les décrire, les ordonner et voir le
             rendu avant de publier quoi que ce soit.
           </p>
+          )
         )}
       </section>
 
@@ -259,7 +334,7 @@ export default async function AdminGaleriePage() {
           premier import depuis un formulaire, c'est-à-dire au moment où elle veut dire
           quelque chose. ⚠️ Même doctrine que la section « Résultats » de la fiche publique
           (14.2) : on ne rend pas une section pour dire qu'elle est vide. */}
-      {visuels.length > 0 ? (
+      {visuelsAffiches.length > 0 ? (
         <section className={styles.section} aria-labelledby="admin-visuels">
           <h2 className={styles.sectionTitre} id="admin-visuels">
             Visuels
@@ -273,7 +348,7 @@ export default async function AdminGaleriePage() {
           </p>
 
           <ul className={styles.liste}>
-            {visuels.map((photo) => (
+            {visuelsAffiches.map((photo) => (
               <LignePhoto
                 key={photo.id}
                 photo={photo}

@@ -47,6 +47,27 @@
   color: var(--gold);
 }
 
+/* L'action PRINCIPALE d'une ligne (« Modifier », « Gérer le tournoi ») : un bouton, pas un lien
+   discret — c'est le geste le plus fréquent, et la publication passe au second plan
+   (retour UX du 2026-10-16). */
+.lienPrincipal {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  background: var(--gold);
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.lienPrincipal:hover {
+  background: var(--cream);
+}
+
 .section {
   margin-top: 48px;
 }
@@ -204,4 +225,48 @@
 /* La précision qui empêche de lire ce nombre comme une liste d'inscrits. */
 .annoncesAide {
   color: var(--grey);
+}
+
+/* Recherche et filtre d'une liste (tournois, médiathèque) — formulaire GET, sans JavaScript. */
+.filtres {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.filtreLabel {
+  font-size: 14px;
+  color: var(--light);
+}
+
+.recherche {
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 12px;
+  border: 1px solid rgba(146, 147, 173, 0.5); /* --grey à 50 %, filet sans token */
+  border-radius: var(--radius-button);
+  background: var(--navy-deep);
+  color: var(--light);
+  font-family: var(--font-body);
+  font-size: 15px;
+}
+
+.filtrer {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.filtrer:hover {
+  background: var(--gold);
+  color: var(--ink);
 }

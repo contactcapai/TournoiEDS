@@ -64,7 +64,7 @@ function LigneAtelier({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/ateliers/${atelier.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/ateliers/${atelier.id}`}>
           Modifier
         </Link>
         <AtelierActions

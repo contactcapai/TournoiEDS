@@ -107,7 +107,7 @@ function LigneEvenement({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/agenda/${evenement.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/agenda/${evenement.id}`}>
           Modifier
         </Link>
         <Link className={styles.lien} href={`/admin/agenda/${evenement.id}/apercu`}>

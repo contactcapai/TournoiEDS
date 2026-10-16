@@ -4,8 +4,16 @@
 
 .bloc {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 18px;
+}
+
+/* Le compte : poussé EN BAS de la colonne en bureau (le `margin-top: auto` de `.compte`). */
+.pied {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════════════
@@ -127,9 +135,21 @@
     cursor: pointer;
   }
 
-  /* Replié par défaut. ⚠️ Le `<noscript>` du composant rouvre ce panneau quand JavaScript
+  /* Le bloc s'efface : le bouton se range sur la ligne du logo, le menu et le compte passent
+     dessous, en pleine largeur (retour UX du 2026-10-16 : un tiers d'écran avant le contenu). */
+  .bloc {
+    display: contents;
+  }
+
+  .nav,
+  .pied {
+    flex-basis: 100%;
+  }
+
+  /* Replié par défaut. ⚠️ Le `<noscript>` du composant rouvre ces panneaux quand JavaScript
      est absent : l'état vit dans React, donc sans hydratation le menu serait INJOIGNABLE. */
-  .nav[data-deplie="non"] {
+  .nav[data-deplie="non"],
+  .pied[data-deplie="non"] {
     display: none;
   }
 

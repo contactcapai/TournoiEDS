@@ -82,6 +82,8 @@ export interface JourJProps {
   aUnClassement: boolean;
   /** Vrai dès qu'un résultat est saisi dans CETTE phase : plus de régénération. */
   aDesResultats: boolean;
+  /** L'écran des engagés, où l'on pointe. */
+  lienPointage: string;
 }
 
 export function JourJ({
@@ -93,6 +95,7 @@ export function JourJ({
   ecarts,
   aUnClassement,
   aDesResultats,
+  lienPointage,
 }: JourJProps) {
   const router = useRouter();
   const [enTransition, demarrer] = useTransition();
@@ -142,26 +145,35 @@ export function JourJ({
     });
   };
 
+  // ── Personne n'est pointé : la seule action utile est le pointage ────────────────────
+  // (retour UX du 2026-10-16) — proposer de générer avec zéro présent menait à une erreur.
+  if (rencontres.length === 0 && presents === 0) {
+    return (
+      <div className={styles.bloc}>
+        <p className={styles.vide}>
+          <strong>Aucun engagé n&rsquo;est pointé « présent ».</strong> Les rencontres se
+          génèrent à partir des présents : commencez par le pointage.
+        </p>
+        <div className={formulaire.actions}>
+          <Button variant="gold" href={lienPointage}>
+            Faire le pointage
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Rien de généré : le formulaire de génération, et lui seul ────────────────────────
   if (rencontres.length === 0) {
     return (
       <div className={styles.bloc}>
         <p className={styles.vide}>
           Cette phase n&rsquo;a pas encore de rencontres.{" "}
-          {presents === 0 ? (
-            <>
-              Et <strong>aucun engagé n&rsquo;est pointé « présent »</strong> : commencez par le
-              pointage, sinon il n&rsquo;y a personne à faire jouer.
-            </>
-          ) : (
-            <>
-              <strong>
-                {presents} engagé{presents > 1 ? "s" : ""} pointé{presents > 1 ? "s" : ""} présent
-                {presents > 1 ? "s" : ""}
-              </strong>{" "}
-              — c&rsquo;est l&rsquo;effectif qui sera utilisé.
-            </>
-          )}
+          <strong>
+            {presents} engagé{presents > 1 ? "s" : ""} pointé{presents > 1 ? "s" : ""} présent
+            {presents > 1 ? "s" : ""}
+          </strong>{" "}
+          — c&rsquo;est l&rsquo;effectif qui sera utilisé.
         </p>
 
         <form action={generer} className={formulaire.form}>

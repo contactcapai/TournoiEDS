@@ -110,7 +110,7 @@ function LignePartenaire({
       </div>
 
       <div className={styles.ligneActions}>
-        <Link className={styles.lien} href={`/admin/partenaires/${partenaire.id}`}>
+        <Link className={styles.lienPrincipal} href={`/admin/partenaires/${partenaire.id}`}>
           Modifier
         </Link>
         <PartenaireActions

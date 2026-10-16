@@ -861,7 +861,7 @@ export async function getTournoisQuiSeJouent(
   // du même tournoi, le même jour. Une règle, deux appelants, un test (leçon `estParTables`).
   // ⚠️ `min()` est typé nullable — le `GROUP BY` ne rend pourtant que des groupes non vides.
   // On traite la branche plutôt que d'affirmer avec un `!` non vérifié (patron `photos.ts`).
-  return fusionnerCeQuiSeJoue(
+  const ceQuiSeJoue = fusionnerCeQuiSeJoue(
     parJournee.flatMap((ligne) =>
       ligne.journee === null ? [] : [{ id: ligne.id, nom: ligne.nom, journee: ligne.journee }],
     ),
@@ -871,6 +871,22 @@ export async function getTournoisQuiSeJouent(
       jour: jourParis(ligne.startsAt),
     })),
   ).slice(0, limite);
+
+  // Un tournoi qui se joue demain mais reste en BROUILLON est invisible au public : l'alerte du
+  // tableau de bord doit le dire (retour UX du 2026-10-16).
+  const publies =
+    ceQuiSeJoue.length === 0
+      ? new Set<string>()
+      : new Set(
+          (
+            await db.query.tournament.findMany({
+              columns: { id: true },
+              where: (table, { and: et, eq: egal, inArray: parmi }) =>
+                et(parmi(table.id, ceQuiSeJoue.map((t) => t.id)), egal(table.isPublished, true)),
+            })
+          ).map((t) => t.id),
+        );
+  return ceQuiSeJoue.map((tournoi) => ({ ...tournoi, publie: publies.has(tournoi.id) }));
 }
 
 /** Un tournoi qui se joue dans la fenêtre, tel que le tableau de bord l'annonce. */

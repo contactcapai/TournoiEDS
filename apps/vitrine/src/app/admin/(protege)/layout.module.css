@@ -196,6 +196,11 @@
 
   .rail {
     flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     position: static;
     max-height: none;
     width: 100%;

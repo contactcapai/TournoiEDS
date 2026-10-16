@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   LIBELLE_FAMILLE,
@@ -36,7 +36,14 @@ import styles from "./MenuAdmin.module.css";
  */
 const TABLEAU_DE_BORD = "/admin";
 
-export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
+export function MenuAdmin({
+  sections,
+  pied,
+}: {
+  sections: readonly SectionAdmin[];
+  /** Le bloc du compte, rendu par le layout : en bas de colonne en bureau, dans le menu déplié sur téléphone. */
+  pied: ReactNode;
+}) {
   const chemin = usePathname();
   const [deplie, setDeplie] = useState(false);
 
@@ -80,7 +87,7 @@ export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
           inerte. La règle ci-dessous le rouvre — on préfère un menu trop long à un menu
           inatteignable. */}
       <noscript>
-        <style>{`#menu-admin { display: block !important; }`}</style>
+        <style>{`#menu-admin, #pied-admin { display: block !important; }`}</style>
       </noscript>
 
       <nav
@@ -170,6 +177,9 @@ export function MenuAdmin({ sections }: { sections: readonly SectionAdmin[] }) {
           </div>
         ))}
       </nav>
+      <div id="pied-admin" className={styles.pied} data-deplie={deplie ? "oui" : "non"}>
+        {pied}
+      </div>
     </div>
   );
 }

@@ -114,41 +114,48 @@ export default async function AdminLayout({
             `MenuAdmin` ne reçoit que des sections déjà triées.
             ⚠️ Le <nav> disparaît de lui-même quand il n'y a rien à montrer (compte sans
             rôle) — c'est alors le tableau de bord qui explique la situation. */}
-        <MenuAdmin sections={sections} />
+        {/* Le compte est passé AU MENU (retour UX du 2026-10-16) : sur téléphone, il occupait un
+            tiers du premier écran. En bureau il reste en bas de la colonne ; sur téléphone il
+            vit dans le menu déplié — la déconnexion reste à un clic, jamais retirée. */}
 
         {/* 🔴 EN BAS DE COLONNE, ET SÉPARÉ DU MENU PAR UN `margin-top: auto`. Ce n'est pas
             une section : c'est qui vous êtes et comment partir. Le ranger parmi les liens de
             navigation ferait de « Se déconnecter » une destination de plus. */}
-        <div className={styles.compte}>
-          <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>
-          {/* 🔴 « MON PROFIL » EST ICI, AVEC LE COMPTE, ET PAS DANS LE MENU DES SECTIONS
-              (Story 12.1). Ce n'est pas une section du back-office : c'est la même page que
-              voit un participant, et `_sections.ts` la rangerait sous un rôle — or elle est
-              ouverte à TOUT compte connecté. C'est le raisonnement exact tenu pour `/admin`
-              lui-même en PR #81, et il vaut ici pour la raison inverse : elle n'est même pas
-              sous `/admin`.
-              ⚠️ Sans cette entrée, un administrateur n'avait AUCUN chemin vers son profil :
-              les deux portes posées par la 12.1 (l'état vide du tableau de bord et la page
-              de refus) ne s'affichent QUE pour un compte SANS rôle. */}
-          <Link className={styles.lienProfil} href="/profil">
-            Mon profil
-          </Link>
-          {/* Server Action en ligne : aucun composant client n'est nécessaire pour un
-              bouton qui poste un formulaire. RSC par défaut (project-context.md §5).
-              ⚠️ PAS de `exigerRoleAction()` ici, et c'est délibéré : se déconnecter ne doit
-              jamais dépendre du droit d'entrer. Un compte dont on a retiré les rôles doit
-              pouvoir fermer sa session, pas s'y retrouver coincé. */}
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: CHEMIN_CONNEXION });
-            }}
-          >
-            <button className={styles.deconnexion} type="submit">
-              Se déconnecter
-            </button>
-          </form>
-        </div>
+        <MenuAdmin
+          sections={sections}
+          pied={
+            <div className={styles.compte}>
+              <span className={styles.nom}>{compte.nom ?? "Mon compte"}</span>
+              {/* 🔴 « MON PROFIL » EST ICI, AVEC LE COMPTE, ET PAS DANS LE MENU DES SECTIONS
+                  (Story 12.1). Ce n'est pas une section du back-office : c'est la même page que
+                  voit un participant, et `_sections.ts` la rangerait sous un rôle — or elle est
+                  ouverte à TOUT compte connecté. C'est le raisonnement exact tenu pour `/admin`
+                  lui-même en PR #81, et il vaut ici pour la raison inverse : elle n'est même pas
+                  sous `/admin`.
+                  ⚠️ Sans cette entrée, un administrateur n'avait AUCUN chemin vers son profil :
+                  les deux portes posées par la 12.1 (l'état vide du tableau de bord et la page
+                  de refus) ne s'affichent QUE pour un compte SANS rôle. */}
+              <Link className={styles.lienProfil} href="/profil">
+                Mon profil
+              </Link>
+              {/* Server Action en ligne : aucun composant client n'est nécessaire pour un
+                  bouton qui poste un formulaire. RSC par défaut (project-context.md §5).
+                  ⚠️ PAS de `exigerRoleAction()` ici, et c'est délibéré : se déconnecter ne doit
+                  jamais dépendre du droit d'entrer. Un compte dont on a retiré les rôles doit
+                  pouvoir fermer sa session, pas s'y retrouver coincé. */}
+              <form
+                action={async () => {
+                  "use server";
+                  await signOut({ redirectTo: CHEMIN_CONNEXION });
+                }}
+              >
+                <button className={styles.deconnexion} type="submit">
+                  Se déconnecter
+                </button>
+              </form>
+            </div>
+          }
+        />
       </aside>
 
       <main className={styles.contenu} id="content">

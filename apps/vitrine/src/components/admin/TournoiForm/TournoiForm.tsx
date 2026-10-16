@@ -280,6 +280,14 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
     ETAT_INITIAL,
   );
 
+  // L'ouverture des sections repliables : un ÉTAT, et non une dérivation des champs — sinon
+  // effacer le texte du déroulé replierait la section sous les doigts. Ouvertes au départ si
+  // déjà remplies ; une erreur les ouvre AU RENDU, avant que l'effet ci-dessous n'y pose le focus.
+  const [derouleOuvert, setDerouleOuvert] = useState(
+    Boolean(tournoi?.formatText || tournoi?.prizes || tournoi?.matchDurationMinutes),
+  );
+  const [podiumOuvert, setPodiumOuvert] = useState(Boolean(tournoi?.podiumFirst));
+
   useEffect(() => {
     if (!etat.fieldErrors) return;
     const premier = ORDRE_CHAMPS.find((champ) => etat.fieldErrors?.[champ]);
@@ -529,6 +537,15 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           <p className={styles.sousChamp} id="tournoi-registrationMode-aide" aria-live="polite">
             <span>{AIDES_MODE_INSCRIPTION[registrationMode]}</span>
           </p>
+          {/* Le site n'inscrit pas d'équipes (A9) : le dire AU CHOIX, pas sur la page publique. */}
+          {registrationMode === "interne" && Number(teamSize) > 1 ? (
+            <p className={styles.avertissement} role="note">
+              <strong>Le site n&rsquo;inscrit pas d&rsquo;équipes.</strong> En « Sur notre site »,
+              la page de ce tournoi par équipe dira seulement « inscription auprès de nous ». Pour
+              un bouton « S&rsquo;inscrire », choisissez « Par MATELY » et collez l&rsquo;adresse
+              de l&rsquo;événement.
+            </p>
+          ) : null}
           {erreurs.registrationMode ? (
             <p className={styles.erreur}>{erreurs.registrationMode}</p>
           ) : null}
@@ -622,8 +639,18 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
       {/* ══════════════════════════════════════════════════════════════════════════════════
           ③ LE DÉROULÉ ANNONCÉ (A23 ③)
           ══════════════════════════════════════════════════════════════════════════════ */}
+      {/* Repliable, facultatif. Même règle d'ouverture que le podium. */}
+      <details
+        className={propre.repli}
+        open={
+          derouleOuvert ||
+          Boolean(erreurs.formatText || erreurs.prizes || erreurs.matchDurationMinutes)
+        }
+        onToggle={(evenement) => setDerouleOuvert(evenement.currentTarget.open)}
+      >
+        <summary className={propre.repliTitre}>Le déroulé annoncé (facultatif)</summary>
       <fieldset className={propre.bloc}>
-        <legend className={propre.blocTitre}>Le déroulé annoncé</legend>
+        <legend className="sr-only">Le déroulé annoncé</legend>
         <p className={propre.blocAide}>
           Ce qu&rsquo;on promet au public. Tout est facultatif — mieux vaut ne rien annoncer
           que d&rsquo;annoncer ce dont on n&rsquo;est pas sûr.
@@ -667,18 +694,29 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
             du même format et personne ne saura laquelle croire. Le dire au point de saisie
             évite que quelqu'un tienne ce texte à jour à la main pendant un tournoi. */}
         <p className={styles.regle} role="note">
-          <strong>Ce texte est une annonce, pas le déroulé réel.</strong> Quand le site saura
-          faire tourner les tournois, c&rsquo;est le déroulé réel qui fera foi et
-          s&rsquo;affichera à la place. Écrivez donc ici ce que vous <em>promettez</em>, sans
-          craindre de devoir le corriger pendant l&rsquo;événement.
+          <strong>Ce texte est une annonce.</strong> Dès que le déroulé est composé (onglet
+          « Le déroulé »), c&rsquo;est lui qui s&rsquo;affiche à la place sur la page publique.
         </p>
       </fieldset>
+      </details>
 
       {/* ══════════════════════════════════════════════════════════════════════════════════
           ④ LE PODIUM (A23 ①)
           ══════════════════════════════════════════════════════════════════════════════ */}
+      {/* Repliable : le podium ne se remplit qu'APRÈS le tournoi (retour UX du 2026-10-16).
+          Ouvert d'office s'il est déjà rempli ou si une erreur s'y trouve — sinon le focus
+          partirait sur un champ invisible. */}
+      <details
+        className={propre.repli}
+        open={
+          podiumOuvert ||
+          Boolean(erreurs.podiumFirst || erreurs.podiumSecond || erreurs.podiumThird)
+        }
+        onToggle={(evenement) => setPodiumOuvert(evenement.currentTarget.open)}
+      >
+        <summary className={propre.repliTitre}>Le podium — à remplir après le tournoi</summary>
       <fieldset className={propre.bloc}>
-        <legend className={propre.blocTitre}>Le podium</legend>
+        <legend className="sr-only">Le podium</legend>
         {/* ⚠️ CE BLOC EST TOUJOURS AFFICHÉ, MÊME SUR UN TOURNOI À VENIR — et c'est un choix.
             Le masquer aurait demandé de lire l'horloge pendant le rendu (impureté refusée par
             `react-hooks/purity`), et surtout : un tournoi saisi APRÈS coup, pour l'historique,
@@ -723,6 +761,7 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
           ou une troisième sans deuxième, est refusée : ce serait un podium à trou.
         </p>
       </fieldset>
+      </details>
 
       {etat.statut === "erreur" && etat.error ? (
         <p className={styles.erreur} role="alert">
@@ -758,9 +797,8 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
         /* ⚠️ DIT AVANT LE GESTE, PAS APRÈS : un tournoi naît en brouillon. Sans cette phrase,
            on croit avoir publié et on cherche pourquoi le site ne change pas. */
         <p className={styles.avertissement} role="note">
-          Le tournoi sera créé <strong>en brouillon</strong>. Vous pourrez le publier depuis
-          la liste — et tant que la page publique des tournois n&rsquo;est pas en ligne,
-          publier ne change encore rien pour les visiteurs.
+          Le tournoi sera créé <strong>en brouillon</strong>, invisible des visiteurs. Vous le
+          publierez depuis la liste des tournois.
         </p>
       ) : null}
     </form>
