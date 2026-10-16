@@ -1805,6 +1805,9 @@ export const tournament = pgTable(
      * naît à `false` partout dans ce fichier. Annoncer des inscriptions ouvertes qui ne le
      * sont pas est le seul des trois états qui fasse perdre quelqu'un.
      */
+    // ⚠️ Défaut EN BASE laissé à « fermees » : une valeur d'enum ajoutée ne peut pas servir dans
+    // la transaction qui l'ajoute (Postgres), et toutes les migrations d'un démarrage en partagent
+    // une. Sans effet : le site envoie toujours l'état, et le formulaire part de « prochainement ».
     registrationState: tournamentRegistrationState().notNull().default("fermees"),
     /**
      * 🔴 LE PODIUM — **UNE** DONNÉE, ÉCRITE TANTÔT À LA MAIN, TANTÔT PAR LE MOTEUR (A23 ①).

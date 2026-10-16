@@ -73,7 +73,13 @@ export type TournamentRegistrationMode = (typeof REGISTRATION_MODES)[number];
  * ⚠️ ORTHOGRAPHE SANS ACCENT (`completes`, `fermees`) : identifiants d'enum Postgres, jamais
  * des libellés — même règle que `evenement` dans `WORKSHOP_FAMILIES`.
  */
-export const REGISTRATION_STATES = ["ouvertes", "completes", "fermees"] as const;
+export const REGISTRATION_STATES = [
+  "ouvertes",
+  "prochainement",
+  "sur_place",
+  "completes",
+  "fermees",
+] as const;
 
 /** Le type des trois états, **dérivé de la liste ci-dessus**. */
 export type TournamentRegistrationState = (typeof REGISTRATION_STATES)[number];
@@ -524,7 +530,7 @@ export const tournamentInputSchema = z
      */
     registrationUrl: urlHttpOptionnelle(URL_MAX, "L'adresse d'inscription"),
     /** Ouvertes / complètes / fermées. Voir `REGISTRATION_STATES`. */
-    registrationState: z.enum(REGISTRATION_STATES).default("fermees"),
+    registrationState: z.enum(REGISTRATION_STATES).default("prochainement"),
     /**
      * ══════════════════════════════════════════════════════════════════════════════════
      * 🔴 LE PODIUM EST **UNE** DONNÉE, ÉCRITE TANTÔT À LA MAIN, TANTÔT PAR LE MOTEUR — A23 ①
