@@ -128,15 +128,24 @@ export function composerAttentes(
   }
 
   for (const tournoi of lectures.tournois?.quiSeJouent ?? []) {
-    attentes.push({
-      cle: `tournoi-${tournoi.id}`,
-      texte: `${tournoi.nom} se joue ${libelleJournee(tournoi.journee, aujourdHui)}`,
-      // Le jour J, et pas la fiche : c'est l'écran depuis lequel on pointe les présents et
-      // on saisit les résultats. Envoyer sur la fiche ferait faire un clic de plus au seul
-      // moment où l'on n'en a pas le temps.
-      href: `/admin/tournois/${tournoi.id}/jour-j`,
-      urgent: false,
-    });
+    const quand = libelleJournee(tournoi.journee, aujourdHui);
+    attentes.push(
+      tournoi.publie
+        ? {
+            cle: `tournoi-${tournoi.id}`,
+            texte: `${tournoi.nom} se joue ${quand}`,
+            // Le jour J, et pas la fiche : c'est l'écran depuis lequel on pointe et on saisit.
+            href: `/admin/tournois/${tournoi.id}/jour-j`,
+            urgent: false,
+          }
+        : {
+            // Un brouillon qui se joue bientôt est INVISIBLE au public (retour UX du 2026-10-16).
+            cle: `tournoi-${tournoi.id}`,
+            texte: `${tournoi.nom} se joue ${quand} mais est encore en brouillon — vérifier et publier`,
+            href: "/admin/tournois",
+            urgent: true,
+          },
+    );
   }
 
   // ⚠️ `agenda !== null` d'abord : un compte qui n'ouvre pas l'agenda ne doit pas lire que

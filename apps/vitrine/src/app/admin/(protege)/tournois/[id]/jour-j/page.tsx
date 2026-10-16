@@ -15,6 +15,7 @@ import { getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import { ecartsDeTirage } from "@/lib/tournoi/tirage";
 import { lettreDePoule } from "@/lib/tournoi/parcours";
+import { estParTables } from "@/lib/tournoi/structure";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
   aDesResultatsSaisis,
@@ -175,6 +176,7 @@ export default async function JourJPage({
   // points ci-dessous EST le rang.
   const rangs = phaseComplete ? rangsDeLaPhase(phaseComplete.kind, rencontres) : null;
   const resultatsSaisis = aDesResultatsSaisis(rencontres);
+  const aDesTables = phases.some((phase) => estParTables(phase.kind));
 
   return (
     <>
@@ -270,6 +272,7 @@ export default async function JourJPage({
                 ecarts={ecarts}
                 aUnClassement={classement.length > 0}
                 aDesResultats={aDesResultats}
+                lienPointage={`/admin/tournois/${tournoi.id}/engages`}
               />
             ) : null}
           </div>
@@ -431,8 +434,14 @@ export default async function JourJPage({
 
       <section className={styles.section} aria-labelledby="jour-j-classement">
         <h2 className={styles.sectionTitre} id="jour-j-classement">
-          {finale ? "Classement des qualifications" : "Classement"}
+          {!aDesTables ? "Podium" : finale ? "Classement des qualifications" : "Classement"}
         </h2>
+
+        {/* Le classement aux POINTS ne vaut que pour les tables (lobbies, suisse, finale). Sur un
+            tournoi en poules ou en tableau, ses explications parlaient de TFT : seul le podium
+            reste, et le rang de chaque phase est juste au-dessus. */}
+        {aDesTables ? (
+          <>
 
         {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT ENFIN (13.1). Le fait était vrai
             depuis toujours et écrit dans le commentaire ci-dessus, c'est-à-dire nulle part
@@ -509,6 +518,8 @@ export default async function JourJPage({
             </table>
           </div>
         )}
+          </>
+        ) : null}
 
         {/* 🔴 CE QUI RELIE LE MOTEUR À CE QUE LE SITE PUBLIE. Sans ce bouton, on finit un tournoi
             et on retape le podium à la main sur un autre écran — c'est ce qui est arrivé le
@@ -533,6 +544,7 @@ export default async function JourJPage({
           </p>
         ) : null}
 
+        {aDesTables ? (
         <p className={styles.mention} role="note">
           <strong>Départages, dans cet ordre :</strong> points totaux, puis premières places,
           puis places en moitié haute, puis meilleur dernier résultat — et le nom en dernier
@@ -540,6 +552,7 @@ export default async function JourJPage({
           la taille <strong>réelle</strong> de chaque table : un 1ᵉʳ d&rsquo;une table de 6
           marque 6 points, pas 8.
         </p>
+        ) : null}
       </section>
     </>
   );

@@ -48,7 +48,9 @@ describe("la bande n'annonce que ce que le compte peut ouvrir", () => {
     const lectures: LecturesTableauDeBord = {
       sollicitations: null,
       agenda: null,
-      tournois: { quiSeJouent: [{ id: "t1", nom: "TFT des Sacres", journee: "2026-08-25" }] },
+      tournois: {
+        quiSeJouent: [{ id: "t1", nom: "TFT des Sacres", journee: "2026-08-25", publie: true }],
+      },
       galerie: null,
     };
 
@@ -81,3 +83,20 @@ describe("la bande n'annonce que ce que le compte peut ouvrir", () => {
     assert.equal(attentes[0]?.texte, "2 sollicitations attendent une réponse");
   });
 });
+
+describe("un tournoi en brouillon qui se joue bientôt", () => {
+  it("devient une attente URGENTE qui le dit, au lieu d'un simple rappel", () => {
+    const [attente] = composerAttentes(
+      {
+        sollicitations: null,
+        agenda: null,
+        galerie: null,
+        tournois: { quiSeJouent: [{ id: "t1", nom: "TFT", journee: "2026-08-26", publie: false }] },
+      },
+      "2026-08-25",
+    );
+    assert.equal(attente.urgent, true);
+    assert.match(attente.texte, /demain mais est encore en brouillon/);
+  });
+});
+
