@@ -7,7 +7,7 @@ import { Button } from "@repo/ui";
 
 import { BoutonConfirmation } from "@/components/admin/BoutonConfirmation/BoutonConfirmation";
 import { ChampTexte } from "@/components/admin/ChampTexte/ChampTexte";
-import { MODELE_NOM_MAX, REGLEMENT_MAX, trousDu } from "@/lib/reglement";
+import { MODELE_NOM_MAX, REGLEMENT_MAX, TROUS_AUTOMATIQUES, trousDu } from "@/lib/reglement";
 import {
   enregistrerModeleReglement,
   supprimerModeleReglement,
@@ -86,7 +86,7 @@ export function ModeleReglementForm({
           max={REGLEMENT_MAX}
           multiligne
           lignes={24}
-          aide="Écrivez entre doubles accolades ce qui change d'un tournoi à l'autre : {{places}}, {{nombre de finalistes}}… Sont remplis seuls depuis la fiche : {{nom du tournoi}}, {{jeu}}, {{date}}, {{heure}}, {{lieu}}, {{tarif}}, {{places}}, {{lots}}, {{adresse de la fiche}}, {{adresse du règlement}} ; tout autre nom sera demandé à la création du tournoi. « # » fait un article, « ## » un sous-article, « - » un élément de liste."
+          aide={`Écrivez entre doubles accolades ce qui change d'un tournoi à l'autre. Remplis seuls depuis la fiche et le déroulé : ${TROUS_AUTOMATIQUES.map((trou) => `{{${trou}}}`).join(", ")}. Tout autre nom sera demandé dans l'onglet « Le règlement » du tournoi. « # » fait un article, « ## » un sous-article, « - » un élément de liste.`}
           erreur={erreurs.body}
         />
 

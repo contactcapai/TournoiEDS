@@ -253,6 +253,20 @@
       "when": 1792157359086,
       "tag": "0035_modele_reglement_tft",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792159150358,
+      "tag": "0036_modele_reglement_sur_place",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792159219348,
+      "tag": "0037_reglement_tft_departage",
+      "breakpoints": true
     }
   ]
 }

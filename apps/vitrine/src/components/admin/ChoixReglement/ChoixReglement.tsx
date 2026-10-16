@@ -12,7 +12,7 @@ export interface ChoixReglementProps {
   modeles: readonly { id: string; name: string; body: string }[];
   valeur: string;
   onChange: (valeur: string) => void;
-  /** Ce que la fiche sait déjà (nom, date, lieu…) — un champ vide ne remplit rien. */
+  /** Ce que la fiche et le déroulé savent déjà — une donnée absente ne remplit rien. */
   valeursAuto: Readonly<Record<string, string>>;
   erreur?: string;
 }
@@ -75,9 +75,9 @@ export function ChoixReglement({ modeles, valeur, onChange, valeursAuto, erreur 
           </div>
           <p className={formStyles.sousChamp}>
             <span>
-              Le nom, le jeu, la date, le lieu, le tarif, les places et les lots sont repris de
-              la fiche <strong>telle qu&rsquo;elle est saisie au moment du clic</strong> : remplissez-la
-              d&rsquo;abord. Le reste vous est demandé.{" "}
+              Ce que la fiche et le déroulé <strong>enregistrés</strong> savent est repris
+              seul ; le reste vous est demandé. Après une modification de la fiche ou des phases,
+              pré-remplissez à nouveau.{" "}
               <Link className={formStyles.lien} href="/admin/tournois/reglements">
                 Gérer les modèles
               </Link>
