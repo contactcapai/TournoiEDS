@@ -78,10 +78,13 @@ cet ordre. 🔴 **PUBLIER AVANT DE RÉPONDRE, JAMAIS L'INVERSE** : si le workflo
 réception d'abord, le `200` ne dirait plus rien de ce qui a paru, et l'écran écrirait
 « Annoncé » sur un envoi qui a échoué. C'est le défaut de la PR #118, remis à l'endroit.
 
-**Le nœud X reste ABSENT, jamais « désactivé ».** Un nœud
+**Les nœuds X et LinkedIn restent ABSENTS, jamais « désactivés ».** Un nœud
 désactivé *ressemble* à une livraison : c'est la forme exacte de la dette **R32** (l'envoi SMTP
 de la 5.1, entièrement câblé, jamais émis). Leur absence se vérifie d'un coup d'œil sur la
-structure — seize nœuds, **trois** connecteurs sociaux (Discord, Facebook, Instagram).
+structure — seize nœuds, **trois** réseaux publiants (Discord, Facebook, Instagram) portés par
+**six** connecteurs, deux par réseau. ⚠️ Comptés dans le fichier le 2026-09-20, pas recopiés :
+cette phrase ne nommait que X et disait pourtant « leur », au pluriel — LinkedIn manquait depuis
+son ajout au site le 2026-09-11.
 
 **La structure, au 2026-09-11 — un ÉTAGE PAR RÉSEAU, en chaîne :**
 
@@ -144,12 +147,20 @@ les quatre comptes existent et sont publiés dans le pied de page du site.
 |---|---|---|
 | Discord | `discord.gg/ehx8YP7YYa` | ✅ **RACCORDÉ le 2026-09-10** — webhook de salon, credential `Discord — salon d'annonces EDS`. Prouvé par des **posts réellement vus**, texte + image, pas par un `200`. |
 | Instagram | `@esportdessacres` | ✅ **RACCORDÉ le 2026-09-11** — app Meta, jeton de Page **sans expiration**, publication en deux temps (conteneur puis publication). ⚠️ **Exige une image** : sans elle il est **sauté, et l'écran le dit** (arbitrage B). |
-| X | `@EDS_reims` | compte développeur + app (tier gratuit : 500 posts/mois) |
+| X | `@EDS_reims` | ⛔ **ÉCARTÉ le 2026-09-20 (arbitrage de Brice)** — et **ce n'est plus un blocage technique** : l'app existe sur `developer.x.com`, jeton OAuth 1.0a « Lire et écrire » prêt à générer pour @EDS_reims. 🔴 **CE QUI A CHANGÉ : X N'A PLUS DE PALIER GRATUIT.** Cette case affirmait « tier gratuit : 500 posts/mois » — périmé, X a fermé le free tier et route les nouveaux comptes en *Pay Per Use*. Tarif lu sur `docs.x.com` le 2026-09-20 : **0,015 $** le post, **0,200 $ dès qu'il contient un lien**, crédits **prépayés** (solde à zéro ⇒ *« API requests will be blocked »*). ⚠️ Et `composerX` garde `ev.lien` dans ses **quatre** variantes ⇒ 100 % de nos annonces au tarif haut, ~10 à 19 $/an. |
 | Facebook | Page `Esport des Sacres` | ✅ **RACCORDÉ le 2026-09-11** — même app, même jeton qu'Instagram. Publie sur `me/photos` avec image, `me/feed` sans. |
 | LinkedIn | `/company/esport-des-sacres` | Community Management API, validation LinkedIn. ⚠️ **Pas encore de place dans le paquet** — c'est le 5ᵉ réseau, à ajouter. |
 
-Ce qui manque n'est donc plus les **comptes** mais les **identifiants d'API** — pour les trois réseaux restants. ⇒ Dette **R42**
-dans `deferred-work.md`, avec son mode de défaillance écrit.
+Ce qui manque n'est donc plus les **comptes**, et ce ne sont même plus les **identifiants d'API** :
+des **deux** réseaux restants, X a les siens et attend un arbitrage de coût, LinkedIn attend une
+validation par LinkedIn. ⇒ Dette **R42** dans `deferred-work.md`, avec son mode de défaillance écrit.
+
+🔴 **SI X EST REBRANCHÉ UN JOUR, SON ÉTAGE VA EN DERNIER ET DOIT TOLÉRER L'ÉCHEC.** Les étages
+sont **en chaîne** : un solde de crédits vide fait refuser l'appel X, l'exécution s'arrête avant
+« Répondre accepté », le site reçoit une erreur et l'écran écrit « rien n'a paru » — alors que
+Discord, Facebook et Instagram auront **déjà publié**. C'est le défaut de la PR #118 retourné :
+là on taisait une parution, ici on nierait trois parutions réelles. ⚠️ Aucun autre réseau n'a ce
+mode de défaillance, parce qu'aucun autre ne peut tomber en panne **pour une raison comptable**.
 
 ⚠️ **Depuis la 7.6, le payload arrive avec les textes DÉJÀ COMPOSÉS** (`messages.discord`,
 `messages.x`, `messages.facebook`, `messages.instagram` — voir `lib/message-reseaux.ts`). Un

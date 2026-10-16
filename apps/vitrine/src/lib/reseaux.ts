@@ -36,6 +36,14 @@
  */
 export const RESEAUX = [
   { cle: "discord", libelle: "Discord", cable: true, exigeUneImage: false },
+  /**
+   * ⚠️ `cable: false` — L'APP EXISTE, C'EST LE COÛT QUI A TRANCHÉ. X a supprimé son palier
+   * gratuit : 0,015 $ le post, et **0,20 $ dès qu'il contient un lien** (doc X, lue le
+   * 2026-09-20). Or `composerX` sacrifie le lieu, les jeux, puis le titre — **jamais l'URL** :
+   * chaque annonce tomberait au tarif haut, en crédits prépayés à surveiller.
+   * ⇒ **Écarté par Brice le 2026-09-20.** Rien n'est cassé, rien n'attend un correctif ; le
+   * rebrancher ne demande qu'un étage n8n et un solde. Voir `n8n/README.md`.
+   */
   { cle: "x", libelle: "X", cable: false, exigeUneImage: false },
   { cle: "facebook", libelle: "Facebook", cable: true, exigeUneImage: false },
   /**
