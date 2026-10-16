@@ -98,3 +98,36 @@
   line-height: var(--lh-body);
   color: var(--grey);
 }
+
+/* ═════════ Recherche, filtre et regroupement par jour (retour UX du 2026-10-16) ═════════ */
+.jour + .jour {
+  margin-top: 28px;
+}
+
+.jourTitre {
+  margin: 16px 0 8px;
+  font-size: 15px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* Une section repliable du formulaire (retour UX du 2026-10-16) : même titre que `.blocTitre`. */
+.repli {
+  margin-top: 28px;
+}
+
+.repliTitre {
+  display: flex;
+  align-items: center;
+  min-height: 44px; /* cible ≥ 44×44 */
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  cursor: pointer;
+}
+
+.repli > .bloc {
+  margin-top: 8px;
+}

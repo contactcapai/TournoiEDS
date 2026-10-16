@@ -94,6 +94,12 @@ export function ChoixImage({
   // main le geste qu'on vient de faire.
   const [liste, setListe] = useState<readonly ImageChoisissable[]>(images);
   const [choix, setChoix] = useState(valeurInitiale ?? "");
+  // Une image déjà choisie se montre SEULE, avec « Changer l'image » (retour UX du 2026-10-16) :
+  // la grille entière à chaque ouverture du formulaire noyait l'écran. Sans choix, la grille
+  // est ouverte. ⚠️ Elle est masquée par `hidden`, jamais retirée : ses boutons radio portent
+  // la valeur soumise par le formulaire.
+  const [grilleOuverte, setGrilleOuverte] = useState(valeurInitiale === null);
+  const imageChoisie = choix === "" ? null : (liste.find((i) => i.id === choix) ?? null);
 
   // ⚠️ UN SEUL POINT DE PASSAGE : les trois endroits qui changent le choix (« aucune », une
   // vignette, un import qui vient d'aboutir) passent par ici. Trois `setChoix` directs
@@ -176,7 +182,33 @@ export function ChoixImage({
         <strong>médiathèque</strong>, ou en importer une ci-dessous.
       </p>
 
-      <div className={styles.grille} role="none">
+      {!grilleOuverte ? (
+        <div className={styles.choisie}>
+          {imageChoisie ? (
+            <span className={styles.vignette}>
+              <Image
+                src={`/admin/medias/${imageChoisie.filename}`}
+                alt=""
+                fill
+                sizes="140px"
+                className={styles.vignetteImage}
+                style={{ objectPosition: `${imageChoisie.focalX}% ${imageChoisie.focalY}%` }}
+                unoptimized
+              />
+            </span>
+          ) : null}
+          <span className={styles.nom}>{imageChoisie?.alt ?? "Aucune image"}</span>
+          <button
+            type="button"
+            className={styles.changer}
+            onClick={() => setGrilleOuverte(true)}
+          >
+            Changer l&rsquo;image
+          </button>
+        </div>
+      ) : null}
+
+      <div className={styles.grille} role="none" hidden={!grilleOuverte}>
         {/* « Aucune image » d'abord : c'est l'état par défaut et le plus fréquent, et il doit
             être atteignable en une tabulation, pas après douze vignettes. */}
         <label className={styles.case}>
@@ -242,7 +274,7 @@ export function ChoixImage({
         </p>
       ) : null}
 
-      <div className={styles.import}>
+      <div className={styles.import} hidden={!grilleOuverte}>
         <ChampFichier
           id={idImport}
           label="Ou importer une image"

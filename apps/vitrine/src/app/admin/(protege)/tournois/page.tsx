@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TournoiActions } from "@/components/admin/TournoiActions/TournoiActions";
-import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { formatLongDate, formatTime, jourLisible } from "@/lib/date-paris";
+import { groupesParJour } from "@/lib/tournoi/liste-par-jour";
 import {
   LIBELLES_ETAT_INSCRIPTION,
   LIBELLES_MODE_INSCRIPTION,
@@ -42,7 +43,14 @@ export const dynamic = "force-dynamic";
  */
 const TOURNOIS_MAX = 200;
 
-function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
+function LigneTournoi({
+  tournoi,
+  evenementCommun = false,
+}: {
+  tournoi: AdminTournament;
+  /** Le titre du jour dit déjà l'événement : la ligne ne le répète pas. */
+  evenementCommun?: boolean;
+}) {
   // `cleanText` : filet du rendu contre une écriture qui contournerait Zod et les `CHECK`
   // (`UPDATE` direct, restauration). Jamais un fragment vide à l'écran.
   const salle = cleanText(tournoi.venueName);
@@ -67,6 +75,7 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
             🔴 ET L'ABSENCE DE RATTACHEMENT SE DIT AUSSI, elle ne se rend pas par un blanc : sans
             événement, ce tournoi paraît LUI-MÊME à l'agenda, et c'est le fait le plus important
             de sa ligne — la seule chose qui explique pourquoi il apparaît sur la home. */}
+        {evenementCommun ? null : (
         <p className={propre.rattachement}>
           {tournoi.event ? (
             <>
@@ -79,6 +88,7 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
             </>
           )}
         </p>
+        )}
 
         <p className={propre.inscriptions}>
           Inscriptions : {LIBELLES_MODE_INSCRIPTION[tournoi.registrationMode]} —{" "}
@@ -102,9 +112,15 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
             prévisualise et que la phrase « Voir le rendu avant de publier » de `_sections.ts`.
             Ordre et libellé repris de la liste d'agenda : deux listes du même back-office qui
             nommeraient différemment le même geste feraient hésiter au mauvais moment. */}
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/apercu`}>
-          Aperçu
-        </Link>
+        {tournoi.isPublished ? (
+          <Link className={styles.lien} href={`/tournois/${tournoi.slug}`}>
+            Page publique
+          </Link>
+        ) : (
+          <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/apercu`}>
+            Aperçu
+          </Link>
+        )}
         {/* 🔴 Une entrée À PART, et non un lien niché dans « Modifier » (Story 10.4).
             « Modifier » annonce l'édition de l'ANNONCE — jeu, date, lieu, lots. Composer le
             déroulé est un autre geste, à un autre moment : on annonce des semaines avant, on
@@ -138,19 +154,33 @@ function LigneTournoi({ tournoi }: { tournoi: AdminTournament }) {
   );
 }
 
-export default async function AdminTournoisPage() {
+export default async function AdminTournoisPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; statut?: string }>;
+}) {
   await exigerRolePage("admin_tournoi");
 
-  // 🔴 « À VENIR » ET « PASSÉS » SE DÉRIVENT DES DATES, ET LA LECTURE DE L'HORLOGE VIT DANS LA
-  // COUCHE DONNÉES — jamais dans le rendu (`react-hooks/purity`). Patron mesuré le 2026-08-13
-  // dans `queries/events.ts`, repris et non réinventé (note d'architecture §6 ①).
-  const [aVenir, passes] = await Promise.all([
+  const [tousAVenir, tousPasses] = await Promise.all([
     getUpcomingTournamentsForAdmin(TOURNOIS_MAX),
     getPastTournamentsForAdmin(TOURNOIS_MAX),
   ]);
 
-  const total = aVenir.length + passes.length;
-  const publies = [...aVenir, ...passes].filter((t) => t.isPublished).length;
+  // Recherche et filtre portés par l'URL : un formulaire GET, aucun JavaScript (retour UX du
+  // 2026-10-16 — onze tournois de la GIR rendaient la liste longue à parcourir).
+  const { q, statut } = await searchParams;
+  const recherche = (q ?? "").trim().toLocaleLowerCase("fr");
+  const filtre = statut === "publies" || statut === "brouillons" ? statut : "tous";
+  const retenu = (t: AdminTournament) =>
+    (filtre === "tous" || t.isPublished === (filtre === "publies")) &&
+    (recherche === "" || `${t.name} ${t.game}`.toLocaleLowerCase("fr").includes(recherche));
+  const aVenir = tousAVenir.filter(retenu);
+  const passes = tousPasses.filter(retenu);
+  const filtrageActif = filtre !== "tous" || recherche !== "";
+  const joursAVenir = groupesParJour(aVenir);
+
+  const total = tousAVenir.length + tousPasses.length;
+  const publies = [...tousAVenir, ...tousPasses].filter((t) => t.isPublished).length;
 
   return (
     <>
@@ -205,17 +235,70 @@ export default async function AdminTournoisPage() {
       ) : null}
 
       {total > 0 ? (
+        <form className={styles.filtres} method="get" role="search">
+          <label className={styles.filtreLabel} htmlFor="tournois-q">
+            Rechercher
+          </label>
+          <input
+            id="tournois-q"
+            className={styles.recherche}
+            name="q"
+            type="search"
+            defaultValue={q ?? ""}
+            placeholder="Nom ou jeu"
+          />
+          <select
+            className={styles.recherche}
+            name="statut"
+            defaultValue={filtre}
+            aria-label="Statut"
+          >
+            <option value="tous">Tous</option>
+            <option value="publies">Publiés</option>
+            <option value="brouillons">Brouillons</option>
+          </select>
+          <button className={styles.filtrer} type="submit">
+            Filtrer
+          </button>
+          {filtrageActif ? (
+            <Link className={styles.lien} href="/admin/tournois">
+              Tout afficher
+            </Link>
+          ) : null}
+        </form>
+      ) : null}
+
+      {total > 0 ? (
         <>
           <section className={styles.section} aria-labelledby="admin-tournois-a-venir">
             <h2 className={propre.groupe} id="admin-tournois-a-venir">
               À venir
             </h2>
             {aVenir.length > 0 ? (
-              <ul className={styles.liste}>
-                {aVenir.map((tournoi) => (
-                  <LigneTournoi key={tournoi.id} tournoi={tournoi} />
-                ))}
-              </ul>
+              joursAVenir.map((jour) => {
+                // L'événement commun à tous les tournois du jour se dit UNE fois, dans le titre.
+                const titres = new Set(jour.tournois.map((t) => t.event?.title ?? null));
+                const evenement = titres.size === 1 ? [...titres][0] : null;
+                return (
+                  <div key={jour.jour} className={propre.jour}>
+                    <h3 className={propre.jourTitre}>
+                      {jourLisible(jour.jour)}
+                      {evenement ? ` — ${evenement}` : ""}
+                    </h3>
+                    <ul className={styles.liste}>
+                      {jour.tournois.map((tournoi) => (
+                        <LigneTournoi
+                          key={tournoi.id}
+                          tournoi={tournoi}
+                          evenementCommun={evenement !== null}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })
+            ) : filtrageActif ? (
+              <p className={propre.groupeVide}>Aucun tournoi à venir ne correspond à ce filtre.</p>
             ) : (
               <p className={propre.groupeVide}>
                 Aucun tournoi à venir. Les tournois passés restent listés plus bas — on ne

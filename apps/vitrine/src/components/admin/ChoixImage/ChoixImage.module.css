@@ -120,3 +120,43 @@
      lisibilité se pose sur le champ ou le paragraphe, jamais sur leur parent. */
   max-inline-size: 62ch;
 }
+
+/* L'image déjà choisie, seule, et le geste pour en changer (retour UX du 2026-10-16). */
+.choisie {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 16px;
+  max-width: 62ch;
+}
+
+.choisie .nom {
+  align-self: center;
+}
+
+.changer {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 44px; /* cible ≥ 44×44 */
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.changer:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+/* `hidden` doit l'emporter sur le `display` des classes ci-dessus. */
+.grille[hidden],
+.import[hidden] {
+  display: none;
+}
