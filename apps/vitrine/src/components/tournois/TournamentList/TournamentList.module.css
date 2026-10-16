@@ -318,26 +318,36 @@
   color: var(--light);
 }
 
-/* ───────── Le visuel ─────────
-   FACULTATIF, et son absence est le cas NOMINAL (AC4) : le bloc entier n'est pas rendu quand
-   il n'y a pas de photo publiée. Aucun placeholder ici, contrairement à la vignette
-   d'`/agenda` — le raisonnement est écrit dans le composant.
-
-   `margin-top: 18px` et pas `auto` : c'est le bloc d'inscriptions / de podium qui porte déjà
-   l'alignement bas du corps. Le cadre vient après lui.
-   ⚠️ 240px de large au plus : le cadre est tourné de −2°, ce qui fait grandir sa boîte
-   englobante de quelques pixels de chaque côté. Les 22px de padding de la carte absorbent ce
-   débordement à la largeur la plus tendue du projet (320px de viewport) — vérifié par
-   `pnpm --filter vitrine gate`, dont le contrôle ① balaie CHAQUE boîte contre le viewport. */
+/* ═════════ Le visuel : en tête de carte en bureau, en vignette sur téléphone ═════════ */
 .media {
-  align-self: center;
-  width: 100%;
-  max-width: 240px;
-  margin-top: 18px;
-  /* Filet de sécurité en profondeur : `overflow-wrap` est HÉRITÉ, il atteindrait donc un
-     éventuel `figcaption` de la primitive `PhotoFrame`. Ce composant n'en passe aucun (voir
-     le commentaire du composant), mais la garde ne coûte rien et survit à un ajout. */
-  overflow-wrap: break-word;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  margin: -20px -22px 16px; /* l'image mange le padding de la carte : pleine largeur, en tête */
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  overflow: hidden;
+  background: var(--navy-deep);
+}
+
+.media img {
+  object-fit: cover;
+}
+
+/* Sur téléphone : une VIGNETTE carrée à gauche du texte. C'est ce qui raccourcit la liste —
+   une image pleine largeur par carte doublerait sa hauteur (retour UX du 2026-10-16). */
+@media (max-width: 880px) {
+  .carteAvecVisuel {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+    padding: 14px;
+  }
+
+  .carteAvecVisuel .media {
+    aspect-ratio: 1;
+    margin: 0;
+    border-radius: var(--radius-tile);
+  }
 }
 
 /* ───────── 🔴 REPLI DE LIGNE — DÉFAUT RÉEL, MESURÉ AILLEURS, QU'ON NE REFAIT PAS ─────────

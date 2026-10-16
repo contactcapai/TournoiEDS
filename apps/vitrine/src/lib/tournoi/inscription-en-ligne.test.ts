@@ -6,6 +6,7 @@ import {
   placesRestantes,
   type ConditionsInscription,
 } from "./inscription-en-ligne";
+import { libellePlaces } from "../libelles-tournoi";
 
 /** Un tournoi individuel, ouvert, sans capacité annoncée, vu par quelqu'un de connecté. */
 const OUVERT: ConditionsInscription = {
@@ -95,5 +96,22 @@ describe("les places restantes affichées", () => {
     assert.equal(placesRestantes(8, 11), 0);
     assert.equal(placesRestantes(8, 8), 0);
     assert.equal(placesRestantes(24, 7), 17);
+  });
+});
+
+describe("les états ajoutés le 2026-10-16 restent FERMÉS", () => {
+  it("« sur place » et « prochainement » refusent, chacun avec sa raison", () => {
+    for (const registrationState of ["sur_place", "prochainement"] as const) {
+      const etat = etatInscriptionEnLigne({ ...OUVERT, registrationState });
+      assert.equal(etat.cas, "indisponible", registrationState);
+    }
+    const surPlace = etatInscriptionEnLigne({ ...OUVERT, registrationState: "sur_place" });
+    assert.match(surPlace.cas === "indisponible" ? surPlace.raison : "", /sur place/);
+  });
+
+  it("une capacité se dit avec son unité : une place est une ÉQUIPE dès 2 joueurs", () => {
+    assert.equal(libellePlaces(8, 2), "8 équipes de 2 joueurs");
+    assert.equal(libellePlaces(16, 1), "16 joueurs");
+    assert.equal(libellePlaces(1, 1), "1 joueur");
   });
 });

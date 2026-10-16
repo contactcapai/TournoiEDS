@@ -1,4 +1,5 @@
 import type { TournamentRegistrationState } from "../schemas/tournament";
+import { RAISONS_ETAT_INSCRIPTION } from "../libelles-tournoi";
 
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
@@ -54,14 +55,9 @@ export function etatInscriptionEnLigne(
    */
   if (conditions.dejaInscrit) return { cas: "inscrit" };
 
-  if (conditions.registrationState === "completes") {
-    return { cas: "indisponible", raison: "Toutes les places annoncées sont prises." };
-  }
+  // Tout état autre qu'« ouvertes » refuse — un état ajouté plus tard reste fermé par défaut.
   if (conditions.registrationState !== "ouvertes") {
-    return {
-      cas: "indisponible",
-      raison: "Les inscriptions ne sont pas encore ouvertes pour ce tournoi.",
-    };
+    return { cas: "indisponible", raison: RAISONS_ETAT_INSCRIPTION[conditions.registrationState] };
   }
 
   // 🔴 A9 TIENT : les équipes passent par MATELY. Le dire est le livrable — un formulaire absent

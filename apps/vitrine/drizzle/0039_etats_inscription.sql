@@ -1,0 +1,2 @@
+ALTER TYPE "public"."tournament_registration_state" ADD VALUE 'prochainement' BEFORE 'completes';--> statement-breakpoint
+ALTER TYPE "public"."tournament_registration_state" ADD VALUE 'sur_place' BEFORE 'completes';

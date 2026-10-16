@@ -593,10 +593,12 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
         <ChampTexte
           id="tournoi-capacity"
           name="capacity"
-          label="Nombre de places (facultatif)"
+          label={
+            Number(teamSize) > 1 ? "Nombre d'équipes (facultatif)" : "Nombre de joueurs (facultatif)"
+          }
           valeur={capacity}
           onChange={setCapacity}
-          aide={`Combien de joueurs ou d'équipes sont attendus. Laissez vide si ce n'est pas décidé. Maximum ${PLACES_MAX}.`}
+          aide={`Une place = un engagé : un joueur en individuel, une ÉQUIPE dès que « Joueurs par équipe » dépasse 1 — la page affichera alors « 8 équipes de 2 joueurs ». Laissez vide si ce n'est pas décidé. Maximum ${PLACES_MAX}.`}
           erreur={erreurs.capacity}
         />
 

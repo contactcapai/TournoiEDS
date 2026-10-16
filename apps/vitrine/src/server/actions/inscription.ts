@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 
+import { RAISONS_ETAT_INSCRIPTION } from "../../lib/libelles-tournoi";
 import { inscriptionEnLigne } from "../../lib/schemas/inscription";
 import { exigerConnexionAction } from "../auth/guard";
 import { db } from "../db/client";
@@ -120,11 +121,8 @@ export async function sInscrireAuTournoi(
         return "Les inscriptions de ce tournoi ne se prennent pas ici — voyez le bouton sur sa page.";
       }
 
-      if (tournoi.registrationState === "completes") {
-        return "Toutes les places annoncées sont prises.";
-      }
       if (tournoi.registrationState !== "ouvertes") {
-        return "Les inscriptions ne sont pas ouvertes pour le moment.";
+        return RAISONS_ETAT_INSCRIPTION[tournoi.registrationState];
       }
 
       // 🔴 **A9 TIENT : LES ÉQUIPES RESTENT CHEZ MATELY** (arbitrage confirmé le 2026-08-25).

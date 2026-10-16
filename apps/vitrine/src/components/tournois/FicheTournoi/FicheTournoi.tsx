@@ -20,7 +20,11 @@ import { pseudoSuggere, type PseudosDuProfil } from "@/lib/tournoi/plateforme";
 import { decouperEnJournees, numeroDeJournee } from "@/lib/tournoi/journees";
 import { estParTables, type PhaseKind, type PhaseState } from "@/lib/tournoi/structure";
 import type { PhaseAvecRencontres } from "@/lib/tournoi/rencontres-publiques";
-import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import {
+  LIBELLES_ETAT_INSCRIPTION,
+  libellePlaces,
+  RAISONS_ETAT_INSCRIPTION,
+} from "@/lib/libelles-tournoi";
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
 import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
@@ -492,7 +496,9 @@ export function FicheTournoi({
             {tournoi.capacity !== null ? (
               <div className={styles.ligne}>
                 <dt className={styles.terme}>Places</dt>
-                <dd className={styles.valeur}>{tournoi.capacity}</dd>
+                <dd className={styles.valeur}>
+                  {libellePlaces(tournoi.capacity, tournoi.teamSize)}
+                </dd>
               </div>
             ) : null}
 
@@ -702,11 +708,9 @@ export function FicheTournoi({
                      directement avec nous »), c'est-à-dire le pire des deux — ni exécutée, ni
                      repérable, et prête à ressortir au premier remaniement du ternaire. */
                   <p className={styles.etatAide}>
-                    {tournoi.registrationState === "completes"
-                      ? "Toutes les places annoncées sont prises."
-                      : tournoi.registrationState === "fermees"
-                        ? "Les inscriptions ne sont pas ouvertes pour le moment."
-                        : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
+                    {tournoi.registrationState !== "ouvertes"
+                      ? RAISONS_ETAT_INSCRIPTION[tournoi.registrationState]
+                      : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
                   </p>
                 )}
               </div>

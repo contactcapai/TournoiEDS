@@ -7,6 +7,8 @@ import {
   TournamentCard,
   TournamentList,
 } from "@/components/tournois/TournamentList/TournamentList";
+import { jourLisible } from "@/lib/date-paris";
+import { groupesParJour } from "@/lib/tournoi/liste-par-jour";
 import { getPublicTournaments } from "@/server/db/queries/tournaments";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -109,6 +111,8 @@ export default async function Tournois() {
     EN_COURS_MAX,
   );
 
+  const joursAVenir = groupesParJour(aVenir);
+
   return (
     <>
       {/* ① Tête de page. Seul <h1> du document ; le <main id="content"> est fourni par
@@ -191,11 +195,38 @@ export default async function Tournois() {
 
           <div className={motion.reveal}>
             {aVenir.length > 0 ? (
-              <TournamentList>
-                {aVenir.map((tournoi) => (
-                  <TournamentCard key={tournoi.id} tournoi={tournoi} variante="a-venir" />
+              <>
+                {/* Des raccourcis par jour, seulement s'il y a un choix à faire. */}
+                {joursAVenir.length > 1 ? (
+                  <nav className={styles.jours} aria-label="Aller au jour">
+                    {joursAVenir.map((jour) => (
+                      <a key={jour.jour} className={styles.jourLien} href={`#jour-${jour.jour}`}>
+                        {capitaliser(jourLisible(jour.jour))}
+                      </a>
+                    ))}
+                  </nav>
+                ) : null}
+                {joursAVenir.map((jour) => (
+                  <div key={jour.jour} id={`jour-${jour.jour}`} className={styles.jour}>
+                    <h3 className={styles.jourTitre}>{capitaliser(jourLisible(jour.jour))}</h3>
+                    {jour.lieuCommun || jour.tarifCommun ? (
+                      <p className={styles.jourInfos}>
+                        {[jour.lieuCommun, jour.tarifCommun].filter(Boolean).join(" · ")}
+                      </p>
+                    ) : null}
+                    <TournamentList>
+                      {jour.tournois.map((tournoi) => (
+                        <TournamentCard
+                          key={tournoi.id}
+                          tournoi={tournoi}
+                          variante="a-venir"
+                          dansUnJour={{ lieuCommun: jour.lieuCommun, tarifCommun: jour.tarifCommun }}
+                        />
+                      ))}
+                    </TournamentList>
+                  </div>
                 ))}
-              </TournamentList>
+              </>
             ) : (
               /* ══════════════════════════════════════════════════════════════════════════
                  ÉTAT VIDE — IL DIT CE QUI SE PASSE ET QUOI FAIRE, JAMAIS « aucun tournoi »
@@ -312,3 +343,5 @@ export default async function Tournois() {
     </>
   );
 }
+
+const capitaliser = (texte: string) => texte.charAt(0).toUpperCase() + texte.slice(1);

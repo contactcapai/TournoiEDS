@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { PhotoFrame } from "@repo/ui";
 
 import { formatLongDate, formatPlageHoraire } from "@/lib/date-paris";
 import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
 import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
+import { lieuSurLaCarte } from "@/lib/tournoi/liste-par-jour";
 import type { PublicTournament } from "@/server/db/queries/tournaments";
 import styles from "./TournamentList.module.css";
 
@@ -80,14 +80,21 @@ export interface TournamentCardProps {
    * diverger.
    */
   variante: "a-venir" | "passe" | "en-cours";
+  /**
+   * La carte est rangée sous le titre de SON JOUR, qui dit déjà la date, la partie commune du
+   * lieu et le tarif commun : la carte ne les répète pas (`lib/tournoi/liste-par-jour.ts`).
+   */
+  dansUnJour?: { lieuCommun: string | null; tarifCommun: string | null };
 }
 
-export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
+export function TournamentCard({ tournoi, variante, dansUnJour }: TournamentCardProps) {
   // `cleanText` : dernier filet du rendu contre une écriture qui contournerait Zod ET les
   // `CHECK` (`UPDATE` direct, restauration de sauvegarde) — `btrim` ne retire pas U+200B, la
   // limite est déclarée dans `schema.ts` (dette R41, Story 7.8). Jamais un fragment vide.
-  const salle = cleanText(tournoi.venueName);
-  const tarif = cleanText(tournoi.priceText);
+  const salle = dansUnJour
+    ? lieuSurLaCarte(tournoi.venueName, dansUnJour.lieuCommun)
+    : cleanText(tournoi.venueName);
+  const tarif = dansUnJour?.tarifCommun ? null : cleanText(tournoi.priceText);
   // ⚠️ `=== "passe"` et non `!== "a-venir"` : le podium ne s'affiche que sur un tournoi JOUÉ,
   // et un tournoi en cours ne l'est pas encore. La forme négative aurait fait apparaître un
   // podium au premier résultat saisi, au milieu de la compétition.
@@ -124,14 +131,31 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
   const visuel = tournoi.photo?.isPublished ? tournoi.photo : null;
 
   return (
-    <li className={styles.carte}>
+    <li className={visuel ? `${styles.carte} ${styles.carteAvecVisuel}` : styles.carte}>
+      {visuel ? (
+        <div className={styles.media}>
+          {/* Image d'abord et sans cadre incliné (retour UX du 2026-10-16) : sur une vignette, le
+              cadre de travers réduisait l'image. ⚠️ `alt` vient de la photo, obligatoire (NFR3) ;
+              le point focal (15.1) parce que `object-fit: cover` recadre. */}
+          <Image
+            src={`/medias/${visuel.filename}`}
+            alt={visuel.alt}
+            fill
+            sizes="(max-width: 880px) 112px, 360px"
+            loading="lazy"
+            style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
+          />
+        </div>
+      ) : null}
       <div className={styles.corps}>
         {/* 🔴 L'HORAIRE PASSE PAR `formatPlageHoraire` DEPUIS LA 9.6 : il rend l'heure seule
             sans fin annoncée, la plage avec, et il NOMME LE JOUR quand la fin tombe un autre
             jour — un tournoi du soir qui finit après minuit est le cas nominal, pas un cas
             limite, et « 21h00 → 01h00 » dirait que c'est fini le soir même. */}
         <p className={styles.date}>
-          {formatLongDate(tournoi.startsAt)} · {formatPlageHoraire(tournoi.startsAt, tournoi.endsAt)}
+          {dansUnJour
+            ? formatPlageHoraire(tournoi.startsAt, tournoi.endsAt)
+            : `${formatLongDate(tournoi.startsAt)} · ${formatPlageHoraire(tournoi.startsAt, tournoi.endsAt)}`}
         </p>
 
         {/* `<h3>` : sous le `<h2>` de la section, lui-même sous le `<h1>` de la page. Aucun
@@ -207,36 +231,6 @@ export function TournamentCard({ tournoi, variante }: TournamentCardProps) {
         )}
       </div>
 
-      {visuel ? (
-        <div className={styles.media}>
-          {/* 🔴 AUCUNE `caption` SUR LE CADRE, ET C'EST UN DÉFAUT MESURÉ AILLEURS QU'ON NE
-              REFAIT PAS : le `figcaption` de `PhotoFrame` est rendu en Caveat et **ne se coupe
-              pas** — en Story 6.4, un titre long y a fait déborder `/agenda` de 33px à 320px.
-              La parade retenue là-bas est un libellé **borné par construction** (deux valeurs
-              possibles). Ici aucune donnée de tournoi ne l'est : le nom fait jusqu'à 80
-              caractères, le jeu jusqu'à 120. On n'en met donc aucune — la carte porte déjà le
-              nom, juste à côté.
-              ⚠️ `alt` vient de la photo elle-même : il est OBLIGATOIRE depuis la 4.3 (NFR3) et
-              il DÉCRIT l'image, là où le texte de la carte décrit le tournoi. Les deux ne se
-              répètent pas — contrairement à la vignette d'`/agenda`, où l'image est purement
-              illustrative et porte donc `alt=""`. */}
-          <PhotoFrame rotation={-2}>
-            <Image
-              src={`/medias/${visuel.filename}`}
-              alt={visuel.alt}
-              fill
-              sizes="(max-width: 880px) 100vw, 320px"
-              loading="lazy"
-              // 🔴 LE POINT FOCAL, AJOUTÉ PAR LA 15.1 — ET SON ABSENCE ÉTAIT UN DÉFAUT.
-              // `PhotoFrame` recadre en `object-fit: cover` : cette image COUPE. Sans
-              // `objectPosition` elle rendait le centre, c'est-à-dire un cadrage que le
-              // site n'applique nulle part ailleurs depuis la 7.3 — un visage hors cadre,
-              // sans erreur et sans test rouge. Même correctif que le scrapbook, 2026-09-01.
-              style={{ objectPosition: `${visuel.focalX}% ${visuel.focalY}%` }}
-            />
-          </PhotoFrame>
-        </div>
-      ) : null}
     </li>
   );
 }

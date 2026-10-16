@@ -61,8 +61,35 @@ export const AIDES_MODE_INSCRIPTION: Record<TournamentRegistrationMode, string> 
 /** L'état des inscriptions, dit au bénévole. */
 export const LIBELLES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, string> = {
   ouvertes: "Ouvertes",
-  completes: "Complètes",
-  fermees: "Fermées",
+  prochainement: "Ouverture prochainement",
+  sur_place: "Sur place, le jour J",
+  completes: "Complet",
+  fermees: "Closes",
+};
+
+/**
+ * Une capacité dite avec son UNITÉ : « 8 équipes de 2 joueurs », « 16 joueurs ». ⚠️ Une place
+ * est un ENGAGÉ — un joueur en individuel, une ÉQUIPE sinon. « Places : 8 » nu se lisait 8 joueurs.
+ */
+export function libellePlaces(capacite: number, teamSize: number): string {
+  const pluriel = capacite > 1 ? "s" : "";
+  return teamSize > 1
+    ? `${capacite} équipe${pluriel} de ${teamSize} joueurs`
+    : `${capacite} joueur${pluriel}`;
+}
+
+/**
+ * Pourquoi on ne peut pas s'inscrire, dit au VISITEUR — une phrase par état fermé, écrite une
+ * fois et lue par la fiche comme par l'action d'inscription.
+ */
+export const RAISONS_ETAT_INSCRIPTION: Record<
+  Exclude<TournamentRegistrationState, "ouvertes">,
+  string
+> = {
+  prochainement: "Les inscriptions ouvriront prochainement.",
+  sur_place: "L'inscription se fait sur place, au stand, le jour du tournoi.",
+  completes: "Toutes les places annoncées sont prises.",
+  fermees: "Les inscriptions sont closes.",
 };
 
 /**
@@ -73,10 +100,11 @@ export const LIBELLES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, stri
  */
 export const AIDES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, string> = {
   ouvertes: "On peut s'inscrire maintenant.",
+  prochainement:
+    "Pas encore ouvertes, et la page le dit. C'est la valeur de départ : rien ne s'ouvre par accident.",
+  sur_place: "On s'inscrit au stand le jour même : la page l'annonce, sans bouton.",
   completes: "Toutes les places annoncées sont prises.",
-  fermees:
-    "On ne peut pas s'inscrire — soit les inscriptions ne sont pas encore ouvertes, soit " +
-    "elles sont closes. C'est la valeur de départ : rien ne s'ouvre par accident.",
+  fermees: "C'est fini : plus d'inscription possible.",
 };
 
 /**
