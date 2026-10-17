@@ -356,6 +356,8 @@ export type RencontreAPropager = {
 export type Propagation = {
   /** Les places dont l'occupant change. Leur score, leur rang et leur forfait sont effacés. */
   readonly deplacements: readonly { slotId: string; entryId: string | null }[];
+  /** Les rencontres AVAL qui perdent un résultat saisi (score, rang, forfait) — à dire à l'écran. */
+  readonly remisesEnAttente: readonly string[];
   /** L'issue de chaque rencontre, par `matchId` — pour tenir `state` à jour. */
   readonly issues: ReadonlyMap<string, IssueDeRencontre>;
 };
@@ -377,6 +379,7 @@ export function calculerPropagation(
   }
 
   const deplacements: { slotId: string; entryId: string | null }[] = [];
+  const remisesEnAttente = new Set<string>();
   const issues = new Map<string, IssueDeRencontre>();
 
   for (const position of [...parPosition.keys()].sort((a, b) => a - b)) {
@@ -424,11 +427,14 @@ export function calculerPropagation(
 
         // Muter la copie est sûr : `autre.position > position`, donc cette rencontre n'a pas
         // encore été dépouillée dans cette boucle.
+        if (place.score !== null || place.rank !== null || place.forfait === true) {
+          remisesEnAttente.add(autre.matchId);
+        }
         autre.places[i] = { ...place, entryId: voulu, score: null, rank: null, forfait: false };
         deplacements.push({ slotId: place.slotId, entryId: voulu });
       }
     }
   }
 
-  return { deplacements, issues };
+  return { deplacements, remisesEnAttente: [...remisesEnAttente], issues };
 }

@@ -326,3 +326,17 @@ describe("propagation — un FORFAIT fait avancer l'adversaire, et s'annule comm
     assert.equal(placeQuiAttend(phase, phase[0].position, "vainqueur")?.entryId, null);
   });
 });
+
+describe("propagation — une correction DIT combien de rencontres suivantes elle remet en attente", () => {
+  it("corriger le vainqueur d'un 1er tour déjà suivi d'un score compte 1 rencontre remise", () => {
+    const phase = propagerEtEcrire(phaseGeneree("bracket", HUIT));
+    propagerEtEcrire(poserScores(phase, 1, [2, 1]));
+    propagerEtEcrire(poserScores(phase, 2, [2, 1]));
+    const aval = phase.find((r) => r.places.some((p) => p.source.rencontre === 1))!;
+    poserScores(phase, aval.position, [3, 0]);
+
+    assert.deepEqual(calculerPropagation(phase).remisesEnAttente, [], "rien ne change : rien à dire");
+    poserScores(phase, 1, [0, 2]);
+    assert.deepEqual(calculerPropagation(phase).remisesEnAttente, [aval.matchId]);
+  });
+});

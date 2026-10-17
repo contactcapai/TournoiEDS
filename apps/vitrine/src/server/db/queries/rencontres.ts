@@ -495,8 +495,12 @@ export async function getPresentsDuTournoi(tournoiId: string, jour: string | nul
  * dépouille au score, un lobby au rang. N'en regarder qu'un rendrait la garde inerte sur la
  * moitié des formats — et c'est exactement le genre de garde à moitié posée qui ne se voit pas.
  */
-export async function phaseADesResultats(phaseId: string) {
-  const [ligne] = await db
+export async function phaseADesResultats(
+  phaseId: string,
+  /** Une transaction, pour refaire la vérification SOUS le verrou de la phase. */
+  lecteur: Pick<typeof db, "select"> = db,
+) {
+  const [ligne] = await lecteur
     .select({ id: tournamentMatchSlot.id })
     .from(tournamentMatchSlot)
     .innerJoin(tournamentMatch, eq(tournamentMatch.id, tournamentMatchSlot.matchId))
