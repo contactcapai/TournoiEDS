@@ -9,6 +9,7 @@ import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import {
   POULES_MAX,
+  repartirEnPoules,
   TAILLE_LOBBY_DEFAUT,
   TAILLE_LOBBY_MAX,
   TAILLE_LOBBY_MIN,
@@ -118,6 +119,17 @@ export function JourJ({
 
   const parTables = estParTables(phase.kind);
   const tailleActuelle = phase.settings.tailleDeLobby ?? TAILLE_LOBBY_DEFAUT;
+  // Le nombre de poules, suivi en direct pour annoncer combien de rencontres il produira.
+  const [nombreDePoules, setNombreDePoules] = useState(String(phase.settings.poules ?? 1));
+  const [allerRetour, setAllerRetour] = useState(false);
+
+  const PAS_ENREGISTRE = "Pas enregistré — réseau coupé ou session expirée. Réessayez.";
+  const noter = (matchId: string, message: string) =>
+    setMessageParRencontre((precedent) => ({ ...precedent, [matchId]: message }));
+  const aval = (n: number) =>
+    n === 0
+      ? ""
+      : ` ${n} rencontre${n > 1 ? "s" : ""} suivante${n > 1 ? "s" : ""} remise${n > 1 ? "s" : ""} en attente (score effacé).`;
 
   const generer = (donnees: FormData) => {
     demarrer(async () => {
@@ -130,7 +142,7 @@ export function JourJ({
         }
         router.refresh();
       } catch {
-        setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
+        setErreur(PAS_ENREGISTRE);
       }
     });
   };
@@ -141,36 +153,41 @@ export function JourJ({
       try {
         const resultat = await saisirResultat(matchId, donnees);
         if (!resultat.ok) {
-          setMessageParRencontre((precedent) => ({ ...precedent, [matchId]: resultat.error }));
+          noter(matchId, resultat.error);
           return;
         }
-        setMessageParRencontre((precedent) => ({
-          ...precedent,
-          // 🔴 UNE SAISIE PARTIELLE EST ENREGISTRÉE ET LE DIT : sans ce message, remplir un lobby
-          // de 8 en trois fois donnerait l'impression que rien n'a été pris en compte.
-          [matchId]: resultat.data.complete
+        // 🔴 UNE SAISIE PARTIELLE EST ENREGISTRÉE ET LE DIT : sans ce message, remplir un lobby
+        // de 8 en trois fois donnerait l'impression que rien n'a été pris en compte.
+        noter(
+          matchId,
+          (resultat.data.complete
             ? "Enregistré."
-            : `Enregistré, mais pas encore dépouillé : ${resultat.data.raison ?? ""}`,
-        }));
+            : `Enregistré, mais pas encore dépouillé : ${resultat.data.raison ?? ""}`) +
+            aval(resultat.data.remisesEnAttente),
+        );
         router.refresh();
       } catch {
-        setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
+        noter(matchId, PAS_ENREGISTRE);
       }
     });
   };
 
-  const forfait = (matchId: string, slotId: string | null) => {
+  const forfait = (matchId: string, slotId: string | null, formulaireDeLaRencontre: HTMLFormElement | null) => {
+    if (!formulaireDeLaRencontre) return;
+    const donnees = new FormData(formulaireDeLaRencontre);
     demarrer(async () => {
       setErreur(null);
       try {
-        const resultat = await declarerForfait(matchId, slotId);
-        setMessageParRencontre((precedent) => ({
-          ...precedent,
-          [matchId]: resultat.ok ? (slotId ? "Forfait enregistré." : "Forfait annulé.") : resultat.error,
-        }));
+        const resultat = await declarerForfait(matchId, slotId, donnees);
+        noter(
+          matchId,
+          resultat.ok
+            ? (slotId ? "Forfait enregistré." : "Forfait annulé.") + aval(resultat.data.remisesEnAttente)
+            : resultat.error,
+        );
         if (resultat.ok) router.refresh();
       } catch {
-        setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
+        noter(matchId, PAS_ENREGISTRE);
       }
     });
   };
@@ -203,7 +220,9 @@ export function JourJ({
             {presents} engagé{presents > 1 ? "s" : ""} pointé{presents > 1 ? "s" : ""} présent
             {presents > 1 ? "s" : ""}
           </strong>{" "}
-          — c&rsquo;est l&rsquo;effectif qui sera utilisé.
+          {poulesAvant
+            ? "— c’est l’effectif utilisé, sauf si le tableau part des poules : seuls leurs qualifiés y entrent."
+            : "— c’est l’effectif qui sera utilisé."}
         </p>
 
         <form action={generer} className={formulaire.form}>
@@ -219,6 +238,7 @@ export function JourJ({
                 id="jourj-taille"
                 name="tailleDeLobby"
                 type="number"
+                inputMode="numeric"
                 min={TAILLE_LOBBY_MIN}
                 max={TAILLE_LOBBY_MAX}
                 defaultValue={tailleActuelle}
@@ -254,6 +274,7 @@ export function JourJ({
                   id="jourj-seuil"
                   name="seuilDeVictoire"
                   type="number"
+                  inputMode="numeric"
                   min={SEUIL_VICTOIRE_MIN}
                   max={SEUIL_VICTOIRE_MAX}
                   defaultValue={finale.seuil}
@@ -299,10 +320,15 @@ export function JourJ({
                 id="jourj-poules"
                 name="poules"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={POULES_MAX}
-                defaultValue={phase.settings.poules ?? 1}
+                value={nombreDePoules}
+                onChange={(e) => setNombreDePoules(e.target.value)}
               />
+              <p className={formulaire.regle} role="status">
+                {apercuDesPoules(presents, Number(nombreDePoules), allerRetour)}
+              </p>
               <p className={formulaire.sousChamp}>
                 <span>
                   Les présents sont répartis en serpentin (A, B, B, A…) et chacun ne rencontre que
@@ -317,7 +343,13 @@ export function JourJ({
             <div className={formulaire.champ}>
               <span className={formulaire.legend}>Format de la poule</span>
               <label className={formulaire.choixLabel}>
-                <input type="checkbox" name="allerRetour" value="true" />
+                <input
+                  type="checkbox"
+                  name="allerRetour"
+                  value="true"
+                  checked={allerRetour}
+                  onChange={(e) => setAllerRetour(e.target.checked)}
+                />
                 Aller-retour (chaque paire se joue deux fois)
               </label>
             </div>
@@ -373,14 +405,17 @@ export function JourJ({
                   id="jourj-qualifies"
                   name="qualifiesParPoule"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={POULES_MAX}
                   defaultValue={phase.settings.qualifiesParPoule ?? 2}
                 />
                 <p className={formulaire.sousChamp}>
                   <span>
-                    Le tableau croise les poules : le 1er de A rencontre le 2e de B, le 1er de B
-                    le 2e de A. Un qualifié absent est remplacé par le suivant de sa poule.
+                    Les qualifiés entrent dans l&rsquo;ordre : les 1ers de chaque poule, puis les
+                    2es… et le tableau oppose la meilleure tête de série à la moins bonne — avec 2
+                    poules et 2 qualifiés, le 1er de A rencontre le 2e de B. Un qualifié absent est
+                    remplacé par le suivant de sa poule.
                   </span>
                 </p>
                 {poulesAvant.egalites.length > 0 ? (
@@ -616,6 +651,8 @@ export function JourJ({
                                 </em>
                               )}
                             </span>
+                            {/* L'équipe AFFICHÉE : le serveur refuse si ce n'est plus elle. */}
+                            <input type="hidden" name={`engage-${place.slotId}`} value={place.entryId ?? ""} />
                             {forfaitDe ? (
                               place.forfait ? <em className={styles.forfait}>forfait</em> : null
                             ) : place.entryId !== null ? (
@@ -623,6 +660,7 @@ export function JourJ({
                                 className={styles.saisie}
                                 name={`${parRang ? "rang" : "score"}-${place.slotId}`}
                                 type="number"
+                                inputMode="numeric"
                                 min={parRang ? 1 : 0}
                                 max={parRang ? occupees.length : undefined}
                                 defaultValue={
@@ -636,7 +674,7 @@ export function JourJ({
                                 type="button"
                                 className={actions.basculePubliee}
                                 disabled={enTransition}
-                                onClick={() => forfait(rencontre.matchId, place.slotId)}
+                                onClick={(e) => forfait(rencontre.matchId, place.slotId, e.currentTarget.form)}
                               >
                                 Forfait
                                 <span className="sr-only"> de {place.nom ?? ""}</span>
@@ -652,7 +690,7 @@ export function JourJ({
                             type="button"
                             className={actions.basculePubliee}
                             disabled={enTransition}
-                            onClick={() => forfait(rencontre.matchId, null)}
+                            onClick={(e) => forfait(rencontre.matchId, null, e.currentTarget.form)}
                           >
                             Annuler le forfait
                             <span className="sr-only"> — rencontre {rencontre.position}</span>
@@ -669,6 +707,11 @@ export function JourJ({
                         )}
                       </div>
 
+                      {messageParRencontre[rencontre.matchId] ? (
+                        <p className={styles.etat} role="status">
+                          {messageParRencontre[rencontre.matchId]}
+                        </p>
+                      ) : null}
                       <p className={styles.etat}>
                         {rencontre.issue.exemption && rencontre.issue.vainqueur === null
                           ? "Personne ne jouera cette rencontre : elle est sautée."
@@ -677,7 +720,9 @@ export function JourJ({
                           : rencontre.issue.complete
                             ? `Vainqueur : ${rencontre.places.find((p) => p.entryId === rencontre.issue.vainqueur)?.nom ?? "—"}` +
                               (forfaitDe ? ` (forfait de ${forfaitDe.nom ?? "—"})` : "")
-                            : (messageParRencontre[rencontre.matchId] ?? rencontre.issue.raison)}
+                            : messageParRencontre[rencontre.matchId]
+                              ? null
+                              : rencontre.issue.raison}
                       </p>
                     </form>
                   </li>
@@ -695,4 +740,14 @@ export function JourJ({
       ) : null}
     </div>
   );
+}
+
+/** « 8 équipes en 2 poules → 12 rencontres » : ce que la génération va produire. */
+function apercuDesPoules(equipes: number, poules: number, allerRetour: boolean) {
+  if (!Number.isInteger(poules) || poules < 1 || poules > POULES_MAX) return "Nombre de poules invalide.";
+  const rencontres = repartirEnPoules(equipes, poules).reduce(
+    (total, poule) => total + (poule.length * (poule.length - 1)) / 2,
+    0,
+  ) * (allerRetour ? 2 : 1);
+  return `${equipes} équipe${equipes > 1 ? "s" : ""} en ${poules} poule${poules > 1 ? "s" : ""} → ${rencontres} rencontre${rencontres > 1 ? "s" : ""}.`;
 }

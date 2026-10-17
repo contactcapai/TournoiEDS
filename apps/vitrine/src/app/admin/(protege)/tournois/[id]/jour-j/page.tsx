@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/BarreJournees/BarreJournees";
 import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
+import { RafraichirJourJ } from "@/components/admin/RafraichirJourJ/RafraichirJourJ";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getTournoiPourEngages } from "@/server/db/queries/engages";
@@ -254,7 +255,8 @@ export default async function JourJPage({
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
           <strong>{presents.length} présents</strong> au pointage
         </Link>{" "}
-        — ce sont eux qui entreront dans le tableau, pas les inscrits.
+        — les rencontres se génèrent depuis eux, pas depuis les inscrits. L&rsquo;écran se
+        met à jour tout seul avec les saisies des collègues, sauf pendant que vous tapez.
       </p>
 
       {phases.length === 0 ? (
@@ -263,7 +265,11 @@ export default async function JourJPage({
         <p className={styles.vide}>
           Ce tournoi n&rsquo;a pas encore de <strong>déroulé</strong>. Composez-le d&rsquo;abord :
           une poule, un tableau, des lobbies, une finale. C&rsquo;est le déroulé qui dit quoi
-          générer ici.
+          générer ici. Ou, pour un tournoi géré à la main, saisissez directement le podium dans{" "}
+          <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}`}>
+            « La fiche », section « Le podium »
+          </Link>
+          .
         </p>
       ) : (
         <>
@@ -312,6 +318,7 @@ export default async function JourJPage({
 
           <div className={styles.section}>
             {active && phaseComplete ? (
+              <RafraichirJourJ secondes={15}>
               <JourJ
                 phase={{
                   id: phaseComplete.id,
@@ -338,6 +345,7 @@ export default async function JourJPage({
                 aDesResultats={aDesResultats}
                 lienPointage={`/admin/tournois/${tournoi.id}/engages`}
               />
+              </RafraichirJourJ>
             ) : null}
           </div>
 

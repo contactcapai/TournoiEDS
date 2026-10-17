@@ -141,6 +141,62 @@ type RencontreEnMemoire = { matchId: string; position: number; places: PlaceEnMe
 /** Tout ce qu'une transaction sait faire ; suffisant pour `propager`. */
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** Un refus levé DANS une transaction : elle s'annule, et son message va à l'écran. */
+class Refus extends Error {}
+
+/**
+ * 🔴 UNE GARDE DE COURSE SE MET EN BASE : générer, effacer et saisir verrouillent la ligne de la
+ * phase, donc s'exécutent l'un après l'autre — et chacun refait ses vérifications SOUS ce verrou.
+ */
+async function verrouillerPhase(tx: Transaction, phaseId: string) {
+  const [ligne] = await tx
+    .select({ id: tournamentPhase.id })
+    .from(tournamentPhase)
+    .where(eq(tournamentPhase.id, phaseId))
+    .for("update");
+  if (!ligne) throw new Refus("Cette phase n'existe plus. Rechargez la page.");
+}
+
+const CHANGEE =
+  "Les équipes de cette rencontre ont changé depuis l'affichage (un collègue a saisi ou " +
+  "régénéré) — rechargez la page. Rien n'a été enregistré.";
+
+/**
+ * Les places de la rencontre, lues sous le verrou, et vérifiées contre celles que l'écran
+ * affichait (`engage-<place>`) : on n'écrit jamais un score sur une équipe que personne n'a vue.
+ */
+async function placesVerifiees(tx: Transaction, matchId: string, donnees: FormData) {
+  const places = await tx
+    .select({
+      slotId: tournamentMatchSlot.id,
+      position: tournamentMatchSlot.position,
+      entryId: tournamentMatchSlot.entryId,
+    })
+    .from(tournamentMatchSlot)
+    .where(eq(tournamentMatchSlot.matchId, matchId))
+    .orderBy(asc(tournamentMatchSlot.position));
+  if (places.length === 0) throw new Refus(CHANGEE);
+  for (const place of places) {
+    const affiche = donnees.get(`engage-${place.slotId}`);
+    if (affiche === null || String(affiche) !== (place.entryId ?? "")) throw new Refus(CHANGEE);
+  }
+  return places;
+}
+
+/** Écrit une place, et refuse si elle a disparu entre-temps (0 ligne touchée = erreur). */
+async function ecrirePlace(
+  tx: Transaction,
+  slotId: string,
+  valeurs: { score: number | null; rank: number | null; forfait: boolean },
+) {
+  const touchees = await tx
+    .update(tournamentMatchSlot)
+    .set(valeurs)
+    .where(eq(tournamentMatchSlot.id, slotId))
+    .returning({ id: tournamentMatchSlot.id });
+  if (touchees.length !== 1) throw new Refus(CHANGEE);
+}
+
 /**
  * Applique la propagation : **lire, appeler, écrire**.
  *
@@ -185,7 +241,7 @@ async function propager(tx: Transaction, phaseId: string) {
     });
   }
 
-  const { deplacements, issues } = calculerPropagation([...parPosition.values()]);
+  const { deplacements, remisesEnAttente, issues } = calculerPropagation([...parPosition.values()]);
   const etats = [...issues.entries()].map(([matchId, issue]) => ({
     matchId,
     termine: issue.complete,
@@ -237,7 +293,11 @@ async function propager(tx: Transaction, phaseId: string) {
       .where(eq(tournamentPhase.id, phaseId));
   }
 
-  return { deplacements: deplacements.length, termines: termines.length };
+  return {
+    deplacements: deplacements.length,
+    termines: termines.length,
+    remisesEnAttente: remisesEnAttente.length,
+  };
 }
 
 /**
@@ -421,6 +481,10 @@ async function qualifiesDeLaPouleAvant(
   };
 }
 
+const DEJA_JOUEE =
+  "Des résultats sont déjà saisis dans cette phase : elle ne se régénère plus. " +
+  "Corrigez les rencontres concernées, ou créez une phase supplémentaire depuis le déroulé.";
+
 export async function genererPhase(
   phaseId: string,
   donnees: FormData,
@@ -434,14 +498,7 @@ export async function genererPhase(
   const phase = await getPhasePourJeu(phaseId);
   if (!phase) return { ok: false, error: "Cette phase n'existe plus. Rechargez la page." };
 
-  if (await phaseADesResultats(phaseId)) {
-    return {
-      ok: false,
-      error:
-        "Des résultats sont déjà saisis dans cette phase : elle ne se régénère plus. " +
-        "Corrigez les rencontres concernées, ou créez une phase supplémentaire depuis le déroulé.",
-    };
-  }
+  if (await phaseADesResultats(phaseId)) return { ok: false, error: DEJA_JOUEE };
 
   const analyse = reglagesSaisis.safeParse({
     tailleDeLobby: donnees.get("tailleDeLobby") ?? undefined,
@@ -585,7 +642,9 @@ export async function genererPhase(
   try {
     const rencontres = await db.transaction(async (tx) => {
       // Régénérer remplace : les anciennes rencontres partent, et leurs places avec elles
-      // (`CASCADE`). La garde ci-dessus a déjà établi qu'aucun résultat n'y était saisi.
+      // (`CASCADE`). La garde est REFAITE sous le verrou : un collègue a pu saisir entre-temps.
+      await verrouillerPhase(tx, phaseId);
+      if (await phaseADesResultats(phaseId, tx)) throw new Refus(DEJA_JOUEE);
       await tx.delete(tournamentMatch).where(eq(tournamentMatch.phaseId, phaseId));
 
       for (const rencontre of structure) {
@@ -642,6 +701,7 @@ export async function genererPhase(
 
     return { ok: true, data: { rencontres, participants: participants.length } };
   } catch (erreur) {
+    if (erreur instanceof Refus) return { ok: false, error: erreur.message };
     console.error("[genererPhase] Échec de l'écriture :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
@@ -658,7 +718,7 @@ export async function genererPhase(
 export async function saisirResultat(
   matchId: string,
   donnees: FormData,
-): Promise<ResultatAction<{ complete: boolean; raison: string | null }>> {
+): Promise<ResultatAction<{ complete: boolean; raison: string | null; remisesEnAttente: number }>> {
   await exigerRoleAction("admin_tournoi");
 
   if (!identifiant.safeParse(matchId).success) {
@@ -671,16 +731,6 @@ export async function saisirResultat(
     .where(eq(tournamentMatch.id, matchId))
     .limit(1);
   if (!rencontre) return { ok: false, error: "Cette rencontre n'existe plus. Rechargez la page." };
-
-  const placesEnBase = await db
-    .select({
-      slotId: tournamentMatchSlot.id,
-      position: tournamentMatchSlot.position,
-      entryId: tournamentMatchSlot.entryId,
-    })
-    .from(tournamentMatchSlot)
-    .where(eq(tournamentMatchSlot.matchId, matchId))
-    .orderBy(asc(tournamentMatchSlot.position));
 
   /**
    * ⚠️ UN CHAMP VIDE VAUT « PAS SAISI » (`null`), ET JAMAIS ZÉRO. Confondre les deux effacerait
@@ -698,37 +748,45 @@ export async function saisirResultat(
     return Number.isInteger(nombre) ? nombre : "illisible";
   };
 
-  const saisie: PlaceJouee[] = [];
-  for (const place of placesEnBase) {
-    const rank = lire(`rang-${place.slotId}`);
-    const score = lire(`score-${place.slotId}`);
-    if (rank === "illisible" || score === "illisible") {
-      return {
-        ok: false,
-        error: "Une valeur saisie n'est pas un nombre entier. Rien n'a été enregistré.",
-      };
-    }
-    saisie.push({ position: place.position, entryId: place.entryId, score, rank });
-  }
-
-  const admissible = saisieAdmissible(saisie);
-  if (!admissible.ok) return { ok: false, error: admissible.raison };
-
   try {
-    const issue = await db.transaction(async (tx) => {
-      for (let i = 0; i < placesEnBase.length; i += 1) {
-        await tx
-          .update(tournamentMatchSlot)
-          // Un score saisi remplace un éventuel forfait : c'est la même correction.
-          .set({ rank: saisie[i].rank, score: saisie[i].score, forfait: false })
-          .where(eq(tournamentMatchSlot.id, placesEnBase[i].slotId));
+    const resultat = await db.transaction(async (tx) => {
+      await verrouillerPhase(tx, rencontre.phaseId);
+      const placesEnBase = await placesVerifiees(tx, matchId, donnees);
+
+      const saisie: PlaceJouee[] = [];
+      for (const place of placesEnBase) {
+        const rank = lire(`rang-${place.slotId}`);
+        const score = lire(`score-${place.slotId}`);
+        if (rank === "illisible" || score === "illisible") {
+          throw new Refus("Une valeur saisie n'est pas un nombre entier. Rien n'a été enregistré.");
+        }
+        saisie.push({ position: place.position, entryId: place.entryId, score, rank });
       }
-      await propager(tx, rencontre.phaseId);
-      return issueDeRencontre(saisie);
+      const admissible = saisieAdmissible(saisie);
+      if (!admissible.ok) throw new Refus(admissible.raison);
+
+      // Un score saisi remplace un éventuel forfait : c'est la même correction.
+      for (let i = 0; i < placesEnBase.length; i += 1) {
+        await ecrirePlace(tx, placesEnBase[i].slotId, {
+          rank: saisie[i].rank,
+          score: saisie[i].score,
+          forfait: false,
+        });
+      }
+      const { remisesEnAttente } = await propager(tx, rencontre.phaseId);
+      return { issue: issueDeRencontre(saisie), remisesEnAttente };
     });
 
-    return { ok: true, data: { complete: issue.complete, raison: issue.raison } };
+    return {
+      ok: true,
+      data: {
+        complete: resultat.issue.complete,
+        raison: resultat.issue.raison,
+        remisesEnAttente: resultat.remisesEnAttente,
+      },
+    };
   } catch (erreur) {
+    if (erreur instanceof Refus) return { ok: false, error: erreur.message };
     console.error("[saisirResultat] Échec de l'écriture :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
@@ -742,10 +800,15 @@ export async function saisirResultat(
 export async function declarerForfait(
   matchId: string,
   slotId: string | null,
-): Promise<ResultatAction<{ complete: boolean }>> {
+  /** Le formulaire de la rencontre, pour vérifier les équipes affichées (`engage-<place>`). */
+  donnees: FormData,
+): Promise<ResultatAction<{ complete: boolean; remisesEnAttente: number }>> {
   await exigerRoleAction("admin_tournoi");
 
-  if (!identifiant.safeParse(matchId).success || (slotId !== null && !identifiant.safeParse(slotId).success)) {
+  if (
+    !identifiant.safeParse(matchId).success ||
+    (slotId !== null && !identifiant.safeParse(slotId).success)
+  ) {
     return { ok: false, error: "Cette rencontre n'est pas valide. Rechargez la page." };
   }
 
@@ -756,38 +819,37 @@ export async function declarerForfait(
     .limit(1);
   if (!rencontre) return { ok: false, error: "Cette rencontre n'existe plus. Rechargez la page." };
 
-  const placesEnBase = await db
-    .select({ slotId: tournamentMatchSlot.id, position: tournamentMatchSlot.position, entryId: tournamentMatchSlot.entryId })
-    .from(tournamentMatchSlot)
-    .where(eq(tournamentMatchSlot.matchId, matchId))
-    .orderBy(asc(tournamentMatchSlot.position));
-
-  if (slotId !== null && !placesEnBase.some((p) => p.slotId === slotId)) {
-    return { ok: false, error: "Cette équipe n'est plus dans la rencontre. Rechargez la page." };
-  }
-  const saisie: PlaceJouee[] = placesEnBase.map((p) => ({
-    position: p.position,
-    entryId: p.entryId,
-    score: null,
-    rank: null,
-    forfait: p.slotId === slotId,
-  }));
-  const admissible = saisieAdmissible(saisie);
-  if (!admissible.ok) return { ok: false, error: admissible.raison };
-
   try {
-    const issue = await db.transaction(async (tx) => {
-      for (const place of placesEnBase) {
-        await tx
-          .update(tournamentMatchSlot)
-          .set({ score: null, rank: null, forfait: place.slotId === slotId })
-          .where(eq(tournamentMatchSlot.id, place.slotId));
+    const resultat = await db.transaction(async (tx) => {
+      await verrouillerPhase(tx, rencontre.phaseId);
+      const placesEnBase = await placesVerifiees(tx, matchId, donnees);
+      if (slotId !== null && !placesEnBase.some((p) => p.slotId === slotId)) {
+        throw new Refus(CHANGEE);
       }
-      await propager(tx, rencontre.phaseId);
-      return issueDeRencontre(saisie);
+
+      const saisie: PlaceJouee[] = placesEnBase.map((p) => ({
+        position: p.position,
+        entryId: p.entryId,
+        score: null,
+        rank: null,
+        forfait: p.slotId === slotId,
+      }));
+      const admissible = saisieAdmissible(saisie);
+      if (!admissible.ok) throw new Refus(admissible.raison);
+
+      for (const place of placesEnBase) {
+        await ecrirePlace(tx, place.slotId, {
+          score: null,
+          rank: null,
+          forfait: place.slotId === slotId,
+        });
+      }
+      const { remisesEnAttente } = await propager(tx, rencontre.phaseId);
+      return { complete: issueDeRencontre(saisie).complete, remisesEnAttente };
     });
-    return { ok: true, data: { complete: issue.complete } };
+    return { ok: true, data: resultat };
   } catch (erreur) {
+    if (erreur instanceof Refus) return { ok: false, error: erreur.message };
     console.error("[declarerForfait] Échec de l'écriture :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
@@ -807,17 +869,15 @@ export async function effacerRencontres(phaseId: string): Promise<ResultatAction
     return { ok: false, error: "Cette phase n'est pas valide. Rechargez la page." };
   }
 
-  if (await phaseADesResultats(phaseId)) {
-    return {
-      ok: false,
-      error:
-        "Des résultats sont saisis dans cette phase : ses rencontres ne s'effacent plus. " +
-        "Corrigez-les d'abord si c'est une erreur de saisie.",
-    };
-  }
+  const jouee =
+    "Des résultats sont saisis dans cette phase : ses rencontres ne s'effacent plus. " +
+    "Corrigez-les d'abord si c'est une erreur de saisie.";
+  if (await phaseADesResultats(phaseId)) return { ok: false, error: jouee };
 
   try {
     await db.transaction(async (tx) => {
+      await verrouillerPhase(tx, phaseId);
+      if (await phaseADesResultats(phaseId, tx)) throw new Refus(jouee);
       await tx.delete(tournamentMatch).where(eq(tournamentMatch.phaseId, phaseId));
       await tx
         .update(tournamentPhase)
@@ -826,6 +886,7 @@ export async function effacerRencontres(phaseId: string): Promise<ResultatAction
     });
     return { ok: true, data: undefined };
   } catch (erreur) {
+    if (erreur instanceof Refus) return { ok: false, error: erreur.message };
     console.error("[effacerRencontres] Échec de la suppression :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }

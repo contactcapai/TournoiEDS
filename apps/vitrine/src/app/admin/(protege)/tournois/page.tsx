@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TournoiActions } from "@/components/admin/TournoiActions/TournoiActions";
-import { formatLongDate, formatTime, jourLisible } from "@/lib/date-paris";
+import { formatLongDate, formatTime, jourLisible, jourParis } from "@/lib/date-paris";
 import { groupesParJour } from "@/lib/tournoi/liste-par-jour";
 import {
   etatInscriptionEnPhrase,
@@ -10,8 +10,11 @@ import {
 } from "@/lib/libelles-tournoi";
 import { cleanText } from "@/lib/text";
 import { exigerRolePage } from "@/server/auth/guard";
+import { getPhasesForTournament } from "@/server/db/queries/phases";
+import { getRencontresDePhase } from "@/server/db/queries/rencontres";
 import {
   getPastTournamentsForAdmin,
+  getTournoisQuiSeJouent,
   getUpcomingTournamentsForAdmin,
   type AdminTournament,
 } from "@/server/db/queries/tournaments";
@@ -154,6 +157,44 @@ function LigneTournoi({
   );
 }
 
+/**
+ * Les tournois qui se jouent AUJOURD'HUI (jour de Paris), avec la phase du jour et son avancement.
+ * La phase retenue : celle en cours, sinon la prochaine à générer, sinon la dernière jouée.
+ */
+async function getAujourdHui(maintenant: Date) {
+  const aujourdHui = jourParis(maintenant);
+  const tournois = (await getTournoisQuiSeJouent(maintenant, 0, 50)).filter(
+    (t) => t.journee === aujourdHui,
+  );
+  return Promise.all(
+    tournois.map(async (tournoi) => {
+      const phases = (await getPhasesForTournament(tournoi.id)).filter(
+        (p) => p.playedOn === null || p.playedOn === aujourdHui,
+      );
+      const phase =
+        phases.find((p) => p.state === "en_cours") ??
+        phases.find((p) => p.state === "planifiee") ??
+        phases.at(-1) ??
+        null;
+      const jouables = (phase ? await getRencontresDePhase(phase.id) : []).filter(
+        (r) => !r.issue.exemption,
+      );
+      return {
+        ...tournoi,
+        phase,
+        saisies: jouables.filter((r) => r.issue.complete).length,
+        total: jouables.length,
+      };
+    }),
+  );
+}
+
+function phraseDuJour(t: Awaited<ReturnType<typeof getAujourdHui>>[number]) {
+  if (!t.phase) return "Pas de déroulé : le podium se saisit à la main, dans la fiche.";
+  if (t.total === 0) return `« ${t.phase.name} » — rencontres pas encore générées.`;
+  return `« ${t.phase.name} » — ${t.saisies}/${t.total} rencontre${t.total > 1 ? "s" : ""} saisie${t.saisies > 1 ? "s" : ""}.`;
+}
+
 export default async function AdminTournoisPage({
   searchParams,
 }: {
@@ -161,9 +202,10 @@ export default async function AdminTournoisPage({
 }) {
   await exigerRolePage("admin_tournoi");
 
-  const [tousAVenir, tousPasses] = await Promise.all([
+  const [tousAVenir, tousPasses, duJour] = await Promise.all([
     getUpcomingTournamentsForAdmin(TOURNOIS_MAX),
     getPastTournamentsForAdmin(TOURNOIS_MAX),
+    getAujourdHui(new Date()),
   ]);
 
   // Recherche et filtre portés par l'URL : un formulaire GET, aucun JavaScript (retour UX du
@@ -191,6 +233,37 @@ export default async function AdminTournoisPage({
         <strong>événement de l&rsquo;agenda</strong> — un même événement peut en porter
         plusieurs.
       </p>
+
+      {/* Le jour d'un tournoi, on vient ici pour UNE chose : saisir. D'où cette vue en tête. */}
+      {duJour.length > 0 ? (
+        <section className={styles.section} aria-labelledby="tournois-aujourdhui">
+          <h2 className={styles.sectionTitre} id="tournois-aujourdhui">
+            Aujourd&rsquo;hui
+          </h2>
+          <ul className={styles.liste}>
+            {duJour.map((t) => (
+              <li key={t.id} className={styles.ligne}>
+                <div className={styles.ligneCorps}>
+                  <p className={styles.ligneTitre}>{t.nom}</p>
+                  <p className={styles.ligneLieu}>{phraseDuJour(t)}</p>
+                </div>
+                <div className={styles.ligneActions}>
+                  <Link
+                    className={styles.lienPrincipal}
+                    href={
+                      t.phase
+                        ? `/admin/tournois/${t.id}/jour-j?phase=${t.phase.id}`
+                        : `/admin/tournois/${t.id}`
+                    }
+                  >
+                    {t.phase ? "Ouvrir le jour J" : "Ouvrir la fiche"}
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/tournois/nouveau">
