@@ -18,7 +18,12 @@ import {
   saisieAdmissible,
   type PlaceJouee,
 } from "../../lib/tournoi/progression";
-import { podiumDepuis, qualifiesDesPoules, rangsParPoule } from "../../lib/tournoi/parcours";
+import {
+  lettreDePoule,
+  podiumDepuis,
+  qualifiesDesPoules,
+  rangsParPoule,
+} from "../../lib/tournoi/parcours";
 import { participantsDepuisLeClassement } from "../../lib/tournoi/participants";
 import {
   SEUIL_VICTOIRE_DEFAUT,
@@ -27,6 +32,7 @@ import {
   estDeLaFinale,
 } from "../../lib/tournoi/finale";
 import { partDuClassement } from "../../lib/tournoi/structure";
+import { PODIUM_MAX } from "../../lib/schemas/tournament";
 import { exigerRoleAction } from "../auth/guard";
 import { db } from "../db/client";
 import { getPhasesForTournament } from "../db/queries/phases";
@@ -242,8 +248,8 @@ async function propager(tx: Transaction, phaseId: string) {
  * défendable : c'est elle qui départage. Prendre la première, ou fusionner les phases, ferait
  * dépendre le podium d'une poule de qualification.
  *
- * ⚠️ IL N'INVENTE JAMAIS UNE PLACE DISPUTÉE. Deux demi-finalistes sont 3ᵉ ex æquo : en écrire un
- * seul serait une invention (`podiumDepuis`). La place reste vide et l'écran le dit.
+ * ⚠️ IL N'INVENTE JAMAIS UNE PLACE DISPUTÉE. Deux demi-finalistes sans petite finale sont écrits
+ * ensemble, « 3ᵉ ex æquo » (décision de Brice) ; toute autre place disputée reste vide.
  * ⚠️ **IL ÉCRASE** un podium déjà saisi — d'où la confirmation côté écran. Pré-remplir sans le
  * dire ferait perdre une saisie manuelle sans un mot.
  */
@@ -304,6 +310,10 @@ export async function prerremplirPodium(
     }
 
     if (proposition.premier === null) continue;
+    // Deux noms d'équipe longs peuvent dépasser la borne du champ : la place reste alors vide.
+    if (proposition.troisieme !== null && proposition.troisieme.length > PODIUM_MAX) {
+      proposition = { ...proposition, troisieme: null };
+    }
 
     try {
       await db
@@ -347,12 +357,14 @@ export async function prerremplirPodium(
 /**
  * Les qualifiés d'un tableau tiré de la phase de poules qui le PRÉCÈDE : les premiers présents
  * de chaque poule, croisés A1, B1, A2, B2… Refuse tant que les poules ne sont pas terminées —
- * qualifier sur un classement provisoire ferait entrer les mauvaises équipes.
+ * qualifier sur un classement provisoire ferait entrer les mauvaises équipes —, et tant qu'une
+ * égalité à cheval sur la dernière place n'est pas tranchée (`choisis`).
  */
 async function qualifiesDeLaPouleAvant(
   phase: { id: string; tournoiId: string; position: number },
   reglages: { qualifiesParPoule: number },
   presents: readonly { id: string; nom: string }[],
+  choisis: ReadonlySet<string>,
 ): Promise<
   | { ok: true; participants: { id: string; nom: string }[] }
   | { ok: false; error: string }
@@ -365,23 +377,45 @@ async function qualifiesDeLaPouleAvant(
   }
 
   const rencontres = await getRencontresDePhase(pouleAvant.id);
-  if (rencontres.length === 0 || !rencontres.every((r) => r.issue.complete)) {
+  const sansVainqueur = rencontres.filter((r) => !r.issue.complete).length;
+  if (rencontres.length === 0 || sansVainqueur > 0) {
     return {
       ok: false,
-      error: `Les poules de « ${pouleAvant.name} » ne sont pas terminées : saisissez d'abord tous leurs résultats.`,
+      error:
+        `Les poules de « ${pouleAvant.name} » ne sont pas terminées : ${sansVainqueur} ` +
+        "rencontre(s) sans vainqueur. Saisissez d'abord tous leurs résultats.",
     };
   }
 
   const nomParEngage = new Map(presents.map((p) => [p.id, p.nom]));
-  const ids = qualifiesDesPoules(
+  const qualifies = qualifiesDesPoules(
     rangsParPoule(rencontres, nomParEngage),
     reglages.qualifiesParPoule,
     new Set(presents.map((p) => p.id)),
+    choisis,
   );
-  if (ids.length < 2) {
+  if (!qualifies.ok) {
+    const detail = qualifies.egalites
+      .map(
+        (e) =>
+          `poule ${lettreDePoule(e.poule)} : ${e.candidats.map((id) => nomParEngage.get(id) ?? "—").join(", ")} ` +
+          `(${e.places} place${e.places > 1 ? "s" : ""})`,
+      )
+      .join(" ; ");
+    return {
+      ok: false,
+      error:
+        `Égalité non départagée pour la qualification — ${detail}. Faites jouer une rencontre ` +
+        "décisive, puis cochez le ou les qualifiés dans « Départager » avant de générer.",
+    };
+  }
+  if (qualifies.ids.length < 2) {
     return { ok: false, error: "Moins de deux qualifiés présents : pas de tableau possible." };
   }
-  return { ok: true, participants: ids.map((id) => ({ id, nom: nomParEngage.get(id) ?? "—" })) };
+  return {
+    ok: true,
+    participants: qualifies.ids.map((id) => ({ id, nom: nomParEngage.get(id) ?? "—" })),
+  };
 }
 
 export async function genererPhase(
@@ -457,7 +491,14 @@ export async function genererPhase(
   const presents = await getPresentsDuTournoi(phase.tournoiId, phase.playedOn);
 
   const depuisLesPoules = phase.kind === "bracket" && reglages.depuis === "poules";
-  const qualifies = depuisLesPoules ? await qualifiesDeLaPouleAvant(phase, reglages, presents) : null;
+  // Le choix humain qui lève une égalité de poule — gardé dans `settings` pour que l'écran
+  // recompare les mêmes qualifiés après une correction de poule.
+  const departage = depuisLesPoules
+    ? donnees.getAll("departage").map(String).filter((id) => identifiant.safeParse(id).success)
+    : [];
+  const qualifies = depuisLesPoules
+    ? await qualifiesDeLaPouleAvant(phase, reglages, presents, new Set(departage))
+    : null;
   if (qualifies !== null && !qualifies.ok) return { ok: false, error: qualifies.error };
 
   const participants = qualifies !== null
@@ -585,7 +626,7 @@ export async function genererPhase(
             allerRetour: reglages.allerRetour,
             depuis: reglages.depuis,
             ...(phase.kind === "poule" ? { poules: reglages.poules } : {}),
-            ...(depuisLesPoules ? { qualifiesParPoule: reglages.qualifiesParPoule } : {}),
+            ...(depuisLesPoules ? { qualifiesParPoule: reglages.qualifiesParPoule, departage } : {}),
             ...(gouverneLeSeuil ? { seuilDeVictoire: reglages.seuilDeVictoire } : {}),
           },
           state: "en_cours",

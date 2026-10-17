@@ -43,8 +43,10 @@ export const estParTables = (kind: PhaseKind) =>
  * ensemble. Une manche suisse générée dans l'ordre de saisie n'est pas « un peu fausse »,
  * elle n'est pas suisse du tout. D'où un format qui porte la règle, plutôt qu'une case à
  * cocher qu'on oublie au troisième week-end.
+ * ⚠️ Une `finale` aussi : elle retient les PREMIERS, donc l'ordre de saisie y enverrait les
+ * mauvais joueurs. Sans aucun résultat, `participantsDepuisLeClassement` retombe sur l'arrivée.
  */
-export const partDuClassement = (kind: PhaseKind) => kind === "suisse";
+export const partDuClassement = (kind: PhaseKind) => kind === "suisse" || kind === "finale";
 
 /**
  * Cycle de vie d'une phase. Une phase `planifiee` se réécrit librement ; dès qu'un résultat

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { ecartsDeTirage, tirageAJour } from "./tirage";
+import { ecartDesQualifies, ecartsDeTirage, tirageAJour } from "./tirage";
 
 // La règle est muette par nature : quand elle se trompe, l'écran n'affiche PAS un avertissement
 // qu'il aurait dû, ou en affiche un qui n'a pas lieu d'être. Rien ne casse. D'où ces tests.
@@ -68,5 +68,21 @@ describe("les deux gardes", () => {
       [{ id: "a", nom: "Kayn" }],
     );
     assert.deepEqual(ecarts.partis, [{ id: "b", nom: "Kayn" }]);
+  });
+});
+
+describe("ecartDesQualifies — une poule corrigée APRÈS le tirage du tableau", () => {
+  const assis = [{ rang: 1, entryId: "a1" }, { rang: 2, entryId: "b1" }, { rang: 3, entryId: "a2" }, { rang: 4, entryId: "b2" }];
+
+  it("rien n'a changé : aucun écart", () => {
+    assert.deepEqual(ecartDesQualifies(assis, ["a1", "b1", "a2", "b2"]), { sortis: [], entres: [], ordreChange: false });
+  });
+
+  it("🔴 un autre qualifié : il est nommé, et celui qui ne l'est plus aussi", () => {
+    assert.deepEqual(ecartDesQualifies(assis, ["a1", "b1", "a3", "b2"]), { sortis: ["a2"], entres: ["a3"], ordreChange: false });
+  });
+
+  it("les mêmes, dans un autre ordre : les affiches ne sont plus les bonnes", () => {
+    assert.equal(ecartDesQualifies(assis, ["a2", "b1", "a1", "b2"]).ordreChange, true);
   });
 });

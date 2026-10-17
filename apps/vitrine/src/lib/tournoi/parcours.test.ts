@@ -8,6 +8,7 @@ import {
   rangsParParcours,
   rangsParPoule,
   rangsParVictoires,
+  troisiemesExAequo,
 } from "./parcours";
 import { calculerPropagation, issueDeRencontre } from "./progression";
 
@@ -268,6 +269,54 @@ describe("rangsParVictoires — POULE : personne n'est éliminé", () => {
   });
 });
 
+describe("rangsParVictoires — 🔴 une égalité se départage par la CONFRONTATION DIRECTE", () => {
+  /** Une rencontre de poule jouée, avec son issue — score de `a` puis de `b`. */
+  const m = (position: number, a: string, sa: number, b: string, sb: number) => {
+    const places = [
+      { position: 1, entryId: a, score: sa, rank: null, source: null },
+      { position: 2, entryId: b, score: sb, rank: null, source: null },
+    ];
+    return { position, pool: null, places, issue: issueDeRencontre(places) };
+  };
+  // Zeta bat Alpha 13-11 ; Alpha et Zeta finissent à 2 victoires et même différence (+10).
+  const POULE = [
+    m(1, "zeta", 13, "alpha", 11), m(2, "alpha", 13, "c", 5), m(3, "zeta", 13, "c", 1),
+    m(4, "alpha", 13, "d", 9), m(5, "d", 13, "zeta", 9), m(6, "c", 13, "d", 11),
+  ];
+  // a bat b, b bat c, c bat a, chacun bat d : trois à 2 victoires, même différence.
+  const CYCLE = [
+    m(1, "a", 2, "b", 1), m(2, "b", 2, "c", 1), m(3, "c", 2, "a", 1),
+    m(4, "a", 2, "d", 1), m(5, "b", 2, "d", 1), m(6, "c", 2, "d", 1),
+  ];
+  const TOUS = new Set(["a", "b", "c", "d"]);
+  const NOMS = noms(["zeta", "alpha", "c", "d"]);
+
+  it("à deux ex æquo, le vainqueur de leur rencontre passe devant — pas l'ordre alphabétique", () => {
+    const lignes = rangsParVictoires(POULE, NOMS);
+    assert.deepEqual(lignes.slice(0, 2).map((l) => [l.id, l.rang, l.exAequo]), [
+      ["zeta", 1, 1],
+      ["alpha", 2, 1],
+    ]);
+  });
+
+  it("🔴 un trio qui se bat en cycle reste EX ÆQUO, et la génération du tableau est refusée", () => {
+    const lignes = rangsParVictoires(CYCLE, noms([...TOUS]));
+    assert.deepEqual(lignes.slice(0, 3).map((l) => [l.rang, l.exAequo]), [[1, 3], [1, 3], [1, 3]]);
+
+    const refus = qualifiesDesPoules(new Map([[1, lignes]]), 2, TOUS);
+    assert.deepEqual(refus, { ok: false, egalites: [{ poule: 1, places: 2, candidats: ["a", "b", "c"] }] });
+
+    const tranche = qualifiesDesPoules(new Map([[1, lignes]]), 2, TOUS, new Set(["c", "a"]));
+    assert.deepEqual(tranche, { ok: true, ids: ["a", "c"] }, "le choix humain lève l'égalité");
+  });
+
+  it("une égalité ENTIÈREMENT qualifiée ou éliminée ne bloque rien", () => {
+    const lignes = new Map([[1, rangsParVictoires(CYCLE, noms([...TOUS]))]]);
+    assert.equal(qualifiesDesPoules(lignes, 3, TOUS).ok, true, "les trois ex æquo entrent");
+    assert.equal(qualifiesDesPoules(lignes, 1, new Set(["d"])).ok, true, "seul d est présent");
+  });
+});
+
 describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (GIR 2026)", () => {
   /** Comme l'application : l'issue vient de la PROPAGATION, qui dépouille les exemptions. */
   const commeEnBase = (phase: Phase) => {
@@ -275,12 +324,13 @@ describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (G
     return phase.map((r) => ({ ...r, issue: issues.get(r.matchId) ?? issueDeRencontre(r.places) }));
   };
 
-  /** La place de gauche gagne toujours : la tête de série la plus basse finit première. */
+  /** La meilleure tête de série (a < b < …) gagne toujours : aucune égalité dans une poule. */
   const jouerPoules = (phase: Phase) => {
     for (const r of phase) {
-      if (r.places.every((p) => p.entryId !== null)) {
-        r.places[0].score = 2;
-        r.places[1].score = 0;
+      const [g, d] = r.places;
+      if (g.entryId !== null && d.entryId !== null) {
+        g.score = g.entryId < d.entryId ? 2 : 0;
+        d.score = g.entryId < d.entryId ? 0 : 2;
       }
     }
     return propager(phase);
@@ -306,7 +356,9 @@ describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (G
   it("les qualifiés se croisent : A1 contre B2, B1 contre A2", () => {
     const phase = jouerPoules(propager(phaseGeneree("poule", HUIT, { poules: 2 })));
     const poules = rangsParPoule(pourRang(phase), noms(HUIT));
-    const qualifies = qualifiesDesPoules(poules, 2, new Set(HUIT));
+    const resultat = qualifiesDesPoules(poules, 2, new Set(HUIT));
+    assert.ok(resultat.ok);
+    const qualifies = resultat.ids;
     const [a1, b1, a2, b2] = qualifies;
     assert.equal(qualifies.length, 4);
     assert.equal(poules.get(1)?.[0].id, a1);
@@ -324,13 +376,15 @@ describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (G
     const poules = rangsParPoule(pourRang(phase), noms(HUIT));
     const a1 = poules.get(1)?.[0].id ?? "";
     const a3 = poules.get(1)?.[2].id ?? "";
-    const qualifies = qualifiesDesPoules(poules, 2, new Set(HUIT.filter((id) => id !== a1)));
+    const resultat = qualifiesDesPoules(poules, 2, new Set(HUIT.filter((id) => id !== a1)));
+    assert.ok(resultat.ok);
+    const qualifies = resultat.ids;
     assert.ok(!qualifies.includes(a1));
     assert.ok(qualifies.includes(a3), "le 3e de la poule A remplace le 1er absent");
   });
 });
 
-describe("podiumDepuis — un ex æquo NE monte PAS sur le podium", () => {
+describe("podiumDepuis — un ex æquo ne monte sur le podium qu'à deux, au 3ᵉ rang", () => {
   it("une double élimination à 4 pré-remplit les trois places", () => {
     const phase = jouerTout(propager(phaseGeneree("bracket", QUATRE, { doubleElimination: true })));
     const nomParEngage = noms(QUATRE);
@@ -342,18 +396,23 @@ describe("podiumDepuis — un ex æquo NE monte PAS sur le podium", () => {
     assert.equal(new Set([podium.premier, podium.deuxieme, podium.troisieme]).size, 3);
   });
 
-  it("🔴 une élimination simple à 8 laisse la 3ᵉ place VIDE — ils sont deux", () => {
+  it("🔴 une élimination simple à 8 écrit les DEUX demi-finalistes, 3ᵉ ex æquo", () => {
     const phase = jouerTout(propager(phaseGeneree("bracket", HUIT)));
     const nomParEngage = noms(HUIT);
-    const podium = podiumDepuis(rangsParParcours(pourRang(phase), nomParEngage), nomParEngage);
+    const lignes = rangsParParcours(pourRang(phase), nomParEngage);
+    const podium = podiumDepuis(lignes, nomParEngage);
+    const [x, y] = lignes.filter((l) => l.rang === 3).map((l) => nomParEngage.get(l.id) ?? "");
 
     assert.ok(podium.premier);
     assert.ok(podium.deuxieme);
-    assert.equal(
-      podium.troisieme,
-      null,
-      "🔴 deux demi-finalistes sont 3ᵉ : en écrire un seul serait une invention",
-    );
+    assert.equal(podium.troisieme, troisiemesExAequo(x, y), "les deux noms, jamais un seul");
+  });
+
+  it("au-delà de deux ex æquo au 3ᵉ rang, la place reste VIDE", () => {
+    const lignes = ["a", "b", "c", "d", "e"].map((id, i) => ({
+      id, rang: i < 2 ? i + 1 : 3, profondeur: null, exAequo: i < 2 ? 1 : 3,
+    }));
+    assert.equal(podiumDepuis(lignes, noms(["a", "b", "c", "d", "e"])).troisieme, null);
   });
 
   it("une phase inachevée ne pré-remplit rien", () => {

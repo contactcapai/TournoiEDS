@@ -59,7 +59,15 @@ export interface JourJProps {
    * La phase de poules qui précède ce TABLEAU, s'il y en a une : on peut alors n'y faire entrer
    * que les premiers de chaque poule. `null` sinon.
    */
-  poulesAvant: { nom: string; poules: number; terminees: boolean } | null;
+  poulesAvant: {
+    nom: string;
+    poules: number;
+    terminees: boolean;
+    /** Les groupes ex æquo non départagés, parmi les présents — à trancher au besoin. */
+    egalites: { poule: number; rang: number; candidats: { id: string; nom: string }[] }[];
+  } | null;
+  /** Un tableau tiré des poules dont les qualifiés ne sont plus les bons — `null` sinon. */
+  qualifiesChanges: string | null;
   /**
    * La finale, quand CETTE phase en fait partie — `null` sinon (Story 10.14).
    *
@@ -93,6 +101,7 @@ export function JourJ({
   rencontres,
   presents,
   ecarts,
+  qualifiesChanges,
   aUnClassement,
   aDesResultats,
   lienPointage,
@@ -297,7 +306,18 @@ export function JourJ({
               SAUF pour une phase « Manche suisse », qui porte la réponse dans son format. On
               ne pose donc plus la question : un choix dont une seule réponse est correcte
               n'est pas un choix, c'est une occasion de se tromper au 3e week-end. */}
-          {partDuClassement(phase.kind) ? (
+          {partDuClassement(phase.kind) && phase.kind === "finale" ? (
+            <p className={formulaire.regle}>
+              Cette phase est une <strong>finale</strong> : y montent les{" "}
+              <strong>premiers du classement des qualifications</strong>, présents ce jour-là.{" "}
+              {aUnClassement ? null : (
+                <>
+                  Aucun résultat n&rsquo;est encore saisi : la table se compose dans
+                  l&rsquo;ordre du pointage.
+                </>
+              )}
+            </p>
+          ) : partDuClassement(phase.kind) ? (
             <p className={formulaire.regle}>
               Cette phase est une <strong>manche suisse</strong> : les tables se composent
               d&rsquo;après le <strong>classement actuel</strong>, pour que chacun rejoue contre
@@ -342,6 +362,33 @@ export function JourJ({
                     le 2e de A. Un qualifié absent est remplacé par le suivant de sa poule.
                   </span>
                 </p>
+                {poulesAvant.egalites.length > 0 ? (
+                  <fieldset className={formulaire.champ}>
+                    <legend className={formulaire.legend}>Départager</legend>
+                    <p className={formulaire.sousChamp}>
+                      <span>
+                        Ces équipes sont <strong>ex æquo</strong> (victoires, différence et
+                        confrontation directe). Si l&rsquo;égalité tombe sur la dernière place
+                        qualificative, faites jouer une rencontre décisive et cochez son ou ses
+                        vainqueurs. Sinon, ne cochez rien.
+                      </span>
+                    </p>
+                    {poulesAvant.egalites.map((egalite) => (
+                      <div key={`${egalite.poule}-${egalite.rang}`} className={formulaire.choix}>
+                        <span className={formulaire.label}>
+                          Poule {lettreDePoule(egalite.poule)}, {egalite.rang}
+                          {egalite.rang === 1 ? "ʳᵉ" : "ᵉ"} place
+                        </span>
+                        {egalite.candidats.map((candidat) => (
+                          <label key={candidat.id} className={formulaire.choixLabel}>
+                            <input type="checkbox" name="departage" value={candidat.id} />
+                            {candidat.nom}
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </fieldset>
+                ) : null}
               </>
             ) : null}
             <label className={formulaire.choixLabel}>
@@ -360,8 +407,7 @@ export function JourJ({
             <p className={formulaire.sousChamp}>
               <span>
                 Pour une <strong>première</strong> manche, prenez les présents. Pour une manche
-                suivante ou une <strong>finale</strong>, prenez le classement : c&rsquo;est ce qui
-                met les meilleurs ensemble.
+                suivante, prenez le classement : c&rsquo;est ce qui met les meilleurs ensemble.
               </span>
             </p>
           </div>
@@ -446,6 +492,15 @@ export function JourJ({
                 qu'on l'ait voulu fausse le classement de toute la manche. */}
             Refaites le tirage ci-dessous, sinon une table jouera à un effectif qui n&rsquo;est
             pas le bon — et les points suivent la taille réelle de la table.
+          </p>
+        ) : null}
+
+        {qualifiesChanges ? (
+          <p className={styles.tirage} role="status">
+            <strong>Le tableau n&rsquo;a plus les bons qualifiés.</strong> {qualifiesChanges}{" "}
+            {aDesResultats
+              ? "Des scores sont déjà saisis dans ce tableau : videz-les pour pouvoir le refaire, ou vérifiez la correction de la poule."
+              : "Refaites le tirage ci-dessous."}
           </p>
         ) : null}
 
@@ -564,7 +619,9 @@ export function JourJ({
                       </div>
 
                       <p className={styles.etat}>
-                        {rencontre.issue.exemption
+                        {rencontre.issue.exemption && rencontre.issue.vainqueur === null
+                          ? "Personne ne jouera cette rencontre : elle est sautée."
+                          : rencontre.issue.exemption
                           ? "Exemption — passe sans jouer."
                           : rencontre.issue.complete
                             ? `Vainqueur : ${rencontre.places.find((p) => p.entryId === rencontre.issue.vainqueur)?.nom ?? "—"}`
