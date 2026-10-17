@@ -52,6 +52,7 @@ export const metadata: Metadata = {
     description:
       "Association esport rémoise : agenda des rendez-vous du jeudi, animations, interventions et tournois.",
   },
+  twitter: { card: "summary_large_image" },
   robots: { index: true, follow: true },
 };
 

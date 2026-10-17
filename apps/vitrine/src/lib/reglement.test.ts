@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { blocsDuReglement, remplir, TROUS_AUTOMATIQUES, trousDu, valeursDuTournoi } from "./reglement";
+import { readFileSync } from "node:fs";
+import { A_SAVOIR, blocsDuReglement, remplir, TROUS_AUTOMATIQUES, trousDu, valeursDuTournoi } from "./reglement";
 
 // Un trou oublié s'afficherait tel quel au public (« {{places}} joueurs ») : c'est l'erreur
 // muette de ce module, et la seule raison de ces tests.
@@ -56,6 +57,7 @@ describe("règlement — les trous", () => {
     const v = valeursDuTournoi({ ...base, teamSize: 2, phases }, "https://eds.fr");
     assert.equal(v["nombre de manches de qualification"], "");
     assert.equal(v["format d'équipe"], "équipes de 2 joueurs (2v2)");
+    assert.equal(valeursDuTournoi({ ...base, teamSize: 2, capacity: 8 }, "").places, "8 équipes de 2 joueurs");
     assert.equal(v["déroulé"], "- Poule A (poule)\n- Finale (tableau)");
   });
 });
@@ -70,5 +72,12 @@ describe("règlement — les blocs", () => {
       { type: "liste", items: ["a", "b"] },
       { type: "paragraphe", texte: "Après." },
     ]);
+  });
+});
+
+describe("« à savoir » — chaque preuve vit dans le modèle « sur place »", () => {
+  it("une phrase du modèle reformulée éteindrait la ligne en silence", () => {
+    const modele = readFileSync(new URL("../../drizzle/0036_modele_reglement_sur_place.sql", import.meta.url), "utf8");
+    for (const { preuve } of A_SAVOIR) assert.ok(modele.includes(preuve), preuve);
   });
 });

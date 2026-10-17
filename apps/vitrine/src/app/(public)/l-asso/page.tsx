@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { Brush, Button, CrownWatermark, LinkArrow } from "@repo/ui";
 import { TeamGrid } from "@/components/asso/TeamGrid/TeamGrid";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
@@ -54,6 +55,7 @@ export const metadata: Metadata = {
     title: "L'asso · Esport des Sacres",
     description:
       "Association esport née à Reims en 2022 : notre histoire, l'origine de notre nom, nos partis pris et notre équipe de bénévoles.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

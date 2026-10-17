@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { ASSOCIATION, HEBERGEUR } from "@/lib/legal";
@@ -41,6 +42,7 @@ export const metadata: Metadata = {
     title: "Mentions légales · Esport des Sacres",
     description:
       "Éditeur, directeur de la publication et hébergeur du site de l'association Esport des Sacres.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

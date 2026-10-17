@@ -2,10 +2,11 @@
 // requêtes (garde-fou n°1 de la Story 1.7) : ce module lit la base, il ne doit jamais être
 // atteint depuis un composant client.
 import "server-only";
-import { and, eq, gte, lte, min } from "drizzle-orm";
+import { and, eq, gte, lte, min, sql, type AnyColumn } from "drizzle-orm";
 import { cache } from "react";
 
 import { ajouterJours, debutDuJourParis, jourParis } from "@/lib/date-paris";
+import { A_SAVOIR } from "@/lib/reglement";
 import { fusionnerCeQuiSeJoue } from "@/lib/tournoi/en-cours";
 import { db } from "../client";
 import { COLONNES_VISUEL } from "./photos";
@@ -486,6 +487,21 @@ const COLONNES_FICHE = {
  * ⚠️ **CE N'EST PAS UN CACHE APPLICATIF** : la mémoïsation ne vit que le temps d'une requête, et
  * ne survit à aucune visite suivante. Le raisonnement complet est écrit sur `lireReglages`.
  */
+/**
+ * « À savoir » : une chaîne de « 0 »/« 1 », un caractère par entrée d'`A_SAVOIR` — la fiche ne lit
+ * pas le règlement entier (40 000 caractères), seulement s'il porte encore chaque phrase.
+ */
+const drapeauxASavoir = (regles: AnyColumn) =>
+  sql<string>`concat(${sql.join(
+    A_SAVOIR.map(
+      ({ preuve }) =>
+        sql`case when ${regles} like ${sql.raw(`'%${preuve.replace(/'/g, "''")}%'`)} then '1' else '0' end`,
+    ),
+    sql`, `,
+  )})`;
+
+const lireDrapeaux = (brut: string) => A_SAVOIR.map((_, rang) => brut[rang] === "1");
+
 export const getTournamentBySlug = cache(async function getTournamentBySlug(slug: string) {
   const ligne = await db.query.tournament.findFirst({
     columns: COLONNES_FICHE,
@@ -493,6 +509,7 @@ export const getTournamentBySlug = cache(async function getTournamentBySlug(slug
     // La fiche ne lit pas le règlement (jusqu'à 40 000 caractères) : seulement s'il existe.
     extras: (table, { sql }) => ({
       aUnReglement: sql<boolean>`${table.rules} is not null`.as("a_un_reglement"),
+      aSavoir: drapeauxASavoir(table.rules).as("a_savoir"),
     }),
     with: {
       ...RELATION_VISUEL,
@@ -500,7 +517,7 @@ export const getTournamentBySlug = cache(async function getTournamentBySlug(slug
     },
   });
   if (!ligne) return undefined;
-  return { ...ligne, estPasse: ligne.startsAt <= new Date() };
+  return { ...ligne, aSavoir: lireDrapeaux(ligne.aSavoir), estPasse: ligne.startsAt <= new Date() };
 });
 
 /**
@@ -544,6 +561,7 @@ export async function getTournamentApercuById(id: string) {
     // La fiche ne lit pas le règlement (jusqu'à 40 000 caractères) : seulement s'il existe.
     extras: (table, { sql }) => ({
       aUnReglement: sql<boolean>`${table.rules} is not null`.as("a_un_reglement"),
+      aSavoir: drapeauxASavoir(table.rules).as("a_savoir"),
     }),
     with: {
       ...RELATION_VISUEL,
@@ -551,7 +569,7 @@ export async function getTournamentApercuById(id: string) {
     },
   });
   if (!ligne) return undefined;
-  return { ...ligne, estPasse: ligne.startsAt <= new Date() };
+  return { ...ligne, aSavoir: lireDrapeaux(ligne.aSavoir), estPasse: ligne.startsAt <= new Date() };
 }
 
 /**

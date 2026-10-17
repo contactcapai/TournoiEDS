@@ -23,6 +23,7 @@ export async function getPhasesForTournament(tournoiId: string) {
       state: tournamentPhase.state,
       /** Le jour de cette manche — `null` sur un tournoi qui tient sur une journée. */
       playedOn: tournamentPhase.playedOn,
+      settings: tournamentPhase.settings,
       rencontres: sql<number>`count(distinct ${tournamentMatch.id})`.mapWith(Number),
       avecResultat: sql<number>`count(distinct ${tournamentMatch.id}) filter (where ${or(
         isNotNull(tournamentMatchSlot.score),
@@ -94,6 +95,8 @@ export async function getDeroulePublic(tournoiId: string) {
       state: tournamentPhase.state,
       /** Le jour de cette manche — `null` sur un tournoi qui tient sur une journée. */
       playedOn: tournamentPhase.playedOn,
+      /** Les réglages choisis à la génération : la phrase publique du déroulé s'en dérive. */
+      settings: tournamentPhase.settings,
     })
     .from(tournamentPhase)
     .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))

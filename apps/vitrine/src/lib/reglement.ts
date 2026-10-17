@@ -1,4 +1,5 @@
 import { formatLongDate, formatTime, jourLisible, jourParis } from "./date-paris";
+import { libellePlaces } from "./libelles-tournoi";
 import { SEUIL_VICTOIRE_DEFAUT } from "./tournoi/finale";
 import { estParTables, type PhaseKind } from "./tournoi/structure";
 
@@ -99,7 +100,8 @@ export function valeursDuTournoi(t: DonneesTournoi, baseDuSite: string): Record<
     "heure de fin": t.endsAt ? formatTime(t.endsAt) : "",
     lieu: t.venueName ?? "",
     tarif: t.priceText ?? "",
-    places: t.capacity?.toString() ?? "",
+    // « 8 équipes de 2 joueurs », comme la fiche : « 8 » seul se lisait « 8 joueurs » sur un 2v2.
+    places: t.capacity === null ? "" : libellePlaces(t.capacity, t.teamSize),
     lots: t.prizes ?? "",
     "format d'équipe":
       t.teamSize > 1 ? `équipes de ${t.teamSize} joueurs (${t.teamSize}v${t.teamSize})` : "individuel",
@@ -154,3 +156,22 @@ export function blocsDuReglement(texte: string): BlocReglement[] {
   clore();
   return blocs;
 }
+
+/**
+ * Ce que la fiche dit « à savoir », et la phrase du règlement qui en fait foi : la ligne ne
+ * paraît que si le règlement COPIÉ dans le tournoi la contient encore (modèle « sur place »).
+ */
+export const A_SAVOIR = [
+  {
+    preuve: "15 minutes avant le début du Tournoi",
+    texte: "Présentez-vous au stand EDS 15 minutes avant le début, pour le pointage.",
+  },
+  {
+    preuve: "exclusivement sur le matériel fourni par EDS",
+    texte: "Le matériel est fourni sur place : aucun périphérique personnel n'est accepté.",
+  },
+  {
+    preuve: "moins de 16 ans doivent avoir l'accord d'un parent",
+    texte: "Moins de 16 ans : accord d'un parent, présent sur place ou par autorisation écrite.",
+  },
+] as const;

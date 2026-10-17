@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { Brush, Button, ExternalIcon } from "@repo/ui";
 import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { etatDeVenue, identifiantsDEvenements } from "@/lib/venues";
@@ -51,6 +52,7 @@ export const metadata: Metadata = {
     title: "Agenda · Esport des Sacres",
     description:
       "Les jeudis jeux en roulement sur quatre bars rémois, les temps forts, et ce qui s'est déjà passé.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

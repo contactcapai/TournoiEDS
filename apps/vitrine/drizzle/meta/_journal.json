@@ -288,6 +288,13 @@
       "when": 1792254390893,
       "tag": "0040_forfait",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792254450893,
+      "tag": "0041_reglement_tft_places_bareme",
+      "breakpoints": true
     }
   ]
 }
