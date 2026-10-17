@@ -81,7 +81,7 @@ export default async function AdminDashboardPage() {
     await Promise.all([
       ouvre(SOLLICITATIONS) ? compterSollicitations() : null,
       ouvre(AGENDA) ? getUpcomingEventsForAdmin(1) : null,
-      ouvre(TOURNOIS) ? getTournoisQuiSeJouent(maintenant, FENETRE_JOURS, 3) : null,
+      ouvre(TOURNOIS) ? getTournoisQuiSeJouent(maintenant, FENETRE_JOURS, 15) : null,
       ouvre(TOURNOIS) ? getUpcomingTournamentsForAdmin(1) : null,
       ouvre(GALERIE) ? getGalerieDuDernierEvenement(maintenant) : null,
     ]);

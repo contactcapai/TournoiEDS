@@ -194,7 +194,7 @@ export function TournoiForm({ tournoi, evenements, photos }: TournoiFormProps) {
   );
   const [registrationUrl, setRegistrationUrl] = useState(tournoi?.registrationUrl ?? "");
   const [registrationState, setRegistrationState] = useState<TournamentRegistrationState>(
-    tournoi?.registrationState ?? "fermees",
+    tournoi?.registrationState ?? "prochainement",
   );
   const [podiumFirst, setPodiumFirst] = useState(tournoi?.podiumFirst ?? "");
   const [podiumSecond, setPodiumSecond] = useState(tournoi?.podiumSecond ?? "");

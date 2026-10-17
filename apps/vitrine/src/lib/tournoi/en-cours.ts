@@ -125,3 +125,35 @@ export function etatDuJour(
     ? { nature: "manche_en_cours", manche: enCours.name }
     : { nature: "aujourd_hui" };
 }
+
+/**
+ * Où en est le tournoi pour la fiche : UNE source pour le surtitre, le bandeau et la section
+ * d'action — `estPasse` seul classe « déjà joué » un tournoi commencé ce matin.
+ */
+export type MomentDuTournoi =
+  | { nature: "a_venir" }
+  | { nature: "en_cours" }
+  | { nature: "entre_journees"; prochaine: string }
+  | { nature: "termine" };
+
+export function momentDuTournoi(args: {
+  estPasse: boolean;
+  etat: EtatDuJour;
+  phases: readonly PhaseDuDeroule[];
+  aujourdHui: string | undefined;
+  podiumSaisi: boolean;
+}): MomentDuTournoi {
+  const { estPasse, etat, phases, aujourdHui, podiumSaisi } = args;
+  // Un podium saisi clôt le tournoi, même le soir du jour J.
+  if (podiumSaisi) return { nature: "termine" };
+  if (etat.nature === "manche_en_cours") return { nature: "en_cours" };
+  if (!estPasse) return { nature: "a_venir" };
+  if (etat.nature === "aujourd_hui") return { nature: "en_cours" };
+  const prochaine = aujourdHui
+    ? phases
+        .map((phase) => phase.playedOn)
+        .filter((jour): jour is string => jour !== null && jour > aujourdHui)
+        .sort()[0]
+    : undefined;
+  return prochaine ? { nature: "entre_journees", prochaine } : { nature: "termine" };
+}

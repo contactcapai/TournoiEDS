@@ -781,6 +781,9 @@ export async function getTournoisParEvenement(eventIds: readonly string[]) {
   return parEvenement;
 }
 
+/** Plafond de lecture de ce qui se joue sur quelques jours — large, mais borné. */
+const LECTURE_DU_JOUR_MAX = 100;
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    CE QUI SE JOUE MAINTENANT — LECTURE NÉE DE LA STORY 13.3
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -811,8 +814,10 @@ export async function getTournoisParEvenement(eventIds: readonly string[]) {
 export async function getTournoisQuiSeJouent(
   maintenant: Date,
   joursDeFenetre: number,
-  limite: number,
+  limitePublies: number,
 ) {
+  // Les brouillons sont tous gardés (chacun est une alerte) ; seuls les publiés sont bornés.
+  const limite = LECTURE_DU_JOUR_MAX;
   // 🔴 UNE SEULE LECTURE D'HORLOGE, PASSÉE PAR L'APPELANT (patron R49) — et le découpage en
   // jours se fait ICI, en JS, avec l'horloge de Paris. On ne demande jamais à Postgres de
   // convertir un `timestamptz` en jour : `::date` s'évalue dans le fuseau de la SESSION,
@@ -870,7 +875,7 @@ export async function getTournoisQuiSeJouent(
       nom: ligne.name,
       jour: jourParis(ligne.startsAt),
     })),
-  ).slice(0, limite);
+  );
 
   // Un tournoi qui se joue demain mais reste en BROUILLON est invisible au public : l'alerte du
   // tableau de bord doit le dire (retour UX du 2026-10-16).
@@ -886,7 +891,10 @@ export async function getTournoisQuiSeJouent(
             })
           ).map((t) => t.id),
         );
-  return ceQuiSeJoue.map((tournoi) => ({ ...tournoi, publie: publies.has(tournoi.id) }));
+  let publiesGardes = 0;
+  return ceQuiSeJoue
+    .map((tournoi) => ({ ...tournoi, publie: publies.has(tournoi.id) }))
+    .filter((tournoi) => !tournoi.publie || publiesGardes++ < limitePublies);
 }
 
 /** Un tournoi qui se joue dans la fenêtre, tel que le tableau de bord l'annonce. */

@@ -221,14 +221,15 @@ export function TournamentCard({ tournoi, variante, dansUnJour }: TournamentCard
               </ol>
             </div>
           ) : null
-        ) : (
+        ) : variante === "a-venir" ? (
+          // Pas sur « en cours » : « Ouverture prochainement » sur un tournoi qui se joue.
           <p className={styles.inscriptions}>
             <span className={styles.inscriptionsLabel}>Inscriptions</span>
             <span className={styles.inscriptionsValeur}>
               {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState]}
             </span>
           </p>
-        )}
+        ) : null}
       </div>
 
     </li>

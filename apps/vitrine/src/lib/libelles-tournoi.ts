@@ -67,6 +67,12 @@ export const LIBELLES_ETAT_INSCRIPTION: Record<TournamentRegistrationState, stri
   fermees: "Closes",
 };
 
+/** Le libellé en milieu de phrase : seule l'initiale baisse (« le jour J », pas « le jour j »). */
+export function etatInscriptionEnPhrase(etat: TournamentRegistrationState) {
+  const libelle = LIBELLES_ETAT_INSCRIPTION[etat];
+  return libelle.charAt(0).toLowerCase() + libelle.slice(1);
+}
+
 /**
  * Une capacité dite avec son UNITÉ : « 8 équipes de 2 joueurs », « 16 joueurs ». ⚠️ Une place
  * est un ENGAGÉ — un joueur en individuel, une ÉQUIPE sinon. « Places : 8 » nu se lisait 8 joueurs.
