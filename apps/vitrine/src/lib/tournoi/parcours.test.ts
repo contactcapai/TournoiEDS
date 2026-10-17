@@ -317,6 +317,27 @@ describe("rangsParVictoires — 🔴 une égalité se départage par la CONFRONT
   });
 });
 
+describe("rangsParVictoires — FORFAIT : une victoire et une défaite, jamais des points", () => {
+  const m = (position: number, a: string, sa: number | null, b: string, sb: number | null, forfaitDe?: string) => {
+    const places = [
+      { position: 1, entryId: a, score: sa, rank: null, source: null, forfait: forfaitDe === a },
+      { position: 2, entryId: b, score: sb, rank: null, source: null, forfait: forfaitDe === b },
+    ];
+    return { position, pool: null, places, issue: issueDeRencontre(places) };
+  };
+
+  it("🔴 le forfait vaut une victoire et la confrontation directe, mais ne compte pas à la différence", () => {
+    // x et y : 2 victoires et +2 chacun ; y a gagné leur rencontre par forfait de x. Les scores
+    // restés sur la rencontre forfait (13–0 pour x) ne doivent rien compter.
+    const poule = [
+      m(1, "x", 13, "y", 0, "x"), m(2, "x", 2, "z", 1), m(3, "x", 2, "w", 1),
+      m(4, "y", 5, "z", 1), m(5, "y", 1, "w", 3), m(6, "z", 2, "w", 1),
+    ];
+    const lignes = rangsParVictoires(poule, noms(["x", "y", "z", "w"]));
+    assert.deepEqual(lignes.slice(0, 2).map((l) => [l.id, l.rang, l.profondeur]), [["y", 1, 2], ["x", 2, 2]]);
+  });
+});
+
 describe("POULES SÉPARÉES — 2 poules de 4, puis les 2 premiers en tableau (GIR 2026)", () => {
   /** Comme l'application : l'issue vient de la PROPAGATION, qui dépouille les exemptions. */
   const commeEnBase = (phase: Phase) => {

@@ -395,9 +395,10 @@ export default async function JourJPage({
               <p className={styles.mention} role="note">
                 {phaseComplete?.kind === "poule" ? (
                   <>
-                    <strong>Classée aux victoires</strong>, puis à la différence de score, poule
-                    par poule. Dans une poule personne n&rsquo;est éliminé : chacun rencontre
-                    chacun de sa poule. Une exemption ne compte pas comme une victoire.
+                    <strong>Classée aux victoires</strong>, puis à la différence de score, puis
+                    à la confrontation directe, poule par poule. Une égalité qui reste se joue
+                    sur place. Un forfait compte une victoire, sans points ; une exemption ne
+                    compte pas.
                   </>
                 ) : (
                   <>

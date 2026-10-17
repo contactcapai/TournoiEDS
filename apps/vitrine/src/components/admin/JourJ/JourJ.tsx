@@ -22,7 +22,12 @@ import {
   type PhaseKind,
 } from "@/lib/tournoi/structure";
 import { tirageAJour, type EcartsDeTirage } from "@/lib/tournoi/tirage";
-import { effacerRencontres, genererPhase, saisirResultat } from "@/server/actions/rencontres";
+import {
+  declarerForfait,
+  effacerRencontres,
+  genererPhase,
+  saisirResultat,
+} from "@/server/actions/rencontres";
 import type { RencontreJouable } from "@/server/db/queries/rencontres";
 import actions from "@/styles/admin-actions.module.css";
 import formulaire from "@/styles/admin-form.module.css";
@@ -148,6 +153,22 @@ export function JourJ({
             : `Enregistré, mais pas encore dépouillé : ${resultat.data.raison ?? ""}`,
         }));
         router.refresh();
+      } catch {
+        setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
+      }
+    });
+  };
+
+  const forfait = (matchId: string, slotId: string | null) => {
+    demarrer(async () => {
+      setErreur(null);
+      try {
+        const resultat = await declarerForfait(matchId, slotId);
+        setMessageParRencontre((precedent) => ({
+          ...precedent,
+          [matchId]: resultat.ok ? (slotId ? "Forfait enregistré." : "Forfait annulé.") : resultat.error,
+        }));
+        if (resultat.ok) router.refresh();
       } catch {
         setErreur("Votre session n'est plus valide. Rechargez la page et reconnectez-vous.");
       }
@@ -542,9 +563,11 @@ export function JourJ({
         ) : (
           <>
             <strong>Saisissez le score de chaque côté.</strong> Le vainqueur monte au tour suivant
-            tout seul. Une <strong>égalité</strong> ne désigne personne : départagez avant de
-            continuer. Corriger un score plus tard reprend tout l&rsquo;aval — les rencontres qui
-            en dépendaient repassent en attente.
+            tout seul. Une <strong>égalité</strong> est refusée : départagez avant de saisir.
+            Une équipe absente ou qui abandonne : <strong>Forfait</strong> — elle perd, sans score,
+            et la rencontre ne compte pas dans la différence. Corriger un score ou annuler un
+            forfait reprend tout l&rsquo;aval — les rencontres qui en dépendaient repassent en
+            attente.
           </>
         )}
       </p>
@@ -567,6 +590,9 @@ export function JourJ({
               {groupe.map((rencontre) => {
                 const occupees = rencontre.places.filter((p) => p.entryId !== null);
                 const parRang = rencontre.places.length > 2;
+                // Le forfait n'existe qu'à deux places, les deux pourvues (hors tables TFT).
+                const forfaitPossible = !parTables && rencontre.places.length === 2 && occupees.length === 2;
+                const forfaitDe = rencontre.places.find((p) => p.forfait);
 
                 return (
                   <li key={rencontre.matchId} className={styles.rencontre}>
@@ -590,7 +616,9 @@ export function JourJ({
                                 </em>
                               )}
                             </span>
-                            {place.entryId !== null ? (
+                            {forfaitDe ? (
+                              place.forfait ? <em className={styles.forfait}>forfait</em> : null
+                            ) : place.entryId !== null ? (
                               <input
                                 className={styles.saisie}
                                 name={`${parRang ? "rang" : "score"}-${place.slotId}`}
@@ -603,19 +631,42 @@ export function JourJ({
                                 aria-label={`${parRang ? "Place" : "Score"} de ${place.nom ?? ""}`}
                               />
                             ) : null}
+                            {forfaitPossible && !forfaitDe ? (
+                              <button
+                                type="button"
+                                className={actions.basculePubliee}
+                                disabled={enTransition}
+                                onClick={() => forfait(rencontre.matchId, place.slotId)}
+                              >
+                                Forfait
+                                <span className="sr-only"> de {place.nom ?? ""}</span>
+                              </button>
+                            ) : null}
                           </div>
                         ))}
                       </div>
 
                       <div className={styles.fin}>
-                        <button
-                          type="submit"
-                          className={actions.bascule}
-                          disabled={enTransition || occupees.length === 0}
-                        >
-                          Enregistrer
-                          <span className="sr-only"> — rencontre {rencontre.position}</span>
-                        </button>
+                        {forfaitDe ? (
+                          <button
+                            type="button"
+                            className={actions.basculePubliee}
+                            disabled={enTransition}
+                            onClick={() => forfait(rencontre.matchId, null)}
+                          >
+                            Annuler le forfait
+                            <span className="sr-only"> — rencontre {rencontre.position}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="submit"
+                            className={actions.bascule}
+                            disabled={enTransition || occupees.length === 0}
+                          >
+                            Enregistrer
+                            <span className="sr-only"> — rencontre {rencontre.position}</span>
+                          </button>
+                        )}
                       </div>
 
                       <p className={styles.etat}>
@@ -624,7 +675,8 @@ export function JourJ({
                           : rencontre.issue.exemption
                           ? "Exemption — passe sans jouer."
                           : rencontre.issue.complete
-                            ? `Vainqueur : ${rencontre.places.find((p) => p.entryId === rencontre.issue.vainqueur)?.nom ?? "—"}`
+                            ? `Vainqueur : ${rencontre.places.find((p) => p.entryId === rencontre.issue.vainqueur)?.nom ?? "—"}` +
+                              (forfaitDe ? ` (forfait de ${forfaitDe.nom ?? "—"})` : "")
                             : (messageParRencontre[rencontre.matchId] ?? rencontre.issue.raison)}
                       </p>
                     </form>

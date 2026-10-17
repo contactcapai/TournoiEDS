@@ -2402,6 +2402,11 @@ export const tournamentMatchSlot = pgTable(
     score: integer(),
     rank: integer(),
     /**
+     * Cet occupant a déclaré FORFAIT (rencontre à deux places) : il perd, sans score inventé, et
+     * la rencontre ne compte pas dans la différence de score.
+     */
+    forfait: boolean().notNull().default(false),
+    /**
      * 🔴 D'OÙ VIENT L'OCCUPANT DE CETTE PLACE (Story 10.8). C'est le `Source` que
      * `lib/tournoi/bracket.ts` rend déjà — tête de série, vainqueur d'une rencontre, ou perdant
      * d'une rencontre — **stocké tel quel**, à ceci près que les coordonnées de bracket.ts

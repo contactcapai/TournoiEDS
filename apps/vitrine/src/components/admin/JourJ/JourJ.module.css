@@ -128,6 +128,14 @@
   color: var(--grey);
 }
 
+/* Une équipe forfait : le mot remplace le score, en clair. */
+.forfait {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--light);
+}
+
 /* ⚠️ 44px de HAUTEUR tenue même sur un champ étroit : c'est la cible tactile du projet, et on
    saisit ces nombres au doigt, debout, dans un bar. La largeur peut se réduire, pas la hauteur. */
 .saisie {

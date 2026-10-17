@@ -1147,7 +1147,8 @@ function TableauDeClassement({
 }
 
 /** Le résultat d'une place, tel qu'on l'écrit. */
-function resultatDePlace(place: { rank: number | null; score: number | null }) {
+function resultatDePlace(place: { rank: number | null; score: number | null; forfait?: boolean }) {
+  if (place.forfait) return "forfait";
   // ⚠️ LE RANG PASSE AVANT LE SCORE, jamais les deux : une table se dépouille au RANG, un
   // tableau au SCORE (leçon 10.8, où un bracket joué au score ne produisait aucun classement).
   // Les afficher tous les deux inventerait une double lecture d'un résultat unique.

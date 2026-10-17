@@ -281,6 +281,13 @@
       "when": 1792165421325,
       "tag": "0039_etats_inscription",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792254390893,
+      "tag": "0040_forfait",
+      "breakpoints": true
     }
   ]
 }

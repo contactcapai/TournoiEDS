@@ -312,3 +312,17 @@ describe("propagation — 🔴 un tableau se JOUE JUSQU'AU PODIUM, de 2 à 16 pa
     });
   }
 });
+
+describe("propagation — un FORFAIT fait avancer l'adversaire, et s'annule comme un score", () => {
+  it("le vainqueur par forfait monte ; annuler le forfait remet l'aval en attente", () => {
+    const phase = propagerEtEcrire(phaseGeneree("bracket", HUIT));
+    const [gauche, droite] = phase[0].places;
+    Object.assign(gauche, { forfait: true });
+    propagerEtEcrire(phase);
+    assert.equal(placeQuiAttend(phase, phase[0].position, "vainqueur")?.entryId, droite.entryId);
+
+    Object.assign(gauche, { forfait: false });
+    propagerEtEcrire(phase);
+    assert.equal(placeQuiAttend(phase, phase[0].position, "vainqueur")?.entryId, null);
+  });
+});

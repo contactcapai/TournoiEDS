@@ -308,3 +308,18 @@ describe("issueDeRencontre — une rencontre que PERSONNE ne jouera jamais", () 
     assert.equal(issueDeRencontre([morte(1), place(2, null)]).complete, false, "une place attend encore");
   });
 });
+
+describe("FORFAIT — l'équipe forfait perd, sans score inventé", () => {
+  const forfait = (position: number, entryId: string): PlaceJouee => ({ ...place(position, entryId), forfait: true });
+
+  it("l'adversaire gagne, l'équipe forfait perd", () => {
+    const issue = issueDeRencontre([forfait(1, "a"), place(2, "b")]);
+    assert.deepEqual([issue.complete, issue.vainqueur, issue.perdant, issue.exemption], [true, "b", "a", false]);
+  });
+
+  it("refuse un double forfait, et un forfait dans une table de plus de deux", () => {
+    assert.equal(saisieAdmissible([forfait(1, "a"), forfait(2, "b")]).ok, false);
+    assert.equal(saisieAdmissible([forfait(1, "a"), place(2, "b"), place(3, "c")]).ok, false);
+    assert.equal(saisieAdmissible([forfait(1, "a"), place(2, "b")]).ok, true);
+  });
+});
