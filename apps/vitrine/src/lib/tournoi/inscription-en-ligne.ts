@@ -31,7 +31,12 @@ export type EtatInscriptionEnLigne =
   /** On peut s'inscrire, ici et maintenant. */
   | { readonly cas: "formulaire" }
   /** On ne peut pas, et la phrase dit **pourquoi** — jamais un bouton éteint. */
-  | { readonly cas: "indisponible"; readonly raison: string };
+  | {
+      readonly cas: "indisponible";
+      readonly raison: string;
+      /** La fiche ajoute alors nos coordonnées (e-mail, Discord) : la raison seule serait une impasse. */
+      readonly nousContacter?: true;
+    };
 
 export type ConditionsInscription = {
   readonly registrationState: TournamentRegistrationState;
@@ -65,8 +70,8 @@ export function etatInscriptionEnLigne(
   if (conditions.teamSize > 1) {
     return {
       cas: "indisponible",
-      raison:
-        "Ce tournoi se joue en équipe : l'inscription se fait auprès de nous, écrivez-nous ou passez sur le Discord.",
+      raison: "Ce tournoi se joue en équipe : l'inscription se fait auprès de nous.",
+      nousContacter: true,
     };
   }
 

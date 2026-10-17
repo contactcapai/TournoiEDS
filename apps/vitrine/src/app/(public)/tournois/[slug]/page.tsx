@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
+import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
 import { jourParis } from "@/lib/date-paris";
 import { classementPubliable } from "@/lib/tournoi/classement";
@@ -16,6 +18,8 @@ import {
   getFinale,
   getRencontresPubliques,
 } from "@/server/db/queries/rencontres";
+import { getPoulesPubliques } from "@/server/db/queries/poules";
+import { lireReglages } from "@/server/db/queries/settings";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
@@ -63,11 +67,7 @@ export const dynamic = "force-dynamic";
  *      champ ⇒ sans les trois premières lignes, cette page perdrait `og:type`, `og:locale`
  *      et `og:site_name`, donc son nom de site dans une carte de partage.
  *
- * ⚠️ **AUCUN `og:image`, ET C'EST UN ARBITRAGE, PAS UN OUBLI.** Le volet `og:image`
- * appartient à la dette **R22**, routée vers la **Story 7.3** (photos HD, après la bascule
- * de production). En poser un ici le ferait exister à deux endroits, et les deux
- * divergeraient au premier ajustement. Le dire évite les deux erreurs symétriques :
- * l'ajouter en douce, ou croire qu'on l'a oublié.
+ * L'image de partage : le visuel du tournoi s'il est servable, sinon celle du site.
  *
  * ⚠️ Un slug inconnu ne lève PAS ici : `generateMetadata` rend un titre neutre et c'est la
  * page qui appelle `notFound()`. Lever des deux côtés donnerait la même 404 au prix d'une
@@ -89,9 +89,13 @@ export async function generateMetadata({
   // Le root layout pose `title.template: "%s · Esport des Sacres"` → le <title> rendu est
   // « <nom> · Esport des Sacres ». `openGraph.title` doit, lui, être écrit EN ENTIER : il ne
   // traverse pas le template (piège mesuré en 2.6).
+  const vainqueur = tournoi.estPasse ? podiumVisible(tournoi)[0]?.nom : undefined;
   const description = `${tournoi.game} — ${formatLongDate(tournoi.startsAt)} à ${formatTime(
     tournoi.startsAt,
-  )}${salle ? `, ${salle}` : ""}.`;
+  )}${salle ? `, ${salle}` : ""}.${vainqueur ? ` Vainqueur : ${vainqueur}.` : ""}`;
+  const image = tournoi.photo?.isPublished
+    ? { url: `/medias/${tournoi.photo.filename}`, alt: tournoi.photo.alt }
+    : IMAGE_DE_PARTAGE;
 
   return {
     title: tournoi.name,
@@ -102,6 +106,7 @@ export async function generateMetadata({
       siteName: "Esport des Sacres",
       title: `${tournoi.name} · Esport des Sacres`,
       description,
+      images: [image],
     },
   };
 }
@@ -147,6 +152,9 @@ export default async function FicheTournoiPage({
   // ⚠️ La règle de NOMMAGE, elle, vit dans `lib/tournoi/rencontres-publiques.ts` et s'applique
   // dans la lecture — un drop dont la table n'est pas jouée n'est pas nommé.
   const rencontres = await getRencontresPubliques(tournoi.id);
+  const poules = await getPoulesPubliques(tournoi.id);
+  // Déjà lus par le layout (mémoïsés par requête) : nos coordonnées pour « inscrivez-vous auprès de nous ».
+  const reglages = await lireReglages();
 
   // 🔴 CINQUIÈME LECTURE (Story 12.3) : le décompte de places, l'inscription du visiteur et ses
   // pseudos déclarés. ⚠️ **`lireCompte()` REND `null` AVANT TOUTE REQUÊTE quand il n'y a pas de
@@ -165,13 +173,18 @@ export default async function FicheTournoiPage({
   return (
     <FicheTournoi
       tournoi={tournoi}
-      inscription={{ ...inscription, connecte: compte !== null }}
+      inscription={{
+        ...inscription,
+        connecte: compte !== null,
+        contact: { email: reglages.contactEmail, discordUrl: reglages.discordUrl },
+      }}
       suivi={{
         etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
         phases,
         classement,
         finale,
         rencontres,
+        poules,
         aujourdHui,
       }}
     />

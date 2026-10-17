@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
@@ -80,6 +81,7 @@ export const metadata: Metadata = {
     title: "Animations & interventions · Esport des Sacres",
     description:
       "Ateliers et tournois conviviaux, sensibilisation aux écrans, animations sur vos événements : l'offre d'Esport des Sacres pour les collectivités, les écoles et les structures sociales.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

@@ -336,6 +336,18 @@
 }
 
 /* Décorative, `aria-hidden` : elle redit la couleur du filet, jamais une information. */
+.directRangee {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 18px;
+  margin-bottom: 14px;
+}
+
+.directRangee .direct {
+  margin-bottom: 0;
+}
+
 .directPastille {
   flex: none;
   width: 9px;
@@ -368,14 +380,12 @@
   list-style: none;
 }
 
-/* ⚠️ `nowrap` est une GARDE, pas une préférence (leçon PR #77) : avec `wrap`, le min-content
-   d'une rangée vaut UN élément, et une voisine gourmande empilerait le reste en silence.
-   Ici les trois éléments sont courts et doivent tenir sur une ligne. */
+/* Nom et état sur une ligne, la phrase de la phase dessous, sur toute la largeur. */
 .phase {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 12px;
+  gap: 4px 12px;
   padding: 10px 14px;
   border: 1px solid rgba(218, 178, 101, 0.25); /* --gold à 25 % */
   border-radius: var(--radius-card);
@@ -387,15 +397,16 @@
   color: var(--light);
 }
 
-.phaseNature {
-  font-size: 14px;
-  color: var(--grey);
+.phaseRegle {
+  grid-column: 1 / -1;
+  font-size: 15px;
+  color: var(--cream);
 }
 
-/* L'état s'ÉCRIT. `margin-left: auto` le pousse en fin de ligne sans le détacher du bloc. */
+/* L'état s'ÉCRIT, en fin de ligne (seconde colonne de la grille). */
 .phaseEtat,
 .phaseEtatEnCours {
-  margin-left: auto;
+  grid-column: 2;
   font-size: 14px;
   white-space: nowrap;
   color: var(--grey);
@@ -471,6 +482,12 @@
 .classementDrop {
   font-size: 14px;
   color: var(--grey);
+}
+
+/* Le MOT porte l'information, l'or ne fait que la répéter (AA). */
+.classementQualifie {
+  font-size: 14px;
+  color: var(--gold);
 }
 
 .classementChiffre {
@@ -666,4 +683,26 @@
   flex: none;
   font-variant-numeric: tabular-nums;
   color: var(--gold);
+}
+
+/* « À savoir » : trois lignes au plus, au plus près de l'inscription. */
+.aSavoir {
+  margin-top: var(--block-gap);
+  max-width: 560px;
+}
+
+.aSavoirTitre {
+  font-size: var(--fs-eyebrow);
+  letter-spacing: var(--ls-eyebrow);
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.aSavoirListe {
+  margin-top: 8px;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 6px;
+  font-size: 15.5px;
+  color: var(--cream);
 }

@@ -15,6 +15,8 @@ import {
   getFinale,
   getRencontresPubliques,
 } from "@/server/db/queries/rencontres";
+import { getPoulesPubliques } from "@/server/db/queries/poules";
+import { lireReglages } from "@/server/db/queries/settings";
 import { getTournamentApercuById } from "@/server/db/queries/tournaments";
 import admin from "@/styles/admin-page.module.css";
 import styles from "./page.module.css";
@@ -115,7 +117,12 @@ export default async function ApercuTournoiPage({
    * ⚠️ Le lien « Je m'inscris » y pointe vers `/tournois/<slug>`, inatteignable tant que le
    * tournoi est en brouillon — c'est le rendu public exact, et on ne le clique pas depuis ici.
    */
-  const inscription = { ...(await getEtatInscription(tournoi.id, null)), connecte: false };
+  const reglages = await lireReglages();
+  const inscription = {
+    ...(await getEtatInscription(tournoi.id, null)),
+    connecte: false,
+    contact: { email: reglages.contactEmail, discordUrl: reglages.discordUrl },
+  };
 
   const suivi = {
     etat: etatDuJour(phases, jourParis(tournoi.startsAt), aujourdHui),
@@ -123,6 +130,7 @@ export default async function ApercuTournoiPage({
     classement,
     finale,
     rencontres,
+    poules: await getPoulesPubliques(tournoi.id, false),
     aujourdHui,
   };
 

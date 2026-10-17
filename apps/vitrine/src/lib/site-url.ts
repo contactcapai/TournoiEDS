@@ -23,3 +23,14 @@
 export function baseDuSite(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://esportdessacres.fr").replace(/\/+$/, "");
 }
+
+/**
+ * L'image de partage du site (`app/opengraph-image.tsx`). Une page qui déclare son propre
+ * `openGraph` REMPLACE celui du parent : elle doit donc la redonner elle-même.
+ */
+export const IMAGE_DE_PARTAGE = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: "Esport des Sacres — association esport à Reims",
+};

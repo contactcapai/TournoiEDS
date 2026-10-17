@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { Brush, LinkArrow } from "@repo/ui";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { SolicitationDialog } from "@/components/forms/SolicitationDialog/SolicitationDialog";
@@ -111,6 +112,7 @@ export const metadata: Metadata = {
     title: "Partenaires · Esport des Sacres",
     description:
       "Qui entoure Esport des Sacres, et à quel titre : sponsors, partenaires du réseau Grand Est, soutiens institutionnels et participations.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

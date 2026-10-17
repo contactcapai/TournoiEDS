@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { Brush, Button } from "@repo/ui";
 
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
@@ -52,6 +53,7 @@ export const metadata: Metadata = {
     siteName: "Esport des Sacres",
     title: "Tournois · Esport des Sacres",
     description: "Ceux qui arrivent, comment s'y inscrire, et ceux qui ont déjà eu lieu.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 
@@ -133,7 +135,7 @@ export default async function Tournois() {
                `pieges/patron-eprouve-une-seule-nature.md`, 3ᵉ occurrence.
                ⇒ Tout ce qui reste ci-dessous est garanti par le SCHÉMA : `starts_at`, `game`
                et `registration_mode` sont tous les trois `notNull`. */
-            intro="Ce qu'on organise, et ce qu'on a déjà joué. Chaque tournoi a sa date, son jeu et sa façon de s'y inscrire — tout est ici, sans compte et sans passer par Discord."
+            intro="Ce qu'on organise, et ce qu'on a déjà joué. Chaque tournoi a sa date, son jeu et sa façon de s'y inscrire — tout est ici."
           />
         </Wrap>
       </section>

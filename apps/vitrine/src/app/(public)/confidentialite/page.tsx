@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IMAGE_DE_PARTAGE } from "@/lib/site-url";
 import { SectionHead } from "@/components/common/SectionHead/SectionHead";
 import { Wrap } from "@/components/common/Wrap/Wrap";
 import { ASSOCIATION } from "@/lib/legal";
@@ -40,6 +41,7 @@ export const metadata: Metadata = {
     title: "Confidentialité · Esport des Sacres",
     description:
       "Quelles données personnelles le site d'Esport des Sacres collecte, pourquoi, combien de temps, et comment exercer vos droits.",
+    images: [IMAGE_DE_PARTAGE],
   },
 };
 

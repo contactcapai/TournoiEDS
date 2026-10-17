@@ -10,6 +10,8 @@ import { Wrap } from "@/components/common/Wrap/Wrap";
 import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-paris";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
+import { A_SAVOIR } from "@/lib/reglement";
+import { phrasesDuDeroule } from "@/lib/tournoi/deroule-public";
 import { lettreDePoule } from "@/lib/tournoi/parcours";
 import { momentDuTournoi, type EtatDuJour } from "@/lib/tournoi/en-cours";
 import {
@@ -28,6 +30,7 @@ import {
 import { classerDestination, NEW_TAB_SR } from "@/lib/links";
 import { podiumVisible } from "@/lib/podium";
 import { cleanText } from "@/lib/text";
+import type { PhaseDePoules } from "@/server/db/queries/poules";
 import type { FicheTournoiData } from "@/server/db/queries/tournaments";
 import editorial from "@/styles/editorial.module.css";
 import motion from "@/styles/motion.module.css";
@@ -77,6 +80,8 @@ export type PhaseAffichee = {
   kind: PhaseKind;
   state: PhaseState;
   playedOn: string | null;
+  /** Les réglages de génération (`jsonb`) : la phrase du déroulé s'en dérive. */
+  settings: unknown;
 };
 
 /**
@@ -147,6 +152,8 @@ export type SuiviPublic = {
    * qu'un endroit de plus à tenir d'accord.
    */
   rencontres?: readonly PhaseAvecRencontres[];
+  /** Le classement de chaque poule, qualifiés compris (`getPoulesPubliques`). */
+  poules?: readonly PhaseDePoules[];
   /**
    * Le jour de Paris, lu **par la page** et jamais ici — lire l'horloge pendant un rendu est
    * l'impureté que `react-hooks/purity` refuse. Il décide quelle journée s'ouvre d'emblée.
@@ -175,6 +182,8 @@ export type InscriptionPublique = {
   readonly profil: PseudosDuProfil | null;
   /** ⚠️ « Connecté » et « a un profil » sont deux choses : un compte neuf n'a aucune ligne. */
   readonly connecte: boolean;
+  /** Nos coordonnées (Réglages) : une inscription « auprès de nous » doit dire où. */
+  readonly contact: { readonly email: string; readonly discordUrl: string };
 };
 
 export function FicheTournoi({
@@ -234,6 +243,11 @@ export function FicheTournoi({
 
   const classement = suivi?.classement ?? [];
   const finale = suivi?.finale ?? null;
+  const poules = suivi?.poules ?? [];
+  const phrases = phrasesDuDeroule(suivi?.phases ?? []);
+  const phraseParPhase = new Map((suivi?.phases ?? []).map((phase, rang) => [phase.id, phrases[rang]]));
+  // Ce que la fiche dit « à savoir » : seulement ce que le règlement copié porte encore.
+  const aSavoir = A_SAVOIR.filter((_, rang) => tournoi.aSavoir[rang]);
 
   /* ══════════════════════════════════════════════════════════════════════════════════════
      LES RENCONTRES, GROUPÉES PAR JOURNÉE (Story 14.3)
@@ -391,12 +405,19 @@ export function FicheTournoi({
               l'organisateur, « ça se joue aujourd'hui » n'est qu'un fait de calendrier. Les
               confondre annoncerait une manche lancée alors que personne n'a rien lancé. */}
           {suivi && suivi.etat.nature !== "rien" && moment.nature !== "termine" ? (
-            <p className={styles.direct}>
-              <span aria-hidden="true" className={styles.directPastille} />
-              {suivi.etat.nature === "manche_en_cours"
-                ? `En ce moment — ${suivi.etat.manche}`
-                : "Ça se joue aujourd'hui"}
-            </p>
+            <div className={styles.directRangee}>
+              <p className={styles.direct}>
+                <span aria-hidden="true" className={styles.directPastille} />
+                {suivi.etat.nature === "manche_en_cours"
+                  ? `En ce moment — ${suivi.etat.manche}`
+                  : "Ça se joue aujourd'hui"}
+              </p>
+              {enDirect && journeesDeRencontres.length > 0 ? (
+                <a className={styles.lienDoux} href="#rencontres-title">
+                  Suivre les rencontres
+                </a>
+              ) : null}
+            </div>
           ) : null}
 
           <SectionHead
@@ -678,13 +699,22 @@ export function FicheTournoi({
                           Je m&rsquo;inscris
                         </Button>
                         <p className={styles.etatAide}>
-                          Un compte est nécessaire pour retrouver et annuler votre inscription.
+                          L&rsquo;inscription se fait avec un compte sur le site&nbsp;: il vous
+                          permet de la retrouver et de l&rsquo;annuler.
                         </p>
                       </>
                     ) : (
                       /* Une indisponibilité DIT sa raison — jamais un bouton éteint (principe ①
                          de l'Epic 13 : une règle se dit, elle ne se grise pas). */
-                      <p className={styles.etatAide}>{etatEnLigne.raison}</p>
+                      <p className={styles.etatAide}>
+                        {etatEnLigne.raison}
+                        {etatEnLigne.nousContacter ? (
+                          <>
+                            {" "}
+                            <NousContacter contact={inscription.contact} />
+                          </>
+                        ) : null}
+                      </p>
                     )}
                   </div>
                 ) : inscriptionOuverte && urlInscription ? (
@@ -733,13 +763,29 @@ export function FicheTournoi({
                      directement avec nous »), c'est-à-dire le pire des deux — ni exécutée, ni
                      repérable, et prête à ressortir au premier remaniement du ternaire. */
                   <p className={styles.etatAide}>
-                    {tournoi.registrationState !== "ouvertes"
-                      ? RAISONS_ETAT_INSCRIPTION[tournoi.registrationState]
-                      : "Les inscriptions se prennent auprès de nous : écrivez-nous et on vous indique la marche à suivre."}
+                    {tournoi.registrationState !== "ouvertes" ? (
+                      RAISONS_ETAT_INSCRIPTION[tournoi.registrationState]
+                    ) : (
+                      <>
+                        Les inscriptions se prennent auprès de nous.{" "}
+                        <NousContacter contact={inscription.contact} />
+                      </>
+                    )}
                   </p>
                 )}
               </div>
             )}
+
+            {moment.nature === "a_venir" && aSavoir.length > 0 ? (
+              <div className={styles.aSavoir}>
+                <p className={styles.aSavoirTitre}>À savoir</p>
+                <ul className={styles.aSavoirListe}>
+                  {aSavoir.map((ligne) => (
+                    <li key={ligne.preuve}>{ligne.texte}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             {/* Le règlement a sa propre adresse (`/tournois/<slug>/reglement`) : un lien,
                 passé ou à venir, et rien du tout quand il n'y en a pas. */}
@@ -806,9 +852,6 @@ export function FicheTournoi({
                           {journee.phases.map(({ phase }) => (
                             <li className={styles.phase} key={phase.id}>
                               <span className={styles.phaseNom}>{phase.name}</span>
-                              <span className={styles.phaseNature}>
-                                {LIBELLE_NATURE[phase.kind]}
-                              </span>
                               {/* ⚠️ L'ÉTAT S'ÉCRIT, il ne se code pas en couleur seule (AA).
                                   « planifiée » ne s'affiche pas : c'est l'état par défaut de
                                   toute phase, le dire sur chaque ligne serait du bruit. */}
@@ -821,6 +864,13 @@ export function FicheTournoi({
                                   }
                                 >
                                   {phase.state === "en_cours" ? "en cours" : "terminée"}
+                                </span>
+                              ) : null}
+                              {/* Une phrase par phase, tirée de ses réglages ; tue quand elle
+                                  répète la précédente (douze manches suisses). */}
+                              {phraseParPhase.get(phase.id) ? (
+                                <span className={styles.phaseRegle}>
+                                  {phraseParPhase.get(phase.id)}
                                 </span>
                               ) : null}
                             </li>
@@ -890,7 +940,7 @@ export function FicheTournoi({
           qualifications ne sont plus, à ce stade, qu'un rappel de comment on y est entré.
           ⚠️ Sur un tournoi SANS finale — tous ceux d'aujourd'hui —, un seul tableau, et
           exactement le rendu de la 14.2. */}
-      {classement.length > 0 || (finale?.classement.length ?? 0) > 0 ? (
+      {classement.length > 0 || (finale?.classement.length ?? 0) > 0 || poules.length > 0 ? (
         <section className={editorial.section} aria-labelledby="classement-title">
           <Wrap>
             <SectionHead
@@ -955,6 +1005,24 @@ export function FicheTournoi({
                   />
                 </div>
               ) : null}
+
+              {poules.map((phase) =>
+                phase.poules.map((poule) => (
+                  <div className={styles.classementBloc} key={`${phase.id}-${poule.poule ?? 0}`}>
+                    <TableauDePoule
+                      poule={poule}
+                      legende={
+                        <>
+                          <strong>
+                            {poule.poule === null ? phase.name : `Poule ${lettreDePoule(poule.poule)}`}
+                          </strong>
+                          {poule.terminee ? " — terminée" : null}
+                        </>
+                      }
+                    />
+                  </div>
+                )),
+              )}
 
               {classement.length > 0 ? (
                 <div className={styles.classementBloc}>
@@ -1173,7 +1241,9 @@ function PhaseDeRencontres({ phase }: { phase: PhaseAvecRencontres }) {
     <div className={styles.phaseBloc}>
       <p className={styles.phaseBlocTitre}>
         {phase.name}
-        <span className={styles.phaseBlocNature}>{LIBELLE_NATURE[phase.kind]}</span>
+        {natureUtile(phase.name, phase.kind) ? (
+          <span className={styles.phaseBlocNature}>{LIBELLE_NATURE[phase.kind]}</span>
+        ) : null}
       </p>
 
       {phase.groupes.map((groupe) => {
@@ -1229,6 +1299,84 @@ function PhaseDeRencontres({ phase }: { phase: PhaseAvecRencontres }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** La nature n'est écrite que si le nom ne la dit pas déjà (« Poules · Poule »). */
+function natureUtile(nom: string, kind: PhaseKind) {
+  const simple = (texte: string) =>
+    texte.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return !simple(nom).includes(simple(LIBELLE_NATURE[kind]));
+}
+
+/** Nos coordonnées, en liens réels : une inscription « auprès de nous » doit dire où. */
+function NousContacter({ contact }: { contact: InscriptionPublique["contact"] }) {
+  const discord = classerDestination(contact.discordUrl) === "externe" ? contact.discordUrl : null;
+  return (
+    <>
+      Écrivez-nous à{" "}
+      <a className={styles.lienDoux} href={`mailto:${contact.email}`}>
+        {contact.email}
+      </a>
+      {discord ? (
+        <>
+          {" "}
+          ou passez sur notre{" "}
+          <a className={styles.lienDoux} href={discord} target="_blank" rel="noopener noreferrer">
+            Discord
+            <span className="sr-only">{NEW_TAB_SR}</span>
+          </a>
+        </>
+      ) : null}
+      .
+    </>
+  );
+}
+
+/**
+ * Le classement d'une poule : victoires et différence, « qualifié » ÉCRIT (pas une couleur
+ * seule). Une place sans nom publiable se lit « — », comme dans les rencontres.
+ */
+function TableauDePoule({
+  poule,
+  legende,
+}: {
+  poule: PhaseDePoules["poules"][number];
+  legende: ReactNode;
+}) {
+  return (
+    <div className={styles.classementCadre}>
+      <table className={styles.classement}>
+        <caption className={styles.classementLegende}>{legende}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Rang</th>
+            <th scope="col">Engagé</th>
+            <th className={styles.classementChiffre} scope="col">
+              <abbr title="Victoires">V</abbr>
+            </th>
+            <th className={styles.classementChiffre} scope="col">
+              <abbr title="Différence de score">Diff.</abbr>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {poule.lignes.map((ligne) => (
+            <tr key={ligne.id}>
+              <td className={styles.classementRang}>{ligne.rang}</td>
+              <td className={styles.classementNom}>
+                {ligne.nom ?? "—"}
+                {ligne.qualifie ? <span className={styles.classementQualifie}> — qualifié</span> : null}
+              </td>
+              <td className={styles.classementChiffre}>{ligne.victoires}</td>
+              <td className={styles.classementChiffre}>
+                {ligne.difference > 0 ? `+${ligne.difference}` : ligne.difference}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
