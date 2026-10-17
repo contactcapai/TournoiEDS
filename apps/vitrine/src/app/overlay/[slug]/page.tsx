@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CadreOverlay } from "@/components/overlay/CadreOverlay/CadreOverlay";
+import {
+  PoulesOverlay,
+  TableauOverlayDeTours,
+} from "@/components/overlay/FormatsOverlay/FormatsOverlay";
 import { TableauOverlay } from "@/components/overlay/TableauOverlay/TableauOverlay";
 import styles from "@/components/overlay/CadreOverlay/overlay.module.css";
 import { classementPubliable } from "@/lib/tournoi/classement";
@@ -9,13 +13,18 @@ import {
   RAFRAICHISSEMENT_SECONDES,
   estTransparent,
   heureDeFraicheur,
+  tourCourant,
+  vueDeLOverlay,
 } from "@/lib/tournoi/overlay";
 import { cleanText } from "@/lib/text";
-import { getClassementPublic } from "@/server/db/queries/rencontres";
+import { getDeroulePublic } from "@/server/db/queries/phases";
+import { getPoulesPubliques } from "@/server/db/queries/poules";
+import { getClassementPublic, getRencontresPubliques } from "@/server/db/queries/rencontres";
 import { getTournamentBySlug } from "@/server/db/queries/tournaments";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
-// OVERLAY OBS — LES QUALIFICATIONS (Story 10.6)
+// OVERLAY OBS — UNE ADRESSE PAR TOURNOI, QUI SUIT LE FORMAT DE LA PHASE EN COURS
+// (Story 10.6 ; poules et tableau ajoutés pour la Game'in Reims, `vueDeLOverlay`)
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 IL REMPLACE `tournoi.esportdessacres.fr/overlay`, SERVI PAR L'ANCIENNE APP. Cette
@@ -40,7 +49,7 @@ export const metadata: Metadata = {
   title: "Overlay",
 };
 
-export default async function OverlayQualificationsPage({
+export default async function OverlayPage({
   params,
   searchParams,
 }: {
@@ -53,27 +62,51 @@ export default async function OverlayQualificationsPage({
   const tournoi = await getTournamentBySlug(slug);
   if (!tournoi) notFound();
 
-  // 🔴 LA MÊME LECTURE ET LA MÊME RÈGLE DE NOMMAGE QUE LA FICHE PUBLIQUE (14.2) : la garde
-  // `is_published` est DANS la requête, et `classementPubliable` retire les lignes qu'on n'a
-  // pas le droit de nommer. Un overlay qui nommerait quelqu'un que le site tait le ferait
-  // passer à l'antenne — l'écart serait public avant d'être vu.
+  const cadre = {
+    transparent: estTransparent(parametres.transparent),
+    secondesDeRafraichissement: RAFRAICHISSEMENT_SECONDES,
+    heureDuRendu: heureDeFraicheur(new Date()),
+    titre: cleanText(tournoi.name) ?? "Tournoi",
+  };
+
+  // Mêmes lectures (garde `is_published` comprise) et mêmes règles de nommage que la fiche.
+  const { vue, phase } = vueDeLOverlay(await getDeroulePublic(tournoi.id));
+
+  if (vue === "poules" && phase) {
+    const poules = (await getPoulesPubliques(tournoi.id)).find((p) => p.id === phase.id);
+    return (
+      <CadreOverlay {...cadre} sousTitre={phase.name}>
+        {poules && poules.poules.length > 0 ? (
+          <PoulesOverlay poules={poules.poules} enEquipe={tournoi.teamSize > 1} />
+        ) : (
+          <p className={styles.attente}>En attente des résultats…</p>
+        )}
+      </CadreOverlay>
+    );
+  }
+
+  if (vue === "tableau" && phase) {
+    const rencontres = (await getRencontresPubliques(tournoi.id)).find((p) => p.id === phase.id);
+    const { courant, suivant, termine } = tourCourant(rencontres?.groupes ?? []);
+    return (
+      <CadreOverlay {...cadre} sousTitre={phase.name}>
+        {courant ? (
+          <TableauOverlayDeTours courant={courant} suivant={suivant} termine={termine} />
+        ) : (
+          <p className={styles.attente}>En attente des rencontres…</p>
+        )}
+      </CadreOverlay>
+    );
+  }
+
+  // Tables (TFT) et tout le reste : le classement aux points, inchangé depuis la 10.6 — même
+  // lecture et même règle de nommage (`classementPubliable`) que la fiche publique.
   const classement = classementPubliable(await getClassementPublic(tournoi.id));
 
-  // ⚠️ L'HORLOGE SE LIT ICI, UNE FOIS, ET JAMAIS DANS UN COMPOSANT (`react-hooks/purity`).
-  const heure = heureDeFraicheur(new Date());
-
   return (
-    <CadreOverlay
-      transparent={estTransparent(parametres.transparent)}
-      secondesDeRafraichissement={RAFRAICHISSEMENT_SECONDES}
-      heureDuRendu={heure}
-      titre={cleanText(tournoi.name) ?? "Tournoi"}
-      sousTitre="Qualifications"
-    >
+    <CadreOverlay {...cadre} sousTitre="Qualifications">
       {classement.length === 0 ? (
-        // ⚠️ LA PHRASE DIT L'ÉTAT, PAS UNE PANNE. L'ancien overlay écrivait « En attente des
-        // résultats… », et c'est exactement juste : avant la première manche dépouillée, il
-        // n'y a rien à classer — ce n'est pas un écran cassé.
+        // La phrase dit l'état, pas une panne : avant la première manche dépouillée, rien à classer.
         <p className={styles.attente}>En attente des résultats…</p>
       ) : (
         <TableauOverlay lignes={classement} />

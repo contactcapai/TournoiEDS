@@ -178,6 +178,79 @@
   color: var(--cream);
 }
 
+/* ═════════ Poules et tableau (une adresse qui suit la phase en cours) ═════════
+   Deux poules côte à côte tiennent dans une source 1920×1080 ; quatre, sur deux rangées. */
+.grillePoules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 48px; /* px structurel */
+}
+
+.poule .ligne td,
+.poule .ligneMarquee td {
+  font-size: 30px; /* px structurel */
+  padding: 10px 16px; /* px structurel */
+}
+
+.pouleTitre {
+  margin-bottom: 8px; /* px structurel */
+  font-family: var(--font-display);
+  font-size: 36px; /* px structurel */
+  font-weight: 400;
+  color: var(--gold);
+}
+
+.tours {
+  display: grid;
+  gap: 40px; /* px structurel */
+}
+
+.rencontresOverlay {
+  display: grid;
+  gap: 12px; /* px structurel */
+  list-style: none;
+}
+
+/* Une rencontre par ligne, en liste plate (pas d'arbre, décision 14.3). */
+.rencontreOverlay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px; /* px structurel */
+  padding: 12px 20px; /* px structurel */
+  border-left: 6px solid var(--gold); /* px structurel */
+  font-size: 34px; /* px structurel */
+  color: var(--light);
+}
+
+.rencontrePlace {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 16px; /* px structurel */
+}
+
+.rencontreNom {
+  overflow-wrap: anywhere;
+}
+
+.rencontreContre {
+  margin-right: 8px; /* px structurel */
+  font-size: 24px; /* px structurel */
+  color: var(--grey);
+}
+
+.rencontreScore {
+  font-family: var(--font-display);
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.rencontreAttente {
+  margin-left: auto;
+  font-size: 24px; /* px structurel */
+  color: var(--cream);
+}
+
 /* ═════════ États et témoin ═════════ */
 
 .attente {

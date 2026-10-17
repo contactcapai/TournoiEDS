@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { OverlaysDuTournoi } from "@/components/admin/OverlaysDuTournoi/OverlaysDuTournoi";
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { exigerRolePage } from "@/server/auth/guard";
 import { jourParis } from "@/lib/date-paris";
@@ -170,6 +171,12 @@ export default async function ApercuTournoiPage({
           « S'inscrire »). Lui en imposer un troisième montrerait un rendu qui n'existe pas.
           ⚠️ Le plateau ne fait donc que MARQUER LA FRONTIÈRE entre l'écran d'admin et le rendu
           public : filet pointillé, et rien d'autre. */}
+      <OverlaysDuTournoi
+        slug={tournoi.slug}
+        publie={tournoi.isPublished}
+        aUneFinale={phases.some((phase) => phase.kind === "finale")}
+      />
+
       <div className={styles.plateau}>
         {/* `headingLevel={2}` : cet écran porte déjà son `<h1>Aperçu</h1>`. Sans ça, la page
             aurait DEUX `<h1>` — un vrai défaut d'accessibilité, et pas une subtilité de

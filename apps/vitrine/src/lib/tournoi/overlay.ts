@@ -1,3 +1,5 @@
+import type { PhaseKind, PhaseState } from "./structure";
+
 /**
  * ══════════════════════════════════════════════════════════════════════════════════════
  * CE QUE LES DEUX OVERLAYS PARTAGENT (Story 10.6)
@@ -56,4 +58,37 @@ export function heureDeFraicheur(instant: Date): string {
     minute: "2-digit",
     second: "2-digit",
   }).format(instant);
+}
+
+/** Ce que l'overlay principal montre : il suit le format de la phase EN COURS. */
+export type VueOverlay = "points" | "poules" | "tableau";
+
+/**
+ * La phase en cours = la dernière lancée (la génération la passe « en cours », et rien ne
+ * referme les précédentes). Poules et tableau ont leur vue ; tout le reste (tables, finale,
+ * rien de lancé) garde le classement aux points.
+ */
+export function vueDeLOverlay<P extends { kind: PhaseKind; state: PhaseState }>(
+  phases: readonly P[],
+): { vue: VueOverlay; phase: P | null } {
+  const phase = phases.findLast((p) => p.state !== "planifiee") ?? null;
+  if (phase?.kind === "poule") return { vue: "poules", phase };
+  if (phase?.kind === "bracket") return { vue: "tableau", phase };
+  return { vue: "points", phase };
+}
+
+/**
+ * Le tour en cours d'un tableau : le premier groupe qui a une rencontre JOUABLE (pas de
+ * résultat, deux noms connus — une exemption n'en a qu'un), et le suivant « à venir ».
+ * Plus rien de jouable : le dernier groupe qui a des résultats.
+ */
+export function tourCourant<
+  G extends { rencontres: readonly { depouillee: boolean; places: readonly { nom: string | null }[] }[] },
+>(groupes: readonly G[]): { courant: G | null; suivant: G | null; termine: boolean } {
+  const jouable = (r: G["rencontres"][number]) =>
+    !r.depouillee && r.places.length > 1 && r.places.every((p) => p.nom !== null);
+  const rang = groupes.findIndex((g) => g.rencontres.some(jouable));
+  if (rang !== -1) return { courant: groupes[rang], suivant: groupes[rang + 1] ?? null, termine: false };
+  const joue = groupes.findLast((g) => g.rencontres.some((r) => r.depouillee)) ?? null;
+  return { courant: joue, suivant: null, termine: joue !== null };
 }
