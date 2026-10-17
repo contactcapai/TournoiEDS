@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { estTransparent, heureDeFraicheur } from "./overlay";
+import { estTransparent, heureDeFraicheur, tourCourant, vueDeLOverlay } from "./overlay";
 
 describe("le fond transparent des overlays OBS (Story 10.6)", () => {
   it("accepte `1`, et rien d'autre — le contrat de l'ancienne app, repris tel quel", () => {
@@ -39,5 +39,25 @@ describe("le témoin de fraîcheur — celui qui paie l'abandon du socket", () =
   it("⚠️ porte les SECONDES : à 10 s de rythme, sans elles le témoin semblerait figé une minute", () => {
     // Un témoin qui accuse à tort est pire qu'aucun témoin — on apprend à ne plus le regarder.
     assert.match(heureDeFraicheur(new Date("2026-08-26T12:34:56.000Z")), /^\d{2}:\d{2}:\d{2}$/);
+  });
+});
+
+describe("une seule adresse, qui suit la phase en cours", () => {
+  it("🔴 la DERNIÈRE phase lancée décide, même si une précédente est restée « en cours »", () => {
+    const poules = { kind: "poule" as const, state: "en_cours" as const };
+    const tableau = { kind: "bracket" as const, state: "en_cours" as const };
+    assert.equal(vueDeLOverlay([poules, tableau]).vue, "tableau");
+    assert.equal(vueDeLOverlay([poules, { ...tableau, state: "planifiee" as const }]).vue, "poules");
+    assert.equal(vueDeLOverlay([{ kind: "suisse" as const, state: "en_cours" as const }]).vue, "points");
+  });
+
+  it("le tour en cours est le premier qui a une rencontre JOUABLE — une exemption ne bloque rien", () => {
+    const m = (depouillee: boolean, ...noms: (string | null)[]) => ({ depouillee, places: noms.map((nom) => ({ nom })) });
+    const t1 = { rencontres: [m(true, "A", "B"), m(false, "C", null)] }; // C exempté
+    const t2 = { rencontres: [m(false, "A", "C")] };
+    const t3 = { rencontres: [m(false, null, null)] };
+    assert.deepEqual(tourCourant([t1, t2, t3]), { courant: t2, suivant: t3, termine: false });
+    const fini = { rencontres: [m(true, "A", "C")] };
+    assert.deepEqual(tourCourant([t1, fini]), { courant: fini, suivant: null, termine: true });
   });
 });

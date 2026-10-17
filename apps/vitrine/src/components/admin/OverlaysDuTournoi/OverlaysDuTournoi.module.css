@@ -1,0 +1,53 @@
+.aide {
+  margin-top: 10px;
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.liste {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+/* L'adresse prend la place, le bouton garde la sienne : `min-width: 0` laisse l'URL se couper
+   au lieu de pousser la ligne hors de l'écran (enfant flex, leçon du shell). */
+.ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.url {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--light);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.copier {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.copier:hover {
+  background: var(--gold);
+  color: var(--ink);
+}
