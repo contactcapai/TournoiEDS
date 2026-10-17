@@ -5,7 +5,7 @@ import { TournoiActions } from "@/components/admin/TournoiActions/TournoiActions
 import { formatLongDate, formatTime, jourLisible } from "@/lib/date-paris";
 import { groupesParJour } from "@/lib/tournoi/liste-par-jour";
 import {
-  LIBELLES_ETAT_INSCRIPTION,
+  etatInscriptionEnPhrase,
   LIBELLES_MODE_INSCRIPTION,
 } from "@/lib/libelles-tournoi";
 import { cleanText } from "@/lib/text";
@@ -92,7 +92,7 @@ function LigneTournoi({
 
         <p className={propre.inscriptions}>
           Inscriptions : {LIBELLES_MODE_INSCRIPTION[tournoi.registrationMode]} —{" "}
-          {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState].toLowerCase()}
+          {etatInscriptionEnPhrase(tournoi.registrationState)}
         </p>
 
         {podium ? <p className={propre.podium}>🏆 {podium}</p> : null}

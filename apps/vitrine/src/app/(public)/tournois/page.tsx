@@ -83,14 +83,9 @@ export const dynamic = "force-dynamic";
  */
 const A_VENIR_MAX = 50;
 const PASSES_MAX = 50;
-/**
- * ⚠️ **TROIS, ET PAS CINQUANTE.** Les deux autres bornes protègent d'un volume qui grandit
- * avec les années ; celle-ci borne ce qui se joue **un même jour**. L'association n'en fait
- * pas trois le même jour, et si ça arrivait, une quatrième carte en tête de page dirait
- * surtout que la section a perdu son sens. « Généreux » n'est pas « non borné » — mais
- * « borné » n'est pas non plus « au hasard ».
- */
-const EN_COURS_MAX = 3;
+// Ce qui se joue UN MÊME JOUR : la Game'in Reims en enchaîne cinq. Au-delà de la borne, un
+// tournoi en cours retomberait sous « Déjà joués » — d'où une borne large.
+const EN_COURS_MAX = 20;
 
 export default async function Tournois() {
   // Deux lectures, une par section, derrière UN SEUL point d'entrée. Pas de tri en mémoire à

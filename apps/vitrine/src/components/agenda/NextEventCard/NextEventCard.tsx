@@ -3,7 +3,7 @@ import { Button, PhotoFrame } from "@repo/ui";
 
 import { BoutonVenue } from "@/components/agenda/BoutonVenue/BoutonVenue";
 import { formatBigDate, formatPlageHoraire } from "@/lib/date-paris";
-import { LIBELLES_ETAT_INSCRIPTION } from "@/lib/libelles-tournoi";
+import { etatInscriptionEnPhrase } from "@/lib/libelles-tournoi";
 import { situationDuBar } from "@/lib/lieu-bar";
 import { estJeudiJeux, visuelDuRendezVous } from "@/lib/rendez-vous";
 import { cleanText } from "@/lib/text";
@@ -244,7 +244,7 @@ export function NextEventCard({ rendezVous, cta, venue }: NextEventCardProps) {
                   <TicketIcon />
                   <span>
                     Inscriptions :{" "}
-                    {LIBELLES_ETAT_INSCRIPTION[tournoi.registrationState].toLowerCase()}
+                    {etatInscriptionEnPhrase(tournoi.registrationState)}
                   </span>
                 </div>
               ) : null}

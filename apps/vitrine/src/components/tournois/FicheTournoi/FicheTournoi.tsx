@@ -11,7 +11,7 @@ import { formatLongDate, formatPlageHoraire, jourLisible } from "@/lib/date-pari
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { LIBELLE_TABLEAU } from "@/lib/libelles-tournoi";
 import { lettreDePoule } from "@/lib/tournoi/parcours";
-import type { EtatDuJour } from "@/lib/tournoi/en-cours";
+import { momentDuTournoi, type EtatDuJour } from "@/lib/tournoi/en-cours";
 import {
   etatInscriptionEnLigne,
   placesRestantes,
@@ -255,28 +255,16 @@ export function FicheTournoi({
   );
   const journeeOuverte = journeeDuJour !== -1 ? journeeDuJour : journeesDeRencontres.length - 1;
 
-  /**
-   * ══════════════════════════════════════════════════════════════════════════════════════
-   * 🔴 « EN DIRECT » SE LIT SUR L'ÉTAT DU JOUR, JAMAIS SUR `estPasse` — DÉFAUT MESURÉ
-   * ══════════════════════════════════════════════════════════════════════════════════════
-   *
-   * Cette dérivation a d'abord été écrite `tournoi.estPasse`. Mesuré sur staging le jour du
-   * déploiement de la 14.2 : la fiche de `tft-simulation` affichait **« En ce moment — Manche
-   * 4 »** en tête (bandeau 14.1) et **« Résultats »** trois sections plus bas, sur la même page,
-   * au même instant. La phrase « rechargez pour la dernière version » disparaissait donc très
-   * exactement le jour où elle sert.
-   *
-   * 🔴 LA CAUSE EST CELLE QUE LA 14.1 AVAIT DÉJÀ TRANCHÉE, et je l'ai refabriquée : `estPasse`
-   * dérive de `starts_at ≷ now()`, si bien qu'un tournoi qui commence **ce matin** est « passé »
-   * dès l'après-midi — c'est mot pour mot le défaut que la 14.1 a corrigé sur `/tournois`, où un
-   * tournoi en train de se jouer s'affichait sous « Déjà joués ».
-   *
-   * ⇒ Le témoin est `etatDuJour`, **gardé par le calendrier** : il répond « ça se joue
-   * aujourd'hui » sans jamais se fier au seul `starts_at`, et c'est déjà lui qui décide du
-   * bandeau. Une seule source pour les deux, donc plus de contradiction possible **sur la même
-   * page**.
-   */
-  const enDirect = suivi !== undefined && suivi.etat.nature !== "rien";
+  // 🔴 UNE SEULE SOURCE pour le bandeau, le surtitre et les sections (PR #88) : `estPasse`
+  // seul classe « déjà joué » un tournoi commencé ce matin.
+  const moment = momentDuTournoi({
+    estPasse: tournoi.estPasse,
+    etat: suivi?.etat ?? { nature: "rien" },
+    phases: suivi?.phases ?? [],
+    aujourdHui: suivi?.aujourdHui,
+    podiumSaisi: podium.length > 0,
+  });
+  const enDirect = moment.nature === "en_cours";
 
   /**
    * 🔴 LE VISUEL N'EST RENDU QUE S'IL EST **SERVABLE**, et la décision se prend ici.
@@ -402,7 +390,7 @@ export function FicheTournoi({
               ⚠️ Deux natures, pas une : « une manche est en cours » est un fait SAISI par
               l'organisateur, « ça se joue aujourd'hui » n'est qu'un fait de calendrier. Les
               confondre annoncerait une manche lancée alors que personne n'a rien lancé. */}
-          {suivi && suivi.etat.nature !== "rien" ? (
+          {suivi && suivi.etat.nature !== "rien" && moment.nature !== "termine" ? (
             <p className={styles.direct}>
               <span aria-hidden="true" className={styles.directPastille} />
               {suivi.etat.nature === "manche_en_cours"
@@ -414,7 +402,13 @@ export function FicheTournoi({
           <SectionHead
             headingLevel={headingLevel}
             titleId="tournoi-title"
-            eyebrow={tournoi.estPasse ? "Déjà joué" : "Compétition"}
+            eyebrow={
+              moment.nature === "a_venir"
+                ? "Compétition"
+                : moment.nature === "termine"
+                  ? "Déjà joué"
+                  : "En cours"
+            }
             title={<Brush>{tournoi.name}</Brush>}
           />
           </div>
@@ -541,13 +535,48 @@ export function FicheTournoi({
         <Wrap>
           <SectionHead
             headingLevel={niveauSection}
-            eyebrow={tournoi.estPasse ? "Résultats" : "Participer"}
+            eyebrow={
+              moment.nature === "a_venir"
+                ? "Participer"
+                : moment.nature === "termine"
+                  ? "Résultats"
+                  : "En cours"
+            }
             titleId="action-title"
-            title={tournoi.estPasse ? "Le podium" : "S'inscrire"}
+            title={
+              moment.nature === "a_venir"
+                ? "S'inscrire"
+                : moment.nature === "termine"
+                  ? "Le podium"
+                  : moment.nature === "en_cours"
+                    ? "Ça se joue"
+                    : "Prochaine journée"
+            }
           />
 
           <div className={motion.reveal}>
-            {tournoi.estPasse ? (
+            {moment.nature === "en_cours" || moment.nature === "entre_journees" ? (
+              <p className={styles.etatAide}>
+                {moment.nature === "en_cours"
+                  ? "Le tournoi est en cours ; le podium paraîtra ici à la fin."
+                  : `La prochaine journée se joue le ${jourLisible(moment.prochaine)}.`}
+                {journeesDeRencontres.length > 0 ? (
+                  <>
+                    {" "}
+                    <a className={styles.lienDoux} href="#rencontres-title">
+                      Suivre les rencontres
+                    </a>
+                  </>
+                ) : classement.length > 0 ? (
+                  <>
+                    {" "}
+                    <a className={styles.lienDoux} href="#classement-title">
+                      Voir le classement
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            ) : moment.nature === "termine" ? (
               podium.length > 0 ? (
                 /* `<ol>` et non `<ul>` : un podium est un CLASSEMENT, l'ordre porte le
                    sens. Le rang est écrit en toutes lettres et pas laissé au marqueur
@@ -563,14 +592,10 @@ export function FicheTournoi({
                   ))}
                 </ol>
               ) : (
-                /* ⚠️ UN ÉTAT VIDE QUI DIT CE QUI SE PASSE, jamais « aucun podium ».
-                   Doctrine tenue depuis la 3.2, rendue non négociable par la leçon 4.2 :
-                   *un état « tout à zéro » ressemble à « tout va bien »* — donc aussi à
-                   une panne. Le podium se SAISIT (le moteur n'existe pas encore) : son
-                   absence sur un tournoi récent est le cas normal, pas un défaut. */
+                /* Un état vide qui dit ce qui se passe, jamais « aucun podium ». */
                 <p className={styles.vide}>
-                  Les résultats de ce tournoi ne sont pas encore en ligne — ils arrivent
-                  dès que la feuille de match est remontée.
+                  Le podium n&rsquo;est pas encore en ligne&nbsp;: il paraîtra ici dès que
+                  les organisateurs l&rsquo;auront confirmé.
                 </p>
               )
             ) : (

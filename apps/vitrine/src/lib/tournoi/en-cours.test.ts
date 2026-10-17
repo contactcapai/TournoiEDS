@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { etatDuJour, fusionnerCeQuiSeJoue, type PhaseDuDeroule } from "./en-cours";
+import {
+  etatDuJour,
+  fusionnerCeQuiSeJoue,
+  momentDuTournoi,
+  type PhaseDuDeroule,
+} from "./en-cours";
 
 // Deux lectures posent la même question (le tableau de bord, la liste publique) et deux
 // surfaces s'en servent le même jour. Une préséance qui trancherait à l'envers d'un côté ne
@@ -79,5 +84,39 @@ describe("ce qu'on peut dire d'un tournoi aujourd'hui", () => {
   it("sans aucune phase datée, la date de début décide", () => {
     assert.deepEqual(etatDuJour([], "2026-09-06", "2026-09-06"), { nature: "aujourd_hui" });
     assert.deepEqual(etatDuJour([PHASE({})], "2026-09-06", "2026-09-07"), { nature: "rien" });
+  });
+});
+
+describe("le moment du tournoi, pour la fiche", () => {
+  const RIEN = { nature: "rien" } as const;
+  const AUJOURD_HUI = { nature: "aujourd_hui" } as const;
+  const base = { phases: [], aujourdHui: "2026-11-21", podiumSaisi: false };
+
+  it("🔴 commencé ce matin : en cours, pas « déjà joué »", () => {
+    assert.deepEqual(momentDuTournoi({ ...base, estPasse: true, etat: AUJOURD_HUI }), {
+      nature: "en_cours",
+    });
+  });
+
+  it("ce soir : encore à venir (on peut s'inscrire sur place)", () => {
+    assert.equal(momentDuTournoi({ ...base, estPasse: false, etat: AUJOURD_HUI }).nature, "a_venir");
+  });
+
+  it("un podium saisi clôt le tournoi le jour même", () => {
+    const m = momentDuTournoi({ ...base, estPasse: true, etat: AUJOURD_HUI, podiumSaisi: true });
+    assert.equal(m.nature, "termine");
+  });
+
+  it("entre deux journées, la prochaine est nommée", () => {
+    const phases = [
+      { name: "J1", state: "terminee", playedOn: "2026-11-14" },
+      { name: "J3", state: "planifiee", playedOn: "2026-11-28" },
+      { name: "J2", state: "planifiee", playedOn: "2026-11-22" },
+    ] as const;
+    assert.deepEqual(momentDuTournoi({ ...base, phases, estPasse: true, etat: RIEN }), {
+      nature: "entre_journees",
+      prochaine: "2026-11-22",
+    });
+    assert.equal(momentDuTournoi({ ...base, estPasse: true, etat: RIEN }).nature, "termine");
   });
 });
