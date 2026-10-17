@@ -88,6 +88,7 @@ export async function getRencontresDePhase(phaseId: string) {
       entryId: tournamentMatchSlot.entryId,
       score: tournamentMatchSlot.score,
       rank: tournamentMatchSlot.rank,
+      forfait: tournamentMatchSlot.forfait,
       source: tournamentMatchSlot.source,
       nom: tournamentEntry.displayName,
       etatEngage: tournamentEntry.state,
@@ -120,6 +121,7 @@ export async function getRencontresDePhase(phaseId: string) {
         nom: string | null;
         score: number | null;
         rank: number | null;
+        forfait: boolean;
         source: SourceResolue | null;
       }[];
     }
@@ -152,6 +154,7 @@ export async function getRencontresDePhase(phaseId: string) {
         nom: ligne.nom,
         score: ligne.score,
         rank: ligne.rank,
+        forfait: ligne.forfait ?? false,
         source: (ligne.source as SourceResolue | null) ?? null,
       });
     }
@@ -180,6 +183,7 @@ export async function getRencontresDePhase(phaseId: string) {
         entryId: place.entryId,
         score: place.score,
         rank: place.rank,
+        forfait: place.forfait,
         source: place.source,
       })),
     })),
@@ -240,7 +244,7 @@ export function rangsDeLaPhase(kind: PhaseKind, rencontres: readonly RencontreJo
  * croire à une panne.
  */
 export const aDesResultatsSaisis = (rencontres: readonly RencontreJouable[]) =>
-  rencontres.some((r) => r.places.some((p) => p.rank !== null || p.score !== null));
+  rencontres.some((r) => r.places.some((p) => p.rank !== null || p.score !== null || p.forfait));
 
 /**
  * Les places de tables d'un tournoi, dans l'ordre du déroulé — matière première du classement.
@@ -499,7 +503,11 @@ export async function phaseADesResultats(phaseId: string) {
     .where(
       and(
         eq(tournamentMatch.phaseId, phaseId),
-        or(isNotNull(tournamentMatchSlot.rank), isNotNull(tournamentMatchSlot.score)),
+        or(
+          isNotNull(tournamentMatchSlot.rank),
+          isNotNull(tournamentMatchSlot.score),
+          eq(tournamentMatchSlot.forfait, true),
+        ),
       ),
     )
     .limit(1);
@@ -556,6 +564,7 @@ export async function getRencontresPubliques(tournoiId: string, exigerPublie = t
       etatEngage: tournamentEntry.state,
       score: tournamentMatchSlot.score,
       rank: tournamentMatchSlot.rank,
+      forfait: tournamentMatchSlot.forfait,
     })
     .from(tournamentPhase)
     .innerJoin(tournament, eq(tournament.id, tournamentPhase.tournamentId))

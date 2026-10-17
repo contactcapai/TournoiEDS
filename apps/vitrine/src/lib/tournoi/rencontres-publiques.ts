@@ -43,6 +43,8 @@ export type LigneDeRencontre = {
   readonly etatEngage: EntryState | null;
   readonly score: number | null;
   readonly rank: number | null;
+  /** `null` sur la jointure `left` d'une rencontre sans place. */
+  readonly forfait?: boolean | null;
 };
 
 export type PlacePublique = {
@@ -51,6 +53,7 @@ export type PlacePublique = {
   nom: string | null;
   score: number | null;
   rank: number | null;
+  forfait: boolean;
 };
 
 export type RencontrePublique = {
@@ -98,7 +101,7 @@ export function regrouperRencontresPubliques(
   //    dépend de TOUTES ses places — d'où une première passe complète.
   const depouillee = new Set<string>();
   for (const ligne of lignes) {
-    if (ligne.rank !== null || ligne.score !== null) depouillee.add(ligne.matchId);
+    if (ligne.rank !== null || ligne.score !== null || ligne.forfait === true) depouillee.add(ligne.matchId);
   }
 
   const phases = new Map<string, PhaseAvecRencontres>();
@@ -149,6 +152,7 @@ export function regrouperRencontresPubliques(
       nom: nomPubliable(ligne.nom, ligne.etatEngage, rencontre.depouillee),
       score: ligne.score,
       rank: ligne.rank,
+      forfait: ligne.forfait === true,
     });
   }
 

@@ -133,6 +133,7 @@ type PlaceEnMemoire = {
   entryId: string | null;
   score: number | null;
   rank: number | null;
+  forfait: boolean;
   source: SourceResolue | null;
 };
 type RencontreEnMemoire = { matchId: string; position: number; places: PlaceEnMemoire[] };
@@ -158,6 +159,7 @@ async function propager(tx: Transaction, phaseId: string) {
       entryId: tournamentMatchSlot.entryId,
       score: tournamentMatchSlot.score,
       rank: tournamentMatchSlot.rank,
+      forfait: tournamentMatchSlot.forfait,
       source: tournamentMatchSlot.source,
     })
     .from(tournamentMatch)
@@ -178,6 +180,7 @@ async function propager(tx: Transaction, phaseId: string) {
       entryId: ligne.entryId,
       score: ligne.score,
       rank: ligne.rank,
+      forfait: ligne.forfait,
       source: (ligne.source as SourceResolue | null) ?? null,
     });
   }
@@ -191,7 +194,7 @@ async function propager(tx: Transaction, phaseId: string) {
   for (const deplacement of deplacements) {
     await tx
       .update(tournamentMatchSlot)
-      .set({ entryId: deplacement.entryId, score: null, rank: null })
+      .set({ entryId: deplacement.entryId, score: null, rank: null, forfait: false })
       .where(eq(tournamentMatchSlot.id, deplacement.slotId));
   }
 
@@ -716,7 +719,8 @@ export async function saisirResultat(
       for (let i = 0; i < placesEnBase.length; i += 1) {
         await tx
           .update(tournamentMatchSlot)
-          .set({ rank: saisie[i].rank, score: saisie[i].score })
+          // Un score saisi remplace un éventuel forfait : c'est la même correction.
+          .set({ rank: saisie[i].rank, score: saisie[i].score, forfait: false })
           .where(eq(tournamentMatchSlot.id, placesEnBase[i].slotId));
       }
       await propager(tx, rencontre.phaseId);
@@ -726,6 +730,65 @@ export async function saisirResultat(
     return { ok: true, data: { complete: issue.complete, raison: issue.raison } };
   } catch (erreur) {
     console.error("[saisirResultat] Échec de l'écriture :", erreur);
+    return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
+  }
+}
+
+/**
+ * Déclare (ou annule, `slotId` = `null`) le FORFAIT d'une équipe sur une rencontre à deux places.
+ * L'équipe forfait perd, l'autre gagne et avance ; aucun score n'est inventé, et ceux saisis sont
+ * effacés. Puis la propagation se rejoue, comme après un score.
+ */
+export async function declarerForfait(
+  matchId: string,
+  slotId: string | null,
+): Promise<ResultatAction<{ complete: boolean }>> {
+  await exigerRoleAction("admin_tournoi");
+
+  if (!identifiant.safeParse(matchId).success || (slotId !== null && !identifiant.safeParse(slotId).success)) {
+    return { ok: false, error: "Cette rencontre n'est pas valide. Rechargez la page." };
+  }
+
+  const [rencontre] = await db
+    .select({ phaseId: tournamentMatch.phaseId })
+    .from(tournamentMatch)
+    .where(eq(tournamentMatch.id, matchId))
+    .limit(1);
+  if (!rencontre) return { ok: false, error: "Cette rencontre n'existe plus. Rechargez la page." };
+
+  const placesEnBase = await db
+    .select({ slotId: tournamentMatchSlot.id, position: tournamentMatchSlot.position, entryId: tournamentMatchSlot.entryId })
+    .from(tournamentMatchSlot)
+    .where(eq(tournamentMatchSlot.matchId, matchId))
+    .orderBy(asc(tournamentMatchSlot.position));
+
+  if (slotId !== null && !placesEnBase.some((p) => p.slotId === slotId)) {
+    return { ok: false, error: "Cette équipe n'est plus dans la rencontre. Rechargez la page." };
+  }
+  const saisie: PlaceJouee[] = placesEnBase.map((p) => ({
+    position: p.position,
+    entryId: p.entryId,
+    score: null,
+    rank: null,
+    forfait: p.slotId === slotId,
+  }));
+  const admissible = saisieAdmissible(saisie);
+  if (!admissible.ok) return { ok: false, error: admissible.raison };
+
+  try {
+    const issue = await db.transaction(async (tx) => {
+      for (const place of placesEnBase) {
+        await tx
+          .update(tournamentMatchSlot)
+          .set({ score: null, rank: null, forfait: place.slotId === slotId })
+          .where(eq(tournamentMatchSlot.id, place.slotId));
+      }
+      await propager(tx, rencontre.phaseId);
+      return issueDeRencontre(saisie);
+    });
+    return { ok: true, data: { complete: issue.complete } };
+  } catch (erreur) {
+    console.error("[declarerForfait] Échec de l'écriture :", erreur);
     return { ok: false, error: traduireErreurBase(erreur, CONTRAINTES) };
   }
 }

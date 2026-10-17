@@ -22,6 +22,8 @@ export type PlaceJouee = {
   readonly entryId: string | null;
   readonly score: number | null;
   readonly rank: number | null;
+  /** L'occupant a déclaré forfait (rencontre à deux places seulement) : il perd, sans score. */
+  readonly forfait?: boolean;
   /**
    * ══════════════════════════════════════════════════════════════════════════════════════
    * 🔴 CETTE PLACE VIDE NE SERA-T-ELLE **JAMAIS** POURVUE ? DÉFAUT RÉEL, TROUVÉ PAR LE TEST.
@@ -126,6 +128,15 @@ export function issueDeRencontre(places: readonly PlaceJouee[]): IssueDeRencontr
       "Cette table n'a qu'un seul participant : il n'y a rien à départager. " +
         "Regénérez la phase, ou complétez la table.",
     );
+  }
+
+  // ── FORFAIT — à deux places, l'équipe forfait perd et l'autre passe, sans score ──────
+  const forfaits = occupees.filter((p) => p.forfait === true);
+  if (places.length === 2 && occupees.length === 2 && forfaits.length > 0) {
+    if (forfaits.length === 2) return inachevee("Les deux équipes sont déclarées forfait.");
+    const gagnant = occupees.find((p) => p.forfait !== true)?.entryId as string;
+    const perdant = forfaits[0].entryId as string;
+    return { complete: true, raison: null, vainqueur: gagnant, perdant, ordre: [gagnant, perdant], exemption: false };
   }
 
   const avecRang = occupees.filter((p) => p.rank !== null);
@@ -267,6 +278,16 @@ export function saisieAdmissible(
     };
   }
 
+  const forfaits = places.filter((p) => p.forfait === true);
+  if (forfaits.length > 0) {
+    if (places.length !== 2 || occupees.length !== 2) {
+      return { ok: false, raison: "Un forfait ne se déclare que sur une rencontre à deux équipes." };
+    }
+    if (forfaits.length === 2) {
+      return { ok: false, raison: "Une seule équipe peut être déclarée forfait." };
+    }
+  }
+
   // 🔴 À DEUX PLACES (poule, tableau), UNE ÉGALITÉ NE S'ENREGISTRE PAS : elle laisserait la
   // rencontre à jamais « non dépouillée », et la poule à jamais « pas terminée ».
   const [a, b] = occupees;
@@ -333,7 +354,7 @@ export type RencontreAPropager = {
 };
 
 export type Propagation = {
-  /** Les places dont l'occupant change. Leur score et leur rang doivent être effacés. */
+  /** Les places dont l'occupant change. Leur score, leur rang et leur forfait sont effacés. */
   readonly deplacements: readonly { slotId: string; entryId: string | null }[];
   /** L'issue de chaque rencontre, par `matchId` — pour tenir `state` à jour. */
   readonly issues: ReadonlyMap<string, IssueDeRencontre>;
@@ -403,7 +424,7 @@ export function calculerPropagation(
 
         // Muter la copie est sûr : `autre.position > position`, donc cette rencontre n'a pas
         // encore été dépouillée dans cette boucle.
-        autre.places[i] = { ...place, entryId: voulu, score: null, rank: null };
+        autre.places[i] = { ...place, entryId: voulu, score: null, rank: null, forfait: false };
         deplacements.push({ slotId: place.slotId, entryId: voulu });
       }
     }

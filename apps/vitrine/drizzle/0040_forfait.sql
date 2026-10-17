@@ -1,0 +1,1 @@
+ALTER TABLE "tournament_match_slot" ADD COLUMN "forfait" boolean DEFAULT false NOT NULL;

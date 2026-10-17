@@ -29,6 +29,7 @@ export type RencontrePourRang = {
   readonly places: readonly {
     readonly entryId: string | null;
     readonly score: number | null;
+    readonly forfait?: boolean;
     readonly source: { readonly de: string; readonly rencontre?: number } | null;
   }[];
   readonly issue: {
@@ -238,7 +239,9 @@ export function rangsParVictoires(
       if (rencontre.issue.perdant !== null) battus.push({ gagnant, perdant: rencontre.issue.perdant });
     }
 
-    // La différence de score se compte sur TOUTES les places saisies, dépouillées ou non.
+    // La différence de score se compte sur TOUTES les places saisies, dépouillées ou non —
+    // sauf un FORFAIT : il compte une victoire et une défaite, jamais des points.
+    if (rencontre.places.some((p) => p.forfait === true)) continue;
     const total = rencontre.places.reduce((somme, p) => somme + (p.score ?? 0), 0);
     for (const place of rencontre.places) {
       if (place.entryId === null || place.score === null) continue;
