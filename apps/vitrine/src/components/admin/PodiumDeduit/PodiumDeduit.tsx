@@ -18,8 +18,8 @@ import actions from "@/styles/admin-actions.module.css";
  * destruction, est le critère de ce composant (doctrine 6.7) : un podium corrigé à la main que ce
  * bouton remplacerait en silence serait perdu sans un mot.
  *
- * ⚠️ Il ne PUBLIE rien : le podium apparaît sur la fiche publique du tournoi, qui a sa propre
- * bascule de publication. Le dire ici évite de croire qu'on vient d'annoncer un résultat.
+ * ⚠️ Sur un tournoi publié et commencé, le podium écrit ici paraît AUSSITÔT sur la fiche publique
+ * — d'où la phrase de confirmation, qui le dit.
  */
 export function PodiumDeduit({
   tournoiId,
@@ -45,9 +45,10 @@ export function PodiumDeduit({
           (dejaSaisi
             ? "⚠️ Un podium est DÉJÀ saisi sur ce tournoi : il sera remplacé. "
             : "Le podium de ce tournoi est vide. ") +
-          "Il sera déduit de la dernière phase qui départage. Une place disputée (deux joueurs " +
-          "3ᵉ ex æquo, par exemple) reste VIDE : elle ne s’invente pas. Vous pourrez tout " +
-          "corriger depuis la fiche du tournoi, et rien n’est publié par ce geste."
+          "Il sera déduit de la dernière phase qui départage. Deux demi-finalistes sans petite " +
+          "finale sont inscrits ensemble, 3ᵉ ex æquo ; toute autre place disputée reste VIDE. " +
+          "Si le tournoi est publié et a commencé, ce podium paraît aussitôt sur sa fiche " +
+          "publique. Vous pourrez tout corriger depuis la fiche du tournoi."
         }
         libelleConfirmation="Oui, pré-remplir"
         libelleEnCours="Calcul…"

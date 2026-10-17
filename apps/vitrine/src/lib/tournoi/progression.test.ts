@@ -290,4 +290,21 @@ describe("saisieAdmissible — enregistrer une saisie PARTIELLE, jamais une sais
     assert.equal(saisieAdmissible(places).ok, true);
     assert.equal(saisieAdmissible([...places.slice(0, 1), place(2, "b", { rank: 4 })]).ok, false);
   });
+
+  it("🔴 refuse une ÉGALITÉ à deux places (12–12) : la rencontre ne serait jamais dépouillée", () => {
+    const r = saisieAdmissible([place(1, "a", { score: 12 }), place(2, "b", { score: 12 })]);
+    assert.equal(r.ok, false);
+    assert.match(r.ok === false ? r.raison : "", /Départagez/);
+    assert.equal(saisieAdmissible([place(1, "a", { score: 12 }), place(2, "b")]).ok, true, "saisie partielle");
+  });
+});
+
+describe("issueDeRencontre — une rencontre que PERSONNE ne jouera jamais", () => {
+  it("🔴 deux places mortes : dépouillée comme exemption SANS vainqueur, pour que l'aval avance", () => {
+    const issue = issueDeRencontre([morte(1), morte(2)]);
+    assert.equal(issue.complete, true);
+    assert.equal(issue.exemption, true);
+    assert.equal(issue.vainqueur, null);
+    assert.equal(issueDeRencontre([morte(1), place(2, null)]).complete, false, "une place attend encore");
+  });
 });

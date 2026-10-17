@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { effectifConforme, phaseLibrementModifiable } from "./structure";
+import { effectifConforme, partDuClassement, phaseLibrementModifiable } from "./structure";
+import { participantsDepuisLeClassement } from "./participants";
 
 // Ces deux règles ne sont PAS exprimables par un CHECK — elles portent sur un NOMBRE DE
 // LIGNES d'une autre table. Elles se tiennent à la frontière d'écriture, donc rien d'autre
@@ -43,5 +44,19 @@ describe("phaseLibrementModifiable — le témoin est le RÉSULTAT, jamais l'ét
       phaseLibrementModifiable([{ aUnResultat: false }, { aUnResultat: true }]),
       false,
     );
+  });
+});
+
+describe("partDuClassement — une finale retient les PREMIERS du classement", () => {
+  it("suisse et finale partent du classement ; lobbies, poule, tableau de la saisie", () => {
+    assert.deepEqual(
+      (["suisse", "finale", "lobbies", "poule", "bracket"] as const).map(partDuClassement),
+      [true, true, false, false, false],
+    );
+  });
+
+  it("sans aucun résultat, la finale retombe sur l'ordre d'arrivée des présents", () => {
+    const presents = [{ id: "b", nom: "B" }, { id: "a", nom: "A" }];
+    assert.deepEqual(participantsDepuisLeClassement([], presents), presents);
   });
 });

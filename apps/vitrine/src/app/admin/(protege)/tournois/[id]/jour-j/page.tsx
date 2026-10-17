@@ -13,8 +13,8 @@ import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
-import { ecartsDeTirage } from "@/lib/tournoi/tirage";
-import { lettreDePoule } from "@/lib/tournoi/parcours";
+import { ecartDesQualifies, ecartsDeTirage } from "@/lib/tournoi/tirage";
+import { lettreDePoule, qualifiesDesPoules, rangsParPoule } from "@/lib/tournoi/parcours";
 import { estParTables } from "@/lib/tournoi/structure";
 import { getTournamentById } from "@/server/db/queries/tournaments";
 import {
@@ -148,6 +148,7 @@ export default async function JourJPage({
     poules?: number;
     qualifiesParPoule?: number;
     depuis?: string;
+    departage?: string[];
   };
   const assis = new Set(rencontres.flatMap((r) => r.places.map((p) => p.entryId)));
   const ecarts = ecartsDeTirage(
@@ -161,14 +162,76 @@ export default async function JourJPage({
       ? phases.filter((p) => p.position < phaseComplete.position && p.kind === "poule").at(-1)
       : undefined;
   const rencontresDesPoules = pouleAvant ? await getRencontresDePhase(pouleAvant.id) : [];
+  const rangsDesPoules = pouleAvant ? rangsDeLaPhase("poule", rencontresDesPoules) : null;
+  const presentsIds = new Set(presents.map((p) => p.id));
+  const poulesTerminees =
+    rencontresDesPoules.length > 0 && rencontresDesPoules.every((r) => r.issue.complete);
+
+  // Les groupes ex æquo (non départagés) parmi les présents : ce que « Départager » propose.
+  const egalites = new Map<string, { poule: number; rang: number; candidats: { id: string; nom: string }[] }>();
+  for (const ligne of rangsDesPoules?.lignes ?? []) {
+    if (ligne.exAequo < 2 || !presentsIds.has(ligne.id)) continue;
+    const clef = `${ligne.pool ?? 1}|${ligne.rang}`;
+    const groupe = egalites.get(clef) ?? { poule: ligne.pool ?? 1, rang: ligne.rang, candidats: [] };
+    groupe.candidats.push({ id: ligne.id, nom: ligne.nom });
+    egalites.set(clef, groupe);
+  }
   const poulesAvant = pouleAvant
     ? {
         nom: pouleAvant.name,
         poules: new Set(rencontresDesPoules.map((r) => r.pool ?? 1)).size,
-        terminees:
-          rencontresDesPoules.length > 0 && rencontresDesPoules.every((r) => r.issue.complete),
+        terminees: poulesTerminees,
+        egalites: [...egalites.values()].filter((e) => e.candidats.length > 1),
       }
     : null;
+
+  /* 🔴 UN TABLEAU TIRÉ DES POULES GARDE-T-IL LES BONS QUALIFIÉS ? L'écart de tirage ci-dessus ne
+     compare que des présents : il ne voit pas qu'une poule corrigée a changé qui se qualifie. */
+  const tireDesPoules =
+    phaseComplete?.kind === "bracket" && reglagesActifs.depuis === "poules" && rencontres.length > 0;
+  const nomDe = (entryId: string) => rangsDesPoules?.nomParEngage.get(entryId) ?? "—";
+  let qualifiesChanges: { message: string } | null = null;
+  if (tireDesPoules && rangsDesPoules) {
+    if (!poulesTerminees) {
+      qualifiesChanges = {
+        message: `Une rencontre de « ${pouleAvant?.name ?? "la poule"} » n'a plus de vainqueur depuis le tirage du tableau.`,
+      };
+    } else {
+      const attendus = qualifiesDesPoules(
+        rangsParPoule(rencontresDesPoules, rangsDesPoules.nomParEngage),
+        reglagesActifs.qualifiesParPoule ?? 2,
+        presentsIds,
+        new Set(reglagesActifs.departage ?? []),
+      );
+      const tetesDeSerie = rencontres.flatMap((r) =>
+        r.places.flatMap((p) =>
+          p.source?.de === "tete_de_serie" && p.source.rang !== null
+            ? [{ rang: p.source.rang, entryId: p.entryId }]
+            : [],
+        ),
+      );
+      if (!attendus.ok) {
+        qualifiesChanges = {
+          message: "Une égalité de poule n'est plus départagée comme au moment du tirage.",
+        };
+      } else {
+        const ecart = ecartDesQualifies(tetesDeSerie, attendus.ids);
+        if (ecart.sortis.length > 0 || ecart.entres.length > 0) {
+          const entres = ecart.entres.length > 0 ? `qualifiés désormais : ${ecart.entres.map(nomDe).join(", ")}` : null;
+          const sortis = ecart.sortis.length > 0 ? `plus qualifiés : ${ecart.sortis.map(nomDe).join(", ")}` : null;
+          qualifiesChanges = {
+            message: `Les qualifiés des poules ont changé depuis le tirage — ${[entres, sortis].filter(Boolean).join(" ; ")}.`,
+          };
+        } else if (ecart.ordreChange) {
+          qualifiesChanges = {
+            message:
+              "Les poules ont été corrigées : les qualifiés sont les mêmes, mais leur classement " +
+              "a changé — le tableau ne croise plus les bonnes équipes.",
+          };
+        }
+      }
+    }
+  }
 
   // 🔴 LE RANG DANS LA PHASE, DÉDUIT DE SA STRUCTURE — c'est lui qui manquait au tournoi réel du
   // 2026-08-15 : un bracket joué au score ne produisait aucun classement, donc l'écran affirmait
@@ -270,6 +333,7 @@ export default async function JourJPage({
                 rencontres={rencontres}
                 presents={presents.length}
                 ecarts={ecarts}
+                qualifiesChanges={qualifiesChanges?.message ?? null}
                 aUnClassement={classement.length > 0}
                 aDesResultats={aDesResultats}
                 lienPointage={`/admin/tournois/${tournoi.id}/engages`}

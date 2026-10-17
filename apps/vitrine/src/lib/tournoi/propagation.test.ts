@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { structureDePhase } from "./generation";
+import { podiumDepuis, rangsParParcours } from "./parcours";
 import { calculerPropagation } from "./progression";
 
 /**
@@ -278,4 +279,36 @@ describe("propagation — un lobby ne propage rien", () => {
     const phase = phaseGeneree("lobbies", joueurs);
     assert.deepEqual(calculerPropagation(phase).deplacements, []);
   });
+});
+
+describe("propagation — 🔴 un tableau se JOUE JUSQU'AU PODIUM, de 2 à 16 participants", () => {
+  /** La meilleure tête de série gagne toujours ; on joue tant qu'une rencontre est jouable. */
+  function jouerJusquAuBout(n: number, doubleElimination: boolean) {
+    const joueurs = Array.from({ length: n }, (_, i) => `p${String(i + 1).padStart(2, "0")}`);
+    const phase = propagerEtEcrire(phaseGeneree("bracket", joueurs, { doubleElimination }));
+    for (;;) {
+      const jouable = phase.find(
+        (r) => r.places.every((p) => p.entryId !== null) && r.places.every((p) => p.score === null),
+      );
+      if (!jouable) break;
+      const [a, b] = jouable.places.map((p) => p.entryId as string);
+      propagerEtEcrire(poserScores(phase, jouable.position, a < b ? [2, 0] : [0, 2]));
+    }
+    const { issues } = calculerPropagation(phase);
+    const avecIssue = phase.map((r) => ({ ...r, issue: issues.get(r.matchId)! }));
+    const nomParEngage = new Map(joueurs.map((j) => [j, j]));
+    return { avecIssue, podium: podiumDepuis(rangsParParcours(avecIssue, nomParEngage), nomParEngage) };
+  }
+
+  for (const doubleElimination of [false, true]) {
+    it(`${doubleElimination ? "double" : "simple"} élimination : toutes les rencontres dépouillées, p01 vainqueur`, () => {
+      for (let n = 2; n <= 16; n += 1) {
+        const { avecIssue, podium } = jouerJusquAuBout(n, doubleElimination);
+        const bloquees = avecIssue.filter((r) => !r.issue.complete).map((r) => r.position);
+        assert.deepEqual(bloquees, [], `${n} participants : rencontres jamais dépouillées`);
+        assert.equal(podium.premier, "p01", `${n} participants`);
+        assert.equal(podium.deuxieme, "p02", `${n} participants`);
+      }
+    });
+  }
 });

@@ -85,6 +85,11 @@ const inachevee = (raison: string): IssueDeRencontre => ({
 export function issueDeRencontre(places: readonly PlaceJouee[]): IssueDeRencontre {
   const occupees = places.filter((p) => p.entryId !== null);
 
+  // 🔴 AUCUNE PLACE NE SERA JAMAIS POURVUE (deux perdants d'exemption, en double élimination à
+  // 5 ou 9–11) : la rencontre est vide pour toujours. La laisser « inachevée » bloquerait l'aval.
+  if (occupees.length === 0 && places.length > 0 && places.every((p) => p.jamaisPourvue === true)) {
+    return { complete: true, raison: null, vainqueur: null, perdant: null, ordre: [], exemption: true };
+  }
   if (occupees.length === 0) return inachevee("Cette rencontre n'a encore aucun participant.");
 
   /**
@@ -259,6 +264,18 @@ export function saisieAdmissible(
     return {
       ok: false,
       raison: "Un résultat est saisi sur une place qui n'a pas encore de participant.",
+    };
+  }
+
+  // 🔴 À DEUX PLACES (poule, tableau), UNE ÉGALITÉ NE S'ENREGISTRE PAS : elle laisserait la
+  // rencontre à jamais « non dépouillée », et la poule à jamais « pas terminée ».
+  const [a, b] = occupees;
+  if (places.length === 2 && b && a.rank === null && b.rank === null && a.score !== null && a.score === b.score) {
+    return {
+      ok: false,
+      raison:
+        `Égalité (${a.score}–${b.score}) : cette rencontre doit avoir un vainqueur. ` +
+        "Départagez-la (prolongation, manche décisive) puis saisissez le score final.",
     };
   }
 

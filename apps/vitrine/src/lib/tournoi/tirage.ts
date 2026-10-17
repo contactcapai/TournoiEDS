@@ -77,3 +77,24 @@ export function ecartsDeTirage(
 export function tirageAJour(ecarts: EcartsDeTirage): boolean {
   return ecarts.partis.length === 0 && ecarts.arrives.length === 0;
 }
+
+/**
+ * Un tableau tiré des poules a-t-il encore les BONS qualifiés ? Une poule corrigée après le
+ * tirage peut changer qui entre (`sortis`/`entres`) ou seulement l'ordre — donc les affiches.
+ * @param tetesDeSerie les places du tableau qui portent une tête de série : `rang` 1..N.
+ */
+export function ecartDesQualifies(
+  tetesDeSerie: readonly { rang: number; entryId: string | null }[],
+  attendus: readonly string[],
+): { sortis: string[]; entres: string[]; ordreChange: boolean } {
+  const assis: (string | null)[] = [];
+  for (const { rang, entryId } of tetesDeSerie) assis[rang - 1] = entryId;
+  const presentsAuTirage = assis.filter((id): id is string => typeof id === "string");
+  const sortis = presentsAuTirage.filter((id) => !attendus.includes(id));
+  const entres = attendus.filter((id) => !presentsAuTirage.includes(id));
+  const ordreChange =
+    sortis.length === 0 &&
+    entres.length === 0 &&
+    attendus.some((id, i) => assis[i] !== id);
+  return { sortis, entres, ordreChange };
+}

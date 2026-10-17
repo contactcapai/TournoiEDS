@@ -198,14 +198,18 @@ export function rangsParParcours(
 }
 
 /**
- * Le rang dans une POULE : combien de victoires, puis la différence de score.
+ * Le rang dans une POULE : victoires, puis différence de score, puis CONFRONTATION DIRECTE.
  *
  * ⚠️ AUCUNE ÉLIMINATION ICI, et c'est pour ça que la dérivation du tableau ne s'applique pas :
  * chacun rencontre chacun, une défaite ne sort personne.
  *
- * ⚠️ `profondeur` PORTE ICI LE NOMBRE DE VICTOIRES, pas une profondeur de tableau. C'est le même
- * champ parce que c'est le même usage — grouper les ex æquo —, et l'écran ne l'affiche jamais tel
- * quel : il n'en lit que `rang` et `exAequo`.
+ * 🔴 LE NOM NE DÉPARTAGE PLUS (règlement « sur place » : une égalité se joue). Deux ex æquo se
+ * départagent par leur rencontre ; à plus de deux, par les victoires entre eux ; sinon ils
+ * restent ex æquo (`exAequo` > 1) et c'est à un humain de trancher — voir `qualifiesDesPoules`.
+ * Le nom ne fixe plus que l'ordre d'AFFICHAGE à l'intérieur d'un groupe ex æquo.
+ *
+ * ⚠️ `profondeur` PORTE ICI LE NOMBRE DE VICTOIRES, pas une profondeur de tableau. L'écran n'en
+ * lit que `rang` et `exAequo`.
  */
 export function rangsParVictoires(
   rencontres: readonly RencontrePourRang[],
@@ -216,6 +220,8 @@ export function rangsParVictoires(
   const victoires = new Map<string, number>();
   const pour = new Map<string, number>();
   const contre = new Map<string, number>();
+  /** Les rencontres GAGNÉES, adversaire par adversaire — matière de la confrontation directe. */
+  const battus: { gagnant: string; perdant: string }[] = [];
 
   for (const id of engagesDeLaPhase(rencontres)) {
     victoires.set(id, 0);
@@ -229,10 +235,10 @@ export function rangsParVictoires(
     if (rencontre.issue.complete && rencontre.issue.vainqueur !== null && !rencontre.issue.exemption) {
       const gagnant = rencontre.issue.vainqueur;
       victoires.set(gagnant, (victoires.get(gagnant) ?? 0) + 1);
+      if (rencontre.issue.perdant !== null) battus.push({ gagnant, perdant: rencontre.issue.perdant });
     }
 
-    // La différence de score se compte sur TOUTES les places saisies, dépouillées ou non : une
-    // rencontre à égalité ne désigne pas de vainqueur mais ses scores comptent quand même.
+    // La différence de score se compte sur TOUTES les places saisies, dépouillées ou non.
     const total = rencontre.places.reduce((somme, p) => somme + (p.score ?? 0), 0);
     for (const place of rencontre.places) {
       if (place.entryId === null || place.score === null) continue;
@@ -241,26 +247,44 @@ export function rangsParVictoires(
     }
   }
 
-  const lignes = [...engagesDeLaPhase(rencontres)].map((id) => ({
-    id,
-    profondeur: victoires.get(id) ?? 0,
-    difference: (pour.get(id) ?? 0) - (contre.get(id) ?? 0),
-  }));
+  const parNom = (a: string, b: string) =>
+    (nomParEngage.get(a) ?? "").localeCompare(nomParEngage.get(b) ?? "", "fr") || a.localeCompare(b);
 
-  lignes.sort((a, b) => {
-    if (b.profondeur !== a.profondeur) return b.profondeur - a.profondeur;
-    if (b.difference !== a.difference) return b.difference - a.difference;
-    const nomA = nomParEngage.get(a.id) ?? "";
-    const nomB = nomParEngage.get(b.id) ?? "";
-    const parNom = nomA.localeCompare(nomB, "fr");
-    return parNom !== 0 ? parNom : a.id.localeCompare(b.id);
+  // 1. Groupes (victoires, différence), du meilleur au moins bon.
+  const groupes = new Map<string, string[]>();
+  for (const id of engagesDeLaPhase(rencontres)) {
+    const clef = `${victoires.get(id) ?? 0}|${(pour.get(id) ?? 0) - (contre.get(id) ?? 0)}`;
+    groupes.set(clef, [...(groupes.get(clef) ?? []), id]);
+  }
+  const ordreDesGroupes = [...groupes.entries()].sort(([a], [b]) => {
+    const [va, da] = a.split("|").map(Number);
+    const [vb, db] = b.split("|").map(Number);
+    return vb - va || db - da;
   });
 
-  // ⚠️ Le groupement des ex æquo tient compte de la DIFFÉRENCE, pas seulement des victoires :
-  // deux joueurs à une victoire mais à des différences distinctes ne sont pas ex æquo.
-  return rangsDenses(
-    lignes.map((l) => ({ id: l.id, profondeur: l.profondeur * 1_000_000 + l.difference })),
-  ).map((l) => ({ ...l, profondeur: victoires.get(l.id) ?? 0 }));
+  // 2. Chaque groupe se départage par les victoires ENTRE SES MEMBRES (à deux : leur rencontre).
+  const lignes: LigneDeParcours[] = [];
+  let rang = 1;
+  for (const [, membres] of ordreDesGroupes) {
+    const entreEux = new Map(membres.map((id) => [id, 0]));
+    for (const { gagnant, perdant } of battus) {
+      if (entreEux.has(gagnant) && entreEux.has(perdant)) {
+        entreEux.set(gagnant, (entreEux.get(gagnant) ?? 0) + 1);
+      }
+    }
+    const sousGroupes = new Map<number, string[]>();
+    for (const id of membres) {
+      const n = entreEux.get(id) ?? 0;
+      sousGroupes.set(n, [...(sousGroupes.get(n) ?? []), id]);
+    }
+    for (const [, ids] of [...sousGroupes.entries()].sort(([a], [b]) => b - a)) {
+      for (const id of [...ids].sort(parNom)) {
+        lignes.push({ id, rang, profondeur: victoires.get(id) ?? 0, exAequo: ids.length });
+      }
+      rang += ids.length;
+    }
+  }
+  return lignes;
 }
 
 /** Une rencontre de poule, avec sa poule (`null` = poule unique). */
@@ -286,43 +310,87 @@ export function rangsParPoule(
 /** La lettre d'une poule : 1 → A, 2 → B… */
 export const lettreDePoule = (poule: number) => String.fromCharCode(64 + poule);
 
+/** Une égalité non départagée qui chevauche la dernière place qualificative d'une poule. */
+export type EgaliteAQualifier = {
+  readonly poule: number;
+  /** Combien d'équipes de ce groupe ex æquo entrent dans le tableau. */
+  readonly places: number;
+  readonly candidats: readonly string[];
+};
+
 /**
  * Les qualifiés d'une phase de poules pour le tableau suivant : les `parPoule` premiers PRÉSENTS
  * de chaque poule, rangés A1, B1, A2, B2… — un tableau « naturel » oppose alors A1 à B2 et B1 à
  * A2. ⚠️ Un qualifié absent cède sa place au suivant de SA poule, jamais d'une autre.
+ *
+ * 🔴 UNE ÉGALITÉ À CHEVAL SUR LA DERNIÈRE PLACE NE SE TRANCHE PAS ICI : elle est rendue
+ * (`egalites`), et seul un choix humain (`choisis`, issu d'une rencontre décisive) la lève.
  */
 export function qualifiesDesPoules(
   classements: ReadonlyMap<number, readonly LigneDeParcours[]>,
   parPoule: number,
   presents: ReadonlySet<string>,
-): string[] {
+  choisis: ReadonlySet<string> = new Set(),
+): { ok: true; ids: string[] } | { ok: false; egalites: EgaliteAQualifier[] } {
+  const egalites: EgaliteAQualifier[] = [];
   const retenus = [...classements.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([, lignes]) => lignes.filter((l) => presents.has(l.id)).slice(0, parPoule));
+    .map(([poule, toutes]) => {
+      const lignes = toutes.filter((l) => presents.has(l.id));
+      const derniere = lignes[parPoule - 1];
+      if (!derniere || lignes[parPoule]?.rang !== derniere.rang) return lignes.slice(0, parPoule);
+
+      const groupe = lignes.filter((l) => l.rang === derniere.rang);
+      const avant = lignes.findIndex((l) => l.rang === derniere.rang);
+      const places = parPoule - avant;
+      const elus = groupe.filter((l) => choisis.has(l.id));
+      if (elus.length !== places) {
+        egalites.push({ poule, places, candidats: groupe.map((l) => l.id) });
+        return [];
+      }
+      return [...lignes.slice(0, avant), ...elus];
+    });
+  if (egalites.length > 0) return { ok: false, egalites };
+
   const ordre: string[] = [];
   for (let rang = 0; rang < parPoule; rang += 1) {
     for (const poule of retenus) if (poule[rang]) ordre.push(poule[rang].id);
   }
-  return ordre;
+  return { ok: true, ids: ordre };
 }
+
+/** Ce qui s'écrit au 3ᵉ rang quand deux demi-finalistes le partagent (sans petite finale). */
+export const troisiemesExAequo = (a: string, b: string) => `${a} et ${b} (ex æquo)`;
 
 /**
  * Le podium qu'une phase désigne — 1ᵉʳ, 2ᵉ, 3ᵉ, **et seulement s'ils sont sans ambiguïté**.
  *
- * 🔴 UN EX ÆQUO NE MONTE PAS SUR LE PODIUM. Quatre joueurs 5ᵉ–8ᵉ, c'est un fait ; deux joueurs
- * « 3ᵉ » dont on n'écrirait qu'un seul serait une invention. On rend donc `null` pour une place
- * disputée, et l'écran demande à un humain de trancher — l'arbitrage du 2026-08-13 dit que
- * l'assistance **pré-remplit** et qu'un humain **valide**.
+ * 🔴 UN EX ÆQUO NE MONTE PAS SUR LE PODIUM… sauf au 3ᵉ rang quand ils sont EXACTEMENT deux
+ * (décision de Brice) : les perdants des demi-finales, sans petite finale, sont 3ᵉ ex æquo, et
+ * on écrit les deux noms. Ailleurs une place disputée rend `null` et un humain tranche.
  */
 export const podiumDepuis = (
   lignes: readonly LigneDeParcours[],
   nomParEngage: ReadonlyMap<string, string>,
 ): { premier: string | null; deuxieme: string | null; troisieme: string | null } => {
-  const nomDuRang = (rang: number) => {
-    const candidats = lignes.filter((l) => l.rang === rang);
-    if (candidats.length !== 1) return null;
-    return nomParEngage.get(candidats[0].id) ?? null;
+  const nomsDuRang = (rang: number) =>
+    lignes.filter((l) => l.rang === rang).map((l) => nomParEngage.get(l.id) ?? null);
+  const seul = (rang: number) => {
+    const noms = nomsDuRang(rang);
+    return noms.length === 1 ? noms[0] : null;
   };
 
-  return { premier: nomDuRang(1), deuxieme: nomDuRang(2), troisieme: nomDuRang(3) };
+  const premier = seul(1);
+  const deuxieme = premier === null ? null : seul(2);
+  const troisiemes = nomsDuRang(3);
+  const troisieme =
+    deuxieme === null
+      ? null
+      : troisiemes.length === 1
+        ? troisiemes[0]
+        : troisiemes.length === 2 && troisiemes[0] !== null && troisiemes[1] !== null
+          ? troisiemesExAequo(troisiemes[0], troisiemes[1])
+          : null;
+
+  return { premier, deuxieme, troisieme };
 };
