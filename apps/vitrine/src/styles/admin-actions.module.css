@@ -24,7 +24,8 @@
 }
 
 .bascule,
-.basculePubliee {
+.basculePubliee,
+.etatActif {
   min-height: 44px; /* cible ≥ 44×44 */
   padding: 0 16px;
   border-radius: var(--radius-button);
@@ -58,6 +59,19 @@
 .basculePubliee:hover {
   border-color: var(--light);
   color: var(--light);
+}
+
+/* 🔴 Un ÉTAT (rôle détenu, état courant d'un engagé), pas une action : l'aplat doré dit « oui ».
+   Ne jamais y réutiliser `.basculePubliee`, passé en gris pour « Dépublier » : l'état s'inversait. */
+.etatActif {
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.etatActif:hover {
+  background: transparent;
+  color: var(--gold);
 }
 
 .erreur {
@@ -137,6 +151,7 @@
 @media (prefers-reduced-motion: reduce) {
   .bascule,
   .basculePubliee,
+  .etatActif,
   .bouton {
     transition: none;
   }

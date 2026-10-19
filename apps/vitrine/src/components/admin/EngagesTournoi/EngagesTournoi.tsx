@@ -405,7 +405,7 @@ export function EngagesTournoi({ tournoiId, teamSize, donnees, jour }: EngagesTo
                                sur une liste qu'on parcourt à 64 lignes. */
                             className={
                               courant
-                                ? `${actions.basculePubliee} ${styles.boutonEtat}`
+                                ? `${actions.etatActif} ${styles.boutonEtat}`
                                 : `${actions.bascule} ${styles.boutonEtat} ${styles.etatAutre}`
                             }
                             aria-pressed={courant}
