@@ -1,0 +1,71 @@
+.info {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Cible de 44 px (AA) autour d'un rond de 22 px. */
+.bouton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: help;
+}
+
+.rond {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.bouton:hover .rond,
+.bouton:focus-visible .rond {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.bulle {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  width: min(440px, calc(100vw - 48px));
+  padding: 14px 16px;
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.bulle[hidden] {
+  display: none;
+}
+
+@media (max-width: 880px) {
+  /* Sur téléphone, la bulle prend la largeur de l'ancêtre positionné (l'en-tête) : ancrée au
+     « i », elle déborderait de l'écran. */
+  .info {
+    position: static;
+  }
+
+  .bulle {
+    right: 0;
+    width: auto;
+  }
+}
