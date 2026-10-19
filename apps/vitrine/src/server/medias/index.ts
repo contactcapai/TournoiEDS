@@ -5,7 +5,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { open, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import sharp from "sharp";
@@ -838,6 +838,58 @@ function normaliserFormat(
     : null;
 }
 
+/** Côté le plus long d'une vignette du back-office : 120–140 px affichés, ×2 pour les écrans denses, et une marge. */
+const VIGNETTE_COTE = 400;
+const DOSSIER_VIGNETTES = "vignettes";
+
+/**
+ * La vignette d'un média, fabriquée à la première demande puis gardée sur le volume. Le
+ * back-office affichait les ORIGINAUX (jusqu'à 4 Mo) en 120 px, sans cache : ~36 Mo par écran.
+ * Même contrat qu'`ouvrirMedia` : un nom déjà validé en base, re-validé ici. `null` si absent.
+ */
+export async function ouvrirVignette(nomValideEnBase: string): Promise<Buffer | null> {
+  const nom = path.basename(nomValideEnBase);
+  if (nom !== nomValideEnBase) return null;
+
+  let base: string;
+  try {
+    base = racine();
+  } catch {
+    return null;
+  }
+  const original = path.resolve(base, nom);
+  const dossier = path.resolve(base, DOSSIER_VIGNETTES);
+  const vignette = path.resolve(dossier, `${path.parse(nom).name}.webp`);
+  if (!original.startsWith(base + path.sep) || !vignette.startsWith(dossier + path.sep)) {
+    return null;
+  }
+
+  try {
+    return await readFile(vignette);
+  } catch {
+    // Pas encore fabriquée : on la fabrique ci-dessous.
+  }
+
+  try {
+    const contenu = await sharp(original)
+      .rotate()
+      .resize(VIGNETTE_COTE, VIGNETTE_COTE, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer();
+    // Écriture puis renommage : deux demandes simultanées ne servent jamais un fichier à moitié écrit.
+    await mkdir(dossier, { recursive: true });
+    const temporaire = `${vignette}.${randomUUID()}.tmp`;
+    await writeFile(temporaire, contenu);
+    await rename(temporaire, vignette);
+    return contenu;
+  } catch (erreur) {
+    if ((erreur as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error("[medias] Échec de la fabrication d'une vignette :", erreur);
+    }
+    return null;
+  }
+}
+
 /**
  * Supprime un média du volume. **Ne jette jamais.**
  *
@@ -866,6 +918,11 @@ export async function supprimerMedia(nomValideEnBase: string): Promise<boolean> 
 
   const chemin = path.resolve(base, nom);
   if (!chemin.startsWith(base + path.sep)) return false;
+
+  // La vignette part avec l'original ; son absence n'est pas une erreur.
+  await unlink(path.resolve(base, DOSSIER_VIGNETTES, `${path.parse(nom).name}.webp`)).catch(
+    () => undefined,
+  );
 
   try {
     await unlink(chemin);
