@@ -131,7 +131,7 @@ export default async function ModifierPhotoPage({
         `.next/cache/images`, ce qui y déposerait un BROUILLON. */}
         <div className={propre.vignette}>
           <Image
-            src={`/admin/medias/${photo.filename}`}
+            src={`/vignettes/${photo.filename}`}
             alt=""
             fill
             sizes="120px"

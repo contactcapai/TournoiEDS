@@ -70,12 +70,8 @@ function LignePhoto({
 
   return (
     <li className={styles.ligne}>
-      {/* La vignette est servie par la route d'ADMIN : la route publique refuse les
-          brouillons par conception (404), donc une vignette pointée sur `/medias/` afficherait
-          un cadre cassé exactement sur les photos qu'on vient regarder avant de publier.
-          ⚠️ `/admin/medias/**` est déclaré dans `next.config.ts` → `images.localPatterns`.
-          Sans cette déclaration, `next/image` répondrait **400** — c'est la régression qui a
-          fait disparaître le logo EDS des 5 pages en 4.3, avec sept portes vertes. */}
+      {/* Servie par `/vignettes` (gardée, brouillons compris, ~30 Ko) : la route publique
+          refuse les brouillons, et l'original pèserait jusqu'à 4 Mo pour 120 px. */}
       {/* 🔴 `unoptimized` — MESURÉ AU GATE VISUEL, ET SANS LUI AUCUNE VIGNETTE NE S'AFFICHE.
       L'optimiseur `/_next/image` fait sa requête **depuis le serveur, sans cookie de
       session** : il reçoit le `307 → /connexion` de la garde, pas une image, et rend
@@ -85,7 +81,7 @@ function LignePhoto({
       `.next/cache/images`, ce qui y déposerait un BROUILLON. */}
       <div className={propre.vignette}>
         <Image
-          src={`/admin/medias/${photo.filename}`}
+          src={`/vignettes/${photo.filename}`}
           // `alt=""` : la description de la photo est écrite juste à côté, en toutes lettres.
           // La répéter ici ferait dire deux fois la même chose au lecteur d'écran.
           alt=""

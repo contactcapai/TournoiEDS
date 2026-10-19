@@ -187,7 +187,7 @@ export function ChoixImage({
           {imageChoisie ? (
             <span className={styles.vignette}>
               <Image
-                src={`/admin/medias/${imageChoisie.filename}`}
+                src={`/vignettes/${imageChoisie.filename}`}
                 alt=""
                 fill
                 sizes="140px"
@@ -237,13 +237,13 @@ export function ChoixImage({
               onChange={() => choisir(image.id)}
             />
             <span className={styles.vignette}>
-              {/* 🔴 SERVIE PAR LA ROUTE D'ADMIN ET `unoptimized` — les deux sont des gardes,
+              {/* 🔴 SERVIE PAR `/vignettes` (gardée) ET `unoptimized` — les deux sont des gardes,
                   pas des réglages. `/medias/` refuse les brouillons par conception (404), et
                   l'optimiseur `/_next/image` fait sa requête DEPUIS LE SERVEUR, sans cookie
                   de session : il recevrait la redirection de la garde, pas une image, et
                   rendrait 400. Raisonnement complet sur la liste de `/admin/galerie`. */}
               <Image
-                src={`/admin/medias/${image.filename}`}
+                src={`/vignettes/${image.filename}`}
                 alt=""
                 fill
                 sizes="140px"
