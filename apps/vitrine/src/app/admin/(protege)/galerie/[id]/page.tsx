@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PhotoForm } from "@/components/admin/PhotoForm/PhotoForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate } from "@/lib/date-paris";
 import { exigerRolePage } from "@/server/auth/guard";
 import {
@@ -94,7 +95,13 @@ export default async function ModifierPhotoPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier une photo</h1>
+      <TitrePage
+        info={[
+          "Le fichier image ne se remplace pas ici. Pour changer la photo elle-même, supprimez celle-ci et téléversez la nouvelle.",
+        ]}
+      >
+        Modifier une photo
+      </TitrePage>
       <p className={styles.chapo}>
         {photo.isPublished
           ? "Cette photo est publiée : vos modifications sont visibles au rechargement suivant."
@@ -134,13 +141,6 @@ export default async function ModifierPhotoPage({
         </div>
         <p className={propre.fichier}>{photo.filename}</p>
 
-        {/* ⚠️ CE QUE CET ÉCRAN NE FAIT PAS, DIT PLUTÔT QUE LAISSÉ CHERCHER. Remplacer
-            l'image d'une photo existante reviendrait à écrire un second fichier et à retirer
-            le premier : c'est un téléversement, pas une modification. */}
-        <p className={styles.mention} role="note">
-          Le fichier image ne se remplace pas ici. Pour changer la photo elle-même,
-          supprimez celle-ci et téléversez la nouvelle.
-        </p>
       </div>
 
       <div className={styles.section}>

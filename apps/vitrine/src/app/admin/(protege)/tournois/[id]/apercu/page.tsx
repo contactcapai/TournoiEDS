@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { InfoBulle } from "@/components/admin/InfoBulle/InfoBulle";
 import { OverlaysDuTournoi } from "@/components/admin/OverlaysDuTournoi/OverlaysDuTournoi";
 import { FicheTournoi } from "@/components/tournois/FicheTournoi/FicheTournoi";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -141,26 +142,22 @@ export default async function ApercuTournoiPage({
           du tournoi (layout de l'espace) et la fiche rendue porte le sien en `<h2>` — lui en
           ajouter un troisième forcerait `FicheTournoi` au niveau 3, donc élargirait le type
           d'un composant PUBLIC pour un besoin d'aperçu. Le menu dit déjà où l'on est. */}
-      <p className={admin.chapo}>
-        Voici le tournoi tel qu&rsquo;il apparaîtra sur le site.{" "}
-        {tournoi.isPublished
-          ? "Il est déjà publié."
-          : "Il n'est pas publié : personne d'autre que vous ne le voit."}
-      </p>
-
-      {/* ⚠️ CE QUE L'APERÇU NE MONTRE PAS, ET POURQUOI IL LE DIT. Deux faits peuvent
-          surprendre un bénévole qui compare son formulaire à cet écran, et les taire coûte un
-          ticket là où les dire coûte une phrase :
-            · un VISUEL choisi puis DÉPUBLIÉ depuis la galerie n'apparaît pas — la route
-              `/medias/[filename]` ne sert que les photos publiées (garde 6.4), donc c'est bien
-              le rendu réel ;
-            · un ÉVÉNEMENT de rattachement non publié n'est pas nommé — le public ne doit pas
-              lire le titre d'un brouillon d'agenda. */}
-      <p className={admin.mention} role="note">
-        Deux choses n&rsquo;apparaissent pas ici, <strong>pas plus que sur le site</strong>
-        &nbsp;: un visuel dont la photo a été dépubliée, et un événement de rattachement encore
-        en brouillon.
-      </p>
+      <div className={admin.entete}>
+        <p className={admin.chapo}>
+          Voici le tournoi tel qu&rsquo;il apparaîtra sur le site.{" "}
+          {tournoi.isPublished
+            ? "Il est déjà publié."
+            : "Il n'est pas publié : personne d'autre que vous ne le voit."}
+        </p>
+        <InfoBulle libelle="Ce que l'aperçu ne montre pas">
+          {/* Garde 6.4 : `/medias/[filename]` ne sert que les photos publiées. */}
+          <span className={admin.bulleTexte}>
+            Deux choses n&rsquo;apparaissent pas ici, <strong>pas plus que sur le site</strong>
+            &nbsp;: un visuel dont la photo a été dépubliée, et un événement de rattachement
+            encore en brouillon.
+          </span>
+        </InfoBulle>
+      </div>
 
       {/* 🔴 LE PLATEAU NE POSE **AUCUN FOND**, contrairement à celui de l'aperçu d'agenda —
           et c'est la même raison qui commande les deux. Là-bas, on prévisualise une CARTE, qui

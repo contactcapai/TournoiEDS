@@ -96,8 +96,6 @@ export default async function AdminAteliersPage() {
     entrees: ateliers.filter((a) => a.family === family),
   }));
 
-  const publies = ateliers.filter((a) => a.isPublished).length;
-
   return (
     <>
       <TitrePage
@@ -106,6 +104,12 @@ export default async function AdminAteliersPage() {
             L&rsquo;offre d&rsquo;animations présentée sur la page <strong>Animations</strong>.
             Rien n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le
             changement se voit au rechargement suivant.
+          </>,
+          "Une famille sans atelier publié garde simplement sa description, sans liste ni case vide — même sans aucun atelier publié, la page Animations reste entière : c'est son état normal, pas une page cassée.",
+          <>
+            L&rsquo;ordre se règle <strong>à l&rsquo;intérieur d&rsquo;une famille</strong>. Les
+            familles, elles, se suivent toujours dans le même ordre sur la page Animations —
+            ateliers et tournois, sensibilisation, puis animations sur événement.
           </>,
         ]}
       >
@@ -120,25 +124,6 @@ export default async function AdminAteliersPage() {
           Voir le rendu du catalogue
         </Link>
       </div>
-
-      {/* 🔴 CE QU'UN GESTE DÉCIDE AILLEURS, ÉCRIT EN TOUTES LETTRES. Personne ne devine que
-          la page reste entièrement lisible sans aucun atelier publié — et c'est justement
-          l'état d'aujourd'hui. Sans cette phrase, une liste vide se lirait comme une page
-          publique cassée. */}
-      <p className={styles.mention} role="note">
-        {publies === 0
-          ? "Aucun atelier n'est publié pour l'instant : la page Animations présente donc ses TROIS FAMILLES et leur description, sans liste — exactement comme aujourd'hui. Ce n'est pas une page cassée, c'est son état normal tant que rien n'est publié."
-          : `${publies} atelier${publies > 1 ? "s" : ""} publié${publies > 1 ? "s" : ""} sur la page Animations. Une famille sans atelier publié garde simplement sa description, sans liste ni case vide.`}
-      </p>
-
-      {/* ⚠️ FAIT À DIRE, PAS À TAIRE : l'ordre manuel ne franchit jamais une famille. Sans
-          cette phrase, « monter » se lit comme un classement global et les flèches semblent
-          ne rien faire quand on atteint le haut d'un groupe. */}
-      <p className={styles.mention} role="note">
-        L&rsquo;ordre se règle <strong>à l&rsquo;intérieur d&rsquo;une famille</strong>. Les
-        familles, elles, se suivent toujours dans le même ordre sur la page Animations —
-        ateliers et tournois, sensibilisation, puis animations sur événement.
-      </p>
 
       {ateliers.length > 0 ? (
         groupes.map(({ family, entrees }) => {

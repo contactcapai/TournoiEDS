@@ -106,6 +106,30 @@ export default async function ApercuPartenairesPage() {
             <strong>si tout ce qui suit était publié</strong> — le bandeau de l&rsquo;accueil, puis
             les murs de la page Partenaires.
           </>,
+          brouillons > 0 ? (
+            <>
+              Cet aperçu inclut{" "}
+              <strong>
+                {brouillons} brouillon{brouillons > 1 ? "s" : ""}
+              </strong>
+              {brouillonsAvecLogo > 0 ? (
+                <>
+                  , dont {brouillonsAvecLogo} avec un logo — {brouillonsAvecLogo > 1 ? "ils" : "il"}{" "}
+                  {brouillonsAvecLogo > 1 ? "apparaissent" : "apparaît"} donc dans le bandeau
+                  ci-dessous alors qu&rsquo;{brouillonsAvecLogo > 1 ? "ils n'y sont" : "il n'y est"}{" "}
+                  pas encore sur le site
+                </>
+              ) : null}
+              . Sur le site public, seules les entrées <strong>publiées</strong> apparaissent.
+            </>
+          ) : (
+            "Toutes les entrées ci-dessous sont publiées : c'est exactement ce que voit un visiteur aujourd'hui."
+          ),
+          <>
+            La page Partenaires <strong>existe toujours</strong> (son adresse est dans le menu du
+            site)&nbsp;: sans aucune entrée, elle affiche une phrase à la place des murs — jamais
+            quatre titres vides.
+          </>,
         ]}
       >
         Aperçu des murs de logos
@@ -119,35 +143,6 @@ export default async function ApercuPartenairesPage() {
           Ajouter un partenaire
         </Link>
       </div>
-
-      {/* 🔴 LA BORNE EST DITE, PAS TUE. L'aperçu inclut les brouillons pour qu'on voie le
-          rendu final ; sur le site, seules les entrées PUBLIÉES apparaissent. Un écran muet
-          là-dessus se ferait lire comme exhaustif — corollaire de `pieges/garde-nominale.md`
-          appliqué à un écran plutôt qu'à une porte. */}
-      <p className={styles.mention} role="note">
-        {brouillons > 0 ? (
-          <>
-            Cet aperçu inclut{" "}
-            <strong>
-              {brouillons} brouillon{brouillons > 1 ? "s" : ""}
-            </strong>
-            {brouillonsAvecLogo > 0 ? (
-              <>
-                , dont {brouillonsAvecLogo} avec un logo — {brouillonsAvecLogo > 1 ? "ils" : "il"}{" "}
-                {brouillonsAvecLogo > 1 ? "apparaissent" : "apparaît"} donc dans le bandeau
-                ci-dessous alors qu&rsquo;{brouillonsAvecLogo > 1 ? "ils n'y sont" : "il n'y est"}{" "}
-                pas encore sur le site
-              </>
-            ) : null}
-            . Sur le site public, seules les entrées <strong>publiées</strong> apparaissent.
-          </>
-        ) : (
-          <>
-            Toutes les entrées ci-dessous sont publiées : c&rsquo;est exactement ce que voit un
-            visiteur aujourd&rsquo;hui.
-          </>
-        )}
-      </p>
 
       {/* ── ① Le bandeau de l'accueil ──────────────────────────────────────────────── */}
       <section className={styles.section} aria-labelledby="apercu-bandeau">
@@ -192,13 +187,7 @@ export default async function ApercuPartenairesPage() {
             ))}
           </div>
         ) : (
-          /* ⚠️ CONTRAIREMENT AU BANDEAU, LA PAGE, ELLE, EXISTE TOUJOURS — son URL est dans le
-             header. Elle rend alors une phrase à la place des quatre murs (AC4 de la 4.2). */
-          <p className={styles.mention} role="note">
-            Aucune entrée : la page Partenaires <strong>existe quand même</strong> (son adresse
-            est dans le menu du site) et affiche une phrase à la place des murs — jamais quatre
-            titres vides.
-          </p>
+          <p className={styles.vide}>Aucune entrée.</p>
         )}
       </section>
     </>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
@@ -68,23 +67,16 @@ export default async function EngagesTournoiPage({
             Saisissez ici qui participe, puis <strong>pointez le jour J</strong>. Ce sont les{" "}
             <strong>présents</strong> qui entreront dans le tableau — pas les inscrits.
           </>,
+          "Une fois le pointage fait, c'est au jour J que les rencontres se génèrent, à partir des présents.",
+          ...(journees.length > 0
+            ? [
+                "Sur un tournoi en plusieurs journées, chaque journée se pointe à part : le pointage d'une journée ne touche pas celui des autres, et c'est lui qui décide de qui entre dans les tables de cette journée.",
+              ]
+            : []),
         ]}
       >
         Les engagés
       </TitrePage>
-
-      {/* 🔴 CETTE MENTION DISAIT « le tableau ne se génère pas encore » — VRAI À L'ÉCRITURE
-          (10.5), FAUX DEPUIS LE MERGE DE LA 10.8 le jour même, et resté à l'écran neuf jours.
-          Une phrase qui décrit ce qui MANQUE devient fausse en silence dès qu'on le livre :
-          quand la chose existe, elle doit devenir un LIEN vers elle. */}
-      <p className={styles.mention} role="note">
-        Une fois le pointage fait, c&rsquo;est au{" "}
-        <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/jour-j`}>
-          jour J
-        </Link>{" "}
-        que les rencontres se génèrent — à partir des <strong>présents</strong>, pas des
-        inscrits.
-      </p>
 
       {/* 🔴 LE SÉLECTEUR N'APPARAÎT QUE SI LE TOURNOI A DES JOURNÉES. Un tournoi qui tient sur
           un jour n'a rien à choisir, et lui montrer un choix à une seule option ferait croire
@@ -109,10 +101,8 @@ export default async function EngagesTournoiPage({
       ) : null}
 
       {jour !== null ? (
-        <p className={styles.mention} role="note">
-          Vous pointez la journée du <strong>{jourLisible(jour)}</strong>. Ce pointage ne
-          concerne <strong>que ce jour</strong> — celui des autres journées reste inchangé, et
-          c&rsquo;est lui qui décide de qui entre dans les tables de cette journée.
+        <p className={styles.chapo}>
+          Pointage du <strong>{jourLisible(jour)}</strong>.
         </p>
       ) : null}
 

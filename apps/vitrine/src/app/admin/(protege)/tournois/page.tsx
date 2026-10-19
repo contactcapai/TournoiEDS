@@ -223,7 +223,6 @@ export default async function AdminTournoisPage({
   const joursAVenir = groupesParJour(aVenir);
 
   const total = tousAVenir.length + tousPasses.length;
-  const publies = [...tousAVenir, ...tousPasses].filter((t) => t.isPublished).length;
 
   return (
     <>
@@ -234,6 +233,11 @@ export default async function AdminTournoisPage({
             s&rsquo;inscrire, et qui a gagné. Chaque tournoi est rattaché à un{" "}
             <strong>événement de l&rsquo;agenda</strong> — un même événement peut en porter
             plusieurs.
+          </>,
+          <>
+            <strong>Publier</strong> fait paraître le tournoi aussitôt sur la page publique{" "}
+            <code>/tournois</code>, celle vers laquelle mènent le menu et le pied de page du
+            site.
           </>,
         ]}
       >
@@ -282,36 +286,6 @@ export default async function AdminTournoisPage({
           Gérer l&rsquo;agenda
         </Link>
       </div>
-
-      {/* ══════════════════════════════════════════════════════════════════════════════════
-          CE QUE « PUBLIER » FAIT — 2ᵉ RÉÉCRITURE, PAR LA STORY 9.4
-          ══════════════════════════════════════════════════════════════════════════════
-          Cette phrase a porté DEUX avertissements successifs, chacun avec sa date de
-          péremption ÉCRITE, et chacune est échue :
-            · 9.1 → *« rien de visible sur le site, la page publique n'existe pas encore »*,
-              périmé par la 9.2 qui a livré `/tournois` ;
-            · 9.2 → *« le menu du site mène encore à l'ancienne plateforme, tapez l'adresse »*,
-              périmé par la 9.4 : `TOURNOI_URL` vaut `/tournois`, les 29 ancres du chrome
-              mènent ici, et l'ancien hôte redirige.
-          ⇒ Il ne reste que le fait NU, sans avertissement — c'est le but : chaque report avait
-          son mode de défaillance écrit sur l'écran de celui qui le subissait (règle ① de
-          `00 référence/pieges/integration-tierce.md`), et il n'y a plus de report.
-          ⚠️ NE PAS ré-ajouter d'avertissement « au cas où » : une mise en garde sans cause
-          envoie un bénévole chercher une panne qui n'existe pas. */}
-      <p className={styles.mention} role="note">
-        <strong>Ce que « publier » fait :</strong> le tournoi apparaît aussitôt sur la{" "}
-        <strong>page publique des tournois</strong>, à l&rsquo;adresse{" "}
-        <code>/tournois</code> — celle vers laquelle mènent le menu et le pied de page du
-        site.
-      </p>
-
-      {total > 0 ? (
-        <p className={styles.mention} role="note">
-          {publies === 0
-            ? `${total} tournoi${total > 1 ? "s" : ""} en brouillon, aucun publié.`
-            : `${publies} tournoi${publies > 1 ? "s" : ""} publié${publies > 1 ? "s" : ""} sur ${total}.`}
-        </p>
-      ) : null}
 
       {total > 0 ? (
         <form className={styles.filtres} method="get" role="search">

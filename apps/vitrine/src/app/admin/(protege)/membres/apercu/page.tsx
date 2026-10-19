@@ -54,7 +54,6 @@ export default async function ApercuMembresPage() {
 
   const membres = await getMembersForAdmin(MEMBRES_MAX);
   const brouillons = membres.filter((m) => !m.isPublished).length;
-  const sansPortrait = membres.filter((m) => m.portrait === null).length;
 
   return (
     <>
@@ -64,6 +63,23 @@ export default async function ApercuMembresPage() {
             Le rendu réel des fiches telles qu&rsquo;elles apparaissent sur la page{" "}
             <strong>L&rsquo;asso</strong>, sur son fond réel.
           </>,
+          brouillons > 0 ? (
+            <>
+              Cet aperçu inclut les <strong>brouillons</strong> ({brouillons} sur{" "}
+              {membres.length}) : ce que vous voyez ici n&rsquo;est donc <strong>pas</strong> ce
+              que voit le visiteur. Publiez une fiche depuis la liste pour qu&rsquo;elle
+              apparaisse réellement.
+            </>
+          ) : (
+            "Toutes les fiches sont publiées : cet aperçu montre donc exactement ce que voit le visiteur."
+          ),
+          <>
+            Seules les <strong>fiches</strong> sont prévisualisées. Sur le site, elles sont
+            précédées du titre « Une équipe de bénévoles » et du texte qui explique comment
+            l&rsquo;association fonctionne — ce texte reste affiché, même quand aucune fiche
+            n&rsquo;est publiée.
+          </>,
+          "Une fiche sans portrait affiche une silhouette, dans le même cadre et à la même taille que les photos : la grille reste régulière.",
         ]}
       >
         Aperçu de l&rsquo;équipe
@@ -74,46 +90,6 @@ export default async function ApercuMembresPage() {
           Retour aux membres
         </Link>
       </div>
-
-      {/* 🔴 CE QUE L'APERÇU MONTRE DE PLUS QUE LE PUBLIC, ÉCRIT EN TOUTES LETTRES. */}
-      <p className={styles.mention} role="note">
-        {brouillons > 0 ? (
-          <>
-            Cet aperçu inclut les <strong>brouillons</strong> ({brouillons} sur{" "}
-            {membres.length}) : ce que vous voyez ici n&rsquo;est donc <strong>pas</strong> ce
-            que voit le visiteur. Publiez une fiche depuis la liste pour qu&rsquo;elle
-            apparaisse réellement.
-          </>
-        ) : (
-          <>
-            Toutes les fiches sont publiées : cet aperçu montre donc exactement ce que voit le
-            visiteur.
-          </>
-        )}
-      </p>
-
-      {/* ⚠️ LE TROU DE L'APERÇU, DÉCLARÉ. Il montre les fiches, pas la section entière : le
-          titre « Une équipe de bénévoles » et les deux paragraphes sur le bénévolat vivent sur
-          /l-asso et ne sont pas reproduits ici. Ne pas déclarer ce qu'une porte ou un aperçu NE
-          couvre pas, c'est laisser croire qu'il couvre tout (doctrine des exemptions
-          déclarées). */}
-      <p className={styles.mention} role="note">
-        Seules les <strong>fiches</strong> sont prévisualisées. Sur le site, elles sont
-        précédées du titre « Une équipe de bénévoles » et du texte qui explique comment
-        l&rsquo;association fonctionne — ce texte reste affiché, même quand aucune fiche
-        n&rsquo;est publiée.
-      </p>
-
-      {/* ⚠️ FAIT UTILE ET NON DEVINABLE : une équipe MIXTE (certains avec photo, d'autres sans)
-          est le cas nominal, et c'est le seul endroit où l'on voit que la silhouette et la
-          photo occupent bien la même boîte. */}
-      {sansPortrait > 0 && sansPortrait < membres.length ? (
-        <p className={styles.mention} role="note">
-          {sansPortrait} fiche{sansPortrait > 1 ? "s" : ""} sans portrait :{" "}
-          {sansPortrait > 1 ? "elles affichent" : "elle affiche"} une silhouette, dans le même
-          cadre et à la même taille que les photos. La grille reste régulière.
-        </p>
-      ) : null}
 
       {/* Le fond RÉEL de la section publique. `.prose` porte la mesure de lecture (680px), donc
           le nombre de colonnes de la grille est celui du site — un aperçu pleine largeur

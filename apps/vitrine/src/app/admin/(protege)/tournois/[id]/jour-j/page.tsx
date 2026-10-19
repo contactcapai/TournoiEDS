@@ -7,6 +7,7 @@ import {
   BarreJournees,
   type EntreeJournee,
 } from "@/components/admin/BarreJournees/BarreJournees";
+import { InfoBulle } from "@/components/admin/InfoBulle/InfoBulle";
 import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { RafraichirJourJ } from "@/components/admin/RafraichirJourJ/RafraichirJourJ";
@@ -366,9 +367,30 @@ export default async function JourJPage({
               premier tour sont tous 5ᵉ, parce que leur inventer un ordre serait un faux. */}
           {rangs && rangs.lignes.length > 0 ? (
             <section className={styles.section} aria-labelledby="jour-j-rangs">
-              <h2 className={styles.sectionTitre} id="jour-j-rangs">
-                Rang dans « {active?.name} »
-              </h2>
+              <div className={styles.entete}>
+                <h2 className={styles.sectionTitre} id="jour-j-rangs">
+                  Rang dans « {active?.name} »
+                </h2>
+                <InfoBulle libelle="Comment ce rang se calcule">
+                  <span className={styles.bulleTexte}>
+                    {phaseComplete?.kind === "poule" ? (
+                      <>
+                        <strong>Classée aux victoires</strong>, puis à la différence de score,
+                        puis à la confrontation directe, poule par poule. Une égalité qui reste
+                        se joue sur place. Un forfait compte une victoire, sans points ; une
+                        exemption ne compte pas.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Déduit du tableau</strong>, jamais saisi : votre rang est{" "}
+                        <em>jusqu&rsquo;où vous êtes allé</em>. En double élimination, une
+                        défaite chez les vainqueurs ne sort pas — elle fait descendre chez les
+                        perdants.
+                      </>
+                    )}
+                  </span>
+                </InfoBulle>
+              </div>
               <div className={propre.tableWrap}>
                 <table className={propre.table}>
                   <thead>
@@ -408,22 +430,6 @@ export default async function JourJPage({
                 </table>
               </div>
 
-              <p className={styles.mention} role="note">
-                {phaseComplete?.kind === "poule" ? (
-                  <>
-                    <strong>Classée aux victoires</strong>, puis à la différence de score, puis
-                    à la confrontation directe, poule par poule. Une égalité qui reste se joue
-                    sur place. Un forfait compte une victoire, sans points ; une exemption ne
-                    compte pas.
-                  </>
-                ) : (
-                  <>
-                    <strong>Déduit du tableau</strong>, jamais saisi : votre rang est{" "}
-                    <em>jusqu&rsquo;où vous êtes allé</em>. En double élimination, une défaite chez
-                    les vainqueurs ne sort pas — elle fait descendre chez les perdants.
-                  </>
-                )}
-              </p>
             </section>
           ) : null}
         </>
@@ -514,32 +520,36 @@ export default async function JourJPage({
       ) : null}
 
       <section className={styles.section} aria-labelledby="jour-j-classement">
-        <h2 className={styles.sectionTitre} id="jour-j-classement">
-          {!aDesTables ? "Podium" : finale ? "Classement des qualifications" : "Classement"}
-        </h2>
+        <div className={styles.entete}>
+          <h2 className={styles.sectionTitre} id="jour-j-classement">
+            {!aDesTables ? "Podium" : finale ? "Classement des qualifications" : "Classement"}
+          </h2>
+          {aDesTables ? (
+            <InfoBulle libelle="Comment ce classement se calcule">
+              {/* Sur un tournoi d'un seul jour, « tout le tournoi » et « cette journée » se confondent. */}
+              {aDesJournees ? (
+                <span className={styles.bulleTexte}>
+                  Ce classement porte sur <strong>tout le tournoi</strong>, pas sur la journée
+                  affichée au-dessus — il cumule les points de toutes les manches déjà jouées.
+                  C&rsquo;est lui qui compose la manche suivante.
+                </span>
+              ) : null}
+              <span className={styles.bulleTexte}>
+                <strong>Départages, dans cet ordre :</strong> points totaux, puis premières
+                places, puis places en moitié haute, puis meilleur dernier résultat — et le nom en
+                dernier ressort, pour que le classement soit <strong>reproductible</strong>. Les
+                points suivent la taille <strong>réelle</strong> de chaque table : un 1ᵉʳ
+                d&rsquo;une table de 6 marque 6 points, pas 8.
+              </span>
+            </InfoBulle>
+          ) : null}
+        </div>
 
         {/* Le classement aux POINTS ne vaut que pour les tables (lobbies, suisse, finale). Sur un
             tournoi en poules ou en tableau, ses explications parlaient de TFT : seul le podium
             reste, et le rang de chaque phase est juste au-dessus. */}
         {aDesTables ? (
           <>
-
-        {/* 🔴 IL CUMULE TOUT LE TOURNOI, ET L'ÉCRAN LE DIT ENFIN (13.1). Le fait était vrai
-            depuis toujours et écrit dans le commentaire ci-dessus, c'est-à-dire nulle part
-            pour la personne qui pointe. Sur un TFT étalé sur quatre week-ends, un classement
-            posé sous une journée choisie se lit comme le classement DE cette journée — et
-            l'écart ne se remarque qu'en recomptant les points à la main, un jour de tournoi.
-            ⚠️ La phrase n'est rendue QUE si le tournoi a plusieurs journées : sur un tournoi
-            d'un seul jour, « tout le tournoi » et « cette journée » sont la même chose, et le
-            préciser inventerait une distinction qui n'existe pas. */}
-        {aDesJournees ? (
-          <p className={styles.mention} role="note">
-            Ce classement porte sur <strong>tout le tournoi</strong>, pas sur la journée
-            affichée au-dessus — il cumule les points de toutes les manches déjà jouées.
-            C&rsquo;est lui qui compose la manche suivante.
-          </p>
-        ) : null}
-
         {classement.length === 0 ? (
           /* 🔴 CETTE PHRASE A MENTI, ET C'EST LE TOURNOI RÉEL DE BRICE QUI L'A MONTRÉ. Elle disait
              « aucun résultat saisi » sur une double élimination ENTIÈREMENT jouée : le classement
@@ -625,15 +635,6 @@ export default async function JourJPage({
           </p>
         ) : null}
 
-        {aDesTables ? (
-        <p className={styles.mention} role="note">
-          <strong>Départages, dans cet ordre :</strong> points totaux, puis premières places,
-          puis places en moitié haute, puis meilleur dernier résultat — et le nom en dernier
-          ressort, pour que le classement soit <strong>reproductible</strong>. Les points suivent
-          la taille <strong>réelle</strong> de chaque table : un 1ᵉʳ d&rsquo;une table de 6
-          marque 6 points, pas 8.
-        </p>
-        ) : null}
       </section>
     </>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
+import { InfoBulle } from "@/components/admin/InfoBulle/InfoBulle";
 import { PhotoActions } from "@/components/admin/PhotoActions/PhotoActions";
 import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate } from "@/lib/date-paris";
@@ -192,7 +193,6 @@ export default async function AdminGaleriePage({
   const surAccueil = new Set(
     galerie.filter((photo) => photo.isPublished).slice(0, HOME_PHOTO_COUNT).map((p) => p.id),
   );
-  const publiees = galerie.filter((photo) => photo.isPublished).length;
 
   // Recherche et filtre portés par l'URL (retour UX du 2026-10-16), « Sert à » compris.
   // ⚠️ `ordre` et les positions restent ceux de la galerie ENTIÈRE : monter une photo d'une
@@ -232,6 +232,16 @@ export default async function AdminGaleriePage({
             qui annoncent un événement, un tournoi ou un post. Rien n&rsquo;apparaît sur le site
             tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
           </>,
+          <>
+            L&rsquo;accueil ne montre que les <strong>{HOME_PHOTO_COUNT} premières photos
+            publiées</strong> de la galerie, dans l&rsquo;ordre de la liste. Monter une photo,
+            c&rsquo;est décider qu&rsquo;elle passe sur la page la plus vue du site.
+          </>,
+          <>
+            Une même photo peut être téléversée <strong>deux fois</strong> sans que le site
+            s&rsquo;en aperçoive&nbsp;: chaque envoi crée un fichier distinct. En cas de doublon,
+            supprimez-en un.
+          </>,
         ]}
       >
         Médiathèque
@@ -245,26 +255,6 @@ export default async function AdminGaleriePage({
           Voir le rendu de la galerie
         </Link>
       </div>
-
-      {/* 🔴 CE QUE L'ORDRE DÉCIDE, ÉCRIT EN TOUTES LETTRES (AC6). Sans cette phrase,
-          « organiser la galerie » se lit comme un rangement sans conséquence. */}
-      <p className={styles.mention} role="note">
-        L&rsquo;accueil ne montre que les <strong>{HOME_PHOTO_COUNT} premières photos
-        publiées</strong>, dans l&rsquo;ordre ci-dessous. Monter une photo, c&rsquo;est
-        décider qu&rsquo;elle passe sur la page la plus vue du site.{" "}
-        {publiees > HOME_PHOTO_COUNT
-          ? `Vous avez ${publiees} photos publiées : ${publiees - HOME_PHOTO_COUNT} n'apparaissent donc pas sur l'accueil.`
-          : `Vous avez ${publiees} photo${publiees > 1 ? "s" : ""} publiée${publiees > 1 ? "s" : ""} : elles apparaissent toutes sur l'accueil.`}
-      </p>
-
-      {/* ⚠️ FAIT À DIRE, PAS À TAIRE (AC6) : la contrainte `unique()` de la base protège le
-          NOM du fichier, pas son CONTENU. Comme le nom est généré par le serveur, deux
-          téléversements de la même image réussissent tous les deux — et la galerie
-          l'afficherait deux fois. Ce n'est pas rattrapable par la base. */}
-      <p className={styles.mention} role="note">
-        Une même photo peut être téléversée <strong>deux fois</strong> sans que le site s&rsquo;en
-        aperçoive : chaque envoi crée un fichier distinct. En cas de doublon, supprimez-en un.
-      </p>
 
       <form className={styles.filtres} method="get" role="search">
         <label className={styles.filtreLabel} htmlFor="medias-q">
@@ -342,16 +332,23 @@ export default async function AdminGaleriePage({
           (14.2) : on ne rend pas une section pour dire qu'elle est vide. */}
       {visuelsAffiches.length > 0 ? (
         <section className={styles.section} aria-labelledby="admin-visuels">
-          <h2 className={styles.sectionTitre} id="admin-visuels">
-            Visuels
-          </h2>
-          <p className={styles.mention} role="note">
-            Ces images sont utilisables partout sur le site — visuel d&rsquo;un événement,
-            d&rsquo;un tournoi, image d&rsquo;un post — mais <strong>n&rsquo;entrent pas</strong>{" "}
-            dans la galerie de l&rsquo;accueil. Elles n&rsquo;ont donc pas d&rsquo;ordre.
-            Pour en faire passer une sur l&rsquo;accueil, ouvrez-la et cochez «&nbsp;Montrer
-            dans la galerie de l&rsquo;accueil&nbsp;».
-          </p>
+          <div className={styles.entete}>
+            <h2 className={styles.sectionTitre} id="admin-visuels">
+              Visuels
+            </h2>
+            <InfoBulle libelle="À propos des visuels">
+              <span className={styles.bulleTexte}>
+                Ces images sont utilisables partout sur le site — visuel d&rsquo;un événement,
+                d&rsquo;un tournoi, image d&rsquo;un post — mais{" "}
+                <strong>n&rsquo;entrent pas</strong> dans la galerie de l&rsquo;accueil. Elles
+                n&rsquo;ont donc pas d&rsquo;ordre.
+              </span>
+              <span className={styles.bulleTexte}>
+                Pour en faire passer une sur l&rsquo;accueil, ouvrez-la et cochez «&nbsp;Montrer
+                dans la galerie de l&rsquo;accueil&nbsp;».
+              </span>
+            </InfoBulle>
+          </div>
 
           <ul className={styles.liste}>
             {visuelsAffiches.map((photo) => (
