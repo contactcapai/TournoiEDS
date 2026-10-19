@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PartenaireForm } from "@/components/admin/PartenaireForm/PartenaireForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import styles from "@/styles/admin-page.module.css";
 
@@ -28,11 +29,16 @@ export default async function NouveauPartenairePage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Ajouter un partenaire</h1>
-      <p className={styles.chapo}>
-        La fiche est créée en <strong>brouillon</strong> : rien n&rsquo;apparaît sur le site
-        tant que vous ne l&rsquo;avez pas publiée.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            La fiche est créée en <strong>brouillon</strong> : rien n&rsquo;apparaît sur le site
+            tant que vous ne l&rsquo;avez pas publiée.
+          </>,
+        ]}
+      >
+        Ajouter un partenaire
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/partenaires">

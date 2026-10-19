@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PhotoActions } from "@/components/admin/PhotoActions/PhotoActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate } from "@/lib/date-paris";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { cleanText } from "@/lib/text";
@@ -220,16 +221,21 @@ export default async function AdminGaleriePage({
 
   return (
     <>
-      <h1 className={styles.titre}>Médiathèque</h1>
       {/* 🔴 LE CHAPÔ DIT LA NOUVELLE NATURE DE L'ÉCRAN (15.1). Il annonçait « les photos de la
           vie de l'asso » — vrai tant que la table ne portait que des souvenirs, faux depuis
           qu'elle porte aussi les visuels d'événement, de tournoi et les images de post. Une
           phrase qui décrit l'écran d'avant est un faux témoin, et ce dépôt les paie. */}
-      <p className={styles.chapo}>
-        Toutes les images du site&nbsp;: les photos de la vie de l&rsquo;asso, et les visuels
-        qui annoncent un événement, un tournoi ou un post. Rien n&rsquo;apparaît sur le site
-        tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Toutes les images du site&nbsp;: les photos de la vie de l&rsquo;asso, et les visuels
+            qui annoncent un événement, un tournoi ou un post. Rien n&rsquo;apparaît sur le site
+            tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
+          </>,
+        ]}
+      >
+        Médiathèque
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/galerie/nouveau">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { EventForm } from "@/components/admin/EventForm/EventForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getImagesPourChoix } from "@/server/db/queries/photos";
 import { getBars } from "@/server/db/queries/events";
@@ -32,11 +33,16 @@ export default async function NouvelEvenementPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Nouvel événement</h1>
-      <p className={styles.chapo}>
-        Un jeudi jeux ou un temps fort. Rien n&rsquo;est visible sur le site tant que la case
-        « Publier » reste décochée.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Un jeudi jeux ou un temps fort. Rien n&rsquo;est visible sur le site tant que la case
+            « Publier » reste décochée.
+          </>,
+        ]}
+      >
+        Nouvel événement
+      </TitrePage>
 
       <div className={styles.section}>
         <EventForm bars={bars} images={images} />

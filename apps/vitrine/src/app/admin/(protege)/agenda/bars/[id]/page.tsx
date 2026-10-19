@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { BarForm } from "@/components/admin/BarForm/BarForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getBarById } from "@/server/db/queries/events";
 import styles from "@/styles/admin-page.module.css";
@@ -32,11 +33,16 @@ export default async function ModifierBarPage({ params }: { params: Promise<{ id
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier un bar</h1>
-      <p className={styles.chapo}>
-        Le nom et le quartier s&rsquo;affichent sur la carte du prochain rendez-vous ;
-        l&rsquo;adresse complète n&rsquo;apparaît que sur la page Agenda.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Le nom et le quartier s&rsquo;affichent sur la carte du prochain rendez-vous ;
+            l&rsquo;adresse complète n&rsquo;apparaît que sur la page Agenda.
+          </>,
+        ]}
+      >
+        Modifier un bar
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/agenda/bars">

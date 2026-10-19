@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { ComposeurReseaux } from "@/components/admin/ComposeurReseaux/ComposeurReseaux";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { RESEAUX_CABLES, listerReseaux } from "@/lib/reseaux";
 import { cleanText } from "@/lib/text";
@@ -50,11 +51,16 @@ export default async function AdminReseauxPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Réseaux</h1>
-      <p className={styles.chapo}>
-        Donnez une image et deux mots de contexte : un texte vous est proposé pour chaque
-        réseau. Vous les relisez, vous corrigez, et vous envoyez. Rien ne part avant.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Donnez une image et deux mots de contexte : un texte vous est proposé pour chaque
+            réseau. Vous les relisez, vous corrigez, et vous envoyez. Rien ne part avant.
+          </>,
+        ]}
+      >
+        Réseaux
+      </TitrePage>
 
       {RESEAUX_CABLES.length === 0 ? (
         <p className={styles.mention}>

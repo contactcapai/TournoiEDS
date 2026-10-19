@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { SollicitationActions } from "@/components/admin/SollicitationActions/SollicitationActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { SOLICITATION_TYPE_LABELS } from "@/lib/schemas/solicitation";
 import { cleanText } from "@/lib/text";
@@ -70,11 +71,17 @@ export default async function DetailSollicitationPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Demande de {expediteur}</h1>
-      <p className={styles.chapo}>
-        Reçue le {recuLe}. Cette page est en <strong>lecture seule</strong> : on ne modifie pas
-        une demande envoyée par quelqu&rsquo;un d&rsquo;autre.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Cette page est en <strong>lecture seule</strong>&nbsp;: on ne modifie pas une demande
+            envoyée par quelqu&rsquo;un d&rsquo;autre.
+          </>,
+        ]}
+      >
+        Demande de {expediteur}
+      </TitrePage>
+      <p className={styles.chapo}>Reçue le {recuLe}.</p>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/sollicitations">

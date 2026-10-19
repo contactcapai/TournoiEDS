@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SollicitationActions } from "@/components/admin/SollicitationActions/SollicitationActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { SOLICITATION_TYPE_LABELS } from "@/lib/schemas/solicitation";
 import { cleanText } from "@/lib/text";
@@ -118,12 +119,17 @@ export default async function AdminSollicitationsPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Sollicitations</h1>
-      <p className={styles.chapo}>
-        Les demandes reçues par le formulaire de la page <strong>Partenaires</strong>. Rien de
-        ce qui est écrit ici n&rsquo;apparaît sur le site : cet écran est une boîte de
-        réception, pas une page à publier.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les demandes reçues par le formulaire de la page <strong>Partenaires</strong>. Rien de
+            ce qui est écrit ici n&rsquo;apparaît sur le site : cet écran est une boîte de
+            réception, pas une page à publier.
+          </>,
+        ]}
+      >
+        Sollicitations
+      </TitrePage>
 
       {!notificationsConfigurees ? (
         /* ⚠️ Cette mention DISPARAÎT d'elle-même dès que la variable est renseignée : il n'y

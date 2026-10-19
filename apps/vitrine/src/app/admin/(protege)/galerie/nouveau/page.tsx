@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { PhotoUploader } from "@/components/admin/PhotoUploader/PhotoUploader";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate } from "@/lib/date-paris";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getPastEventsForAdmin, getUpcomingEventsForAdmin } from "@/server/db/queries/events";
@@ -43,12 +44,17 @@ export default async function NouvellesPhotosPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Téléverser des photos</h1>
-      <p className={styles.chapo}>
-        Choisissez une ou plusieurs photos, décrivez-les, et envoyez. Elles arrivent en{" "}
-        <strong>brouillon</strong> : rien n&rsquo;apparaît sur le site avant que vous ne les
-        publiiez, une par une, depuis la galerie.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Choisissez une ou plusieurs photos, décrivez-les, et envoyez. Elles arrivent en{" "}
+            <strong>brouillon</strong> : rien n&rsquo;apparaît sur le site avant que vous ne les
+            publiiez, une par une, depuis la galerie.
+          </>,
+        ]}
+      >
+        Téléverser des photos
+      </TitrePage>
 
       <div className={styles.section}>
         <PhotoUploader evenements={evenements} />

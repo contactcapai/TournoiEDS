@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { PhasesTournoi } from "@/components/admin/PhasesTournoi/PhasesTournoi";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getPhasesForTournament } from "@/server/db/queries/phases";
 import { getTournamentById } from "@/server/db/queries/tournaments";
@@ -42,13 +43,18 @@ export default async function ComposerTournoiPage({
     <>
       {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9) —
           « Composer « X » » le répétait à un cran au-dessus. */}
-      <h2 className={styles.titre}>Le déroulé</h2>
-      <p className={styles.chapo}>
-        Le déroulé se compose en phases, jouées dans l&rsquo;ordre. Ce que vous saisissez ici
-        est un <strong>plan</strong> : le pointage du jour J révèle qui est réellement là, et
-        la structure peut encore être refaite à ce moment-là — tant qu&rsquo;aucune rencontre
-        n&rsquo;a de résultat.
-      </p>
+      <TitrePage niveau={2}
+        info={[
+          <>
+            Le déroulé se compose en phases, jouées dans l&rsquo;ordre. Ce que vous saisissez ici
+            est un <strong>plan</strong> : le pointage du jour J révèle qui est réellement là, et
+            la structure peut encore être refaite à ce moment-là — tant qu&rsquo;aucune rencontre
+            n&rsquo;a de résultat.
+          </>,
+        ]}
+      >
+        Le déroulé
+      </TitrePage>
 
       <div className={styles.section}>
         <PhasesTournoi tournoiId={tournoi.id} phases={phases} />

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { MembreActions } from "@/components/admin/MembreActions/MembreActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { sourcePortrait } from "@/lib/portraits";
 import { cleanText } from "@/lib/text";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -114,12 +115,17 @@ export default async function AdminMembresPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Membres</h1>
-      <p className={styles.chapo}>
-        L&rsquo;équipe présentée sur la page <strong>L&rsquo;asso</strong>. Rien
-        n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le changement se
-        voit au rechargement suivant.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            L&rsquo;équipe présentée sur la page <strong>L&rsquo;asso</strong>. Rien
+            n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le changement se
+            voit au rechargement suivant.
+          </>,
+        ]}
+      >
+        Membres
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/membres/nouveau">

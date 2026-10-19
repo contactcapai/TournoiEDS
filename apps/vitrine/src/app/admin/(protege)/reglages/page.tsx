@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ReglagesForm } from "@/components/admin/ReglagesForm/ReglagesForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { lireReglagesPourSaisie } from "@/server/db/queries/settings";
 // Les mêmes images que les trois autres écrans qui en choisissent une (événement,
@@ -54,7 +55,6 @@ export default async function ReglagesPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Réglages du site</h1>
       {/* 🔴 CETTE PHRASE CITAIT UN BOUTON QUI N'EXISTE PLUS — RÉÉCRITE PAR LA 12.4. Elle
           promettait que ces réglages alimentent « le menu et les boutons "Nous rejoindre" de
           toutes les pages du site ». Le CTA du chrome mène désormais à `/connexion` : la
@@ -64,11 +64,17 @@ export default async function ReglagesPage() {
           « a abandonné » et le commentaire de `MobileMenu`) — la PREMIÈRE vue avant de la
           payer, parce que l'audit de renvois de la 12.4 a cherché ce qui AFFIRME, et pas
           seulement ce qui POINTE. */}
-      <p className={styles.chapo}>
-        Les adresses de vos comptes et l&rsquo;e-mail de contact. Elles alimentent le pied de
-        page de <strong>toutes les pages du site</strong>, le lien Discord du menu, et le
-        bouton d&rsquo;adhésion de la page d&rsquo;accueil.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les adresses de vos comptes et l&rsquo;e-mail de contact. Elles alimentent le pied de
+            page de <strong>toutes les pages du site</strong>, le lien Discord du menu, et le
+            bouton d&rsquo;adhésion de la page d&rsquo;accueil.
+          </>,
+        ]}
+      >
+        Réglages du site
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin">

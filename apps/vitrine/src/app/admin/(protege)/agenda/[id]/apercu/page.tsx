@@ -7,6 +7,7 @@ import { EventList, EventRow } from "@/components/agenda/EventList/EventList";
 import { NextEventCard } from "@/components/agenda/NextEventCard/NextEventCard";
 import { PastCarousel } from "@/components/agenda/PastCarousel/PastCarousel";
 import { PastEvent } from "@/components/agenda/PastEvent/PastEvent";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getEventById } from "@/server/db/queries/events";
 import { getPhotosForEvents } from "@/server/db/queries/photos";
@@ -108,9 +109,8 @@ export default async function ApercuEvenementPage({
 
   return (
     <>
-      <h1 className={agenda.titre}>Aperçu</h1>
+      <TitrePage info={["Voici l’événement tel qu’il apparaîtra sur le site."]}>Aperçu</TitrePage>
       <p className={agenda.chapo}>
-        Voici l&rsquo;événement tel qu&rsquo;il apparaîtra sur le site.{" "}
         {evenement.isPublished
           ? "Il est déjà publié."
           : "Il n'est pas publié : personne d'autre que vous ne le voit."}

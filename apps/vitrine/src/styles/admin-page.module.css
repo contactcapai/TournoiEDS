@@ -25,6 +25,23 @@
   color: var(--light);
 }
 
+/* `TitrePage` : le titre et son « i ». Ancêtre positionné : sur téléphone la bulle prend
+   toute la largeur de l'en-tête. */
+.entete {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.bulleTexte {
+  display: block;
+}
+
+.bulleTexte + .bulleTexte {
+  margin-top: 8px;
+}
+
 .chapo {
   margin-top: 12px;
   max-width: 64ch;

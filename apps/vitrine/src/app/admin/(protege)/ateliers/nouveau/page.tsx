@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AtelierForm } from "@/components/admin/AtelierForm/AtelierForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import styles from "@/styles/admin-page.module.css";
 
@@ -27,11 +28,16 @@ export default async function NouvelAtelierPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Ajouter un atelier</h1>
-      <p className={styles.chapo}>
-        L&rsquo;atelier est créé en <strong>brouillon</strong> : rien n&rsquo;apparaît sur la
-        page Animations tant que vous ne l&rsquo;avez pas publié.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            L&rsquo;atelier est créé en <strong>brouillon</strong> : rien n&rsquo;apparaît sur la
+            page Animations tant que vous ne l&rsquo;avez pas publié.
+          </>,
+        ]}
+      >
+        Ajouter un atelier
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/ateliers">

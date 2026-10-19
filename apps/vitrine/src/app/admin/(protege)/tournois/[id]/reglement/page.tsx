@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ReglementTournoiForm } from "@/components/admin/ReglementTournoiForm/ReglementTournoiForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { valeursDuTournoi } from "@/lib/reglement";
 import { baseDuSite } from "@/lib/site-url";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -40,25 +41,30 @@ export default async function ReglementTournoiPage({
 
   return (
     <>
-      <h2 className={styles.titre}>Le règlement</h2>
-      <p className={styles.chapo}>
-        Il paraît à l&rsquo;adresse <code>/tournois/{tournoi.slug}/reglement</code>, avec un
-        lien depuis la page du tournoi.{" "}
-        {phases.length > 0 ? (
+      <TitrePage
+        niveau={2}
+        info={[
           <>
-            Le pré-remplissage lit la fiche et les <strong>{phases.length} phases</strong> du
-            déroulé.
-          </>
-        ) : (
-          <>
-            Le déroulé n&rsquo;est <strong>pas encore composé</strong> : le pré-remplissage
-            reprendra le texte « déroulé annoncé » de la fiche.{" "}
-            <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
-              Composer le déroulé
-            </Link>
-          </>
-        )}
-      </p>
+            Il paraît à l&rsquo;adresse <code>/tournois/{tournoi.slug}/reglement</code>, avec un
+            lien depuis la page du tournoi.
+          </>,
+          phases.length > 0
+            ? `Le pré-remplissage lit la fiche et les ${phases.length} phases du déroulé.`
+            : "Le pré-remplissage lit la fiche et, une fois composé, le déroulé.",
+        ]}
+      >
+        Le règlement
+      </TitrePage>
+      {/* Une action à faire reste visible ; l'explication est dans le « i ». */}
+      {phases.length === 0 ? (
+        <p className={styles.chapo}>
+          Le déroulé n&rsquo;est <strong>pas encore composé</strong>&nbsp;: le pré-remplissage
+          reprendra le texte «&nbsp;déroulé annoncé&nbsp;» de la fiche.{" "}
+          <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/phases`}>
+            Composer le déroulé
+          </Link>
+        </p>
+      ) : null}
 
       <div className={styles.section}>
         <ReglementTournoiForm

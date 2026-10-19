@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Gallery } from "@/components/gallery/Gallery/Gallery";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { HOME_PHOTO_COUNT } from "@/lib/galerie";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getPhotosForAdmin } from "@/server/db/queries/photos";
@@ -93,16 +94,21 @@ export default async function ApercuGaleriePage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Aperçu de la galerie</h1>
       {/* ⚠️ FORMULATION EXACTE, ET C'EST LE CORRECTIF DE FOND : cet écran ne montre pas
           l'accueil d'aujourd'hui, il montre l'accueil **si tout ce qui suit était publié**.
           Les deux coïncident quand il n'y a aucun brouillon, et la mention ci-dessous dit
           laquelle des deux on regarde. */}
-      <p className={styles.chapo}>
-        Voici la galerie « La vie de l&rsquo;asso » telle qu&rsquo;elle apparaîtrait sur
-        l&rsquo;accueil <strong>si tout ce qui suit était publié</strong> — les{" "}
-        {HOME_PHOTO_COUNT} premières photos de votre ordre.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Voici la galerie « La vie de l&rsquo;asso » telle qu&rsquo;elle apparaîtrait sur
+            l&rsquo;accueil <strong>si tout ce qui suit était publié</strong> — les{" "}
+            {HOME_PHOTO_COUNT} premières photos de votre ordre.
+          </>,
+        ]}
+      >
+        Aperçu de la galerie
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/galerie">

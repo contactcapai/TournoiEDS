@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { jourLisible, jourParis } from "@/lib/date-paris";
 import {
   FENETRE_JOURS,
@@ -135,11 +136,16 @@ export default async function AdminDashboardPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Back-office</h1>
-      <p className={styles.chapo}>
-        Bonjour {compte.nom ?? "et bienvenue"}. C&rsquo;est ici que se gère tout ce qui vit
-        sur le site, sans passer par un développeur.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Bonjour {compte.nom ?? "et bienvenue"}. C&rsquo;est ici que se gère tout ce qui vit
+            sur le site, sans passer par un développeur.
+          </>,
+        ]}
+      >
+        Back-office
+      </TitrePage>
 
       {sections.length === 0 ? (
         /* ══════════════════════════════════════════════════════════════════════════════

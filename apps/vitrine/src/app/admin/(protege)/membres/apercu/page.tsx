@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TeamGrid } from "@/components/asso/TeamGrid/TeamGrid";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getMembersForAdmin, MEMBRES_MAX } from "@/server/db/queries/members";
 import editorial from "@/styles/editorial.module.css";
@@ -57,11 +58,16 @@ export default async function ApercuMembresPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Aperçu de l&rsquo;équipe</h1>
-      <p className={styles.chapo}>
-        Le rendu réel des fiches telles qu&rsquo;elles apparaissent sur la page{" "}
-        <strong>L&rsquo;asso</strong>, sur son fond réel.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Le rendu réel des fiches telles qu&rsquo;elles apparaissent sur la page{" "}
+            <strong>L&rsquo;asso</strong>, sur son fond réel.
+          </>,
+        ]}
+      >
+        Aperçu de l&rsquo;équipe
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/membres">

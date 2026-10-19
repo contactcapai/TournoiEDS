@@ -10,6 +10,7 @@ import {
 import { JourJ } from "@/components/admin/JourJ/JourJ";
 import { PodiumDeduit } from "@/components/admin/PodiumDeduit/PodiumDeduit";
 import { RafraichirJourJ } from "@/components/admin/RafraichirJourJ/RafraichirJourJ";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { LIBELLE_NATURE } from "@/lib/schemas/phase";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getTournoiPourEngages } from "@/server/db/queries/engages";
@@ -245,18 +246,25 @@ export default async function JourJPage({
   return (
     <>
       {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9). */}
-      <h2 className={styles.titre}>Le jour J</h2>
+      <TitrePage
+        niveau={2}
+        info={[
+          <>
+            On génère depuis les <strong>présents</strong> — pas depuis les inscrits —, on saisit
+            les résultats, le classement se recalcule.
+          </>,
+          "L’écran se met à jour tout seul avec les saisies des collègues, sauf pendant que vous tapez.",
+        ]}
+      >
+        Le jour J
+      </TitrePage>
       {/* 🔴 LE COMPTE DE PRÉSENTS RESTE, ET IL A CHANGÉ DE PLACE. Il vivait dans le libellé
           d'un lien de la barre de navigation, que le menu de l'espace remplace (R61) — or
           c'est le chiffre qu'on regarde en premier ici : il décide de ce qui se génère. */}
       <p className={styles.chapo}>
-        On génère depuis les <strong>présents</strong>, on saisit les résultats, le classement se
-        recalcule. Pour l&rsquo;instant,{" "}
         <Link className={styles.lien} href={`/admin/tournois/${tournoi.id}/engages`}>
           <strong>{presents.length} présents</strong> au pointage
-        </Link>{" "}
-        — les rencontres se génèrent depuis eux, pas depuis les inscrits. L&rsquo;écran se
-        met à jour tout seul avec les saisies des collègues, sauf pendant que vous tapez.
+        </Link>
       </p>
 
       {phases.length === 0 ? (
