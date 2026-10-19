@@ -45,7 +45,9 @@ const { handlers, auth, signIn, signOut } = NextAuth({
   // détectées automatiquement par Auth.js : les nommer ici les dupliquerait sans rien
   // garantir de plus.
   providers: [
-    Discord({ allowDangerousEmailAccountLinking: true }),
+    // Discord renvoie désormais `iss` au retour (RFC 9207) ; sans émetteur déclaré, Auth.js le
+    // compare à « https://authjs.dev » et refuse toute connexion (`error=Configuration`, 2026-10-19).
+    Discord({ allowDangerousEmailAccountLinking: true, issuer: "https://discord.com" }),
     Google({ allowDangerousEmailAccountLinking: true }),
 
     /**
