@@ -22,6 +22,12 @@ export const LIBELLE_ROLE: Record<RoleAdmin, string> = {
   admin_tournoi: "Administration des tournois",
 };
 
+/** Le mot visible sur la bascule d'un compte, où la colonne dit déjà « administration ». */
+export const LIBELLE_ROLE_COURT: Record<RoleAdmin, string> = {
+  admin_site: "Site",
+  admin_tournoi: "Tournois",
+};
+
 export const DESCRIPTION_ROLE: Record<RoleAdmin, string> = {
   admin_site:
     "Agenda, galerie, partenaires, ateliers, membres, sollicitations, réglages et accès. " +

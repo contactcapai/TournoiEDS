@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { ROLES_ADMIN, type RoleAdmin, LIBELLE_ROLE, detientRole } from "@/lib/roles";
+import { ROLES_ADMIN, type RoleAdmin, LIBELLE_ROLE, LIBELLE_ROLE_COURT, detientRole } from "@/lib/roles";
 import { accorderRole, retirerRole } from "@/server/actions/acces";
 import styles from "@/styles/admin-actions.module.css";
 
@@ -75,8 +75,9 @@ export function RolesCompte({
             >
               {/* Le MOT dit l'état, la couleur ne fait que le redoubler (AA). */}
               {detenu ? "✓ " : ""}
-              {LIBELLE_ROLE[role]}
+              {LIBELLE_ROLE_COURT[role]}
               <span className="sr-only">
+                {` (${LIBELLE_ROLE[role]})`}
                 {detenu ? " — retirer ce rôle à " : " — donner ce rôle à "}
                 {designation}
               </span>

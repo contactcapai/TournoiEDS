@@ -1,114 +1,162 @@
+import Link from "next/link";
+
 import { RolesCompte } from "@/components/admin/RolesCompte/RolesCompte";
 import { DESCRIPTION_ROLE, LIBELLE_ROLE, ROLES_ADMIN, estParticipant } from "@/lib/roles";
 import { exigerRolePage } from "@/server/auth/guard";
 import { identifiantsAdminAutorises } from "@/server/auth/allowlist";
-import { listerComptes } from "@/server/db/queries/comptes";
+import { listerComptes, type CompteAvecRoles } from "@/server/db/queries/comptes";
 import styles from "@/styles/admin-page.module.css";
+
+import acces from "./acces.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════════════
 // QUI PEUT ENTRER, ET POUR QUOI FAIRE (Story 8.1, absorbe l'ex-Story 7.9)
 // ══════════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 CETTE PAGE PORTE SA PROPRE GARDE, comme les huit autres sections — le layout garde le
-// chrome, il ne protège pas les pages : Next rend l'arbre de segments EN PARALLÈLE, et le
-// `redirect()` d'un layout n'arrête pas un rendu déjà commencé ailleurs (mesuré en 6.1, le
-// corps de la réponse contenait le tableau de bord entier).
+// chrome, il ne protège pas les pages (mesuré en 6.1).
 //
-// ⚠️ ELLE LISTE TOUS LES COMPTES, y compris ceux qui n'ont aucun rôle. C'est le cas nominal
-// depuis la 8.1 : quelqu'un se connecte d'abord (ce qui ne lui ouvre rien), et on lui ouvre
-// les droits ensuite. N'afficher que les administrateurs rendrait l'écran inutilisable pour
-// la seule chose qu'on lui demande.
+// ⚠️ L'équipe (un rôle, ou le noyau de secours) est TOUJOURS listée ; les autres comptes se
+// trouvent par la recherche — à 200 inscrits, les dérouler noierait les quelques lignes utiles.
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAccesPage() {
+/** Sans recherche, on ne montre qu'un échantillon des comptes sans rôle. */
+const AUTRES_SANS_RECHERCHE = 20;
+const AUTRES_AVEC_RECHERCHE = 100;
+
+const normaliser = (texte: string) =>
+  texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+export default async function AdminAccesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await exigerRolePage("admin_site");
+
+  const parametres = await searchParams;
+  const q = typeof parametres.q === "string" ? parametres.q.trim() : "";
+  const cherche = normaliser(q);
 
   const comptes = await listerComptes();
   const noyauDeSecours = identifiantsAdminAutorises();
+  const estSecours = (compte: CompteAvecRoles) =>
+    compte.identifiantDiscord !== null && noyauDeSecours.includes(compte.identifiantDiscord);
+  const correspond = (compte: CompteAvecRoles) =>
+    cherche === "" || normaliser(`${compte.nom ?? ""} ${compte.email ?? ""}`).includes(cherche);
+
+  const equipe = comptes.filter((c) => !estParticipant(c.roles) || estSecours(c));
+  const autres = comptes.filter((c) => estParticipant(c.roles) && !estSecours(c));
+  const equipeVue = equipe.filter(correspond);
+  const autresTrouves = autres.filter(correspond);
+  const autresVus = autresTrouves.slice(0, q ? AUTRES_AVEC_RECHERCHE : AUTRES_SANS_RECHERCHE);
+  const autresCaches = autresTrouves.length - autresVus.length;
+
+  const ligne = (compte: CompteAvecRoles) => {
+    const designation = compte.nom ?? compte.email ?? "ce compte";
+    return (
+      <li className={acces.compte} key={compte.id}>
+        <div className={acces.identite}>
+          <p className={acces.nom}>{designation}</p>
+          <p className={acces.email}>{compte.email ?? "Pas d'adresse e-mail connue"}</p>
+          {/* 🔴 Le noyau de secours se voit, sinon il piège : retirer ses rôles ici ne le ferme pas. */}
+          {estSecours(compte) && (
+            <p className={acces.secours}>
+              Noyau de secours&nbsp;: garde l&rsquo;administration du site même sans rôle ici
+              (<code>AUTH_ADMIN_DISCORD_IDS</code>).
+            </p>
+          )}
+        </div>
+        <RolesCompte utilisateurId={compte.id} roles={compte.roles} designation={designation} />
+      </li>
+    );
+  };
 
   return (
     <>
       <h1 className={styles.titre}>Accès</h1>
       <p className={styles.chapo}>
         Qui peut entrer dans le back-office, et pour quoi faire. Un rôle donné ou retiré prend
-        effet à la page suivante, sans attendre la fin de session.
+        effet à la page suivante.
       </p>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitre}>Ce que chaque rôle ouvre</h2>
-        <ul className={styles.liste}>
+      {/* 🔴 La séparation est stricte et se dit : sinon « Site » se lit comme « tout ». */}
+      <details className={acces.roles}>
+        <summary className={acces.rolesResume}>
+          Deux rôles <strong>indépendants</strong>&nbsp;: <strong>Site</strong> n&rsquo;ouvre
+          pas les tournois, <strong>Tournois</strong> n&rsquo;ouvre que les tournois. Qui doit
+          tout atteindre porte les deux.
+        </summary>
+        <dl className={acces.rolesListe}>
           {ROLES_ADMIN.map((role) => (
-            <li className={styles.ligne} key={role}>
-              <div className={styles.ligneCorps}>
-                <p className={styles.ligneTitre}>{LIBELLE_ROLE[role]}</p>
-                <p className={styles.ligneLieu}>{DESCRIPTION_ROLE[role]}</p>
-              </div>
-            </li>
+            <div key={role}>
+              <dt>{LIBELLE_ROLE[role]}</dt>
+              <dd>{DESCRIPTION_ROLE[role]}</dd>
+            </div>
           ))}
-        </ul>
-        {/* 🔴 LA SÉPARATION EST STRICTE, ET ELLE SE DIT. Sans cette phrase, « administration
-            du site » se lit spontanément comme « tout », et on retirerait à quelqu'un un rôle
-            qu'on croyait redondant. */}
-        <p className={styles.mention}>
-          Les deux rôles sont <strong>indépendants</strong>&nbsp;: administrer le site
-          n&rsquo;ouvre pas les tournois, et l&rsquo;inverse est vrai aussi. Qui doit tout
-          atteindre porte les deux.
-        </p>
-      </section>
+        </dl>
+      </details>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitre}>Les comptes</h2>
+      <form className={styles.filtres} method="get" role="search">
+        <label className={styles.filtreLabel} htmlFor="acces-q">
+          Rechercher un compte
+        </label>
+        <input
+          id="acces-q"
+          className={styles.recherche}
+          name="q"
+          type="search"
+          defaultValue={q}
+          placeholder="Nom ou adresse e-mail"
+        />
+        <button className={styles.filtrer} type="submit">
+          Chercher
+        </button>
+        {q ? (
+          <Link className={styles.lien} href="/admin/acces">
+            Tout afficher
+          </Link>
+        ) : null}
+      </form>
 
-        {comptes.length === 0 ? (
-          /* ⚠️ Cet état est en principe inatteignable — la page est servie à quelqu'un qui
-             est connecté, donc au moins un compte existe. Il est écrit quand même : un écran
-             qui rend une liste vide sans un mot se lit comme une panne. */
+      <section className={styles.section} aria-labelledby="acces-equipe">
+        <h2 className={styles.sectionTitre} id="acces-equipe">
+          L&rsquo;équipe ({equipe.length})
+        </h2>
+        {equipeVue.length === 0 ? (
           <p className={styles.vide}>
-            Aucun compte enregistré. Vous voyez cette page par le noyau de secours&nbsp;:
-            connectez-vous une fois normalement pour créer votre compte.
+            {q
+              ? "Aucun membre de l’équipe ne correspond à cette recherche."
+              : "Personne n’a de rôle. Vous voyez cette page par le noyau de secours."}
           </p>
         ) : (
-          <ul className={styles.liste}>
-            {comptes.map((compte) => {
-              const designation = compte.nom ?? compte.email ?? "ce compte";
-              const secours =
-                compte.identifiantDiscord !== null &&
-                noyauDeSecours.includes(compte.identifiantDiscord);
-
-              return (
-                <li className={styles.ligne} key={compte.id}>
-                  <div className={styles.ligneCorps}>
-                    <p className={styles.ligneTitre}>{designation}</p>
-                    <p className={styles.ligneLieu}>
-                      {compte.email ?? "Pas d'adresse e-mail connue"}
-                      {estParticipant(compte.roles) && " — aucun rôle : n'ouvre rien"}
-                    </p>
-                    {/* 🔴 LE NOYAU DE SECOURS SE VOIT, SINON IL PIÈGE. Retirer tous ses rôles
-                        à ce compte ne le ferme PAS : `AUTH_ADMIN_DISCORD_IDS` lui rend
-                        `admin_site` à la requête suivante. Un écran qui laisserait croire
-                        l'inverse mentirait sur l'état réel des accès. */}
-                    {secours && (
-                      <p className={styles.ligneDate}>
-                        Noyau de secours&nbsp;: ce compte garde l&rsquo;administration du site
-                        même sans rôle ici (variable <code>AUTH_ADMIN_DISCORD_IDS</code> du
-                        serveur).
-                      </p>
-                    )}
-                  </div>
-
-                  <div className={styles.ligneActions}>
-                    <RolesCompte
-                      utilisateurId={compte.id}
-                      roles={compte.roles}
-                      designation={designation}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <ul className={acces.comptes}>{equipeVue.map(ligne)}</ul>
         )}
+      </section>
+
+      <section className={styles.section} aria-labelledby="acces-autres">
+        <h2 className={styles.sectionTitre} id="acces-autres">
+          Les autres comptes ({autres.length})
+        </h2>
+        <p className={acces.aide}>
+          Ils peuvent s&rsquo;inscrire aux tournois mais n&rsquo;ouvrent rien du back-office.
+          Pour donner un rôle, cherchez la personne puis cliquez sur «&nbsp;Site&nbsp;» ou
+          «&nbsp;Tournois&nbsp;».
+        </p>
+        {autresVus.length === 0 ? (
+          <p className={styles.vide}>
+            {q ? "Aucun compte ne correspond à cette recherche." : "Aucun autre compte."}
+          </p>
+        ) : (
+          <ul className={acces.comptes}>{autresVus.map(ligne)}</ul>
+        )}
+        {autresCaches > 0 ? (
+          <p className={acces.aide}>
+            Et {autresCaches} autre{autresCaches > 1 ? "s" : ""}&nbsp;:{" "}
+            {q ? "précisez la recherche." : "cherchez par nom ou adresse pour les trouver."}
+          </p>
+        ) : null}
       </section>
     </>
   );
