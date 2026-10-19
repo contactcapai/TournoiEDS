@@ -13,7 +13,7 @@
 
    🔴 CE FICHIER NE PORTE QUE CE QUI EST PROPRE À CET ÉCRAN. La mise en page de formulaire vient
    d'`admin-form.module.css`, les boutons d'état d'`admin-actions.module.css` (`.bascule` /
-   `.basculePubliee`), qu'on COMPOSE ici plutôt que de les réimplémenter — sinon c'est la dette
+   `.etatActif`), qu'on COMPOSE ici plutôt que de les réimplémenter — sinon c'est la dette
    R59 refaite.
 
    ⚠️ TOKENS UNIQUEMENT, et des tokens QUI EXISTENT (`packages/ui/src/styles/tokens.css`). Une
@@ -172,7 +172,7 @@
 }
 
 /* ───────── Les quatre états, sur une ligne ─────────
-   Ils COMPOSENT `.bascule` / `.basculePubliee` d'`admin-actions.module.css` : seule la densité
+   Ils COMPOSENT `.bascule` / `.etatActif` d'`admin-actions.module.css` : seule la densité
    est resserrée ici (padding et taille de texte), jamais la bordure ni l'état plein/creux — ce
    sont eux qui font lire l'état sans lire le libellé, dans tout le back-office.
 

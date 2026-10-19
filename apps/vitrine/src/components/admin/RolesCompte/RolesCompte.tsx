@@ -68,7 +68,7 @@ export function RolesCompte({
             <button
               key={role}
               type="button"
-              className={detenu ? styles.basculePubliee : styles.bascule}
+              className={detenu ? styles.etatActif : styles.basculePubliee}
               onClick={() => basculer(role, detenu)}
               disabled={enTransition}
               aria-pressed={detenu}
