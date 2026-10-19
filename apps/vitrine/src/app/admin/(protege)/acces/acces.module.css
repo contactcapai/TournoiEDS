@@ -1,0 +1,90 @@
+/* L'écran des accès, dense : il doit rester lisible à 200 comptes (2026-10-19). */
+
+.roles {
+  margin-top: 24px;
+  max-width: 72ch;
+  padding: 12px 16px;
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-button);
+  background: var(--surface);
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--light);
+}
+
+.rolesResume {
+  cursor: pointer;
+}
+
+.rolesListe {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.rolesListe dt {
+  font-weight: 700;
+}
+
+.rolesListe dd {
+  color: var(--grey);
+}
+
+.aide {
+  margin-top: 10px;
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: var(--lh-body);
+  color: var(--grey);
+}
+
+/* Une seule carte, des lignes séparées par un filet : 200 cartes espacées seraient illisibles. */
+.comptes {
+  margin-top: 16px;
+  list-style: none;
+  border: 1px solid rgba(146, 147, 173, 0.35); /* --grey à 35 %, filet sans token */
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.compte {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+}
+
+.compte + .compte {
+  border-top: 1px solid rgba(146, 147, 173, 0.2); /* --grey à 20 %, filet sans token */
+}
+
+.identite {
+  min-width: 0;
+}
+
+.nom {
+  font-size: 16px;
+  color: var(--light);
+  overflow-wrap: anywhere;
+}
+
+.email {
+  font-size: 14px;
+  color: var(--grey);
+  overflow-wrap: anywhere;
+}
+
+.secours {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--gold);
+}
+
+@media (max-width: 880px) {
+  .compte {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 16px;
+  }
+}

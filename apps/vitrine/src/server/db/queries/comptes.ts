@@ -1,7 +1,7 @@
 // `server-only` en TOUTE PREMIÈRE LIGNE, comme les autres familles de requêtes (garde-fou
 // n°1 de la Story 1.7). Ce module lit des comptes : il ne doit jamais atteindre le client.
 import "server-only";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import type { RoleAdmin } from "../../../lib/roles";
 import { db } from "../client";
@@ -48,7 +48,8 @@ export async function listerComptes(): Promise<CompteAvecRoles[]> {
     })
     .from(user)
     .leftJoin(userRole, eq(userRole.userId, user.id))
-    .leftJoin(account, eq(account.userId, user.id))
+    // Le seul compte Discord : sinon un identifiant Google pouvait passer pour celui du noyau de secours.
+    .leftJoin(account, and(eq(account.userId, user.id), eq(account.provider, "discord")))
     .orderBy(asc(user.name), asc(user.id));
 
   const parCompte = new Map<string, CompteAvecRoles>();
