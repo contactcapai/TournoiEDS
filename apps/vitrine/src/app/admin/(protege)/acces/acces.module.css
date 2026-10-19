@@ -1,33 +1,19 @@
 /* L'écran des accès, dense : il doit rester lisible à 200 comptes (2026-10-19). */
 
-.roles {
-  margin-top: 24px;
-  max-width: 72ch;
-  padding: 12px 16px;
-  border-left: 3px solid var(--gold);
-  border-radius: var(--radius-button);
-  background: var(--surface);
-  font-size: 15px;
-  line-height: var(--lh-body);
-  color: var(--light);
+/* Ancêtre positionné : sur téléphone, la bulle d'information prend sa largeur. */
+.entete {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
 }
 
-.rolesResume {
-  cursor: pointer;
+.bulleTexte {
+  display: block;
 }
 
-.rolesListe {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.rolesListe dt {
-  font-weight: 700;
-}
-
-.rolesListe dd {
-  color: var(--grey);
+.bulleTexte + .bulleTexte {
+  margin-top: 8px;
 }
 
 .aide {

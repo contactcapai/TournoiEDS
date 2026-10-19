@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { RolesCompte } from "@/components/admin/RolesCompte/RolesCompte";
-import { DESCRIPTION_ROLE, LIBELLE_ROLE, ROLES_ADMIN, estParticipant } from "@/lib/roles";
+import { InfoBulle } from "@/components/admin/InfoBulle/InfoBulle";
+import { DESCRIPTION_ROLE, LIBELLE_ROLE_COURT, ROLES_ADMIN, estParticipant } from "@/lib/roles";
 import { exigerRolePage } from "@/server/auth/guard";
 import { identifiantsAdminAutorises } from "@/server/auth/allowlist";
 import { listerComptes, type CompteAvecRoles } from "@/server/db/queries/comptes";
@@ -75,28 +76,24 @@ export default async function AdminAccesPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Accès</h1>
-      <p className={styles.chapo}>
-        Qui peut entrer dans le back-office, et pour quoi faire. Un rôle donné ou retiré prend
-        effet à la page suivante.
-      </p>
-
-      {/* 🔴 La séparation est stricte et se dit : sinon « Site » se lit comme « tout ». */}
-      <details className={acces.roles}>
-        <summary className={acces.rolesResume}>
-          Deux rôles <strong>indépendants</strong>&nbsp;: <strong>Site</strong> n&rsquo;ouvre
-          pas les tournois, <strong>Tournois</strong> n&rsquo;ouvre que les tournois. Qui doit
-          tout atteindre porte les deux.
-        </summary>
-        <dl className={acces.rolesListe}>
+      <div className={acces.entete}>
+        <h1 className={styles.titre}>Accès</h1>
+        <InfoBulle libelle="Ce que chaque rôle ouvre">
+          <span className={acces.bulleTexte}>
+            Qui peut entrer dans le back-office, et pour quoi faire.
+          </span>
           {ROLES_ADMIN.map((role) => (
-            <div key={role}>
-              <dt>{LIBELLE_ROLE[role]}</dt>
-              <dd>{DESCRIPTION_ROLE[role]}</dd>
-            </div>
+            <span className={acces.bulleTexte} key={role}>
+              <strong>{LIBELLE_ROLE_COURT[role]}</strong>&nbsp;: {DESCRIPTION_ROLE[role]}
+            </span>
           ))}
-        </dl>
-      </details>
+          {/* 🔴 La séparation est stricte et se dit : sinon « Site » se lit comme « tout ». */}
+          <span className={acces.bulleTexte}>
+            Les deux rôles sont indépendants&nbsp;: qui doit tout atteindre porte les deux. Un
+            rôle donné ou retiré prend effet à la page suivante.
+          </span>
+        </InfoBulle>
+      </div>
 
       <form className={styles.filtres} method="get" role="search">
         <label className={styles.filtreLabel} htmlFor="acces-q">
