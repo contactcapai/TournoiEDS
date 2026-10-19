@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TournoiForm } from "@/components/admin/TournoiForm/TournoiForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import {
   getEventsPourRattachement,
@@ -47,12 +48,17 @@ export default async function NouveauTournoiPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Ajouter un tournoi</h1>
-      <p className={styles.chapo}>
-        Le tournoi est créé en <strong>brouillon</strong>. Il doit être rattaché à un
-        événement de l&rsquo;agenda — c&rsquo;est cet événement qui porte le lieu et
-        l&rsquo;occasion.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Le tournoi est créé en <strong>brouillon</strong>. Il doit être rattaché à un
+            événement de l&rsquo;agenda — c&rsquo;est cet événement qui porte le lieu et
+            l&rsquo;occasion.
+          </>,
+        ]}
+      >
+        Ajouter un tournoi
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/tournois">

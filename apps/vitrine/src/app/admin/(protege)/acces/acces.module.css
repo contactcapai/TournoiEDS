@@ -1,21 +1,5 @@
 /* L'écran des accès, dense : il doit rester lisible à 200 comptes (2026-10-19). */
 
-/* Ancêtre positionné : sur téléphone, la bulle d'information prend sa largeur. */
-.entete {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.bulleTexte {
-  display: block;
-}
-
-.bulleTexte + .bulleTexte {
-  margin-top: 8px;
-}
-
 .aide {
   margin-top: 10px;
   max-width: 72ch;

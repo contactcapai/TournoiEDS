@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { WorkshopCatalog } from "@/components/animations/WorkshopCatalog/WorkshopCatalog";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
 import { WORKSHOP_FAMILIES } from "@/lib/schemas/workshop";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -63,11 +64,16 @@ export default async function ApercuAteliersPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Aperçu du catalogue</h1>
-      <p className={styles.chapo}>
-        Le rendu réel du catalogue tel qu&rsquo;il apparaît sur la page{" "}
-        <strong>Animations</strong>, sur son fond réel.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Le rendu réel du catalogue tel qu&rsquo;il apparaît sur la page{" "}
+            <strong>Animations</strong>, sur son fond réel.
+          </>,
+        ]}
+      >
+        Aperçu du catalogue
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/ateliers">

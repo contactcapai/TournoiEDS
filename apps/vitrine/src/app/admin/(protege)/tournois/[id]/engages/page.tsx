@@ -8,6 +8,7 @@ import { EngagesTournoi } from "@/components/admin/EngagesTournoi/EngagesTournoi
 import { exigerRolePage } from "@/server/auth/guard";
 import { jourLisible } from "@/lib/date-paris";
 import { ReclamationsEngages } from "@/components/admin/ReclamationsEngages/ReclamationsEngages";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { getEngagesForTournament, getTournoiPourEngages } from "@/server/db/queries/engages";
 import { getReclamationsDuTournoi } from "@/server/db/queries/rattachement";
 import { getJourneesDuTournoi } from "@/server/db/queries/phases";
@@ -61,11 +62,16 @@ export default async function EngagesTournoiPage({
   return (
     <>
       {/* `<h2>` : le `<h1>` est le NOM du tournoi, porté par le layout de l'espace (10.9). */}
-      <h2 className={styles.titre}>Les engagés</h2>
-      <p className={styles.chapo}>
-        Saisissez ici qui participe, puis <strong>pointez le jour J</strong>. Ce sont les{" "}
-        <strong>présents</strong> qui entreront dans le tableau — pas les inscrits.
-      </p>
+      <TitrePage niveau={2}
+        info={[
+          <>
+            Saisissez ici qui participe, puis <strong>pointez le jour J</strong>. Ce sont les{" "}
+            <strong>présents</strong> qui entreront dans le tableau — pas les inscrits.
+          </>,
+        ]}
+      >
+        Les engagés
+      </TitrePage>
 
       {/* 🔴 CETTE MENTION DISAIT « le tableau ne se génère pas encore » — VRAI À L'ÉCRITURE
           (10.5), FAUX DEPUIS LE MERGE DE LA 10.8 le jour même, et resté à l'écran neuf jours.

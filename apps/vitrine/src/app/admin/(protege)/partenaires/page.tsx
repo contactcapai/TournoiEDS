@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PartenaireActions } from "@/components/admin/PartenaireActions/PartenaireActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { estLogoDuVolume, sourceLogo } from "@/lib/logos";
 import { PARTNER_CATEGORIES, type PartnerCategory } from "@/lib/schemas/partner";
 import { cleanText } from "@/lib/text";
@@ -149,11 +150,16 @@ export default async function AdminPartenairesPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Partenaires</h1>
-      <p className={styles.chapo}>
-        Les sponsors, partenaires, soutiens et participations. Rien n&rsquo;apparaît sur le site
-        tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les sponsors, partenaires, soutiens et participations. Rien n&rsquo;apparaît sur le site
+            tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
+          </>,
+        ]}
+      >
+        Partenaires
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/partenaires/nouveau">

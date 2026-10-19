@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate } from "@/lib/date-paris";
 import { trousDu } from "@/lib/reglement";
 import { exigerRolePage } from "@/server/auth/guard";
@@ -24,14 +25,19 @@ export default async function ModelesReglementPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Modèles de règlement</h1>
-      <p className={styles.chapo}>
-        Un modèle se choisit dans l&rsquo;onglet « Le règlement » d&rsquo;un tournoi : la
-        fiche et le déroulé remplissent ce qu&rsquo;ils savent, une fenêtre demande le reste, et
-        le texte obtenu est{" "}
-        <strong>copié</strong> dans le tournoi. Modifier un modèle ne change donc pas le
-        règlement des tournois déjà créés.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Un modèle se choisit dans l&rsquo;onglet « Le règlement » d&rsquo;un tournoi : la
+            fiche et le déroulé remplissent ce qu&rsquo;ils savent, une fenêtre demande le reste, et
+            le texte obtenu est{" "}
+            <strong>copié</strong> dans le tournoi. Modifier un modèle ne change donc pas le
+            règlement des tournois déjà créés.
+          </>,
+        ]}
+      >
+        Modèles de règlement
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/tournois/reglements/nouveau">

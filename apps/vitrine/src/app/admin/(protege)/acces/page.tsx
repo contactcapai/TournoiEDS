@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { RolesCompte } from "@/components/admin/RolesCompte/RolesCompte";
-import { InfoBulle } from "@/components/admin/InfoBulle/InfoBulle";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { DESCRIPTION_ROLE, LIBELLE_ROLE_COURT, ROLES_ADMIN, estParticipant } from "@/lib/roles";
 import { exigerRolePage } from "@/server/auth/guard";
 import { identifiantsAdminAutorises } from "@/server/auth/allowlist";
@@ -76,24 +76,21 @@ export default async function AdminAccesPage({
 
   return (
     <>
-      <div className={acces.entete}>
-        <h1 className={styles.titre}>Accès</h1>
-        <InfoBulle libelle="Ce que chaque rôle ouvre">
-          <span className={acces.bulleTexte}>
-            Qui peut entrer dans le back-office, et pour quoi faire.
-          </span>
-          {ROLES_ADMIN.map((role) => (
-            <span className={acces.bulleTexte} key={role}>
+      {/* 🔴 La séparation est stricte et se dit : sinon « Site » se lit comme « tout ». */}
+      <TitrePage
+        libelleInfo="Ce que chaque rôle ouvre"
+        info={[
+          "Qui peut entrer dans le back-office, et pour quoi faire.",
+          ...ROLES_ADMIN.map((role) => (
+            <>
               <strong>{LIBELLE_ROLE_COURT[role]}</strong>&nbsp;: {DESCRIPTION_ROLE[role]}
-            </span>
-          ))}
-          {/* 🔴 La séparation est stricte et se dit : sinon « Site » se lit comme « tout ». */}
-          <span className={acces.bulleTexte}>
-            Les deux rôles sont indépendants&nbsp;: qui doit tout atteindre porte les deux. Un
-            rôle donné ou retiré prend effet à la page suivante.
-          </span>
-        </InfoBulle>
-      </div>
+            </>
+          )),
+          "Les deux rôles sont indépendants : qui doit tout atteindre porte les deux. Un rôle donné ou retiré prend effet à la page suivante.",
+        ]}
+      >
+        Accès
+      </TitrePage>
 
       <form className={styles.filtres} method="get" role="search">
         <label className={styles.filtreLabel} htmlFor="acces-q">

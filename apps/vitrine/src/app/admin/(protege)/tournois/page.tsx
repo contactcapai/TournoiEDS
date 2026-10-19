@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TournoiActions } from "@/components/admin/TournoiActions/TournoiActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate, formatTime, jourLisible, jourParis } from "@/lib/date-paris";
 import { groupesParJour } from "@/lib/tournoi/liste-par-jour";
 import {
@@ -226,13 +227,18 @@ export default async function AdminTournoisPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Tournois</h1>
-      <p className={styles.chapo}>
-        Les tournois de l&rsquo;association : ce qu&rsquo;on y joue, quand, comment
-        s&rsquo;inscrire, et qui a gagné. Chaque tournoi est rattaché à un{" "}
-        <strong>événement de l&rsquo;agenda</strong> — un même événement peut en porter
-        plusieurs.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les tournois de l&rsquo;association : ce qu&rsquo;on y joue, quand, comment
+            s&rsquo;inscrire, et qui a gagné. Chaque tournoi est rattaché à un{" "}
+            <strong>événement de l&rsquo;agenda</strong> — un même événement peut en porter
+            plusieurs.
+          </>,
+        ]}
+      >
+        Tournois
+      </TitrePage>
 
       {/* Le jour d'un tournoi, on vient ici pour UNE chose : saisir. D'où cette vue en tête. */}
       {duJour.length > 0 ? (

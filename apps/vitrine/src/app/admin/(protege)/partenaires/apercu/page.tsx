@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { PartnerWall } from "@/components/proof/PartnerWall/PartnerWall";
 import { ProofBand } from "@/components/proof/ProofBand/ProofBand";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { PARTNER_CATEGORIES, type PartnerCategory } from "@/lib/schemas/partner";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getPartnersForAdmin } from "@/server/db/queries/partners";
@@ -98,12 +99,17 @@ export default async function ApercuPartenairesPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Aperçu des murs de logos</h1>
-      <p className={styles.chapo}>
-        Voici les deux surfaces publiques telles qu&rsquo;elles apparaîtraient{" "}
-        <strong>si tout ce qui suit était publié</strong> — le bandeau de l&rsquo;accueil, puis
-        les murs de la page Partenaires.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Voici les deux surfaces publiques telles qu&rsquo;elles apparaîtraient{" "}
+            <strong>si tout ce qui suit était publié</strong> — le bandeau de l&rsquo;accueil, puis
+            les murs de la page Partenaires.
+          </>,
+        ]}
+      >
+        Aperçu des murs de logos
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/partenaires">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AtelierActions } from "@/components/admin/AtelierActions/AtelierActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { LIBELLES_FAMILLE } from "@/lib/familles-ateliers";
 import { WORKSHOP_FAMILIES } from "@/lib/schemas/workshop";
 import { cleanText } from "@/lib/text";
@@ -99,12 +100,17 @@ export default async function AdminAteliersPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Ateliers</h1>
-      <p className={styles.chapo}>
-        L&rsquo;offre d&rsquo;animations présentée sur la page <strong>Animations</strong>.
-        Rien n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le
-        changement se voit au rechargement suivant.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            L&rsquo;offre d&rsquo;animations présentée sur la page <strong>Animations</strong>.
+            Rien n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le
+            changement se voit au rechargement suivant.
+          </>,
+        ]}
+      >
+        Ateliers
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/ateliers/nouveau">

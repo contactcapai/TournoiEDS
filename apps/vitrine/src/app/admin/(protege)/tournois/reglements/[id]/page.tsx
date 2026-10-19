@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ModeleReglementForm } from "@/components/admin/ModeleReglementForm/ModeleReglementForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getModeleReglementById } from "@/server/db/queries/reglements";
 import styles from "@/styles/admin-page.module.css";
@@ -29,11 +30,16 @@ export default async function ModifierModeleReglementPage({
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier un modèle de règlement</h1>
-      <p className={styles.chapo}>
-        Les tournois déjà pré-remplis avec ce modèle gardent leur propre copie : ce que vous
-        changez ici ne vaudra que pour les prochains.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les tournois déjà pré-remplis avec ce modèle gardent leur propre copie : ce que vous
+            changez ici ne vaudra que pour les prochains.
+          </>,
+        ]}
+      >
+        Modifier un modèle de règlement
+      </TitrePage>
       <div className={styles.section}>
         <ModeleReglementForm modele={modele} />
       </div>

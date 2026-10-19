@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { MembreForm } from "@/components/admin/MembreForm/MembreForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { exigerRolePage } from "@/server/auth/guard";
 import styles from "@/styles/admin-page.module.css";
 
@@ -27,12 +28,17 @@ export default async function NouveauMembrePage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Ajouter un membre</h1>
-      <p className={styles.chapo}>
-        La fiche est créée en <strong>brouillon</strong> : rien n&rsquo;apparaît sur la page
-        « L&rsquo;asso » tant que vous ne l&rsquo;avez pas publiée. Le portrait s&rsquo;ajoute
-        ensuite, et il est facultatif.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            La fiche est créée en <strong>brouillon</strong> : rien n&rsquo;apparaît sur la page
+            « L&rsquo;asso » tant que vous ne l&rsquo;avez pas publiée. Le portrait s&rsquo;ajoute
+            ensuite, et il est facultatif.
+          </>,
+        ]}
+      >
+        Ajouter un membre
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/membres">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { EventActions } from "@/components/admin/EventActions/EventActions";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { formatLongDate, formatTime } from "@/lib/date-paris";
 import { joindreParTiret, situationDuBar } from "@/lib/lieu-bar";
 import { compterVenuesParEvenement } from "@/server/db/queries/venues";
@@ -141,34 +142,21 @@ export default async function AdminAgendaPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Agenda</h1>
-      <p className={styles.chapo}>
-        Les jeudis, les temps forts et les bars du roulement. Rien n&rsquo;apparaît sur le site
-        tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
-      </p>
-      {/* ══════════════════════════════════════════════════════════════════════════════════
-          🔴 CETTE PHRASE EST LA CONTREPARTIE D'UN ARBITRAGE, PAS UNE AIDE DÉCORATIVE — A7
-          ══════════════════════════════════════════════════════════════════════════════════
-
-          Depuis la Story 9.5, un tournoi peut exister **sans événement** : il paraît alors
-          lui-même sur l'agenda public et sur l'accueil. Cet écran-ci, lui, ne liste **que des
-          événements**, et c'est un choix mesuré :
-            · la paire `getUpcomingEventsForAdmin` / `getPastEventsForAdmin` a **trois
-              appelants chacun**, dont DEUX qui ne sont pas des agendas — les sélecteurs
-              « à quelle occasion ? » de `/admin/galerie/nouveau` et `/admin/galerie/[id]`. Y
-              faire entrer des tournois écrirait un `tournament.id` dans `photo.event_id`, que
-              la clé étrangère refuserait ;
-            · le back-office a **déjà** sa section Tournois (8ᵉ, Story 9.1). Fusionner ouvrirait
-              deux chemins d'édition pour un même objet, dont un « Modifier » qui ouvrirait le
-              formulaire d'ÉVÉNEMENT.
-          ⚠️ Sans cette phrase, un bénévole qui vient de créer un tournoi sans événement le
-          chercherait ICI et le croirait perdu. L'arbitrage coûte une phrase ; le taire coûte
-          un ticket — même raisonnement que la mention de l'écran d'aperçu. */}
-      <p className={styles.chapo}>
-        Les <strong>tournois</strong> ne sont pas listés ici, même ceux qui paraissent à
-        l&rsquo;agenda&nbsp;: ils vivent dans leur propre section.
-      </p>
-
+      <TitrePage
+        info={[
+          <>
+            Les jeudis, les temps forts et les bars du roulement. Rien n&rsquo;apparaît sur le site
+            tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
+          </>,
+          // A7 : un tournoi sans événement paraît à l'agenda public, mais se gère dans Tournois.
+          <>
+            Les <strong>tournois</strong> ne sont pas listés ici, même ceux qui paraissent à
+            l&rsquo;agenda&nbsp;: ils vivent dans leur propre section.
+          </>,
+        ]}
+      >
+        Agenda
+      </TitrePage>
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/agenda/nouveau">
           Créer un événement

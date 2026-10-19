@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { BarActions } from "@/components/admin/BarActions/BarActions";
 import { BarForm } from "@/components/admin/BarForm/BarForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { joindreParTiret, situationDuBar } from "@/lib/lieu-bar";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getBars } from "@/server/db/queries/events";
@@ -28,11 +29,16 @@ export default async function AdminBarsPage() {
 
   return (
     <>
-      <h1 className={styles.titre}>Bars du roulement</h1>
-      <p className={styles.chapo}>
-        Les bars rémois qui accueillent les jeudis. Un accord pas encore signé s&rsquo;écrit
-        tel quel — « Bar partenaire #2 » est un nom valable.
-      </p>
+      <TitrePage
+        info={[
+          <>
+            Les bars rémois qui accueillent les jeudis. Un accord pas encore signé s&rsquo;écrit
+            tel quel — « Bar partenaire #2 » est un nom valable.
+          </>,
+        ]}
+      >
+        Bars du roulement
+      </TitrePage>
 
       <div className={styles.barreActions}>
         <Link className={styles.lien} href="/admin/agenda">
