@@ -111,7 +111,6 @@ export default async function AdminMembresPage() {
 
   const membres = await getMembersForAdmin(MEMBRES_MAX);
   const ordre = membres.map((m) => m.id);
-  const publies = membres.filter((m) => m.isPublished).length;
 
   return (
     <>
@@ -121,6 +120,12 @@ export default async function AdminMembresPage() {
             L&rsquo;équipe présentée sur la page <strong>L&rsquo;asso</strong>. Rien
             n&rsquo;apparaît sur le site tant que ce n&rsquo;est pas publié — et le changement se
             voit au rechargement suivant.
+          </>,
+          "Le texte sur le bénévolat reste toujours affiché, au-dessus des fiches : il explique comment l'association fonctionne. Sans aucun membre publié, la page présente l'équipe collectivement, sans aucun nom — c'est son état normal, pas une page cassée.",
+          <>
+            Le <strong>portrait est facultatif</strong>. Sans photo, la carte affiche une
+            silhouette, à la même place et à la même taille — la page ne bouge pas quand vous en
+            ajoutez une plus tard.
           </>,
         ]}
       >
@@ -135,26 +140,6 @@ export default async function AdminMembresPage() {
           Voir le rendu de l&rsquo;équipe
         </Link>
       </div>
-
-      {/* 🔴 CE QU'UN GESTE DÉCIDE AILLEURS, ÉCRIT EN TOUTES LETTRES. Personne ne devine que la
-          page reste entièrement lisible sans aucun membre publié — et c'est justement l'état
-          d'aujourd'hui. Sans cette phrase, une liste vide se lirait comme une page publique
-          cassée. */}
-      <p className={styles.mention} role="note">
-        {publies === 0
-          ? "Personne n'est publié pour l'instant : la page « L'asso » présente donc l'équipe COLLECTIVEMENT, avec son texte sur le bénévolat, sans aucun nom. Ce n'est pas une page cassée, c'est son état normal tant que rien n'est publié."
-          : "Le texte sur le bénévolat reste affiché au-dessus des fiches : il explique comment l'association fonctionne, ce que des prénoms ne disent pas. Les fiches s'ajoutent en dessous."}
-      </p>
-
-      {/* ⚠️ FAIT À DIRE, PAS À TAIRE. Le portrait est facultatif, et son absence n'est pas une
-          fiche incomplète : la carte publique garde exactement la même taille, avec une
-          silhouette. Sans cette phrase, on croirait devoir trouver une photo pour tout le
-          monde avant de publier. */}
-      <p className={styles.mention} role="note">
-        Le <strong>portrait est facultatif</strong>. Sans photo, la carte affiche une
-        silhouette, à la même place et à la même taille — la page ne bouge pas quand vous en
-        ajoutez une plus tard.
-      </p>
 
       {membres.length > 0 ? (
         <ul className={styles.liste}>

@@ -156,6 +156,18 @@ export default async function AdminPartenairesPage() {
             Les sponsors, partenaires, soutiens et participations. Rien n&rsquo;apparaît sur le site
             tant que ce n&rsquo;est pas publié — et le changement se voit au rechargement suivant.
           </>,
+          <>
+            Le <strong>bandeau de l&rsquo;accueil</strong> ne montre que les partenaires{" "}
+            <strong>publiés qui ont un logo</strong>. S&rsquo;il n&rsquo;y en a aucun, la bande
+            « Reconnus, soutenus, connectés » disparaît entièrement de l&rsquo;accueil, titre
+            compris. La page <strong>Partenaires</strong>, elle, affiche toutes les entrées
+            publiées&nbsp;: celles sans logo y montrent leur nom dans la tuile.
+          </>,
+          <>
+            L&rsquo;ordre se règle <strong>à l&rsquo;intérieur d&rsquo;une catégorie</strong>. Les
+            catégories, elles, se suivent toujours dans le même ordre — sponsors, partenaires,
+            soutiens, participations — sur l&rsquo;accueil comme sur la page Partenaires.
+          </>,
         ]}
       >
         Partenaires
@@ -169,30 +181,6 @@ export default async function AdminPartenairesPage() {
           Voir le rendu des murs
         </Link>
       </div>
-
-      {/* 🔴 CE QU'UN GESTE DÉCIDE AILLEURS, ÉCRIT EN TOUTES LETTRES (AC7). Personne ne devine
-          qu'enlever un logo fait disparaître une entrée de la page d'accueil — ni, à la
-          limite, qu'enlever le DERNIER fait disparaître une section entière. */}
-      <p className={styles.mention} role="note">
-        Le <strong>bandeau de l&rsquo;accueil</strong> ne montre que les partenaires{" "}
-        <strong>publiés qui ont un logo</strong> — {dansLeBandeau.size} aujourd&rsquo;hui.
-        {dansLeBandeau.size === 0
-          ? " Il n'y en a aucun : la bande « Reconnus, soutenus, connectés » n'apparaît donc pas du tout sur l'accueil."
-          : dansLeBandeau.size === 1
-            ? " S'il n'en reste aucun, la bande « Reconnus, soutenus, connectés » disparaît ENTIÈREMENT de l'accueil — titre compris."
-            : " S'il n'en restait aucun, la bande « Reconnus, soutenus, connectés » disparaîtrait ENTIÈREMENT de l'accueil — titre compris."}{" "}
-        La page <strong>Partenaires</strong>, elle, affiche toutes les entrées publiées : celles
-        sans logo y montrent leur nom dans la tuile.
-      </p>
-
-      {/* ⚠️ FAIT À DIRE, PAS À TAIRE : l'ordre manuel ne franchit jamais une catégorie. Sans
-          cette phrase, « monter » se lit comme un classement global et les flèches semblent
-          ne rien faire quand on atteint le haut d'un groupe. */}
-      <p className={styles.mention} role="note">
-        L&rsquo;ordre se règle <strong>à l&rsquo;intérieur d&rsquo;une catégorie</strong>. Les
-        catégories, elles, se suivent toujours dans le même ordre — sponsors, partenaires,
-        soutiens, participations — sur l&rsquo;accueil comme sur la page Partenaires.
-      </p>
 
       {partenaires.length > 0 ? (
         groupes.map(({ category, entrees }) => {

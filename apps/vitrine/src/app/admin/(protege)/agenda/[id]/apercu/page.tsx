@@ -109,7 +109,27 @@ export default async function ApercuEvenementPage({
 
   return (
     <>
-      <TitrePage info={["Voici l’événement tel qu’il apparaîtra sur le site."]}>Aperçu</TitrePage>
+      <TitrePage
+        info={[
+          "Voici l’événement tel qu’il apparaîtra sur le site.",
+          ...(evenement.estPasse
+            ? [
+                <>
+                  Cet événement est passé&nbsp;: ce que le public voit aujourd&rsquo;hui, c&rsquo;est
+                  la vignette « Déjà passé ». Les scènes suivantes montrent le rendu qu&rsquo;il{" "}
+                  <strong>avait quand il était à venir</strong>.
+                </>,
+                <>
+                  La photo de la vignette est la <strong>première photo publiée</strong> de cet
+                  événement. Un brouillon n&rsquo;y apparaît pas — pas plus que sur le site : le
+                  cadre « photo à venir » est alors le rendu réel.
+                </>,
+              ]
+            : []),
+        ]}
+      >
+        Aperçu
+      </TitrePage>
       <p className={agenda.chapo}>
         {evenement.isPublished
           ? "Il est déjà publié."
@@ -130,15 +150,6 @@ export default async function ApercuEvenementPage({
           <h2 className={styles.sceneTitre} id="apercu-passe">
             Dans le carrousel « Déjà passé »
           </h2>
-          {/* ⚠️ CE QUI EST DIT, ET POURQUOI. La vignette montre la première photo PUBLIÉE :
-              un bénévole qui vient de téléverser des brouillons pour cet événement verrait
-              sinon un placeholder et conclurait à une panne. Dire ce que l'écran ne montre
-              pas coûte une phrase ; le taire coûte un ticket. */}
-          <p className={agenda.mention} role="note">
-            La photo affichée est la <strong>première photo publiée</strong> de cet
-            événement. Un brouillon n&rsquo;y apparaît pas — pas plus que sur le site : le
-            cadre « photo à venir » est alors le rendu réel.
-          </p>
           <div className={styles.plateau}>
             {/* Le carrousel RÉEL, avec une seule vignette : c'est ce que fait `/agenda`
                 quand un seul passé existe, donc c'est le rendu honnête. Reproduire la
@@ -155,16 +166,6 @@ export default async function ApercuEvenementPage({
         <h2 className={styles.sceneTitre} id="apercu-carte">
           Sur la carte du prochain rendez-vous
         </h2>
-        {/* ⚠️ Pour un événement PASSÉ, cette scène et la suivante ne sont plus ce que le
-            public voit : elles montrent le rendu qu'il avait quand il était à venir. Le
-            dire évite qu'on les prenne pour l'état courant du site. */}
-        {evenement.estPasse ? (
-          <p className={agenda.mention} role="note">
-            Cet événement est passé : cette scène et la suivante montrent le rendu
-            qu&rsquo;il <strong>avait quand il était à venir</strong>. Ce que le public voit
-            aujourd&rsquo;hui, c&rsquo;est la vignette ci-dessus.
-          </p>
-        ) : null}
         <div className={styles.plateau}>
           {/* Pas de `cta` : sur `/agenda` la carte n'en porte aucun (elle EST la
               destination). Reproduire ici un CTA que le public ne voit pas ferait mentir

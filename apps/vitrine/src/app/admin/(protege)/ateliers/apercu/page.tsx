@@ -34,11 +34,7 @@ import propre from "../ateliers.module.css";
 // n'arrête pas le rendu de la page enfant : défaut mesuré en Story 6.1). `gate:ateliers` en
 // fait sa garde n°1, et vérifie le HTML SERVI, pas le code de statut.
 //
-// ⚠️ CE QUE CET APERÇU MONTRE DE PLUS QUE LE SITE EST DIT À L'ÉCRAN, pas laissé à deviner :
-// il inclut les brouillons. Sans cette mention, on croirait que tout est déjà en ligne.
-// ⚠️ CE QU'IL NE MONTRE PAS EST DIT AUSSI : la prose des trois familles (Story 2.7) reste sur
-// la page publique et n'est pas reproduite ici. Un aperçu qui ferait croire que le catalogue
-// remplace cette prose induirait en erreur sur ce que voit réellement le visiteur.
+// ⚠️ Le « i » dit ce qu'il montre de plus (les brouillons) et de moins (la prose des familles).
 
 export const metadata: Metadata = {
   title: "Aperçu du catalogue d'ateliers",
@@ -70,6 +66,21 @@ export default async function ApercuAteliersPage() {
             Le rendu réel du catalogue tel qu&rsquo;il apparaît sur la page{" "}
             <strong>Animations</strong>, sur son fond réel.
           </>,
+          brouillons > 0 ? (
+            <>
+              Cet aperçu inclut les <strong>brouillons</strong> ({brouillons} sur{" "}
+              {ateliers.length}) : ce que vous voyez ici n&rsquo;est donc{" "}
+              <strong>pas</strong> ce que voit le visiteur. Publiez un atelier depuis la liste
+              pour qu&rsquo;il apparaisse réellement.
+            </>
+          ) : (
+            "Tous les ateliers sont publiés : cet aperçu montre donc exactement ce que voit le visiteur."
+          ),
+          <>
+            Seul le <strong>catalogue</strong> est prévisualisé. Sur le site, chaque liste
+            ci-dessous est précédée du texte de présentation de sa famille, qui reste affiché
+            même lorsque la liste est vide.
+          </>,
         ]}
       >
         Aperçu du catalogue
@@ -80,33 +91,6 @@ export default async function ApercuAteliersPage() {
           Retour aux ateliers
         </Link>
       </div>
-
-      {/* 🔴 CE QUE L'APERÇU MONTRE DE PLUS QUE LE PUBLIC, ÉCRIT EN TOUTES LETTRES. */}
-      <p className={styles.mention} role="note">
-        {brouillons > 0 ? (
-          <>
-            Cet aperçu inclut les <strong>brouillons</strong> ({brouillons} sur{" "}
-            {ateliers.length}) : ce que vous voyez ici n&rsquo;est donc{" "}
-            <strong>pas</strong> ce que voit le visiteur. Publiez un atelier depuis la liste
-            pour qu&rsquo;il apparaisse réellement.
-          </>
-        ) : (
-          <>
-            Tous les ateliers sont publiés : cet aperçu montre donc exactement ce que voit le
-            visiteur.
-          </>
-        )}
-      </p>
-
-      {/* ⚠️ LE TROU DE L'APERÇU, DÉCLARÉ. Il montre le catalogue, pas la page entière : la
-          prose des trois familles, le chapô et la phrase de clôture vivent sur /animations et
-          ne sont pas reproduits ici. Ne pas déclarer ce qu'une porte ou un aperçu NE couvre
-          pas, c'est laisser croire qu'il couvre tout (doctrine des exemptions déclarées). */}
-      <p className={styles.mention} role="note">
-        Seul le <strong>catalogue</strong> est prévisualisé. Sur le site, chaque liste
-        ci-dessous est précédée du texte de présentation de sa famille, qui reste affiché même
-        lorsque la liste est vide.
-      </p>
 
       {/* Le vocabulaire éditorial RÉEL, sur le fond RÉEL. `.band` porte `background: --navy`
           et le `padding-top` de la bande ; `.prose` porte la mesure de lecture et `--light`. */}

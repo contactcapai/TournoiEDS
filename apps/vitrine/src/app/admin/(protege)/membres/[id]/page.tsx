@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { MembreForm } from "@/components/admin/MembreForm/MembreForm";
 import { PortraitUploader } from "@/components/admin/PortraitUploader/PortraitUploader";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { sourcePortrait } from "@/lib/portraits";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getMemberById } from "@/server/db/queries/members";
@@ -49,7 +50,27 @@ export default async function ModifierMembrePage({
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier une fiche</h1>
+      <TitrePage
+        info={[
+          aUnPortrait ? (
+            <>
+              Le portrait est <strong>recadré en carré</strong> à l&rsquo;affichage, à partir du
+              haut — c&rsquo;est ce que montre sa vignette. Le fichier d&rsquo;origine, lui, garde
+              ses proportions. Retirer le portrait ne déplacerait rien sur le site : la carte
+              resterait à sa place, avec une silhouette.
+            </>
+          ) : (
+            <>
+              Cette fiche n&rsquo;a <strong>pas de portrait</strong>, et c&rsquo;est un état
+              tout à fait normal : sur la page « L&rsquo;asso », sa carte affiche une
+              silhouette, à la même place et à la même taille que les autres. Ajouter une photo
+              plus tard ne déplacera rien.
+            </>
+          ),
+        ]}
+      >
+        Modifier une fiche
+      </TitrePage>
       <p className={styles.chapo}>
         {membre.isPublished
           ? "Cette fiche est publiée : vos modifications sont visibles au rechargement suivant."
@@ -94,28 +115,6 @@ export default async function ModifierMembrePage({
         {membre.portrait !== null ? (
           <p className={propre.fichier}>{membre.portrait}</p>
         ) : null}
-
-        {/* 🔴 LA CONSÉQUENCE, DITE AVANT LE GESTE. Contrairement au logo d'un partenaire —
-            dont le retrait faisait DISPARAÎTRE l'entrée du bandeau de l'accueil —, retirer un
-            portrait ne change rien à la place de la carte. Le dire évite qu'on hésite à
-            publier une fiche sans photo, ou qu'on croie casser la mise en page. */}
-        <p className={styles.mention} role="note">
-          {aUnPortrait ? (
-            <>
-              Cette photo est <strong>recadrée en carré</strong> à l&rsquo;affichage, à partir
-              du haut — c&rsquo;est ce que montre la vignette ci-dessus. Le fichier
-              d&rsquo;origine, lui, garde ses proportions. Retirer le portrait ne déplacerait
-              rien sur le site : la carte resterait à sa place, avec une silhouette.
-            </>
-          ) : (
-            <>
-              Cette fiche n&rsquo;a <strong>pas de portrait</strong>, et c&rsquo;est un état
-              tout à fait normal : sur la page « L&rsquo;asso », sa carte affiche une
-              silhouette, à la même place et à la même taille que les autres. Ajouter une photo
-              plus tard ne déplacera rien.
-            </>
-          )}
-        </p>
 
         <PortraitUploader
           membreId={membre.id}

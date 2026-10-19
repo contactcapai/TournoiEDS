@@ -77,6 +77,12 @@ export default async function DetailSollicitationPage({
             Cette page est en <strong>lecture seule</strong>&nbsp;: on ne modifie pas une demande
             envoyée par quelqu&rsquo;un d&rsquo;autre.
           </>,
+          // Toujours vrai : `CHECK (consent_given = true)` (migration 0004).
+          <>
+            Cette personne a <strong>coché la case de consentement</strong> pour être
+            recontactée — c&rsquo;est ce qui vous autorise à lui répondre. Ne réutilisez pas son
+            adresse pour autre chose que cette demande.
+          </>,
         ]}
       >
         Demande de {expediteur}
@@ -165,17 +171,6 @@ export default async function DetailSollicitationPage({
           <dd className={propre.message}>{message}</dd>
         </div>
       </dl>
-
-      {/* 🔴 LE CONSENTEMENT EST UN FAIT ACQUIS, PAS UNE BRANCHE DE RENDU. Le
-          `CHECK (consent_given = true)` de la migration `0004` rend une ligne sans
-          consentement INEXISTANTE : `demande.consentGiven` vaut toujours `true`. On l'affiche
-          parce que le bénévole qui s'apprête à répondre doit pouvoir le voir — on ne teste
-          pas une condition qui ne peut pas être fausse. */}
-      <p className={styles.mention} role="note">
-        Cette personne a <strong>coché la case de consentement</strong> pour être recontactée —
-        c&rsquo;est ce qui vous autorise à lui répondre. Ne réutilisez pas son adresse pour
-        autre chose que cette demande.
-      </p>
 
       <div className={styles.section}>
         <h2 className={styles.sectionTitre}>Actions</h2>

@@ -57,6 +57,13 @@ export default async function AdminReseauxPage() {
             Donnez une image et deux mots de contexte : un texte vous est proposé pour chaque
             réseau. Vous les relisez, vous corrigez, et vous envoyez. Rien ne part avant.
           </>,
+          ...(RESEAUX_CABLES.length > 0
+            ? [
+                <>
+                  Un envoi paraîtra sur <strong>{listerReseaux()}</strong>.
+                </>,
+              ]
+            : []),
         ]}
       >
         Réseaux
@@ -68,11 +75,7 @@ export default async function AdminReseauxPage() {
           Vous pouvez composer et copier les textes, mais un envoi ne fera paraître l&rsquo;annonce
           nulle part.
         </p>
-      ) : (
-        <p className={styles.mention}>
-          Un envoi paraîtra sur <strong>{listerReseaux()}</strong>.
-        </p>
-      )}
+      ) : null}
 
       <ComposeurReseaux evenements={evenements} images={images} />
     </>

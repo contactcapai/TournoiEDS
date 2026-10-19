@@ -96,8 +96,8 @@ export default async function ApercuGaleriePage() {
     <>
       {/* ⚠️ FORMULATION EXACTE, ET C'EST LE CORRECTIF DE FOND : cet écran ne montre pas
           l'accueil d'aujourd'hui, il montre l'accueil **si tout ce qui suit était publié**.
-          Les deux coïncident quand il n'y a aucun brouillon, et la mention ci-dessous dit
-          laquelle des deux on regarde. */}
+          Les deux coïncident quand il n'y a aucun brouillon, et le « i » dit laquelle des deux
+          on regarde. */}
       <TitrePage
         info={[
           <>
@@ -105,6 +105,15 @@ export default async function ApercuGaleriePage() {
             l&rsquo;accueil <strong>si tout ce qui suit était publié</strong> — les{" "}
             {HOME_PHOTO_COUNT} premières photos de votre ordre.
           </>,
+          brouillons > 0 ? (
+            <>
+              Cet aperçu inclut <strong>{brouillons} brouillon{brouillons > 1 ? "s" : ""}</strong>,
+              pour que vous voyiez le rendu avant de publier. Sur le site public, seules les
+              photos <strong>publiées</strong> comptent dans les {HOME_PHOTO_COUNT}.
+            </>
+          ) : (
+            "Toutes les photos ci-dessous sont publiées : c'est exactement ce que voit un visiteur de l'accueil aujourd'hui."
+          ),
         ]}
       >
         Aperçu de la galerie
@@ -118,25 +127,6 @@ export default async function ApercuGaleriePage() {
           Téléverser des photos
         </Link>
       </div>
-
-      {/* 🔴 LA BORNE EST DITE, PAS TUE. L'aperçu inclut les brouillons pour qu'on voie le
-          rendu final ; sur le site, seules les photos PUBLIÉES comptent dans les 8. Un écran
-          muet là-dessus se ferait lire comme exhaustif — corollaire de
-          `pieges/garde-nominale.md` appliqué à un écran plutôt qu'à une porte. */}
-      <p className={styles.mention} role="note">
-        {brouillons > 0 ? (
-          <>
-            Cet aperçu inclut <strong>{brouillons} brouillon{brouillons > 1 ? "s" : ""}</strong>,
-            pour que vous voyiez le rendu avant de publier. Sur le site public, seules les
-            photos <strong>publiées</strong> comptent dans les {HOME_PHOTO_COUNT}.
-          </>
-        ) : (
-          <>
-            Toutes les photos ci-dessous sont publiées : c&rsquo;est exactement ce que voit un
-            visiteur de l&rsquo;accueil aujourd&rsquo;hui.
-          </>
-        )}
-      </p>
 
       {/* 🔴 LA CONSÉQUENCE QUE PERSONNE NE DEVINE, ET QUE LA PREMIÈRE VERSION DE CET ÉCRAN
           CACHAIT PUREMENT ET SIMPLEMENT : l'accueil ne montre que 8 photos. Publier un

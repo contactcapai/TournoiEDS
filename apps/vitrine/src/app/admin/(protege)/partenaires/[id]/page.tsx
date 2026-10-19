@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { LogoUploader } from "@/components/admin/LogoUploader/LogoUploader";
 import { PartenaireForm } from "@/components/admin/PartenaireForm/PartenaireForm";
+import { TitrePage } from "@/components/admin/TitrePage/TitrePage";
 import { estLogoDuVolume, sourceLogo } from "@/lib/logos";
 import { exigerRolePage } from "@/server/auth/guard";
 import { getPartnerByIdForAdmin } from "@/server/db/queries/partners";
@@ -51,7 +52,34 @@ export default async function ModifierPartenairePage({
 
   return (
     <>
-      <h1 className={styles.titre}>Modifier un partenaire</h1>
+      {/* Sans logo, l'entrée reste sur /partenaires mais sort du bandeau de l'accueil
+          (`logo IS NOT NULL` dans `queries/partners.ts`). */}
+      <TitrePage
+        info={[
+          dansLeBandeau ? (
+            <>
+              Ce partenaire est <strong>dans le bandeau de l&rsquo;accueil</strong> : il est
+              publié et il a un logo. Retirer son logo l&rsquo;en ferait sortir — il resterait
+              sur la page Partenaires, avec son nom à la place du logo.
+            </>
+          ) : aUnLogo ? (
+            <>
+              Ce partenaire a un logo mais n&rsquo;est <strong>pas publié</strong> : il
+              n&rsquo;apparaît ni sur l&rsquo;accueil, ni sur la page Partenaires. Publiez-le
+              depuis la liste pour qu&rsquo;il entre dans le bandeau.
+            </>
+          ) : (
+            <>
+              Ce partenaire n&rsquo;a <strong>pas de logo</strong> : il est donc absent du
+              bandeau de l&rsquo;accueil, qui est un bandeau de logos. Sur la page Partenaires,
+              sa tuile affiche son <strong>nom</strong> — ce n&rsquo;est pas un trou, c&rsquo;est
+              le rendu prévu.
+            </>
+          ),
+        ]}
+      >
+        Modifier un partenaire
+      </TitrePage>
       <p className={styles.chapo}>
         {partenaire.isPublished
           ? "Ce partenaire est publié : vos modifications sont visibles au rechargement suivant."
@@ -98,33 +126,6 @@ export default async function ModifierPartenairePage({
         {partenaire.logo !== null ? (
           <p className={propre.fichier}>{partenaire.logo}</p>
         ) : null}
-
-        {/* 🔴 LA CONSÉQUENCE, DITE AVANT LE GESTE (AC7). Sans logo, l'entrée existe pleinement
-            sur /partenaires — mais elle est ABSENTE du bandeau de l'accueil. Personne ne le
-            devine : c'est une décision prise dans `queries/partners.ts` (`logo IS NOT NULL`),
-            à trois fichiers d'ici. */}
-        <p className={styles.mention} role="note">
-          {dansLeBandeau ? (
-            <>
-              Ce partenaire est <strong>dans le bandeau de l&rsquo;accueil</strong> : il est
-              publié et il a un logo. Retirer son logo l&rsquo;en ferait sortir — il resterait
-              sur la page Partenaires, avec son nom à la place du logo.
-            </>
-          ) : aUnLogo ? (
-            <>
-              Ce partenaire a un logo mais n&rsquo;est <strong>pas publié</strong> : il
-              n&rsquo;apparaît ni sur l&rsquo;accueil, ni sur la page Partenaires. Publiez-le
-              depuis la liste pour qu&rsquo;il entre dans le bandeau.
-            </>
-          ) : (
-            <>
-              Ce partenaire n&rsquo;a <strong>pas de logo</strong> : il est donc absent du
-              bandeau de l&rsquo;accueil, qui est un bandeau de logos. Sur la page Partenaires,
-              sa tuile affiche son <strong>nom</strong> — ce n&rsquo;est pas un trou, c&rsquo;est
-              le rendu prévu.
-            </>
-          )}
-        </p>
 
         <LogoUploader
           partenaireId={partenaire.id}
